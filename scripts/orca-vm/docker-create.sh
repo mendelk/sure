@@ -10,10 +10,13 @@ ensure_ssh_key
 image="${ORCA_IMAGE:-$(state_value image)}"
 project_root="${ORCA_PROJECT_ROOT:-$(state_value projectRoot)}"
 ssh_username="${ORCA_SSH_USERNAME:-$(state_value sshUsername)}"
-recipe_id="${ORCA_RECIPE_ID:-docker-devcontainer}"
-instance_id="${ORCA_VM_INSTANCE_ID:-$(date +%s)}"
-project_name="orca-${recipe_id}-${instance_id}"
+worktree_path="${ORCA_WORKTREE_PATH:-$repo_root}"
+worktree_path="$(cd "$worktree_path" && pwd)"
+worktree_name="$(basename "$worktree_path")"
+worktree_hash="$(node -e 'process.stdout.write(require("node:crypto").createHash("sha256").update(process.argv[1]).digest("hex").slice(0, 10))' "$worktree_path")"
+project_name="sure-${worktree_name}-${worktree_hash}"
 project_name="$(printf '%s' "$project_name" | tr '[:upper:].' '[:lower:]-' | tr -cd 'a-z0-9_-')"
+shared_project_name="sure-orca-shared"
 
 docker image inspect "$image" >/dev/null 2>&1 || {
   echo "Workspace image $image is missing; run docker-base-build.sh first" >&2
@@ -23,6 +26,7 @@ docker image inspect "$image" >/dev/null 2>&1 || {
 export ORCA_IMAGE="$image"
 export ORCA_SSH_PUBLIC_KEY
 ORCA_SSH_PUBLIC_KEY="$(cat "$key_file.pub")"
+export ORCA_WORKTREE_PATH="$worktree_path"
 
 cleanup_on_error() {
   if [[ "$?" -ne 0 ]]; then
@@ -31,6 +35,8 @@ cleanup_on_error() {
 }
 trap cleanup_on_error EXIT
 
+docker volume inspect sure-orca-shared-postgres >/dev/null 2>&1 || docker volume create sure-orca-shared-postgres >/dev/null
+docker compose --project-name "$shared_project_name" --file "$shared_compose_file" up --detach --wait >&2
 docker compose --project-name "$project_name" --file "$compose_file" up --detach >&2
 
 container_id="$(docker compose --project-name "$project_name" --file "$compose_file" ps --quiet app)"
@@ -59,8 +65,28 @@ ssh -i "$key_file" -p "$ssh_port" \
   -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
   "$ssh_username@127.0.0.1" 'test -d /workspace && ruby --version && node --version' >&2
 
+for _ in $(seq 1 300); do
+  http_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 2 "http://127.0.0.1:$rails_port" || true)"
+  if [[ "$http_code" != "000" ]]; then
+    break
+  fi
+
+  if docker exec "$container_id" test -f /tmp/sure-workspace.exit; then
+    echo "Workspace startup failed:" >&2
+    docker exec "$container_id" tail -n 100 /tmp/sure-workspace.log >&2
+    exit 1
+  fi
+  sleep 1
+done
+
+if [[ "${http_code:-000}" == "000" ]]; then
+  echo "Rails did not become ready on port $rails_port within 5 minutes" >&2
+  docker exec "$container_id" tail -n 100 /tmp/sure-workspace.log >&2
+  exit 1
+fi
+
 node -e '
-  const [root, port, user, key, project, image, railsPort] = process.argv.slice(1);
+  const [root, port, user, key, project, image, railsPort, worktreePath, sharedProject] = process.argv.slice(1);
   console.log(JSON.stringify({
     schemaVersion: 1,
     connection: {
@@ -81,9 +107,11 @@ node -e '
       resourceId: project,
       image,
       sshPort: Number(port),
-      railsPort: Number(railsPort)
+      railsPort: Number(railsPort),
+      worktreePath,
+      sharedProject
     }
   }));
-' "$project_root" "$ssh_port" "$ssh_username" "$key_file" "$project_name" "$image" "$rails_port"
+' "$project_root" "$ssh_port" "$ssh_username" "$key_file" "$project_name" "$image" "$rails_port" "$worktree_path" "$shared_project_name"
 
 trap - EXIT

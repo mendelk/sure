@@ -5,6 +5,7 @@ repo_root="$(cd "$script_dir/../.." && pwd)"
 state_file="$script_dir/docker-state.json"
 state_example="$script_dir/docker-state.example.json"
 compose_file="$script_dir/docker-compose.yml"
+shared_compose_file="$script_dir/docker-compose.shared.yml"
 key_file="$script_dir/id_ed25519"
 
 ensure_state() {
