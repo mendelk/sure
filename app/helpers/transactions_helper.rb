@@ -20,9 +20,61 @@ module TransactionsHelper
     transaction_search_filters[0]
   end
 
+  def transaction_search_autocomplete_filters
+    [
+      autocomplete_options_filter("account", "account", "q[accounts][]"),
+      {
+        key: "date",
+        label: t("transactions.search.filters.date"),
+        kind: "branch",
+        options: [
+          autocomplete_value_filter("start-date", t("transactions.searches.filters.date_filter.start_date"), "q[start_date]"),
+          autocomplete_value_filter("end-date", t("transactions.searches.filters.date_filter.end_date"), "q[end_date]")
+        ]
+      },
+      autocomplete_options_filter("type", "type", "q[types][]"),
+      autocomplete_options_filter("status", "status", "q[status][]"),
+      {
+        key: "amount",
+        label: t("transactions.search.filters.amount"),
+        kind: "branch",
+        options: [
+          autocomplete_value_filter("amount-equal", t("transactions.searches.filters.amount_filter.equal_to"), "q[amount]", operator: "equal"),
+          autocomplete_value_filter("amount-greater", t("transactions.searches.filters.amount_filter.greater_than"), "q[amount]", operator: "greater"),
+          autocomplete_value_filter("amount-less", t("transactions.searches.filters.amount_filter.less_than"), "q[amount]", operator: "less")
+        ]
+      },
+      autocomplete_options_filter("category", "category", "q[categories][]"),
+      autocomplete_options_filter("tag", "tag", "q[tags][]"),
+      autocomplete_options_filter("merchant", "merchant", "q[merchants][]")
+    ]
+  end
+
   def in_split_group?(entry, params_grouped)
     entry.split_child? && Current.user.show_split_grouped? && params_grouped == "true"
   end
+
+  private
+    def autocomplete_options_filter(key, translation_key, input_name)
+      {
+        key: key,
+        label: t("transactions.search.filters.#{translation_key}"),
+        kind: "options",
+        inputName: input_name
+      }
+    end
+
+    def autocomplete_value_filter(key, label, input_name, operator: nil)
+      {
+        key: key,
+        label: label,
+        kind: "value",
+        inputName: input_name,
+        operator: operator
+      }.compact
+    end
+
+  public
 
   # ---- Transaction extra details helpers ----
   # Returns a structured hash describing extra details for a transaction.

@@ -63,12 +63,6 @@ pt-BR:
           greater_than: Maior que
           less_than: Menor que
           placeholder: '0'
-        badge:
-          expense: Despesa
-          income: Receita
-          on_or_after: em ou após %{date}
-          on_or_before: em ou antes de %{date}
-          transfer: Transferência
         type_filter:
           expense: Despesa
           income: Receita
@@ -84,9 +78,5 @@ pt-BR:
         merchant_filter: Comerciante
         tag_filter: Tag
         type_filter: Tipo
-      search:
-        equal_to: igual a
-        greater_than: maior que
-        less_than: menor que
       form:
         toggle_selection_checkboxes: Alternar todas as caixas de seleção

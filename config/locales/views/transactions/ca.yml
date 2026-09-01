@@ -232,14 +232,6 @@ ca:
           greater_than: Major que
           less_than: Menor que
           placeholder: '0'
-        badge:
-          confirmed: Confirmada
-          expense: Despesa
-          income: Ingrés
-          on_or_after: el %{date} o després
-          on_or_before: el %{date} o abans
-          pending: Pendent
-          transfer: Transferència
         date_filter:
           end_date: Data de fi
           start_date: Data d'inici
@@ -266,10 +258,6 @@ ca:
         status_filter: Estat
         tag_filter: Etiqueta
         type_filter: Tipus
-      search:
-        equal_to: igual a
-        greater_than: major que
-        less_than: menor que
     selection_bar:
       duplicate: Duplica
       edit: Edita

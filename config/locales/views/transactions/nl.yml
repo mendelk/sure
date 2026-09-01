@@ -156,14 +156,6 @@ nl:
           greater_than: Groter dan
           less_than: Kleiner dan
           placeholder: '0'
-        badge:
-          expense: Uitgave
-          income: Inkomsten
-          on_or_after: op of na %{date}
-          on_or_before: op of voor %{date}
-          transfer: Overboeking
-          confirmed: Bevestigd
-          pending: Wachtend
         type_filter:
           expense: Uitgave
           income: Inkomsten
@@ -183,9 +175,5 @@ nl:
         status_filter: Status
         tag_filter: Tag
         type_filter: Type
-      search:
-        equal_to: gelijk aan
-        greater_than: groter dan
-        less_than: kleiner dan
       form:
         toggle_selection_checkboxes: Schakel alle selectievakjes in/uit

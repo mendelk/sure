@@ -285,14 +285,6 @@ vi:
           greater_than: Lớn hơn
           less_than: Nhỏ hơn
           placeholder: '0'
-        badge:
-          expense: Chi tiêu
-          income: Thu nhập
-          on_or_after: từ ngày %{date} trở đi
-          on_or_before: đến ngày %{date}
-          transfer: Chuyển khoản
-          confirmed: Đã xác nhận
-          pending: Đang chờ
         type_filter:
           expense: Chi tiêu
           income: Thu nhập
@@ -312,10 +304,6 @@ vi:
         status_filter: Trạng thái
         tag_filter: Nhãn
         type_filter: Loại
-      search:
-        equal_to: bằng
-        greater_than: lớn hơn
-        less_than: nhỏ hơn
       form:
         toggle_selection_checkboxes: Bật/tắt tất cả ô chọn
         search_placeholder: "Tìm kiếm giao dịch ..."

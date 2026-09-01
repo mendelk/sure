@@ -234,14 +234,6 @@ tr:
           greater_than: Daha büyük
           less_than: Daha küçük
           placeholder: '0'
-        badge:
-          confirmed: Onaylandı
-          expense: Gider
-          income: Gelir
-          on_or_after: "%{date} veya sonrasında"
-          on_or_before: "%{date} veya öncesinde"
-          pending: Beklemede
-          transfer: Transfer
         category_filter:
           filter_category: Kategoriyi filtrele
         date_filter:
@@ -274,10 +266,6 @@ tr:
         status_filter: Durum
         tag_filter: Etiket
         type_filter: Tür
-      search:
-        equal_to: eşit
-        greater_than: daha büyük
-        less_than: daha küçük
     selection_bar:
       duplicate: Kopya
       edit: Düzenle

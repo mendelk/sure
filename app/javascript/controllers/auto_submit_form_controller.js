@@ -16,6 +16,7 @@ export default class extends Controller {
   }
 
   disconnect() {
+    clearTimeout(this.timeout);
     this.autoTargets.forEach((element) => {
       const event = this.#getTriggerEvent(element);
       element.removeEventListener(event, this.handleInput);
@@ -27,7 +28,7 @@ export default class extends Controller {
 
     clearTimeout(this.timeout);
     this.timeout = setTimeout(() => {
-      this.element.requestSubmit();
+      if (this.element.isConnected) this.element.requestSubmit();
     }, this.#debounceTimeout(target));
   };
 

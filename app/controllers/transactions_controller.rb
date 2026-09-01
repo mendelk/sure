@@ -92,35 +92,6 @@ class TransactionsController < ApplicationController
     @breadcrumbs = [ [ t("breadcrumbs.home"), root_path ], [ t("breadcrumbs.transactions"), nil ] ]
   end
 
-  def clear_filter
-    updated_params = {
-      "q" => search_params,
-      "page" => params[:page],
-      "per_page" => params[:per_page]
-    }
-
-    q_params = updated_params["q"] || {}
-
-    param_key = params[:param_key]
-    param_value = params[:param_value]
-
-    if q_params[param_key].is_a?(Array)
-      q_params[param_key].delete(param_value)
-      q_params.delete(param_key) if q_params[param_key].empty?
-    else
-      q_params.delete(param_key)
-    end
-
-    updated_params["q"] = q_params.presence
-
-    # Add flag to indicate filters were explicitly cleared
-    updated_params["filter_cleared"] = "1" if updated_params["q"].blank?
-
-    Current.session.update!(prev_transaction_page_params: updated_params)
-
-    redirect_to transactions_path(updated_params)
-  end
-
   def create
     account = Current.user.accessible_accounts.find_by(id: params.dig(:entry, :account_id))
 

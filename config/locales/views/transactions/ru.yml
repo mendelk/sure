@@ -245,14 +245,6 @@ ru:
           greater_than: Больше чем
           less_than: Меньше чем
           placeholder: '0'
-        badge:
-          confirmed: Подтверждено
-          expense: Расход
-          income: Доход
-          on_or_after: не ранее %{date}
-          on_or_before: не позднее %{date}
-          pending: В ожидании
-          transfer: Перевод
         category_filter:
           filter_category: Фильтр по категориям
         date_filter:
@@ -285,10 +277,6 @@ ru:
         status_filter: Статус
         tag_filter: Тег
         type_filter: Тип
-      search:
-        equal_to: равно
-        greater_than: больше чем
-        less_than: меньше чем
     selection_bar:
       duplicate: Дублировать
       edit: Редактировать

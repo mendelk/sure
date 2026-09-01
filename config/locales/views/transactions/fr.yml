@@ -216,14 +216,6 @@ fr:
           greater_than: Supérieur à
           less_than: Inférieur à
           placeholder: '0'
-        badge:
-          confirmed: Confirmée
-          expense: Dépense
-          income: Revenu
-          on_or_after: le %{date} et après
-          on_or_before: le %{date} et avant
-          pending: En attente
-          transfer: Virement
         category_filter:
           filter_category: Filtrer les catégories
         date_filter:
@@ -256,10 +248,6 @@ fr:
         status_filter: Statut
         tag_filter: Étiquette
         type_filter: Type
-      search:
-        equal_to: égal à
-        greater_than: supérieur à
-        less_than: inférieur à
     selection_bar:
       duplicate: Dupliquer
       edit: Modifier

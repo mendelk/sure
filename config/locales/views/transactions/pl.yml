@@ -189,14 +189,6 @@ pl:
           greater_than: Większe niż
           less_than: Mniejsze niż
           placeholder: '0'
-        badge:
-          expense: Wydatek
-          income: Przychód
-          on_or_after: od %{date}
-          on_or_before: do %{date}
-          transfer: Przelew
-          confirmed: Potwierdzone
-          pending: Oczekujące
         type_filter:
           expense: Wydatek
           income: Przychód
@@ -216,10 +208,6 @@ pl:
         status_filter: Status
         tag_filter: Tag
         type_filter: Typ
-      search:
-        equal_to: równe
-        greater_than: większe niż
-        less_than: mniejsze niż
       form:
         toggle_selection_checkboxes: Przełącz wszystkie pola wyboru
     attachments:

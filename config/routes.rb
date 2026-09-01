@@ -512,7 +512,7 @@ Rails.application.routes.draw do
     resources :attachments, only: %i[show create destroy], controller: :transaction_attachments
 
     collection do
-      delete :clear_filter
+      patch :update_preferences
     end
 
     member do

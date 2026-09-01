@@ -279,14 +279,6 @@ hu:
           greater_than: Nagyobb, mint
           less_than: Kisebb, mint
           placeholder: '0'
-        badge:
-          expense: Kiadás
-          income: Bevétel
-          on_or_after: "%{date} után"
-          on_or_before: "%{date} előtt"
-          transfer: Átutalás
-          confirmed: Megerősítve
-          pending: Függőben
         type_filter:
           expense: Kiadás
           income: Bevétel
@@ -306,10 +298,6 @@ hu:
         status_filter: Állapot
         tag_filter: Címke
         type_filter: Típus
-      search:
-        equal_to: egyenlő
-        greater_than: nagyobb, mint
-        less_than: kisebb, mint
       form:
         toggle_selection_checkboxes: Összes jelölőnégyzet be/ki
         search_placeholder: "Tranzakciók keresése..."

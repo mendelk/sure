@@ -202,14 +202,6 @@ de:
           greater_than: Größer als
           less_than: Kleiner als
           placeholder: '0'
-        badge:
-          expense: Ausgabe
-          income: Einnahme
-          on_or_after: am oder nach %{date}
-          on_or_before: am oder vor %{date}
-          transfer: Überweisung
-          confirmed: Bestätigt
-          pending: Ausstehend
         type_filter:
           expense: Ausgabe
           income: Einnahme
@@ -240,10 +232,6 @@ de:
         status_filter: Status
         tag_filter: Tag
         type_filter: Typ
-      search:
-        equal_to: gleich
-        greater_than: größer als
-        less_than: kleiner als
       form:
         toggle_selection_checkboxes: Alle Kontrollkästchen umschalten
         filter: Filtern
