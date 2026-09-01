@@ -111,7 +111,13 @@ tasks.json
 .taskmaster/reports/
 .taskmaster/state.json
 *.mcp.json
-scripts/
+/scripts/*
+!/scripts/orca-vm/
+!/scripts/orca-vm/**
+# Orca per-workspace environment state and SSH credentials
+/scripts/orca-vm/docker-state.json
+/scripts/orca-vm/id_ed25519
+/scripts/orca-vm/id_ed25519.pub
 .cursor/mcp.json
 .taskmasterconfig
 .windsurfrules
