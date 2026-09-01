@@ -1,0 +1,22 @@
+ARG BASE_IMAGE=sure-orca-devcontainer
+FROM ${BASE_IMAGE}
+
+RUN apt-get update -qq \
+  && apt-get -y install --no-install-recommends openssh-server rsync watchman \
+  && rm -rf /var/lib/apt/lists /var/cache/apt/archives \
+  && mkdir -p /run/sshd /root/.ssh \
+  && chmod 700 /root/.ssh \
+  && ssh-keygen -A \
+  && printf '%s\n' \
+    'PermitRootLogin prohibit-password' \
+    'PasswordAuthentication no' \
+    'PubkeyAuthentication yes' \
+    > /etc/ssh/sshd_config.d/orca.conf
+
+COPY .devcontainer/orca-ssh-entrypoint /usr/local/bin/orca-ssh-entrypoint
+
+RUN chmod 755 /usr/local/bin/orca-ssh-entrypoint
+
+EXPOSE 22
+
+ENTRYPOINT ["/usr/local/bin/orca-ssh-entrypoint"]

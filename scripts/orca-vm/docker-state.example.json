@@ -1,0 +1,5 @@
+{
+  "image": "sure-orca-devcontainer-ssh:latest",
+  "projectRoot": "/workspace",
+  "sshUsername": "root"
+}
