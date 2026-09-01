@@ -1,6 +1,8 @@
 services:
   app:
     image: ${ORCA_IMAGE:?ORCA_IMAGE is required}
+    stdin_open: true
+    tty: true
     environment:
       BINDING: "0.0.0.0"
       BUNDLE_PATH: /bundle
@@ -12,24 +14,17 @@ services:
       REDIS_URL: redis://redis:6379/1
       SELENIUM_REMOTE_URL: http://selenium:4444
     volumes:
-      - workspace:/workspace
+      - ${ORCA_WORKTREE_PATH:?ORCA_WORKTREE_PATH is required}:/workspace
       - bundle:/bundle
     ports:
       - 127.0.0.1::22
       - 127.0.0.1::3000
     depends_on:
-      - db
       - redis
       - selenium
-
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-    volumes:
-      - postgres:/var/lib/postgresql/data
+    networks:
+      - default
+      - shared
 
   redis:
     image: redis:latest
@@ -45,6 +40,9 @@ services:
 
 volumes:
   bundle:
-  postgres:
   redis:
-  workspace:
+
+networks:
+  shared:
+    external: true
+    name: sure-orca-shared
