@@ -39,9 +39,42 @@ class TransactionsTest < ApplicationSystemTestCase
 
     assert_selector "#" + dom_id(@transaction), count: 1
 
-    within "#transaction-search-filters" do
-      assert_text @transaction.name
-    end
+    assert_field "Search transactions ...", with: @transaction.name
+  end
+
+  test "can add and remove a category filter from search" do
+    category = @transaction.transaction.category
+
+    fill_in "Search transactions ...", with: "category:#{category.name}"
+    assert_selector "#transaction-filter-search-menu [role='option']", text: category.name
+    find("#q_search").send_keys(:enter)
+
+    assert_selector "[data-transaction-filter-search-target='tokens']", text: "Category: #{category.name}"
+    assert_selector "#" + dom_id(@transaction), count: 1
+
+    find("[data-transaction-filter-search-target='tokens'] button").click
+
+    assert_no_selector "[data-transaction-filter-search-target='tokens']", text: category.name
+  end
+
+  test "can add date and amount filters from search" do
+    start_date = 10.days.ago.to_date.iso8601
+
+    fill_in "Search transactions ...", with: "date:"
+    assert_selector "#transaction-filter-search-menu [role='option']", text: "Start date"
+    find("#q_search").send_keys(:enter)
+    fill_in "Search transactions ...", with: "start-date:#{start_date}"
+    find("#q_search").send_keys(:enter)
+
+    assert_selector "[data-transaction-filter-search-target='tokens']", text: "Start date: #{start_date}"
+
+    fill_in "Search transactions ...", with: "amount:greater"
+    assert_selector "#transaction-filter-search-menu [role='option']", text: "Greater than"
+    find("#q_search").send_keys(:enter)
+    fill_in "Search transactions ...", with: "amount-greater:200"
+    find("#q_search").send_keys(:enter)
+
+    assert_selector "[data-transaction-filter-search-target='tokens']", text: "Amount greater than: 200"
   end
 
   test "can open filters and apply one or more" do
@@ -56,9 +89,9 @@ class TransactionsTest < ApplicationSystemTestCase
 
     assert_selector "#" + dom_id(@transaction), count: 1
 
-    within "#transaction-search-filters" do
-      assert_text @transaction.account.name
-      assert_text @transaction.transaction.category.name
+    within "[data-transaction-filter-search-target='tokens']" do
+      assert_text "Account: #{@transaction.account.name}"
+      assert_text "Category: #{@transaction.transaction.category.name}"
     end
   end
 
@@ -127,14 +160,11 @@ class TransactionsTest < ApplicationSystemTestCase
 
     assert_text "No entries found"
 
-    # Remove all filters by clicking their X buttons
-    # Get all the filter buttons at once to avoid stale elements
-    filter_count = page.all("ul#transaction-search-filters li button").count
+    # Remove all filters using the search-field tokens.
+    filter_count = page.all("[data-transaction-filter-search-target='tokens'] button").count
 
-    # Click each one with a small delay to let Turbo update
     filter_count.times do
-      page.all("ul#transaction-search-filters li button").first.click
-      sleep 0.1
+      page.all("[data-transaction-filter-search-target='tokens'] button").first.click
     end
 
     assert_text @transaction.name

@@ -273,14 +273,6 @@ zh-CN:
           greater_than: 大于
           less_than: 小于
           placeholder: '0'
-        badge:
-          expense: 支出
-          income: 收入
-          on_or_after: 于 %{date} 当日或之后
-          on_or_before: 于 %{date} 当日或之前
-          transfer: 转账
-          confirmed: 已确认
-          pending: 待处理
         type_filter:
           expense: 支出
           income: 收入
@@ -308,10 +300,6 @@ zh-CN:
         status_filter: 状态
         tag_filter: 标签
         type_filter: 类型
-      search:
-        equal_to: 等于
-        greater_than: 大于
-        less_than: 小于
       form:
         toggle_selection_checkboxes: 切换所有复选框
         search_placeholder: 搜索交易...
