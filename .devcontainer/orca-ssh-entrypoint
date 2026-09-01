@@ -20,8 +20,9 @@ start_workspace() {
   [[ -f .env.test ]] || cp .env.test.example .env.test
   bin/setup
   rm -f tmp/pids/server.pid
-  exec bin/dev
+  bin/dev
 }
 
-start_workspace >/tmp/sure-workspace.log 2>&1 &
+rm -f /tmp/sure-workspace.exit
+(set +e; start_workspace; printf '%s\n' "$?" > /tmp/sure-workspace.exit) >/tmp/sure-workspace.log 2>&1 &
 exec /usr/sbin/sshd -D -e
