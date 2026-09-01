@@ -42,6 +42,25 @@ class TransactionsTest < ApplicationSystemTestCase
     assert_field "Search transactions ...", with: @transaction.name
   end
 
+  test "can start a category rule from a merchant" do
+    merchant = @transaction.transaction.merchant
+    category = @transaction.transaction.category
+
+    within "##{dom_id(@transaction)}" do
+      find("[data-testid='merchant-rule-menu-#{@transaction.transaction.id}-desktop'] button").click
+      click_link "Always categorize as #{category.name}"
+    end
+
+    within "turbo-frame#modal" do
+      assert_text "New transaction rule"
+      assert_selector "input[name='rule[name]'][value='#{merchant.name}']"
+      assert_selector "select[name*='[condition_type]'] option[selected][value='transaction_merchant']"
+      assert_selector "select[name*='conditions_attributes'][name*='[value]'] option[selected][value='#{merchant.id}']"
+      assert_selector "select[name*='[action_type]'] option[selected][value='set_transaction_category']"
+      assert_selector "select[name*='actions_attributes'][name*='[value]'] option[selected][value='#{category.id}']"
+    end
+  end
+
   test "can add and remove a category filter from search" do
     category = @transaction.transaction.category
 
