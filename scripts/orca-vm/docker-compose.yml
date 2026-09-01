@@ -1,0 +1,50 @@
+services:
+  app:
+    image: ${ORCA_IMAGE:?ORCA_IMAGE is required}
+    environment:
+      BINDING: "0.0.0.0"
+      BUNDLE_PATH: /bundle
+      DB_HOST: db
+      ORCA_SSH_PUBLIC_KEY: ${ORCA_SSH_PUBLIC_KEY:?ORCA_SSH_PUBLIC_KEY is required}
+      PORT: 3000
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      REDIS_URL: redis://redis:6379/1
+      SELENIUM_REMOTE_URL: http://selenium:4444
+    volumes:
+      - workspace:/workspace
+      - bundle:/bundle
+    ports:
+      - 127.0.0.1::22
+      - 127.0.0.1::3000
+    depends_on:
+      - db
+      - redis
+      - selenium
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    volumes:
+      - postgres:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    volumes:
+      - redis:/data
+
+  selenium:
+    image: selenium/standalone-chromium:latest
+    environment:
+      SE_NODE_MAX_SESSIONS: 4
+      SE_NODE_OVERRIDE_MAX_SESSIONS: "true"
+    shm_size: 2gb
+
+volumes:
+  bundle:
+  postgres:
+  redis:
+  workspace:
