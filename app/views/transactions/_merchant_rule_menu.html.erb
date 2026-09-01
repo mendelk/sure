@@ -1,0 +1,41 @@
+<%# locals: (transaction:, mobile:) %>
+
+<% merchant = transaction.merchant %>
+<% category = transaction.category %>
+
+<% if category.present? %>
+  <div class="<%= mobile ? "lg:hidden min-w-0" : "hidden lg:inline-flex min-w-0" %>">
+    <%= render DS::Menu.new(
+      variant: "button",
+      placement: "bottom-start",
+      offset: 4,
+      mobile_fullwidth: false,
+      max_width: "18rem",
+      testid: "merchant-rule-menu-#{transaction.id}-#{mobile ? "mobile" : "desktop"}"
+    ) do |menu| %>
+      <% menu.with_button(
+        type: "button",
+        class: "flex max-w-full min-w-0 cursor-pointer rounded-sm text-secondary hover:underline focus-ring",
+        aria: { label: t("transactions.merchant_rule_menu.merchant_button_label", merchant: merchant.name) }
+      ) do %>
+        <span class="truncate"><%= mobile ? "• #{merchant.name}" : "#{merchant.name} •" %></span>
+      <% end %>
+      <% menu.with_item(
+        variant: :link,
+        text: t("transactions.merchant_rule_menu.create_rule", category: category.name),
+        icon: "plus",
+        href: new_rule_path(
+          resource_type: "transaction",
+          merchant_id: merchant.id,
+          action_type: "set_transaction_category",
+          action_value: category.id
+        ),
+        frame: :modal
+      ) %>
+    <% end %>
+  </div>
+<% else %>
+  <span class="<%= mobile ? "lg:hidden min-w-0 truncate" : "hidden lg:inline truncate" %>">
+    <%= mobile ? "• #{merchant.name}" : "#{merchant.name} •" %>
+  </span>
+<% end %>
