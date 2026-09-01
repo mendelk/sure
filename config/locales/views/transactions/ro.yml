@@ -59,12 +59,6 @@ ro:
           greater_than: Mai mare decât
           less_than: Mai mic decât
           placeholder: '0'
-        badge:
-          expense: Cheltuială
-          income: Venit
-          on_or_after: pe sau după %{date}
-          on_or_before: pe sau înainte de %{date}
-          transfer: Transfer
         type_filter:
           expense: Cheltuială
           income: Venit
@@ -80,9 +74,5 @@ ro:
         merchant_filter: Comerciant
         tag_filter: Etichetă
         type_filter: Tip
-      search:
-        equal_to: egal cu
-        greater_than: mai mare decât
-        less_than: mai mic decât
       form:
         toggle_selection_checkboxes: Comută toate casetele de selectare

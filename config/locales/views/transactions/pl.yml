@@ -250,14 +250,6 @@ pl:
           greater_than: Większe niż
           less_than: Mniejsze niż
           placeholder: '0'
-        badge:
-          confirmed: Potwierdzone
-          expense: Wydatek
-          income: Przychód
-          on_or_after: od %{date}
-          on_or_before: do %{date}
-          pending: Oczekujące
-          transfer: Przelew
         category_filter:
           filter_category: Filtruj kategorię
         date_filter:

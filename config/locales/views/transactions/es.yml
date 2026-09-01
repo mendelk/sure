@@ -294,14 +294,6 @@ es:
           greater_than: Mayor que
           less_than: Menor que
           placeholder: '0'
-        badge:
-          expense: Gasto
-          income: Ingreso
-          on_or_after: en o después de %{date}
-          on_or_before: en o antes de %{date}
-          transfer: Transferencia
-          confirmed: Confirmada
-          pending: Pendiente
         type_filter:
           expense: Gasto
           income: Ingreso
@@ -321,10 +313,6 @@ es:
         status_filter: Estado
         tag_filter: Etiqueta
         type_filter: Tipo
-      search:
-        equal_to: igual a
-        greater_than: mayor que
-        less_than: menor que
       form:
         toggle_selection_checkboxes: Alternar todas las casillas
         search_placeholder: Buscar transacciones ...

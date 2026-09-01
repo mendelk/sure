@@ -294,14 +294,6 @@ zh-TW:
           greater_than: 大於
           less_than: 小於
           placeholder: '0'
-        badge:
-          expense: 支出
-          income: 收入
-          on_or_after: '%{date} 當日或之後'
-          on_or_before: '%{date} 當日或之前'
-          transfer: 轉帳
-          confirmed: 已確認
-          pending: 待處理
         type_filter:
           expense: 支出
           income: 收入
@@ -321,10 +313,6 @@ zh-TW:
         status_filter: 狀態
         tag_filter: 標籤
         type_filter: 類型
-      search:
-        equal_to: 等於
-        greater_than: 大於
-        less_than: 小於
       form:
         toggle_selection_checkboxes: 切換所有核取方塊
         search_placeholder: 搜尋交易...

@@ -60,12 +60,6 @@ nb:
           greater_than: Større enn
           less_than: Mindre enn
           placeholder: '0'
-        badge:
-          expense: Utgift
-          income: Inntekt
-          on_or_after: på eller etter %{date}
-          on_or_before: på eller før %{date}
-          transfer: Overføring
         type_filter:
           expense: Utgift
           income: Inntekt
@@ -81,9 +75,5 @@ nb:
         merchant_filter: Selger
         tag_filter: Tag
         type_filter: Type
-      search:
-        equal_to: lik
-        greater_than: større enn
-        less_than: mindre enn
       form:
         toggle_selection_checkboxes: Veksle alle avkryssingsbokser

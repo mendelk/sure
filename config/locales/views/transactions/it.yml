@@ -294,14 +294,6 @@ it:
           greater_than: Maggiore di
           less_than: Minore di
           placeholder: '0'
-        badge:
-          expense: Spesa
-          income: Entrata
-          on_or_after: dal %{date}
-          on_or_before: fino al %{date}
-          transfer: Bonifico
-          confirmed: Confermata
-          pending: In attesa
         type_filter:
           expense: Spesa
           income: Entrata
@@ -321,10 +313,6 @@ it:
         status_filter: Stato
         tag_filter: Etichetta
         type_filter: Tipo
-      search:
-        equal_to: uguale a
-        greater_than: maggiore di
-        less_than: minore di
       form:
         toggle_selection_checkboxes: Seleziona/deseleziona tutto
         search_placeholder: "Cerca transazioni ..."

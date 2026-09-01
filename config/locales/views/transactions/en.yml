@@ -327,16 +327,6 @@ en:
           greater_than: Greater than
           less_than: Less than
           placeholder: '0'
-        badge:
-          expense: Expense
-          income: Income
-          on_or_after: on or after %{date}
-          on_or_before: on or before %{date}
-          transfer: Transfer
-          confirmed: Confirmed
-          pending: Pending
-          ai_current: AI
-          ai_history: AI history
         ai_filter:
           current: AI
           current_description: Category is still the one assigned automatically (AI or Bayes).
@@ -361,14 +351,11 @@ en:
         status_filter: Status
         tag_filter: Tag
         type_filter: Type
-      search:
-        equal_to: equal to
-        greater_than: greater than
-        less_than: less than
       form:
         toggle_selection_checkboxes: Toggle all checkboxes
         search_placeholder: "Search transactions ..."
         filter: "Filter"
+        remove_filter: "Remove %{filter} filter"
     attachments:
       cannot_exceed: "Cannot exceed %{count} attachments per transaction"
       uploaded_one: "Attachment uploaded successfully"
