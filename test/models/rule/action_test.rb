@@ -140,6 +140,53 @@ class Rule::ActionTest < ActiveSupport::TestCase
     end
   end
 
+  test "set_transaction_merchant supports assigned provider merchants" do
+    merchant = ProviderMerchant.create!(
+      name: "Provider merchant #{SecureRandom.hex(4)}",
+      source: :plaid,
+      provider_merchant_id: SecureRandom.uuid
+    )
+    @txn3.update!(merchant: merchant)
+
+    action = Rule::Action.new(
+      rule: @transaction_rule,
+      action_type: "set_transaction_merchant",
+      value: merchant.id
+    )
+
+    Current.set(session: sessions(:one)) do
+      assert_includes action.options, [ merchant.name, merchant.id ]
+    end
+
+    assert_equal 2, action.apply(@rule_scope)
+    assert_equal merchant, @txn1.reload.merchant
+    assert_equal merchant, @txn2.reload.merchant
+    assert_equal merchant, @txn3.reload.merchant
+  end
+
+  test "set_transaction_merchant rejects unrelated provider merchants" do
+    merchant = ProviderMerchant.create!(
+      name: "Unrelated provider merchant #{SecureRandom.hex(4)}",
+      source: :plaid,
+      provider_merchant_id: SecureRandom.uuid
+    )
+
+    action = Rule::Action.new(
+      rule: @transaction_rule,
+      action_type: "set_transaction_merchant",
+      value: merchant.id
+    )
+
+    Current.set(session: sessions(:one)) do
+      assert_not_includes action.options, [ merchant.name, merchant.id ]
+    end
+
+    assert_equal 0, action.apply(@rule_scope)
+    assert_not_equal merchant, @txn1.reload.merchant
+    assert_not_equal merchant, @txn2.reload.merchant
+    assert_not_equal merchant, @txn3.reload.merchant
+  end
+
   test "set_transaction_name" do
     new_name = "Renamed Transaction"
 
