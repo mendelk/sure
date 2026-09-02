@@ -19,7 +19,7 @@ class FamilyMerchant < Merchant
     end
 
     def should_generate_logo?
-      website_url_changed? || (website_url.present? && logo_url.blank?)
+      (website_url_changed? && !logo_url_changed?) || (website_url.present? && logo_url.blank?)
     end
 
     def generate_logo_url_from_website

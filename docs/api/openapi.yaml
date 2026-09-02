@@ -1173,6 +1173,14 @@ components:
           format: uuid
         name:
           type: string
+        website_url:
+          type: string
+          format: uri
+          nullable: true
+        logo_url:
+          type: string
+          format: uri
+          nullable: true
     MerchantDetail:
       type: object
       required:
@@ -1192,12 +1200,48 @@ components:
           enum:
           - FamilyMerchant
           - ProviderMerchant
+        color:
+          type: string
+          nullable: true
+          description: Hex color used for the fallback avatar
+        website_url:
+          type: string
+          format: uri
+          nullable: true
+        logo_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Direct merchant logo URL
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+    MerchantRequest:
+      type: object
+      required:
+      - merchant
+      properties:
+        merchant:
+          type: object
+          properties:
+            name:
+              type: string
+              description: Merchant name. Required when creating a merchant.
+            color:
+              type: string
+              description: Hex color used for the fallback avatar
+            website_url:
+              type: string
+              format: uri
+              nullable: true
+            logo_url:
+              type: string
+              format: uri
+              nullable: true
+              description: Direct merchant logo URL
     MerchantImportResult:
       type: object
       required:
@@ -6053,6 +6097,39 @@ paths:
                 items:
                   "$ref": "#/components/schemas/MerchantDetail"
     post:
+      summary: Create a merchant
+      tags:
+      - Merchants
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: merchant created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MerchantDetail"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: validation error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MerchantRequest"
+        required: true
+  "/api/v1/merchants/import":
+    post:
       summary: Import merchants from CSV
       tags:
       - Merchants
@@ -6090,7 +6167,8 @@ paths:
                   type: string
                   format: binary
         required: true
-        description: 'CSV file with columns: name* (required), color, website_url'
+        description: 'CSV file with columns: name* (required), color, website_url,
+          logo_url'
   "/api/v1/merchants/{id}":
     parameters:
     - name: id
@@ -6118,6 +6196,43 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+    patch:
+      summary: Update a merchant
+      tags:
+      - Merchants
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: merchant updated
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MerchantDetail"
+        '404':
+          description: merchant not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MerchantRequest"
+        required: true
+    delete:
+      summary: Delete a merchant
+      tags:
+      - Merchants
+      security:
+      - apiKeyAuth: []
+      responses:
+        '204':
+          description: merchant deleted
+        '404':
+          description: merchant not found
   "/api/v1/provider_connections":
     get:
       summary: Lists provider connection status summaries

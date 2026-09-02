@@ -656,7 +656,9 @@ RSpec.configure do |config|
             required: %w[id name],
             properties: {
               id: { type: :string, format: :uuid },
-              name: { type: :string }
+              name: { type: :string },
+              website_url: { type: :string, format: :uri, nullable: true },
+              logo_url: { type: :string, format: :uri, nullable: true }
             }
           },
           MerchantDetail: {
@@ -666,8 +668,26 @@ RSpec.configure do |config|
               id: { type: :string, format: :uuid },
               name: { type: :string },
               type: { type: :string, enum: %w[FamilyMerchant ProviderMerchant] },
+              color: { type: :string, nullable: true, description: 'Hex color used for the fallback avatar' },
+              website_url: { type: :string, format: :uri, nullable: true },
+              logo_url: { type: :string, format: :uri, nullable: true, description: 'Direct merchant logo URL' },
               created_at: { type: :string, format: :'date-time' },
               updated_at: { type: :string, format: :'date-time' }
+            }
+          },
+          MerchantRequest: {
+            type: :object,
+            required: %w[merchant],
+            properties: {
+              merchant: {
+                type: :object,
+                properties: {
+                  name: { type: :string, description: 'Merchant name. Required when creating a merchant.' },
+                  color: { type: :string, description: 'Hex color used for the fallback avatar' },
+                  website_url: { type: :string, format: :uri, nullable: true },
+                  logo_url: { type: :string, format: :uri, nullable: true, description: 'Direct merchant logo URL' }
+                }
+              }
             }
           },
           MerchantImportResult: {
