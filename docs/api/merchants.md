@@ -1,6 +1,6 @@
 # Merchants API
 
-The Merchants API allows external applications to retrieve and bulk-import merchants within Sure. Merchants represent payees or vendors associated with transactions.
+The Merchants API allows external applications to create, retrieve, update, delete, and bulk-import merchants within Sure. Merchants represent payees or vendors associated with transactions.
 
 ## Generated OpenAPI specification
 
@@ -8,7 +8,7 @@ The Merchants API allows external applications to retrieve and bulk-import merch
 - Regenerate the OpenAPI document with:
 
   ```sh
-  SWAGGER_DRY_RUN=0 bundle exec rspec spec/requests --format Rswag::Specs::SwaggerFormatter
+  RAILS_ENV=test bundle exec rake rswag:specs:swaggerize
   ```
 
   The task compiles the request specs and writes the result to [`docs/api/openapi.yaml`](openapi.yaml).
@@ -24,7 +24,7 @@ The Merchants API allows external applications to retrieve and bulk-import merch
 | Endpoint | Required scope |
 | --- | --- |
 | `GET` endpoints | `read` |
-| `POST /api/v1/merchants` (CSV import) | `write` |
+| `POST`, `PATCH`, and `DELETE` endpoints | `write` |
 
 ## Available endpoints
 
@@ -32,7 +32,10 @@ The Merchants API allows external applications to retrieve and bulk-import merch
 | --- | --- | --- |
 | `GET /api/v1/merchants` | `read` | List all merchants available to the family. |
 | `GET /api/v1/merchants/{id}` | `read` | Retrieve a single merchant by ID. |
-| `POST /api/v1/merchants` | `write` | Bulk-import merchants from a CSV file. |
+| `POST /api/v1/merchants` | `write` | Create a family merchant. |
+| `PATCH /api/v1/merchants/{id}` | `write` | Update a merchant. |
+| `DELETE /api/v1/merchants/{id}` | `write` | Delete or unlink a merchant. |
+| `POST /api/v1/merchants/import` | `write` | Bulk-import merchants from a CSV file. |
 
 Refer to the generated [`openapi.yaml`](openapi.yaml) for request/response schemas, reusable components, and security definitions.
 
@@ -56,6 +59,9 @@ A merchant response includes:
   "id": "uuid",
   "name": "Whole Foods",
   "type": "FamilyMerchant",
+  "color": "#e99537",
+  "website_url": "https://wholefoodsmarket.com",
+  "logo_url": "https://cdn.example.com/whole-foods.png",
   "created_at": "2024-01-15T10:30:00Z",
   "updated_at": "2024-01-15T10:30:00Z"
 }
@@ -67,7 +73,7 @@ Example request:
 
 ```http
 GET /api/v1/merchants
-Authorization: Bearer <access_token>
+X-Api-Key: <read-scoped-key>
 ```
 
 Example response:
@@ -75,17 +81,23 @@ Example response:
 ```json
 [
   {
-    "id": "550e8400-e29b-41d4-a716-446655440001",
-    "name": "Amazon",
-    "type": "FamilyMerchant",
-    "created_at": "2024-01-10T08:00:00Z",
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "Amazon",
+      "type": "FamilyMerchant",
+      "color": "#e99537",
+      "website_url": "https://amazon.com",
+      "logo_url": "https://cdn.example.com/amazon.png",
+      "created_at": "2024-01-10T08:00:00Z",
     "updated_at": "2024-01-10T08:00:00Z"
   },
   {
-    "id": "550e8400-e29b-41d4-a716-446655440002",
-    "name": "Starbucks",
-    "type": "ProviderMerchant",
-    "created_at": "2024-01-12T14:30:00Z",
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "name": "Starbucks",
+      "type": "ProviderMerchant",
+      "color": null,
+      "website_url": "https://starbucks.com",
+      "logo_url": "https://cdn.example.com/starbucks.png",
+      "created_at": "2024-01-12T14:30:00Z",
     "updated_at": "2024-01-12T14:30:00Z"
   }
 ]
@@ -108,14 +120,35 @@ When creating or updating transactions, you can assign a merchant using the `mer
 }
 ```
 
+## Creating and updating merchants
+
+Create a merchant with `POST /api/v1/merchants` and update one with `PATCH /api/v1/merchants/{id}`. Both endpoints accept `name`, `color`, `website_url`, and `logo_url` inside a `merchant` object. `name` is required when creating a merchant.
+
+```json
+{
+  "merchant": {
+    "name": "Coffee Shop",
+    "color": "#e99537",
+    "website_url": "https://coffeeshop.com",
+    "logo_url": "https://cdn.example.com/coffee-shop.png"
+  }
+}
+```
+
+Updating an assigned `ProviderMerchant` creates a family-owned copy and reassigns the family's transactions to it. This prevents changes from affecting other families that use the shared provider merchant. The response contains the new `FamilyMerchant` ID.
+
+## Deleting merchants
+
+`DELETE /api/v1/merchants/{id}` deletes a `FamilyMerchant` and returns `204 No Content`. For an assigned `ProviderMerchant`, it unlinks that merchant from the family's transactions without deleting the shared provider record.
+
 ## Importing merchants via CSV
 
-`POST /api/v1/merchants` accepts a `multipart/form-data` upload and bulk-creates `FamilyMerchant` records. Existing merchants with the same name are skipped (no update, no error).
+`POST /api/v1/merchants/import` accepts a `multipart/form-data` upload and bulk-creates `FamilyMerchant` records. Existing merchants with the same name are skipped (no update, no error). For compatibility, CSV uploads to `POST /api/v1/merchants` are also accepted.
 
 ### Request
 
 ```http
-POST /api/v1/merchants
+POST /api/v1/merchants/import
 Content-Type: multipart/form-data
 X-Api-Key: <write-scoped-key>
 
@@ -129,16 +162,17 @@ file=@merchants.csv
 | `name` | Yes | Merchant name. Rows with a blank name are skipped. |
 | `color` | No | Hex colour code (e.g. `#e99537`). Defaults to a random palette colour. |
 | `website_url` | No | Merchant website. Aliases accepted: `website url`, `website`. |
+| `logo_url` | No | Direct merchant logo URL. Aliases accepted: `logo url`, `logo`. |
 
 The header row is required. Column names are matched case-insensitively and extra spaces, underscores, and asterisks are ignored (e.g. `Name*`, `Website URL`, and `website_url` all match).
 
 Example CSV:
 
 ```csv
-name,color,website_url
-Coffee Shop,#e99537,https://coffeeshop.com
-Pizza Palace,#4da568,https://pizzapalace.com
-Bookstore,,
+name,color,website_url,logo_url
+Coffee Shop,#e99537,https://coffeeshop.com,https://cdn.example.com/coffee.png
+Pizza Palace,#4da568,https://pizzapalace.com,https://cdn.example.com/pizza.png
+Bookstore,,,
 ```
 
 ### Response — 201 Created
