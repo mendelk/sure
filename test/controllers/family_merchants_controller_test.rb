@@ -9,6 +9,7 @@ class FamilyMerchantsControllerTest < ActionDispatch::IntegrationTest
   test "index" do
     get family_merchants_path
     assert_response :success
+    assert_select "a[href=?]", transactions_path(q: { merchants: [ @merchant.name ] }), text: "View transactions"
   end
 
   test "new" do
