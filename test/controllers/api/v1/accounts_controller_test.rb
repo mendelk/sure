@@ -16,6 +16,13 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
       source: "web",
       display_key: "test_read_#{SecureRandom.hex(8)}"
     )
+    @read_write_api_key = ApiKey.create!(
+      user: @user,
+      name: "Test Read Write Key",
+      scopes: [ "read_write" ],
+      source: "mobile",
+      display_key: "test_read_write_#{SecureRandom.hex(8)}"
+    )
 
     @other_family_user.api_keys.active.destroy_all
     @other_family_api_key = ApiKey.create!(
@@ -79,6 +86,126 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
       family_account_names = @user.family.accounts.pluck(:name)
       assert_includes family_account_names, account["name"]
     end
+  end
+
+  test "should create a manual account with opening balance and common settings" do
+    opening_balance_date = Date.new(2025, 1, 15)
+
+    assert_difference -> { @user.family.accounts.count } => 1 do
+      post api_v1_accounts_url,
+        params: {
+          account: {
+            name: "API Checking",
+            balance: 1250.75,
+            currency: "USD",
+            account_type: "depository",
+            subtype: "checking",
+            opening_balance_date: opening_balance_date,
+            institution_name: "Example Bank",
+            institution_domain: "example.com",
+            notes: "Created through the API",
+            exclude_from_reports: true,
+            enable_category_matcher: false
+          }
+        },
+        headers: api_headers(@read_write_api_key)
+    end
+
+    assert_response :created
+    response_body = JSON.parse(response.body)
+    account = @user.family.accounts.find(response_body["id"])
+
+    assert_equal "Depository", account.accountable_type
+    assert_equal "checking", account.subtype
+    assert_equal "Example Bank", account.institution_name
+    assert_equal "example.com", account.institution_domain
+    assert_equal "Created through the API", account.notes
+    assert account.exclude_from_reports?
+    refute account.enable_category_matcher?
+    assert_equal opening_balance_date, account.valuations.opening_anchor.first.entry.date
+  end
+
+  test "should create every manual account type with type-specific details" do
+    requests = {
+      depository: { subtype: "savings" },
+      investment: { subtype: "brokerage" },
+      crypto: { subtype: "wallet", accountable: { tax_treatment: "tax_exempt" } },
+      property: {
+        subtype: "condominium",
+        accountable: {
+          year_built: 2012,
+          area_value: 900,
+          area_unit: "sqft",
+          address: { line1: "123 Main St", locality: "New York", region: "NY", country: "US", postal_code: "10001" }
+        }
+      },
+      vehicle: { accountable: { make: "Honda", model: "Civic", year: 2022, mileage_value: 12_000, mileage_unit: "mi" } },
+      other_asset: {},
+      credit_card: { accountable: { available_credit: 5000, minimum_payment: 50, apr: 19.99, annual_fee: 95, expiration_date: "2028-12-01" } },
+      loan: { subtype: "mortgage", accountable: { rate_type: "fixed", interest_rate: 6.125, term_months: 360, initial_balance: 300_000 } },
+      other_liability: {}
+    }
+
+    assert_difference -> { @user.family.accounts.count } => requests.size do
+      requests.each do |account_type, extra_params|
+        post api_v1_accounts_url,
+          params: {
+            account: {
+              name: "API #{account_type.to_s.humanize}",
+              balance: 1000,
+              account_type: account_type,
+              **extra_params
+            }
+          },
+          headers: api_headers(@read_write_api_key)
+
+        assert_response :created
+      end
+    end
+
+    assert_equal "tax_exempt", @user.family.accounts.find_by!(name: "API Crypto").crypto.tax_treatment
+    assert_equal "123 Main St", @user.family.accounts.find_by!(name: "API Property").property.address.line1
+    assert_equal "Honda", @user.family.accounts.find_by!(name: "API Vehicle").vehicle.make
+    assert_equal 5000, @user.family.accounts.find_by!(name: "API Credit card").credit_card.available_credit
+    assert_equal 360, @user.family.accounts.find_by!(name: "API Loan").loan.term_months
+  end
+
+  test "should require write scope to create an account" do
+    post api_v1_accounts_url,
+      params: { account: { name: "Forbidden", balance: 0, account_type: "depository" } },
+      headers: api_headers(@api_key)
+
+    assert_response :forbidden
+    assert_equal "insufficient_scope", JSON.parse(response.body)["error"]
+  end
+
+  test "should reject an invalid account type" do
+    assert_no_difference -> { @user.family.accounts.count } do
+      post api_v1_accounts_url,
+        params: { account: { name: "Invalid", balance: 0, account_type: "bank" } },
+        headers: api_headers(@read_write_api_key)
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal "Account type is invalid", JSON.parse(response.body)["message"]
+  end
+
+  test "should reject invalid type-specific details" do
+    assert_no_difference -> { @user.family.accounts.count } do
+      post api_v1_accounts_url,
+        params: {
+          account: {
+            name: "Invalid Crypto",
+            balance: 0,
+            account_type: "crypto",
+            accountable: { tax_treatment: "not-a-tax-treatment" }
+          }
+        },
+        headers: api_headers(@read_write_api_key)
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal "validation_failed", JSON.parse(response.body)["error"]
   end
 
   test "should only return active accounts" do

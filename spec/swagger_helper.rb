@@ -305,6 +305,71 @@ RSpec.configure do |config|
               pagination: { '$ref' => '#/components/schemas/Pagination' }
             }
           },
+          AccountCreateRequest: {
+            type: :object,
+            required: %w[account],
+            properties: {
+              account: {
+                type: :object,
+                required: %w[name balance account_type],
+                properties: {
+                  name: { type: :string },
+                  balance: { type: :number, description: 'Current/opening balance in major currency units' },
+                  currency: { type: :string, description: 'ISO currency code; defaults to the family currency' },
+                  account_type: {
+                    type: :string,
+                    enum: %w[depository investment crypto property vehicle other_asset credit_card loan other_liability]
+                  },
+                  subtype: { type: :string, nullable: true },
+                  opening_balance_date: { type: :string, format: :date, nullable: true },
+                  institution_name: { type: :string, nullable: true },
+                  institution_domain: { type: :string, nullable: true },
+                  notes: { type: :string, nullable: true },
+                  exclude_from_reports: { type: :boolean },
+                  enable_category_matcher: { type: :boolean },
+                  accountable: {
+                    '$ref' => '#/components/schemas/AccountableCreateDetails'
+                  }
+                }
+              }
+            }
+          },
+          AccountableCreateDetails: {
+            type: :object,
+            description: 'Type-specific manual account fields. Fields that do not apply to account_type are ignored.',
+            properties: {
+              tax_treatment: { type: :string, enum: %w[taxable tax_deferred tax_exempt] },
+              year_built: { type: :integer },
+              area_unit: { type: :string },
+              area_value: { type: :integer },
+              make: { type: :string },
+              model: { type: :string },
+              year: { type: :integer },
+              mileage_value: { type: :integer },
+              mileage_unit: { type: :string },
+              available_credit: { type: :number },
+              minimum_payment: { type: :number },
+              apr: { type: :number },
+              annual_fee: { type: :number },
+              expiration_date: { type: :string, format: :date },
+              rate_type: { type: :string },
+              interest_rate: { type: :number },
+              term_months: { type: :integer },
+              initial_balance: { type: :number },
+              address: {
+                type: :object,
+                properties: {
+                  line1: { type: :string },
+                  line2: { type: :string },
+                  locality: { type: :string },
+                  region: { type: :string },
+                  country: { type: :string },
+                  postal_code: { type: :string },
+                  county: { type: :string }
+                }
+              }
+            }
+          },
           FamilySettings: {
             type: :object,
             required: %w[id currency locale date_format month_start_day moniker default_account_sharing custom_enabled_currencies enabled_currencies created_at updated_at],
@@ -857,6 +922,46 @@ RSpec.configure do |config|
                 items: { '$ref' => '#/components/schemas/Transaction' }
               },
               pagination: { '$ref' => '#/components/schemas/Pagination' }
+            }
+          },
+          TransactionSplitRequest: {
+            type: :object,
+            required: %w[split],
+            properties: {
+              split: {
+                type: :object,
+                required: %w[splits],
+                properties: {
+                  splits: {
+                    type: :array,
+                    minItems: 1,
+                    items: {
+                      type: :object,
+                      required: %w[name amount],
+                      properties: {
+                        name: { type: :string },
+                        amount: {
+                          type: :number,
+                          description: 'User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.'
+                        },
+                        category_id: { type: :string, format: :uuid, nullable: true },
+                        excluded: { type: :boolean }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          TransactionSplit: {
+            type: :object,
+            required: %w[parent_transaction_id splits],
+            properties: {
+              parent_transaction_id: { type: :string, format: :uuid },
+              splits: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/Transaction' }
+              }
             }
           },
           TransferTransactionSide: {

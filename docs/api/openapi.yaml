@@ -467,6 +467,123 @@ components:
             "$ref": "#/components/schemas/AccountDetail"
         pagination:
           "$ref": "#/components/schemas/Pagination"
+    AccountCreateRequest:
+      type: object
+      required:
+      - account
+      properties:
+        account:
+          type: object
+          required:
+          - name
+          - balance
+          - account_type
+          properties:
+            name:
+              type: string
+            balance:
+              type: number
+              description: Current/opening balance in major currency units
+            currency:
+              type: string
+              description: ISO currency code; defaults to the family currency
+            account_type:
+              type: string
+              enum:
+              - depository
+              - investment
+              - crypto
+              - property
+              - vehicle
+              - other_asset
+              - credit_card
+              - loan
+              - other_liability
+            subtype:
+              type: string
+              nullable: true
+            opening_balance_date:
+              type: string
+              format: date
+              nullable: true
+            institution_name:
+              type: string
+              nullable: true
+            institution_domain:
+              type: string
+              nullable: true
+            notes:
+              type: string
+              nullable: true
+            exclude_from_reports:
+              type: boolean
+            enable_category_matcher:
+              type: boolean
+            accountable:
+              "$ref": "#/components/schemas/AccountableCreateDetails"
+    AccountableCreateDetails:
+      type: object
+      description: Type-specific manual account fields. Fields that do not apply to
+        account_type are ignored.
+      properties:
+        tax_treatment:
+          type: string
+          enum:
+          - taxable
+          - tax_deferred
+          - tax_exempt
+        year_built:
+          type: integer
+        area_unit:
+          type: string
+        area_value:
+          type: integer
+        make:
+          type: string
+        model:
+          type: string
+        year:
+          type: integer
+        mileage_value:
+          type: integer
+        mileage_unit:
+          type: string
+        available_credit:
+          type: number
+        minimum_payment:
+          type: number
+        apr:
+          type: number
+        annual_fee:
+          type: number
+        expiration_date:
+          type: string
+          format: date
+        rate_type:
+          type: string
+        interest_rate:
+          type: number
+        term_months:
+          type: integer
+        initial_balance:
+          type: number
+        address:
+          type: object
+          properties:
+            line1:
+              type: string
+            line2:
+              type: string
+            locality:
+              type: string
+            region:
+              type: string
+            country:
+              type: string
+            postal_code:
+              type: string
+            county:
+              type: string
     FamilySettings:
       type: object
       required:
@@ -755,13 +872,13 @@ components:
           type: string
         display_budgeted_spending_cents:
           type: integer
-        rolled_over_amount:
-          type: string
-        rolled_over_amount_cents:
-          type: integer
         actual_spending:
           type: string
         actual_spending_cents:
+          type: integer
+        rolled_over_amount:
+          type: string
+        rolled_over_amount_cents:
           type: integer
         available_to_spend:
           type: string
@@ -1571,6 +1688,51 @@ components:
             "$ref": "#/components/schemas/Transaction"
         pagination:
           "$ref": "#/components/schemas/Pagination"
+    TransactionSplitRequest:
+      type: object
+      required:
+      - split
+      properties:
+        split:
+          type: object
+          required:
+          - splits
+          properties:
+            splits:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required:
+                - name
+                - amount
+                properties:
+                  name:
+                    type: string
+                  amount:
+                    type: number
+                    description: 'User-facing cash-flow amount: expenses/outflows
+                      are negative and income/inflows are positive. Values must sum
+                      to the parent transaction cash-flow amount.'
+                  category_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  excluded:
+                    type: boolean
+    TransactionSplit:
+      type: object
+      required:
+      - parent_transaction_id
+      - splits
+      properties:
+        parent_transaction_id:
+          type: string
+          format: uuid
+        splits:
+          type: array
+          items:
+            "$ref": "#/components/schemas/Transaction"
     TransferTransactionSide:
       type: object
       required:
@@ -3329,6 +3491,38 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/AccountCollection"
+    post:
+      summary: Create a manual account
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: account created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AccountDetail"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: invalid account type
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AccountCreateRequest"
+        required: true
   "/api/v1/accounts/{id}":
     parameters:
     - name: id
@@ -4593,85 +4787,6 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/api/v1/insights":
-    get:
-      summary: List proactive insights
-      tags:
-      - Insights
-      security:
-      - apiKeyAuth: []
-      responses:
-        '200':
-          description: insights listed
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/InsightCollection"
-        '403':
-          description: preview features disabled
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-  "/api/v1/push_subscriptions":
-    post:
-      summary: Register an APNs device token
-      tags:
-      - Push Subscriptions
-      security:
-      - apiKeyAuth: []
-      parameters: []
-      responses:
-        '201':
-          description: token registered
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/PushSubscription"
-        '422':
-          description: invalid or conflicting subscription
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-              - token
-              - environment
-              - platform
-              properties:
-                token:
-                  type: string
-                environment:
-                  type: string
-                  enum:
-                  - sandbox
-                  - production
-                platform:
-                  type: string
-                  enum:
-                  - ios
-        required: true
-  "/api/v1/push_subscriptions/{id}":
-    parameters:
-    - name: id
-      in: path
-      required: true
-      schema:
-        type: string
-    delete:
-      summary: Unregister an APNs device token
-      tags:
-      - Push Subscriptions
-      security:
-      - apiKeyAuth: []
-      responses:
-        '204':
-          description: token unregistered
   "/api/v1/family_exports":
     get:
       summary: Lists family exports
@@ -5901,6 +6016,26 @@ paths:
                   type: string
                   description: CSV imports only. Column value that marks an amount
                     as an inflow when using custom_column strategy
+  "/api/v1/insights":
+    get:
+      summary: List proactive insights
+      tags:
+      - Insights
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: insights listed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/InsightCollection"
+        '403':
+          description: preview features disabled
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/api/v1/merchants":
     get:
       summary: List merchants
@@ -6012,6 +6147,65 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/push_subscriptions":
+    post:
+      summary: Register an APNs device token
+      tags:
+      - Push Subscriptions
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: token registered
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PushSubscription"
+        '422':
+          description: invalid or conflicting subscription
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - token
+              - environment
+              - platform
+              properties:
+                token:
+                  type: string
+                environment:
+                  type: string
+                  enum:
+                  - sandbox
+                  - production
+                platform:
+                  type: string
+                  enum:
+                  - ios
+        required: true
+  "/api/v1/push_subscriptions/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    delete:
+      summary: Unregister an APNs device token
+      tags:
+      - Push Subscriptions
+      security:
+      - apiKeyAuth: []
+      responses:
+        '204':
+          description: token unregistered
   "/api/v1/recurring_transactions":
     get:
       summary: List recurring transactions
@@ -7405,6 +7599,59 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/transactions/{transaction_id}/split":
+    parameters:
+    - name: transaction_id
+      in: path
+      required: true
+      description: Parent transaction ID
+      schema:
+        type: string
+        format: uuid
+    post:
+      summary: Split a transaction
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: transaction split
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TransactionSplit"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: transaction not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: split amounts do not match parent
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/TransactionSplitRequest"
+        required: true
   "/api/v1/transactions":
     get:
       summary: List transactions
