@@ -19,7 +19,7 @@
 
         <div class="max-w-full">
           <%= tag.div class: ["flex items-center gap-3 lg:gap-4 min-w-0"] do %>
-            <div class="hidden lg:flex">
+            <div class="hidden lg:flex shrink-0">
               <% if trade_logo_url.present? %>
                 <%= image_tag Setting.transform_brand_fetch_url(trade_logo_url),
                     class: "w-9 h-9 rounded-full border border-secondary",
