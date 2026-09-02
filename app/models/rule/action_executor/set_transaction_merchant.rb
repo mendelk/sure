@@ -4,11 +4,11 @@ class Rule::ActionExecutor::SetTransactionMerchant < Rule::ActionExecutor
   end
 
   def options
-    family.merchants.alphabetically.pluck(:name, :id)
+    family.available_merchants_for(Current.user).alphabetically.pluck(:name, :id)
   end
 
   def execute(transaction_scope, value: nil, ignore_attribute_locks: false, rule_run: nil)
-    merchant = family.merchants.find_by_id(value)
+    merchant = family.available_merchants.find_by_id(value)
     return 0 unless merchant
 
     scope = transaction_scope
