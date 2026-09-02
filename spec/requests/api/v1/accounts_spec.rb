@@ -40,7 +40,8 @@ RSpec.describe 'API V1 Accounts', type: :request do
       name: 'No Read Docs Key',
       key: key,
       scopes: %w[write],
-      source: 'web'
+      source: 'web',
+      display_key: "docs_no_read_#{SecureRandom.hex(8)}"
     ).tap { |api_key| api_key.save!(validate: false) }
   end
 
@@ -49,6 +50,7 @@ RSpec.describe 'API V1 Accounts', type: :request do
   let!(:checking_account) do
     Account.create!(
       family: family,
+      owner: user,
       name: 'Checking Account',
       balance: 1500.50,
       currency: 'USD',
@@ -59,6 +61,7 @@ RSpec.describe 'API V1 Accounts', type: :request do
   let!(:savings_account) do
     Account.create!(
       family: family,
+      owner: user,
       name: 'Savings Account',
       balance: 10000.00,
       currency: 'USD',
@@ -69,6 +72,7 @@ RSpec.describe 'API V1 Accounts', type: :request do
   let!(:credit_card) do
     Account.create!(
       family: family,
+      owner: user,
       name: 'Credit Card',
       balance: -500.00,
       currency: 'USD',
@@ -99,6 +103,53 @@ RSpec.describe 'API V1 Accounts', type: :request do
 
         let(:page) { 1 }
         let(:per_page) { 2 }
+
+        run_test!
+      end
+    end
+
+    post 'Create a manual account' do
+      tags 'Accounts'
+      security [ { apiKeyAuth: [] } ]
+      consumes 'application/json'
+      produces 'application/json'
+      parameter name: :body, in: :body, required: true,
+                schema: { '$ref' => '#/components/schemas/AccountCreateRequest' }
+
+      let(:body) do
+        {
+          account: {
+            name: 'API checking account',
+            balance: 1250.75,
+            currency: 'USD',
+            account_type: 'depository',
+            subtype: 'checking',
+            opening_balance_date: Date.current.to_s,
+            institution_name: 'Example Bank'
+          }
+        }
+      end
+
+      response '201', 'account created' do
+        schema '$ref' => '#/components/schemas/AccountDetail'
+
+        run_test!
+      end
+
+      response '403', 'insufficient scope' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { api_key_without_read_scope.plain_key }
+
+        run_test!
+      end
+
+      response '422', 'invalid account type' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:body) do
+          { account: { name: 'Invalid account', balance: 0, account_type: 'bank' } }
+        end
 
         run_test!
       end
