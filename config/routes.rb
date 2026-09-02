@@ -744,7 +744,7 @@ Rails.application.routes.draw do
       patch "auth/enable_ai", to: "auth#enable_ai"
 
       # Production API endpoints
-      resources :accounts, only: [ :index, :show ]
+      resources :accounts, only: [ :index, :show, :create ]
       resources :balances, only: [ :index, :show ]
       resources :budgets, only: [ :index, :show ]
       resources :budget_categories, only: [ :index, :show ]
@@ -756,7 +756,9 @@ Rails.application.routes.draw do
       resources :security_prices, only: [ :index, :show ]
       resources :tags, only: [ :index, :show, :create, :update, :destroy ]
 
-      resources :transactions, only: [ :index, :show, :create, :update, :destroy ]
+      resources :transactions, only: [ :index, :show, :create, :update, :destroy ] do
+        resource :split, only: :create, controller: "transaction_splits"
+      end
       resources :trades, only: [ :index, :show, :create, :update, :destroy ]
       resources :holdings, only: [ :index, :show ]
       resources :transfers, only: [ :index, :show ]
