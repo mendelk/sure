@@ -1,0 +1,18 @@
+require "fileutils"
+require "rbconfig"
+
+gem_root = File.expand_path("..", __dir__)
+extension_dir = File.join(gem_root, "ext", "prql_rb")
+lib_dir = File.join(gem_root, "lib")
+
+Dir.chdir(extension_dir) do
+  system RbConfig.ruby, "extconf.rb", exception: true
+  system ENV.fetch("MAKE", "make"), exception: true
+end
+
+destination_dir = File.join(lib_dir, "prql_rb")
+FileUtils.mkdir_p(destination_dir)
+FileUtils.cp(
+  File.join(extension_dir, "prql_rb.#{RbConfig::CONFIG.fetch("DLEXT")}"),
+  destination_dir
+)

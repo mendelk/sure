@@ -36,6 +36,12 @@
 /app/assets/builds/*
 !/app/assets/builds/.keep
 /public/assets
+/gems/**/target
+/gems/*/ext/**/Makefile
+/gems/*/ext/**/mkmf.log
+/gems/*/ext/**/.sitearchdir.time
+/gems/*/ext/**/*.bundle*
+/gems/*/lib/**/*.bundle
 
 # Ignore CI service files.
 /.github
