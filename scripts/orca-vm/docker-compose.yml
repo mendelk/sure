@@ -16,6 +16,7 @@ services:
     volumes:
       - ${ORCA_WORKTREE_PATH:?ORCA_WORKTREE_PATH is required}:/workspace
       - bundle:/bundle
+      - npm-cache:/root/.npm
     ports:
       - 127.0.0.1::22
       - 127.0.0.1::3000
@@ -40,6 +41,9 @@ services:
 
 volumes:
   bundle:
+  npm-cache:
+    external: true
+    name: sure-orca-shared-npm-cache
   redis:
 
 networks:
