@@ -1,0 +1,15 @@
+[package]
+name = "prql_rb"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+magnus = "0.8"
+prqlc = { version = "0.13.14", default-features = false }
+
+[profile.release.package.prqlc]
+strip = "debuginfo"
