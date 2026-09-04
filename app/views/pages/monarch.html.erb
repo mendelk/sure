@@ -13,7 +13,7 @@
   <div
     data-controller="monaco-editor"
     data-monaco-editor-language-value="sureql"
-    data-monaco-editor-submit-url-value="<%= dashboard_monarch_compile_path %>"
+    data-monaco-editor-submit-url-value="<%= dashboard_monarch_run_path %>"
     class="flex flex-col">
     <div class="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-tertiary">
       <label class="flex items-center gap-2 text-sm text-secondary">
@@ -101,9 +101,12 @@
       <span data-monaco-editor-target="count"></span>
     </div>
 
-    <div class="border-t border-tertiary">
-      <div class="flex items-center gap-2 px-4 py-2 border-b border-tertiary">
-        <span class="text-sm font-medium text-primary"><%= t("pages.monarch.sql_output") %></span>
+    <div class="border-t border-tertiary px-4 py-3">
+      <div class="flex items-center gap-2 pb-2">
+        <span class="text-sm font-medium text-primary"><%= t("pages.monarch.results_title") %></span>
+        <span
+          data-monaco-editor-target="resultMeta"
+          class="text-xs text-secondary tabular-nums"></span>
         <span
           data-monaco-editor-target="submitSpinner"
           hidden
@@ -112,9 +115,34 @@
           <%= t("pages.monarch.compiling") %>
         </span>
       </div>
-      <pre
-        data-monaco-editor-target="sqlOutput"
-        class="px-4 py-3 m-4 rounded-xl border border-primary bg-surface-inset overflow-auto text-sm font-mono text-primary whitespace-pre-wrap min-h-[80px] max-h-[240px]"><%= t("pages.monarch.sql_output_placeholder") %></pre>
+
+      <%= render DS::Tabs.new(active_tab: "sql") do |tabs| %>
+        <%= tabs.with_nav do |nav| %>
+          <%= nav.with_btn(id: "sql", label: t("pages.monarch.tab_sql")) %>
+          <%= nav.with_btn(id: "json", label: t("pages.monarch.tab_json")) %>
+          <%= nav.with_btn(id: "results", label: t("pages.monarch.tab_results")) %>
+        <% end %>
+
+        <%= tabs.with_panel(tab_id: "sql") do %>
+          <pre
+            data-monaco-editor-target="sqlOutput"
+            class="px-4 py-3 rounded-xl border border-primary bg-surface-inset overflow-auto text-sm font-mono text-primary whitespace-pre-wrap min-h-[80px] max-h-[320px]"><%= t("pages.monarch.sql_output_placeholder") %></pre>
+        <% end %>
+
+        <%= tabs.with_panel(tab_id: "json") do %>
+          <pre
+            data-monaco-editor-target="jsonOutput"
+            class="px-4 py-3 rounded-xl border border-primary bg-surface-inset overflow-auto text-xs font-mono text-primary whitespace-pre-wrap min-h-[80px] max-h-[320px]"><%= t("pages.monarch.json_placeholder") %></pre>
+        <% end %>
+
+        <%= tabs.with_panel(tab_id: "results") do %>
+          <div
+            data-monaco-editor-target="resultsOutput"
+            class="min-h-[80px] max-h-[480px] overflow-auto text-sm text-primary">
+            <p class="px-4 py-3 rounded-xl border border-primary bg-surface-inset text-secondary"><%= t("pages.monarch.results_placeholder") %></p>
+          </div>
+        <% end %>
+      <% end %>
     </div>
 
     <template data-monaco-editor-target="source"># sureql — app-specific PRQL dialect.
@@ -122,14 +150,7 @@
 # authz (your accessible accounts) is always applied by the backend.
 
 from transactions
-filter amount < 0
-group {account_id} (
-  aggregate {
-    total = sum amount,
-    n = count this,
-  }
-)
-sort [-total]
+sort {-date}
 take 10
 </template>
   </div>
