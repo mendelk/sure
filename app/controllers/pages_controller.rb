@@ -104,6 +104,10 @@ class PagesController < ApplicationController
     render layout: "settings"
   end
 
+  def monarch
+    @breadcrumbs = [ [ t("breadcrumbs.home"), root_path ], [ t("breadcrumbs.dashboard"), root_path ], [ t("pages.monarch.title"), nil ] ]
+  end
+
   def redis_configuration_error
     render layout: "blank"
   end
