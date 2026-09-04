@@ -16,7 +16,6 @@ FileUtils.chdir APP_ROOT do
   puts "== Installing dependencies =="
   system! "gem install bundler --conservative"
   system("bundle check") || system!("bundle install")
-  system! "bundle exec ruby gems/prql_rb/bin/compile"
 
   puts "\n== Building design tokens =="
   system! "npm install"
