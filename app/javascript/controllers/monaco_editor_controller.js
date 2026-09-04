@@ -2,14 +2,10 @@ import { Controller } from "@hotwired/stimulus";
 
 const MONACO_VERSION = "0.52.2";
 const MONACO_CDN = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION}/min/vs`;
-const PRQL_JS_VERSION = "0.12.1";
-const PRQL_JS_CDN = `https://cdn.jsdelivr.net/npm/prql-js@${PRQL_JS_VERSION}/dist/web`;
 const CUSTOM_LANGUAGE_ID = "sureql";
 const PRQL_LANGUAGE_ID = "prql";
 
 let monacoPromise = null;
-let prqlModule = null;
-let prqlInitPromise = null;
 
 function loadMonaco() {
   if (monacoPromise) return monacoPromise;
@@ -48,32 +44,6 @@ function loadMonaco() {
   return monacoPromise;
 }
 
-function loadPrqlJs() {
-  if (prqlInitPromise) return prqlInitPromise;
-
-  prqlInitPromise = (async () => {
-    if (prqlModule?.compile) return prqlModule;
-
-    prqlModule = await import(
-      /* webpackIgnore: true */ /* @vite-ignore */ `${PRQL_JS_CDN}/prql_js.js`
-    );
-
-    // The web build exports an async default init that loads the .wasm
-    // from the same URL (import.meta.url). We need to call it before
-    // using compile().
-    if (typeof prqlModule.default === "function") {
-      await prqlModule.default();
-    }
-
-    return prqlModule;
-  })().catch((err) => {
-    prqlInitPromise = null;
-    throw err;
-  });
-
-  return prqlInitPromise;
-}
-
 const PRQL_TRANSFORMS = [
   "aggregate",
   "append",
@@ -106,40 +76,31 @@ const PRQL_KEYWORDS = [
 ];
 const PRQL_LITERALS = ["null", "true", "false"];
 
-function registerPrql(monaco) {
-  if (monaco.languages.getLanguages().some((l) => l.id === PRQL_LANGUAGE_ID)) {
+// sureql is PRQL restricted to the app's source registry — reuse the
+// PRQL tokenizer, plus registry source names as keywords so `from
+// transactions` reads as a keyword.
+const SUREQL_SOURCES = ["transactions", "accounts"];
+
+function registerPrqlLanguage(monaco, id, extraKeywords = []) {
+  if (monaco.languages.getLanguages().some((l) => l.id === id)) {
     return;
   }
 
-  monaco.languages.register({ id: PRQL_LANGUAGE_ID });
+  monaco.languages.register({ id });
 
-  monaco.languages.setMonarchTokensProvider(PRQL_LANGUAGE_ID, {
+  monaco.languages.setMonarchTokensProvider(id, {
     keywords: [
       ...PRQL_TRANSFORMS,
       ...PRQL_MODULES,
       ...PRQL_BUILTIN_FUNCTIONS,
       ...PRQL_KEYWORDS,
       ...PRQL_LITERALS,
+      ...extraKeywords,
     ],
     operators: [
-      "+",
-      "-",
-      "*",
-      "/",
-      "//",
-      "%",
-      "==",
-      "!=",
-      "->",
-      "=>",
-      ">",
-      "<",
-      ">=",
-      "<=",
-      "~=",
-      "&&",
-      "||",
-      "??",
+      "+", "-", "*", "/", "//", "%",
+      "==", "!=", "->", "=>", ">", "<", ">=", "<=", "~=",
+      "&&", "||", "??",
     ],
     tokenizer: {
       root: [
@@ -155,10 +116,7 @@ function registerPrql(monaco) {
         [/"([^"\\]|\\.)*$/, "string.invalid"],
         [/"/, { token: "string.quote", bracket: "@open", next: "@string" }],
         [/'([^'\\]|\\.)*$/, "string.invalid"],
-        [
-          /'/,
-          { token: "string.quote", bracket: "@open", next: "@stringSingle" },
-        ],
+        [/'/, { token: "string.quote", bracket: "@open", next: "@stringSingle" }],
       ],
       comment: [[/#.*/, "comment"]],
       string: [
@@ -173,7 +131,7 @@ function registerPrql(monaco) {
     },
   });
 
-  monaco.languages.setLanguageConfiguration(PRQL_LANGUAGE_ID, {
+  monaco.languages.setLanguageConfiguration(id, {
     comments: { lineComment: "#" },
     brackets: [
       ["(", ")"],
@@ -187,77 +145,12 @@ function registerPrql(monaco) {
   });
 }
 
+function registerPrql(monaco) {
+  registerPrqlLanguage(monaco, PRQL_LANGUAGE_ID);
+}
+
 function registerSureql(monaco) {
-  if (
-    monaco.languages.getLanguages().some((l) => l.id === CUSTOM_LANGUAGE_ID)
-  ) {
-    return;
-  }
-
-  monaco.languages.register({ id: CUSTOM_LANGUAGE_ID });
-
-  // Monarch tokenizer: the "monarch" in "monarch editor". Keywords,
-  // functions, strings, numbers, comments and @annotations each get
-  // their own scope so themes can color them independently.
-  monaco.languages.setMonarchTokensProvider(CUSTOM_LANGUAGE_ID, {
-    keywords: [
-      "SELECT",
-      "FROM",
-      "WHERE",
-      "GROUP",
-      "BY",
-      "ORDER",
-      "LIMIT",
-      "AND",
-      "OR",
-      "NOT",
-      "IN",
-      "AS",
-      "DESC",
-      "ASC",
-    ],
-    functions: ["SUM", "AVG", "COUNT", "MIN", "MAX", "today", "start_of_month"],
-    tokenizer: {
-      root: [
-        [/--[^\n]*/, "comment"],
-        [/@[a-zA-Z_]\w*/, "annotation"],
-        [
-          /[a-zA-Z_]\w*(?=\s*\()/,
-          {
-            cases: {
-              "@functions": "type",
-              "@default": "identifier",
-            },
-          },
-        ],
-        [
-          /[a-zA-Z_]\w*/,
-          {
-            cases: {
-              "@keywords": "keyword",
-              "@default": "identifier",
-            },
-          },
-        ],
-        [/"([^"\\]|\\.)*"/, "string"],
-        [/\b\d+(\.\d+)?\b/, "number"],
-        [/[;,()]/, "delimiter"],
-        [/[<>=!]+/, "operator"],
-      ],
-    },
-  });
-
-  monaco.languages.setLanguageConfiguration(CUSTOM_LANGUAGE_ID, {
-    comments: { lineComment: "--" },
-    brackets: [
-      ["(", ")"],
-      ["[", "]"],
-    ],
-    autoClosingPairs: [
-      { open: "(", close: ")" },
-      { open: '"', close: '"' },
-    ],
-  });
+  registerPrqlLanguage(monaco, CUSTOM_LANGUAGE_ID, SUREQL_SOURCES);
 }
 
 // Connects to data-controller="monaco-editor"
@@ -275,7 +168,10 @@ export default class extends Controller {
     "submitBtn",
     "submitSpinner",
   ];
-  static values = { language: { type: String, default: CUSTOM_LANGUAGE_ID } };
+  static values = {
+    language: { type: String, default: CUSTOM_LANGUAGE_ID },
+    submitUrl: String,
+  };
 
   connect() {
     this.editor = null;
@@ -300,9 +196,6 @@ export default class extends Controller {
         registerSureql(monaco);
         registerPrql(monaco);
         this.buildEditor();
-        if (this.languageValue === PRQL_LANGUAGE_ID) {
-          loadPrqlJs().catch(() => {});
-        }
       })
       .catch(() => {
         this.loadingTarget.hidden = true;
@@ -362,7 +255,6 @@ export default class extends Controller {
       registerSureql(this.monaco);
     } else if (language === PRQL_LANGUAGE_ID) {
       registerPrql(this.monaco);
-      loadPrqlJs().catch(() => {});
     }
     this.monaco.editor.setModelLanguage(this.editor.getModel(), language);
   }
@@ -389,10 +281,10 @@ export default class extends Controller {
 
   async submit() {
     if (!this.editor) return;
-    if (this.languageValue !== PRQL_LANGUAGE_ID) return;
+    if (this.languageValue !== CUSTOM_LANGUAGE_ID) return;
 
-    const sql = this.editor.getValue();
-    if (!sql.trim()) return;
+    const source = this.editor.getValue();
+    if (!source.trim()) return;
 
     if (this.hasSubmitBtnTarget) this.submitBtnTarget.disabled = true;
     if (this.hasSubmitSpinnerTarget) this.submitSpinnerTarget.hidden = false;
@@ -402,23 +294,33 @@ export default class extends Controller {
     }
 
     try {
-      const prqljs = await loadPrqlJs();
-      const result = prqljs.compile(sql);
-      if (typeof result === "string" && result.length > 0) {
-        if (this.hasSqlOutputTarget) {
-          this.sqlOutputTarget.textContent = result;
+      const csrfToken = document.querySelector(
+        'meta[name="csrf-token"]',
+      )?.content;
+      const response = await fetch(this.submitUrlValue, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+        },
+        body: JSON.stringify({ source }),
+      });
+      const data = await response.json();
+      if (this.hasSqlOutputTarget) {
+        if (response.ok && data.sql) {
+          this.sqlOutputTarget.textContent = data.sql;
           this.sqlOutputTarget.classList.remove("text-destructive");
-        }
-      } else {
-        if (this.hasSqlOutputTarget) {
-          this.sqlOutputTarget.textContent = "(empty output — check your PRQL syntax)";
+        } else {
+          this.sqlOutputTarget.textContent =
+            data.error || "Failed to compile sureql";
           this.sqlOutputTarget.classList.add("text-destructive");
         }
       }
     } catch (err) {
       if (this.hasSqlOutputTarget) {
         this.sqlOutputTarget.textContent =
-          err?.message || "Failed to compile PRQL";
+          err?.message || "Failed to compile sureql";
         this.sqlOutputTarget.classList.add("text-destructive");
       }
     } finally {

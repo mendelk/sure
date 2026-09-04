@@ -10,12 +10,6 @@
 # Ignore bundler config.
 /.bundle
 /vendor/bundle
-/gems/**/target
-/gems/*/ext/**/Makefile
-/gems/*/ext/**/mkmf.log
-/gems/*/ext/**/.sitearchdir.time
-/gems/*/ext/**/*.bundle*
-/gems/*/lib/**/*.bundle
 
 # Ignore all environment files (except templates).
 /.env*

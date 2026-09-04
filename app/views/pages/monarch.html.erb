@@ -12,7 +12,8 @@
 <%= render DS::Card.new(class: "overflow-hidden !p-0") do %>
   <div
     data-controller="monaco-editor"
-    data-monaco-editor-language-value="prql"
+    data-monaco-editor-language-value="sureql"
+    data-monaco-editor-submit-url-value="<%= dashboard_monarch_compile_path %>"
     class="flex flex-col">
     <div class="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-tertiary">
       <label class="flex items-center gap-2 text-sm text-secondary">
@@ -21,7 +22,7 @@
           data-monaco-editor-target="language"
           data-action="change->monaco-editor#changeLanguage"
           class="text-sm text-primary bg-container-inset border border-primary rounded-lg px-2 py-1.5 focus-ring">
-          <option value="sureql">sureql (Monarch demo)</option>
+          <option value="sureql">sureql (app dialect)</option>
           <option value="prql">PRQL</option>
           <option value="javascript">JavaScript</option>
           <option value="ruby">Ruby</option>
@@ -116,30 +117,20 @@
         class="px-4 py-3 m-4 rounded-xl border border-primary bg-surface-inset overflow-auto text-sm font-mono text-primary whitespace-pre-wrap min-h-[80px] max-h-[240px]"><%= t("pages.monarch.sql_output_placeholder") %></pre>
     </div>
 
-    <template data-monaco-editor-target="source"># PRQL — try editing and hit Submit to compile to SQL
+    <template data-monaco-editor-target="source"># sureql — app-specific PRQL dialect.
+# `from` only accepts registry sources (transactions, accounts) and
+# authz (your accessible accounts) is always applied by the backend.
 
-from invoices
-filter invoice_date >= @1970-01-16
-derive {
-  transaction_fees = 0.8,
-  income = total - transaction_fees
-}
-filter income > 1
-group customer_id (
+from transactions
+filter amount < 0
+group {account_id} (
   aggregate {
-    average total,
-    sum_income = sum income,
-    ct = count total,
+    total = sum amount,
+    n = count this,
   }
 )
-sort {-sum_income}
+sort [-total]
 take 10
-join c=customers (==customer_id)
-derive name = f"{c.last_name}, {c.first_name}"
-select {
-  c.customer_id, name, sum_income
-}
-derive db_version = s"version()"
 </template>
   </div>
 <% end %>
