@@ -1,0 +1,12 @@
+require "rake/testtask"
+
+task :compile do
+  ruby File.expand_path("bin/compile", __dir__)
+end
+
+Rake::TestTask.new(test: :compile) do |test|
+  test.libs << File.expand_path("lib", __dir__)
+  test.pattern = File.expand_path("test/**/*_test.rb", __dir__)
+end
+
+task default: :test
