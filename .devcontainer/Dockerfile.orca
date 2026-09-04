@@ -17,6 +17,17 @@ COPY .devcontainer/orca-ssh-entrypoint /usr/local/bin/orca-ssh-entrypoint
 
 RUN chmod 755 /usr/local/bin/orca-ssh-entrypoint
 
+# Pre-bake gems so a fresh per-worktree bundle volume is seeded from the image
+# instead of downloading and compiling every gem on first boot. A fresh named
+# volume mounted at /bundle is auto-populated from the image contents.
+COPY Gemfile Gemfile.lock .ruby-version /bundle-setup/
+COPY gems/prql_rb /bundle-setup/gems/prql_rb
+RUN cd /bundle-setup \
+  && bundle config set --local path /bundle \
+  && bundle install --jobs "$(nproc)" \
+  && sha256sum Gemfile.lock > /etc/sure-gemfile-lock.sha256 \
+  && rm -rf /bundle-setup
+
 EXPOSE 22
 
 ENTRYPOINT ["/usr/local/bin/orca-ssh-entrypoint"]
