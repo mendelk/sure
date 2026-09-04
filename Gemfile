@@ -89,7 +89,9 @@ gem "webauthn", "~> 3.4"
 gem "activerecord-import"
 gem "rubyzip", "~> 2.3"
 gem "pdf-reader", "~> 2.12"
-gem "prql_rb", path: "gems/prql_rb", require: false
+# Once prql_rb is released to RubyGems.org with prebuilt platform gems,
+# switch to: gem "prql_rb", "~> 0.1"
+gem "prql_rb", github: "mendelk/prql_rb", require: false
 
 # OpenID Connect, OAuth & SAML authentication
 gem "omniauth", "~> 2.1"

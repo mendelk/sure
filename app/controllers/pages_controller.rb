@@ -108,6 +108,14 @@ class PagesController < ApplicationController
     @breadcrumbs = [ [ t("breadcrumbs.home"), root_path ], [ t("breadcrumbs.dashboard"), root_path ], [ t("pages.monarch.title"), nil ] ]
   end
 
+  def monarch_compile
+    source = params.require(:source)
+    sql = Sureql::Compiler.new(Current.user).call(source)
+    render json: { sql: sql }
+  rescue Sureql::UnknownSourceError, Sureql::CompileError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   def redis_configuration_error
     render layout: "blank"
   end

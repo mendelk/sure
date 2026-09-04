@@ -1,5 +1,6 @@
-PATH
-  remote: gems/prql_rb
+GIT
+  remote: https://github.com/mendelk/prql_rb.git
+  revision: d1efb90c4e124466fb39efc1a78e6122c003828c
   specs:
     prql_rb (0.1.0)
       rb_sys (~> 0.9)

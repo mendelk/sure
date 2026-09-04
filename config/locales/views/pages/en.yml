@@ -133,7 +133,7 @@ en:
       load_failed: "Could not load the Monaco editor from the CDN. Check your connection and reload."
       position_line: "Ln %{line}, Col %{column}"
       characters: "%{count} characters"
-      custom_language_hint: "PRQL is tokenized with a Monarch definition ported from the PRQL playground. Edit and hit Submit to compile to SQL."
+      custom_language_hint: "sureql is PRQL restricted to the app's source registry — the backend injects your account-access authorization before compiling to SQL."
       submit: "Submit"
       compiling: "Compiling…"
       sql_output: "SQL Output"

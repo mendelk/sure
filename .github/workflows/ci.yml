@@ -4,30 +4,6 @@ on:
   workflow_call:
 
 jobs:
-  test_prql_rb:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Install native build packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y clang libclang-dev
-
-      - name: Checkout code
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@97ecb7b512899eb71ab1bf2310a624c6f1589ac6 # v1.308.0
-        with:
-          ruby-version: .ruby-version
-          bundler-cache: true
-
-      - name: Set up Rust
-        run: rustup toolchain install 1.89.0 --profile minimal && rustup default 1.89.0
-
-      - name: Compile and test prql_rb
-        run: bundle exec rake -f gems/prql_rb/Rakefile
-
   scan_ruby:
     runs-on: ubuntu-latest
     timeout-minutes: 10
