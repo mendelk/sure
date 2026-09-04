@@ -335,6 +335,7 @@ Rails.application.routes.draw do
   patch "release_highlight/dismiss", to: "release_highlights#dismiss"
   get "feedback", to: "pages#feedback"
   get "dashboard/cash_flow", to: "cash_flows#show", as: :dashboard_cash_flow
+  get "dashboard/monarch", to: "pages#monarch", as: :dashboard_monarch
   patch "dashboard/preferences", to: "pages#update_preferences"
 
   resource :current_session, only: %i[update]
