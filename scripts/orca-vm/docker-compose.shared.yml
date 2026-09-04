@@ -17,6 +17,9 @@ volumes:
   postgres:
     external: true
     name: sure-orca-shared-postgres
+  npm-cache:
+    external: true
+    name: sure-orca-shared-npm-cache
 
 networks:
   default:

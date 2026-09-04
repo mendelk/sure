@@ -23,6 +23,16 @@ docker image inspect "$image" >/dev/null 2>&1 || {
   exit 1
 }
 
+# Warn when the worktree's Gemfile.lock has drifted from the gems baked into
+# the image. The pre-baked gems still seed the bundle volume, so boot remains
+# fast; bundle install at startup only applies the small delta on top.
+baked_lock_hash="$(docker run --rm --entrypoint cat "$image" /etc/sure-gemfile-lock.sha256 2>/dev/null | awk '{print $1}')"
+worktree_lock_hash="$(sha256sum "$worktree_path/Gemfile.lock" 2>/dev/null | awk '{print $1}')"
+if [[ -n "$baked_lock_hash" && -n "$worktree_lock_hash" && "$baked_lock_hash" != "$worktree_lock_hash" ]]; then
+  echo "Note: Gemfile.lock differs from the one baked into $image;" >&2
+  echo "startup will install the changed gems (rebuild the image with ./scripts/orca-vm/docker-base-build.sh to re-bake)." >&2
+fi
+
 export ORCA_IMAGE="$image"
 export ORCA_SSH_PUBLIC_KEY
 ORCA_SSH_PUBLIC_KEY="$(cat "$key_file.pub")"
@@ -36,6 +46,7 @@ cleanup_on_error() {
 trap cleanup_on_error EXIT
 
 docker volume inspect sure-orca-shared-postgres >/dev/null 2>&1 || docker volume create sure-orca-shared-postgres >/dev/null
+docker volume inspect sure-orca-shared-npm-cache >/dev/null 2>&1 || docker volume create sure-orca-shared-npm-cache >/dev/null
 docker compose --project-name "$shared_project_name" --file "$shared_compose_file" up --detach --wait >&2
 docker compose --project-name "$project_name" --file "$compose_file" up --detach >&2
 
