@@ -1,8 +1,8 @@
 GIT
-  remote: https://github.com/mendelk/prql_rb.git
-  revision: d1efb90c4e124466fb39efc1a78e6122c003828c
+  remote: https://github.com/mendelk/prql-rb.git
+  revision: 1807d949707961f07a30412d5094d8796ba90600
   specs:
-    prql_rb (0.1.0)
+    prql-rb (0.1.0)
       rb_sys (~> 0.9)
 
 GEM
@@ -937,7 +937,7 @@ DEPENDENCIES
   plaid
   posthog-ruby
   propshaft
-  prql_rb!
+  prql-rb!
   puma (>= 7.2.1)
   pundit
   rack-attack (~> 6.6)
