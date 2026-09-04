@@ -116,6 +116,38 @@ class PagesController < ApplicationController
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
+  # Compiles sureql (with authz) and executes it, returning SQL plus the
+  # first MAX_ROWS rows. For `transactions` queries that select `id`, also
+  # returns server-rendered transaction rows reusing the entries partials.
+  def monarch_run
+    source = params.require(:source)
+    result = Sureql::Executor.new(Current.user).call(source)
+    html = begin
+      monarch_results_html(result)
+    rescue StandardError => e
+      # Never turn a row-render failure into an HTML 500 (the frontend
+      # would show a JSON-parse error). Fall back to the generic table.
+      Rails.logger.warn("[sureql] results render failed: #{e.class}: #{e.message}")
+      nil
+    end
+    render json: {
+      sql: result.sql,
+      columns: result.columns,
+      rows: result.rows,
+      row_count: result.row_count,
+      truncated: result.truncated,
+      html: html
+    }
+  rescue Sureql::UnknownSourceError, Sureql::CompileError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue ActiveRecord::StatementInvalid => e
+    # Compiled SQL the database rejects (e.g. a PRQL-ism prqlc passed
+    # through). Return it as JSON so the panels show the DB message
+    # instead of an HTML 500.
+    Rails.logger.warn("[sureql] execution failed: #{e.message.truncate(500)}")
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   def redis_configuration_error
     render layout: "blank"
   end
@@ -517,5 +549,27 @@ class PagesController < ApplicationController
       return if Current.user&.guest?
 
       redirect_to root_path, alert: t("pages.intro.not_authorized", default: "Intro is only available to guest users.")
+    end
+
+    # Renders rich transaction rows for sureql results when the query
+    # selected entry ids. Returns nil for aggregations or non-transaction
+    # sources — the frontend falls back to a generic table.
+    def monarch_results_html(result)
+      return nil unless result.source_key == "transactions"
+      return nil unless result.columns.include?("id")
+
+      ids = result.rows.filter_map { |row| row["id"] }.uniq.first(Sureql::Executor::MAX_ROWS)
+      return render_to_string(partial: "pages/monarch_transaction_results", locals: { entries: [] }, layout: false) if ids.empty?
+
+      accessible_ids = Current.user.accessible_accounts.pluck(:id)
+      records = Entry.where(id: ids)
+        .includes(:account, entryable: [ :category, :merchant, :transfer ])
+        .index_by(&:id)
+      entries = ids.filter_map { |id| records[id] }
+        .select { |entry| accessible_ids.include?(entry.account_id) }
+
+      @accessible_account_ids = accessible_ids
+      @split_parent_entry_ids = {}
+      render_to_string(partial: "pages/monarch_transaction_results", locals: { entries: entries }, layout: false)
     end
 end

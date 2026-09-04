@@ -14,6 +14,87 @@ class SureqlCompilerTest < ActiveSupport::TestCase
     accessible_ids.each { |id| assert_includes sql, id }
   end
 
+  test "injects implicit transactions scope" do
+    compiler = Sureql::Compiler.new(users(:family_admin))
+
+    sql = compiler.call("from transactions\nfilter amount > 0\ntake 5")
+
+    assert_includes sql, "entryable_type = 'Transaction'"
+    assert_includes sql, "excluded = false"
+  end
+
+  test "explicit filter overrides the matching implicit default" do
+    compiler = Sureql::Compiler.new(users(:family_admin))
+
+    sql = compiler.call("from transactions\nfilter excluded == true\ntake 5")
+
+    assert_includes sql, "excluded = true"
+    assert_not_includes sql, "excluded = false"
+    assert_includes sql, "entryable_type = 'Transaction'"
+  end
+
+  test "categories shorthand compiles to bridged joins with qualified columns" do
+    source = <<~PRQL
+      from transactions
+      filter amount > 0
+      derive cutoff = s"current_date - 30"
+      filter date > cutoff
+      join c=categories (==category_id)
+      filter transfer_id == null
+      group {c.name} (
+        aggregate {
+          total_spent = sum amount,
+          n = count this,
+        }
+      )
+      sort {-total_spent}
+      take 5
+    PRQL
+
+    sql = Sureql::Compiler.new(users(:family_admin)).call(source)
+
+    assert_includes sql, "INNER JOIN transactions AS t"
+    assert_includes sql, "INNER JOIN categories AS c"
+    assert_includes sql, "t.transfer_id IS NULL"
+    assert_includes sql, "GROUP BY"
+    assert_match(/total_spent DESC/, sql)
+    assert_match(/LIMIT\s+5/, sql)
+  end
+
+  test "shorthand reuses an explicit t bridge join" do
+    source = "from transactions\njoin t=transactions (entries.entryable_id == t.id)\njoin c=categories (==category_id)\ntake 5"
+
+    sql = Sureql::Compiler.new(users(:family_admin)).call(source)
+
+    assert_equal 1, sql.scan(/JOIN transactions AS t/).size
+  end
+
+  test "shorthand rejects a bridge joined under another alias" do
+    source = "from transactions\njoin x=transactions (entries.entryable_id == x.id)\njoin c=categories (==category_id)\ntake 5"
+
+    error = assert_raises(Sureql::CompileError) do
+      Sureql::Compiler.new(users(:family_admin)).call(source)
+    end
+    assert_match(/join the transactions bridge as `t`/, error.message)
+  end
+
+  test "shorthand rejects t as the dimension alias" do
+    source = "from transactions\njoin t=categories (==category_id)\ntake 5"
+
+    error = assert_raises(Sureql::CompileError) do
+      Sureql::Compiler.new(users(:family_admin)).call(source)
+    end
+    assert_match(/`t` is reserved/, error.message)
+  end
+
+  test "leaves string literals and dotted paths unqualified" do
+    compiler = Sureql::Compiler.new(users(:family_admin))
+
+    sql = compiler.call(%q(from transactions\nfilter name == "amount"\ntake 5))
+
+    assert_includes sql, %q(name = 'amount')
+  end
+
   test "accounts source authorizes on its own id" do
     compiler = Sureql::Compiler.new(users(:family_admin))
 
