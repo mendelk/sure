@@ -337,6 +337,7 @@ Rails.application.routes.draw do
   get "dashboard/cash_flow", to: "cash_flows#show", as: :dashboard_cash_flow
   get "dashboard/monarch", to: "pages#monarch", as: :dashboard_monarch
   post "dashboard/monarch/compile", to: "pages#monarch_compile", as: :dashboard_monarch_compile
+  post "dashboard/monarch/run", to: "pages#monarch_run", as: :dashboard_monarch_run
   patch "dashboard/preferences", to: "pages#update_preferences"
 
   resource :current_session, only: %i[update]
