@@ -4,6 +4,8 @@ en:
     merchant_rule_menu:
       create_rule: "Always categorize as %{category}"
       merchant_button_label: "Options for merchant %{merchant}"
+      view_transactions: "View transactions"
+      edit_merchant: "Edit merchant"
     bulk_updates:
       new:
         cancel: Cancel

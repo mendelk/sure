@@ -3,23 +3,37 @@
 <% merchant = transaction.merchant %>
 <% category = transaction.category %>
 
-<% if category.present? %>
-  <div class="<%= mobile ? "lg:hidden min-w-0" : "hidden lg:inline-flex min-w-0" %>">
-    <%= render DS::Menu.new(
-      variant: "button",
-      placement: "bottom-start",
-      offset: 4,
-      mobile_fullwidth: false,
-      max_width: "18rem",
-      testid: "merchant-rule-menu-#{transaction.id}-#{mobile ? "mobile" : "desktop"}"
-    ) do |menu| %>
-      <% menu.with_button(
-        type: "button",
-        class: "flex max-w-full min-w-0 cursor-pointer rounded-sm text-secondary hover:underline focus-ring",
-        aria: { label: t("transactions.merchant_rule_menu.merchant_button_label", merchant: merchant.name) }
-      ) do %>
-        <span class="truncate"><%= mobile ? "• #{merchant.name}" : "#{merchant.name} •" %></span>
-      <% end %>
+<div class="<%= mobile ? "lg:hidden min-w-0" : "hidden lg:inline-flex min-w-0" %>">
+  <%= render DS::Menu.new(
+    variant: "button",
+    placement: "bottom-start",
+    offset: 4,
+    mobile_fullwidth: false,
+    max_width: "18rem",
+    testid: "merchant-rule-menu-#{transaction.id}-#{mobile ? "mobile" : "desktop"}"
+  ) do |menu| %>
+    <% menu.with_button(
+      type: "button",
+      class: "flex max-w-full min-w-0 cursor-pointer rounded-sm text-secondary hover:underline focus-ring",
+      aria: { label: t("transactions.merchant_rule_menu.merchant_button_label", merchant: merchant.name) }
+    ) do %>
+      <span class="truncate"><%= mobile ? "• #{merchant.name}" : "#{merchant.name} •" %></span>
+    <% end %>
+    <% menu.with_item(
+      variant: :link,
+      text: t("transactions.merchant_rule_menu.view_transactions"),
+      icon: "receipt-text",
+      href: transactions_path(q: { merchants: [ merchant.name ] }),
+      data: { turbo_frame: :_top }
+    ) %>
+    <% menu.with_item(
+      variant: :link,
+      text: t("transactions.merchant_rule_menu.edit_merchant"),
+      icon: "pencil",
+      href: edit_family_merchant_path(merchant),
+      data: { turbo_frame: :modal }
+    ) %>
+    <% if category.present? %>
       <% menu.with_item(
         variant: :link,
         text: t("transactions.merchant_rule_menu.create_rule", category: category.name),
@@ -33,9 +47,5 @@
         frame: :modal
       ) %>
     <% end %>
-  </div>
-<% else %>
-  <span class="<%= mobile ? "lg:hidden min-w-0 truncate" : "hidden lg:inline truncate" %>">
-    <%= mobile ? "• #{merchant.name}" : "#{merchant.name} •" %>
-  </span>
-<% end %>
+  <% end %>
+</div>
