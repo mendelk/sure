@@ -293,6 +293,9 @@ Rails.application.routes.draw do
 
   get "changelog", to: "pages#changelog"
   get "feedback", to: "pages#feedback"
+  get "dashboard/monarch", to: "pages#monarch", as: :dashboard_monarch
+  post "dashboard/monarch/compile", to: "pages#monarch_compile", as: :dashboard_monarch_compile
+  post "dashboard/monarch/run", to: "pages#monarch_run", as: :dashboard_monarch_run
   patch "dashboard/preferences", to: "pages#update_preferences"
 
   resource :current_session, only: %i[update]

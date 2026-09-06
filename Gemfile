@@ -89,7 +89,7 @@ gem "webauthn", "~> 3.4"
 gem "activerecord-import"
 gem "rubyzip", "~> 2.3"
 gem "pdf-reader", "~> 2.12"
-gem "prql_rb", path: "gems/prql_rb", require: false
+gem "prql-rb", "~> 0.1", require: false
 
 # OpenID Connect, OAuth & SAML authentication
 gem "omniauth", "~> 2.1"
