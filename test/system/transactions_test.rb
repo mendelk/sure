@@ -87,6 +87,11 @@ class TransactionsTest < ApplicationSystemTestCase
 
     assert_selector "[data-transaction-filter-search-target='tokens']", text: "Start date: #{start_date}"
 
+    # The token renders client-side before the async submit completes. Wait
+    # for the navigation (params land in the URL) so the next filter starts
+    # from the reloaded page instead of racing the in-flight submit.
+    assert_current_path(%r{q%5Bstart_date%5D=#{Regexp.escape(start_date)}}, wait: 5)
+
     fill_in "Search transactions ...", with: "amount:greater"
     assert_selector "#transaction-filter-search-menu [role='option']", text: "Greater than"
     find("#q_search").send_keys(:enter)
