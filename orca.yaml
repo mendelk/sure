@@ -3,3 +3,10 @@ environmentRecipes:
     name: Docker Devcontainer
     create: ./scripts/orca-vm/docker-create.sh
     destroy: ./scripts/orca-vm/docker-destroy.sh
+
+# Note: Orca resolves the archive hook from THIS repo-root checkout (not the
+# worktree being deleted), so scripts.archive must stay here to clean up a
+# worktree's Docker project on `worktree rm --run-hooks`. scripts.setup lives
+# in each worktree's own orca.yaml and is read from the new checkout at create.
+scripts:
+  archive: ./scripts/orca-vm/docker-cleanup.sh
