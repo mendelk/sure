@@ -3,7 +3,10 @@
 <% merchant = transaction.merchant %>
 <% category = transaction.category %>
 
-<div class="<%= mobile ? "lg:hidden min-w-0" : "hidden lg:inline-flex min-w-0" %>">
+<div class="<%= mobile ? "flex items-center min-w-0 lg:hidden" : "hidden lg:inline-flex items-center min-w-0" %>">
+  <% if mobile %>
+    <span aria-hidden="true" class="mr-1 flex-shrink-0">•</span>
+  <% end %>
   <%= render DS::Menu.new(
     variant: "button",
     placement: "bottom-start",
@@ -17,7 +20,7 @@
       class: "flex max-w-full min-w-0 cursor-pointer rounded-sm text-secondary hover:underline focus-ring",
       aria: { label: t("transactions.merchant_rule_menu.merchant_button_label", merchant: merchant.name) }
     ) do %>
-      <span class="truncate"><%= mobile ? "• #{merchant.name}" : "#{merchant.name} •" %></span>
+      <span class="truncate"><%= merchant.name %></span>
     <% end %>
     <% menu.with_item(
       variant: :link,
@@ -47,5 +50,8 @@
         frame: :modal
       ) %>
     <% end %>
+  <% end %>
+  <% unless mobile %>
+    <span aria-hidden="true" class="ml-1 flex-shrink-0">•</span>
   <% end %>
 </div>
