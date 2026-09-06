@@ -4,6 +4,9 @@ environmentRecipes:
     create: ./scripts/orca-vm/docker-create.sh
     destroy: ./scripts/orca-vm/docker-destroy.sh
 
+# Note: Orca resolves scripts.setup from the new worktree's own checkout at
+# create time, but scripts.archive from the repo-root checkout at remove time,
+# so both entries must be present for auto-provision and auto-cleanup.
 scripts:
   setup: ./scripts/orca-vm/docker-create.sh
   archive: ./scripts/orca-vm/docker-cleanup.sh
