@@ -2,10 +2,10 @@
 en:
   transactions:
     merchant_rule_menu:
-      create_rule: "Always categorize as %{category}"
+      create_rule: "Always categorize %{merchant} as %{category}"
       merchant_button_label: "Options for merchant %{merchant}"
-      view_transactions: "View transactions"
-      edit_merchant: "Edit merchant"
+      view_transactions: "View %{merchant} transactions"
+      edit_merchant: "Edit %{merchant}"
     bulk_updates:
       new:
         cancel: Cancel

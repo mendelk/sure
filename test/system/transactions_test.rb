@@ -48,7 +48,7 @@ class TransactionsTest < ApplicationSystemTestCase
 
     within "##{dom_id(@transaction)}" do
       find("[data-testid='merchant-rule-menu-#{@transaction.transaction.id}-desktop'] button").click
-      click_link "Always categorize as #{category.name}"
+      click_link "Always categorize #{merchant.name} as #{category.name}"
     end
 
     within "turbo-frame#modal" do

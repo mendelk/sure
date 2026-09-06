@@ -24,14 +24,14 @@
     <% end %>
     <% menu.with_item(
       variant: :link,
-      text: t("transactions.merchant_rule_menu.view_transactions"),
+      text: t("transactions.merchant_rule_menu.view_transactions", merchant: merchant.name),
       icon: "receipt-text",
       href: transactions_path(q: { merchants: [ merchant.name ] }),
       data: { turbo_frame: :_top }
     ) %>
     <% menu.with_item(
       variant: :link,
-      text: t("transactions.merchant_rule_menu.edit_merchant"),
+      text: t("transactions.merchant_rule_menu.edit_merchant", merchant: merchant.name),
       icon: "pencil",
       href: edit_family_merchant_path(merchant),
       data: { turbo_frame: :modal }
@@ -39,7 +39,7 @@
     <% if category.present? %>
       <% menu.with_item(
         variant: :link,
-        text: t("transactions.merchant_rule_menu.create_rule", category: category.name),
+        text: t("transactions.merchant_rule_menu.create_rule", merchant: merchant.name, category: category.name),
         icon: "plus",
         href: new_rule_path(
           resource_type: "transaction",
