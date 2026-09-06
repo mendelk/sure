@@ -90,7 +90,7 @@ class SureqlCompilerTest < ActiveSupport::TestCase
   test "leaves string literals and dotted paths unqualified" do
     compiler = Sureql::Compiler.new(users(:family_admin))
 
-    sql = compiler.call(%q(from transactions\nfilter name == "amount"\ntake 5))
+    sql = compiler.call(%(from transactions\nfilter name == "amount"\ntake 5))
 
     assert_includes sql, %q(name = 'amount')
   end

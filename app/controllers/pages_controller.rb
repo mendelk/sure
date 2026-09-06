@@ -559,7 +559,7 @@ class PagesController < ApplicationController
       return nil unless result.columns.include?("id")
 
       ids = result.rows.filter_map { |row| row["id"] }.uniq.first(Sureql::Executor::MAX_ROWS)
-      return render_to_string(partial: "pages/monarch_transaction_results", locals: { entries: [] }, layout: false) if ids.empty?
+      return render_to_string(partial: "pages/monarch_transaction_results", locals: { entries: [] }, layout: false, formats: [ :html ]) if ids.empty?
 
       accessible_ids = Current.user.accessible_accounts.pluck(:id)
       records = Entry.where(id: ids)
@@ -570,6 +570,6 @@ class PagesController < ApplicationController
 
       @accessible_account_ids = accessible_ids
       @split_parent_entry_ids = {}
-      render_to_string(partial: "pages/monarch_transaction_results", locals: { entries: entries }, layout: false)
+      render_to_string(partial: "pages/monarch_transaction_results", locals: { entries: entries }, layout: false, formats: [ :html ])
     end
 end
