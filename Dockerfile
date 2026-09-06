@@ -25,20 +25,12 @@ FROM base AS build
 
 # Install packages needed to build gems
 RUN apt-get update -qq \
-    && apt-get install --no-install-recommends -y build-essential clang libclang-dev libpq-dev git pkg-config libyaml-dev \
+    && apt-get install --no-install-recommends -y build-essential libpq-dev git pkg-config libyaml-dev \
     && rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-# Rust is required to compile the prql_rb native extension.
-ENV PATH="/root/.cargo/bin:${PATH}"
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-    | sh -s -- -y --profile minimal --default-toolchain 1.89.0
-
-# Install application gems
+# Install application gems (prql-rb ships prebuilt platform gems, no Rust toolchain needed)
 COPY .ruby-version Gemfile Gemfile.lock ./
-COPY gems/prql_rb ./gems/prql_rb
 RUN bundle install \
-    && bundle exec ruby gems/prql_rb/bin/compile \
-    && bundle exec ruby -e 'require "prql_rb"; abort unless PrqlRb.compiler_version == "0.13.14"' \
     && rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git \
     && bundle exec bootsnap precompile --gemfile -j 0
 
