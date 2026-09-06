@@ -3,3 +3,7 @@ environmentRecipes:
     name: Docker Devcontainer
     create: ./scripts/orca-vm/docker-create.sh
     destroy: ./scripts/orca-vm/docker-destroy.sh
+
+scripts:
+  setup: ./scripts/orca-vm/docker-create.sh
+  archive: ./scripts/orca-vm/docker-cleanup.sh
