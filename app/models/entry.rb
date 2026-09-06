@@ -436,31 +436,65 @@ class Entry < ApplicationRecord
 
   # Splits this entry into child entries. Marks parent as excluded.
   #
-  # @param splits [Array<Hash>] array of { name:, amount:, category_id:, excluded: } hashes
-  # @return [Array<Entry>] the created child entries
+  # @param splits [Array<Hash>] array of { name:, amount:, category_id:, excluded:, transfer_account:, transfer_account_id: } hashes.
+  #   When transfer_account (Account) or transfer_account_id is present, that child becomes one leg of a
+  #   Transfer with its counterpart in the given account.
+  # @return [Array<Entry>] the created child entries (in the parent account)
   def split!(splits)
     total = splits.sum { |s| s[:amount].to_d }
     unless total == amount
       raise ActiveRecord::RecordInvalid.new(self), "Split amounts must sum to parent amount (expected #{amount}, got #{total})"
     end
 
-    self.class.transaction do
-      children = splits.map do |split_attrs|
-        child_transaction = Transaction.new(
-          category_id: split_attrs[:category_id],
-          merchant_id: entryable.try(:merchant_id),
-          kind: entryable.try(:kind)
-        )
+    resolved_splits = splits.map do |split_attrs|
+      attrs = split_attrs.with_indifferent_access
+      transfer_account = attrs[:transfer_account].presence || resolve_split_transfer_account(attrs[:transfer_account_id])
+      child_amount = attrs[:amount].to_d
 
-        child_entries.create!(
-          account: account,
-          date: date,
-          name: split_attrs[:name],
-          amount: split_attrs[:amount],
-          currency: currency,
-          excluded: TRUTHY_VALUES.include?(split_attrs[:excluded]),
-          entryable: child_transaction
-        )
+      if transfer_account.present?
+        if transfer_account.id == account_id
+          raise ActiveRecord::RecordInvalid.new(self), "Transfer account must differ from source account"
+        end
+        if transfer_account.family_id != account.family_id
+          raise ActiveRecord::RecordInvalid.new(self), "Transfer accounts must belong to the same family"
+        end
+        if child_amount.zero?
+          raise ActiveRecord::RecordInvalid.new(self), "Transfer amount cannot be zero"
+        end
+      end
+
+      {
+        name: attrs[:name],
+        amount: child_amount,
+        category_id: attrs[:category_id].presence,
+        excluded: TRUTHY_VALUES.include?(attrs[:excluded]),
+        transfer_account: transfer_account
+      }
+    end
+
+    self.class.transaction do
+      children = resolved_splits.map do |split_attrs|
+        transfer_account = split_attrs[:transfer_account]
+
+        if transfer_account.present?
+          create_split_transfer_child!(split_attrs, transfer_account)
+        else
+          child_transaction = Transaction.new(
+            category_id: split_attrs[:category_id],
+            merchant_id: entryable.try(:merchant_id),
+            kind: entryable.try(:kind)
+          )
+
+          child_entries.create!(
+            account: account,
+            date: date,
+            name: split_attrs[:name],
+            amount: split_attrs[:amount],
+            currency: currency,
+            excluded: split_attrs[:excluded],
+            entryable: child_transaction
+          )
+        end
       end
 
       update!(excluded: true)
@@ -471,9 +505,25 @@ class Entry < ApplicationRecord
   end
 
   # Removes split children and restores parent entry.
+  # Also removes transfer counterparts created via split! so no orphan transfers remain.
   def unsplit!
     self.class.transaction do
-      child_entries.each do |child|
+      child_entries.includes(entryable: [ :transfer_as_inflow, :transfer_as_outflow ]).each do |child|
+        transfer = child.entryable.try(:transfer)
+        if transfer.present?
+          other_transaction = transfer.inflow_transaction_id == child.entryable_id ? transfer.outflow_transaction : transfer.inflow_transaction
+          other_entry = other_transaction&.entry
+
+          # Delete the Transfer row directly to avoid Transfer#destroy! converting
+          # the surviving leg to a standard transaction — both legs are removed here.
+          Transfer.where(id: transfer.id).delete_all
+
+          if other_entry.present? && Entry.exists?(other_entry.id)
+            other_entry.unsplitting = true
+            other_entry.destroy!
+          end
+        end
+
         child.unsplitting = true
         child.destroy!
       end
@@ -577,5 +627,126 @@ class Entry < ApplicationRecord
       return if destroyed_by_association || unsplitting
 
       throw :abort
+    end
+
+    def resolve_split_transfer_account(transfer_account_id)
+      return nil if transfer_account_id.blank?
+      return transfer_account_id if transfer_account_id.is_a?(Account)
+
+      resolved = account.family.accounts.find_by(id: transfer_account_id)
+      if transfer_account_id.present? && resolved.nil?
+        raise ActiveRecord::RecordInvalid.new(self), "Transfer accounts must belong to the same family"
+      end
+      resolved
+    end
+
+    # Creates a split child that is one leg of a Transfer.
+    # The child stays in the parent account; the counterpart lives in transfer_account.
+    def create_split_transfer_child!(split_attrs, transfer_account)
+      child_amount = split_attrs[:amount].to_d
+      child_is_outflow = child_amount.positive?
+
+      from_account = child_is_outflow ? account : transfer_account
+      to_account = child_is_outflow ? transfer_account : account
+
+      outflow_kind = split_transfer_outflow_kind(from_account, to_account)
+
+      if child_is_outflow
+        child_kind = outflow_kind
+        counterpart_kind = "funds_movement"
+      else
+        child_kind = "funds_movement"
+        counterpart_kind = outflow_kind
+      end
+
+      child_category_id = split_attrs[:category_id]
+      if child_kind == "investment_contribution" && child_category_id.blank?
+        child_category_id = account.family.investment_contributions_category&.id
+      end
+      # Transfer legs are excluded from budget analytics (except loan payments,
+      # which are categorizable), so clear any budget category the caller passed.
+      if child_kind != "loan_payment"
+        investment_category_id = account.family.investment_contributions_category&.id
+        child_category_id = nil unless child_category_id == investment_category_id
+      end
+
+      child_transaction = Transaction.new(
+        category_id: child_category_id,
+        merchant_id: entryable.try(:merchant_id),
+        kind: child_kind
+      )
+
+      child_entry = child_entries.create!(
+        account: account,
+        date: date,
+        name: split_attrs[:name],
+        amount: child_amount,
+        currency: currency,
+        excluded: split_attrs[:excluded],
+        entryable: child_transaction
+      )
+
+      counterpart_amount = split_transfer_counterpart_amount(child_amount, transfer_account)
+      counterpart_name = split_transfer_counterpart_name(to_account)
+
+      counterpart_transaction = Transaction.new(kind: counterpart_kind)
+      if counterpart_kind == "investment_contribution"
+        counterpart_transaction.category = transfer_account.family.investment_contributions_category
+      end
+
+      counterpart_entry = transfer_account.entries.create!(
+        date: date,
+        name: counterpart_name,
+        amount: counterpart_amount,
+        currency: transfer_account.currency,
+        entryable: counterpart_transaction,
+        parent_entry_id: nil
+      )
+      counterpart_entry.update!(user_modified: true)
+
+      if child_is_outflow
+        outflow_transaction, inflow_transaction = child_transaction, counterpart_transaction
+      else
+        outflow_transaction, inflow_transaction = counterpart_transaction, child_transaction
+      end
+
+      Transfer.create!(
+        inflow_transaction: inflow_transaction,
+        outflow_transaction: outflow_transaction,
+        status: "confirmed",
+        amount: (child_is_outflow ? child_amount : counterpart_amount).abs
+      )
+
+      child_entry
+    end
+
+    def split_transfer_outflow_kind(from_account, to_account)
+      if to_account.loan?
+        "loan_payment"
+      elsif to_account.liability?
+        "cc_payment"
+      elsif (to_account.investment? || to_account.crypto?) && !(from_account.investment? || from_account.crypto?)
+        "investment_contribution"
+      else
+        "funds_movement"
+      end
+    end
+
+    def split_transfer_counterpart_amount(child_amount, transfer_account)
+      return -child_amount if transfer_account.currency == currency
+
+      converted = Money.new(child_amount, currency).exchange_to(transfer_account.currency, date: date).amount
+      -converted
+    end
+
+    def split_transfer_counterpart_name(to_account)
+      prefix = to_account.liability? ? "Payment" : "Transfer"
+      if to_account.id == account_id
+        # Counterpart is the outflow (transfer_account -> parent): "Transfer to <parent>"
+        "#{prefix} to #{account.name}"
+      else
+        # Counterpart is the inflow (parent -> transfer_account): "Transfer from <parent>"
+        "#{prefix} from #{account.name}"
+      end
     end
 end

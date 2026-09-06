@@ -1764,6 +1764,13 @@ components:
                     nullable: true
                   excluded:
                     type: boolean
+                  transfer_account_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                    description: Optional destination/source account for this split
+                      leg. When present, a Transfer counterpart is created in the
+                      given account.
     TransactionSplit:
       type: object
       required:

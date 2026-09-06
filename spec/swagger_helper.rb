@@ -965,7 +965,8 @@ RSpec.configure do |config|
                           description: 'User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.'
                         },
                         category_id: { type: :string, format: :uuid, nullable: true },
-                        excluded: { type: :boolean }
+                        excluded: { type: :boolean },
+                        transfer_account_id: { type: :string, format: :uuid, nullable: true, description: 'Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.' }
                       }
                     }
                   }

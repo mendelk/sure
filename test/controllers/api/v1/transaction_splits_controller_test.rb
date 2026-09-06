@@ -155,6 +155,109 @@ class Api::V1::TransactionSplitsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
+  test "should create a split with a transfer leg" do
+    destination = @family.accounts.create!(
+      name: "Savings",
+      balance: 0,
+      currency: "USD",
+      owner: @user,
+      accountable: Depository.new
+    )
+
+    assert_difference -> { Entry.count } => 3 do
+      assert_difference -> { Transfer.count } => 1 do
+        post api_v1_transaction_split_url(@entry.transaction),
+          params: {
+            split: {
+              splits: [
+                { name: "Groceries", amount: -70 },
+                { name: "Transfer to savings", amount: -30, transfer_account_id: destination.id }
+              ]
+            }
+          },
+          headers: api_headers(@api_key)
+      end
+    end
+
+    assert_response :created
+    assert @entry.reload.split_parent?
+
+    children = @entry.child_entries.order(amount: :desc)
+    assert_equal [ 70, 30 ], children.map { |c| c.amount.to_i }
+
+    transfer_child = children.find_by(name: "Transfer to savings")
+    assert transfer_child.transaction.transfer?
+    transfer = transfer_child.transaction.transfer
+    assert_equal destination.id, transfer.to_account.id
+    assert_equal @account.id, transfer.from_account.id
+    assert_equal "funds_movement", transfer_child.transaction.kind
+
+    counterpart_entry = transfer.inflow_transaction.entry
+    assert_equal destination.id, counterpart_entry.account_id
+    assert_equal(-30, counterpart_entry.amount.to_i)
+
+    response_body = JSON.parse(response.body)
+    transfer_split = response_body["splits"].find { |s| s["name"] == "Transfer to savings" }
+    assert transfer_split["transfer"].present?
+    assert_equal destination.id, transfer_split["transfer"]["other_account"]["id"]
+  end
+
+  test "should reject transfer to the same account" do
+    post api_v1_transaction_split_url(@entry.transaction),
+      params: {
+        split: {
+          splits: [
+            { name: "Part 1", amount: -70 },
+            { name: "Transfer", amount: -30, transfer_account_id: @account.id }
+          ]
+        }
+      },
+      headers: api_headers(@api_key)
+
+    assert_response :unprocessable_entity
+    assert_equal "Transfer account must differ from source account", JSON.parse(response.body)["message"]
+  end
+
+  test "should reject transfer accounts outside the family" do
+    other_family_account = families(:empty).accounts.create!(
+      name: "Other",
+      balance: 0,
+      currency: "USD",
+      owner: users(:empty),
+      accountable: Depository.new
+    )
+
+    post api_v1_transaction_split_url(@entry.transaction),
+      params: {
+        split: {
+          splits: [
+            { name: "Part 1", amount: -70 },
+            { name: "Transfer", amount: -30, transfer_account_id: other_family_account.id }
+          ]
+        }
+      },
+      headers: api_headers(@api_key)
+
+    assert_response :unprocessable_entity
+    assert_equal "Transfer accounts must belong to your family", JSON.parse(response.body)["message"]
+  end
+
+  test "should reject malformed transfer account IDs" do
+    post api_v1_transaction_split_url(@entry.transaction),
+      params: {
+        split: {
+          splits: [
+            { name: "Part 1", amount: -70 },
+            { name: "Transfer", amount: -30, transfer_account_id: "not-a-uuid" }
+          ]
+        }
+      },
+      headers: api_headers(@api_key)
+
+    assert_response :unprocessable_entity
+    assert_equal "Transfer account IDs must be valid UUIDs", JSON.parse(response.body)["message"]
+  end
+
   private
     def api_headers(api_key)
       { "X-Api-Key" => api_key.plain_key }
