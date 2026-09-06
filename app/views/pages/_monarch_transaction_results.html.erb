@@ -1,0 +1,12 @@
+<%# locals: (entries:) %>
+<% if entries.any? %>
+  <div class="divide-y divide-tertiary rounded-xl border border-primary bg-container overflow-hidden">
+    <% entries.each do |entry| %>
+      <%= render entry, view_ctx: "global" %>
+    <% end %>
+  </div>
+<% else %>
+  <div class="rounded-xl border border-primary bg-surface-inset px-4 py-8 text-center text-sm text-secondary">
+    <%= t("pages.monarch.results_empty") %>
+  </div>
+<% end %>

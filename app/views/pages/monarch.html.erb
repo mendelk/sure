@@ -1,0 +1,157 @@
+<% content_for :page_header do %>
+  <div class="space-y-1 mb-6">
+    <h1 class="text-xl lg:text-3xl font-medium text-primary">
+      <%= t("pages.monarch.title") %>
+    </h1>
+    <p class="text-sm lg:text-base text-secondary">
+      <%= t("pages.monarch.subtitle") %>
+    </p>
+  </div>
+<% end %>
+
+<%= render DS::Card.new(class: "overflow-hidden !p-0") do %>
+  <div
+    data-controller="monaco-editor"
+    data-monaco-editor-language-value="sureql"
+    data-monaco-editor-submit-url-value="<%= dashboard_monarch_run_path %>"
+    class="flex flex-col">
+    <div class="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-tertiary">
+      <label class="flex items-center gap-2 text-sm text-secondary">
+        <span><%= t("pages.monarch.language_label") %></span>
+        <select
+          data-monaco-editor-target="language"
+          data-action="change->monaco-editor#changeLanguage"
+          class="text-sm text-primary bg-container-inset border border-primary rounded-lg px-2 py-1.5 focus-ring">
+          <option value="sureql">sureql (app dialect)</option>
+          <option value="prql">PRQL</option>
+          <option value="javascript">JavaScript</option>
+          <option value="ruby">Ruby</option>
+          <option value="yaml">YAML</option>
+          <option value="json">JSON</option>
+          <option value="sql">SQL</option>
+        </select>
+      </label>
+
+      <label class="flex items-center gap-2 text-sm text-secondary">
+        <span><%= t("pages.monarch.theme_label") %></span>
+        <select
+          data-monaco-editor-target="theme"
+          data-action="change->monaco-editor#changeTheme"
+          class="text-sm text-primary bg-container-inset border border-primary rounded-lg px-2 py-1.5 focus-ring">
+          <option value="system"><%= t("pages.monarch.theme_system") %></option>
+          <option value="light"><%= t("pages.monarch.theme_light") %></option>
+          <option value="dark"><%= t("pages.monarch.theme_dark") %></option>
+        </select>
+      </label>
+
+      <div class="ml-auto flex items-center gap-2">
+        <%= render DS::Button.new(
+          variant: "primary",
+          size: "sm",
+          icon: "play",
+          text: t("pages.monarch.submit"),
+          data: {
+            action: "click->monaco-editor#submit",
+            "monaco-editor-target": "submitBtn"
+          }
+        ) %>
+        <%= render DS::Button.new(
+          variant: "ghost",
+          size: "sm",
+          icon: "clipboard-copy",
+          text: t("pages.monarch.copy"),
+          data: { action: "click->monaco-editor#copy" }
+        ) %>
+        <%= render DS::Button.new(
+          variant: "ghost",
+          size: "sm",
+          icon: "rotate-ccw",
+          text: t("pages.monarch.reset"),
+          data: { action: "click->monaco-editor#reset" }
+        ) %>
+      </div>
+    </div>
+
+    <p class="px-4 pt-3 text-xs text-secondary">
+      <%= t("pages.monarch.custom_language_hint") %>
+    </p>
+
+    <div class="relative m-4 rounded-xl border border-primary bg-surface-inset overflow-hidden">
+      <div
+        data-monaco-editor-target="container"
+        class="h-[480px] w-full"
+        role="application"
+        aria-label="<%= t("pages.monarch.title") %>"></div>
+      <div
+        data-monaco-editor-target="loading"
+        class="absolute inset-0 flex items-center justify-center gap-2 text-sm text-secondary bg-surface-inset">
+        <%= icon("loader-circle", class: "animate-spin") %>
+        <%= t("pages.monarch.loading") %>
+      </div>
+      <p
+        data-monaco-editor-target="error"
+        hidden
+        class="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-secondary bg-surface-inset">
+        <%= t("pages.monarch.load_failed") %>
+      </p>
+    </div>
+
+    <div class="flex items-center gap-4 px-4 pb-3 text-xs text-secondary tabular-nums">
+      <span data-monaco-editor-target="position"><%= t("pages.monarch.position_line", line: 1, column: 1) %></span>
+      <span data-monaco-editor-target="count"></span>
+    </div>
+
+    <div class="border-t border-tertiary px-4 py-3">
+      <div class="flex items-center gap-2 pb-2">
+        <span class="text-sm font-medium text-primary"><%= t("pages.monarch.results_title") %></span>
+        <span
+          data-monaco-editor-target="resultMeta"
+          class="text-xs text-secondary tabular-nums"></span>
+        <span
+          data-monaco-editor-target="submitSpinner"
+          hidden
+          class="flex items-center gap-1 text-xs text-secondary">
+          <%= icon("loader-circle", class: "animate-spin size-3.5") %>
+          <%= t("pages.monarch.compiling") %>
+        </span>
+      </div>
+
+      <%= render DS::Tabs.new(active_tab: "sql") do |tabs| %>
+        <%= tabs.with_nav do |nav| %>
+          <%= nav.with_btn(id: "sql", label: t("pages.monarch.tab_sql")) %>
+          <%= nav.with_btn(id: "json", label: t("pages.monarch.tab_json")) %>
+          <%= nav.with_btn(id: "results", label: t("pages.monarch.tab_results")) %>
+        <% end %>
+
+        <%= tabs.with_panel(tab_id: "sql") do %>
+          <pre
+            data-monaco-editor-target="sqlOutput"
+            class="px-4 py-3 rounded-xl border border-primary bg-surface-inset overflow-auto text-sm font-mono text-primary whitespace-pre-wrap min-h-[80px] max-h-[320px]"><%= t("pages.monarch.sql_output_placeholder") %></pre>
+        <% end %>
+
+        <%= tabs.with_panel(tab_id: "json") do %>
+          <pre
+            data-monaco-editor-target="jsonOutput"
+            class="px-4 py-3 rounded-xl border border-primary bg-surface-inset overflow-auto text-xs font-mono text-primary whitespace-pre-wrap min-h-[80px] max-h-[320px]"><%= t("pages.monarch.json_placeholder") %></pre>
+        <% end %>
+
+        <%= tabs.with_panel(tab_id: "results") do %>
+          <div
+            data-monaco-editor-target="resultsOutput"
+            class="min-h-[80px] max-h-[480px] overflow-auto text-sm text-primary">
+            <p class="px-4 py-3 rounded-xl border border-primary bg-surface-inset text-secondary"><%= t("pages.monarch.results_placeholder") %></p>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+
+    <template data-monaco-editor-target="source"># sureql — app-specific PRQL dialect.
+# `from` only accepts registry sources (transactions, accounts) and
+# authz (your accessible accounts) is always applied by the backend.
+
+from transactions
+sort {-date}
+take 10
+</template>
+  </div>
+<% end %>
