@@ -69,36 +69,57 @@ export default class extends Controller {
       categorySelectHTML = cloned.outerHTML
     }
 
+    // Clone transfer account select from the first row (plain native select)
+    const existingTransferSelect = container.querySelector("select[name*='[transfer_account_id]']")
+    let transferSelectHTML = ""
+    if (existingTransferSelect) {
+      const wrapper = existingTransferSelect.closest("div")
+      const clonedWrapper = wrapper ? wrapper.cloneNode(true) : null
+      if (clonedWrapper) {
+        const select = clonedWrapper.querySelector("select")
+        if (select) {
+          select.name = `split[splits][${index}][transfer_account_id]`
+          select.value = ""
+        }
+        transferSelectHTML = clonedWrapper.outerHTML
+      }
+    }
+
     row.innerHTML = `
-      <div class="flex flex-wrap md:flex-nowrap items-end gap-2">
-        <div class="w-full md:flex-1 md:w-auto min-w-0 md:min-w-28">
-          <label class="text-xs font-medium text-secondary uppercase tracking-wide block mb-1">Name</label>
-          <input type="text"
-                 name="split[splits][${index}][name]"
-                 placeholder="Split name"
-                 class="form-field__input border border-secondary rounded-md px-2.5 py-1.5 w-full text-sm text-primary bg-container"
-                 required
-                 autocomplete="off"
-                 data-split-transaction-target="nameInput">
+      <div class="space-y-2">
+        <div class="flex flex-wrap items-end gap-2">
+          <div class="min-w-0 flex-1 basis-48">
+            <label class="text-xs font-medium text-secondary uppercase tracking-wide block mb-1">Name</label>
+            <input type="text"
+                   name="split[splits][${index}][name]"
+                   placeholder="Split name"
+                   class="form-field__input border border-secondary rounded-md px-2.5 py-1.5 w-full text-sm text-primary bg-container"
+                   required
+                   autocomplete="off"
+                   data-split-transaction-target="nameInput">
+          </div>
+          <div class="min-w-28 max-w-36 flex-1 basis-28">
+            <label class="text-xs font-medium text-secondary uppercase tracking-wide block mb-1">Amount</label>
+            <input type="number"
+                   name="split[splits][${index}][amount]"
+                   placeholder="0.00"
+                   step="0.01"
+                   class="form-field__input border border-secondary rounded-md px-2.5 py-1.5 w-full text-sm text-primary bg-container"
+                   required
+                   autocomplete="off"
+                   data-split-transaction-target="amountInput"
+                   data-action="input->split-transaction#updateRemaining">
+          </div>
         </div>
-        <div class="flex-1 md:flex-none md:w-28">
-          <label class="text-xs font-medium text-secondary uppercase tracking-wide block mb-1">Amount</label>
-          <input type="number"
-                 name="split[splits][${index}][amount]"
-                 placeholder="0.00"
-                 step="0.01"
-                 class="form-field__input border border-secondary rounded-md px-2.5 py-1.5 w-full text-sm text-primary bg-container"
-                 required
-                 autocomplete="off"
-                 data-split-transaction-target="amountInput"
-                 data-action="input->split-transaction#updateRemaining">
+        <div class="flex flex-wrap items-end gap-2">
+          ${categorySelectHTML}
+          ${transferSelectHTML}
+          <button type="button"
+                  class="w-8 h-8 shrink-0 flex items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface-hover transition-colors"
+                  data-action="click->split-transaction#removeRow">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
         </div>
-        ${categorySelectHTML}
-        <button type="button"
-                class="w-8 h-8 shrink-0 flex items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface-hover transition-colors"
-                data-action="click->split-transaction#removeRow">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        </button>
       </div>
     `
 
