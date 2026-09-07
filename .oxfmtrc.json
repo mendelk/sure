@@ -1,0 +1,27 @@
+{
+	// Root oxfmt configuration for the pnpm workspace (apps/* plus workspace
+	// manifests). Run from the repo root: `pnpm format:check:web` (check) or
+	// `pnpm format:web` (write).
+	//
+	// Scope notes:
+	// - Tabs match the existing repo style (see root/biome-adjacent files).
+	// - Rails JavaScript (app/javascript) stays on Biome; Markdown stays
+	//   unformatted (out of scope for this workspace config); lockfiles are
+	//   never reformatted.
+	// - Generated files (routeTree.gen.ts, openapi-typescript output) and
+	//   build outputs are ignored: reformatting generated output would make
+	//   the `api:check` drift comparison fail.
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"useTabs": true,
+	"ignorePatterns": [
+		"**/node_modules/**",
+		"**/dist/**",
+		"**/coverage/**",
+		"**/routeTree.gen.ts",
+		"**/openapi.d.ts",
+		"**/*.min.*",
+		"**/*.md",
+		"pnpm-lock.yaml",
+		"package-lock.json"
+	]
+}

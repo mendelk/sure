@@ -1,0 +1,26 @@
+{
+	// Browser / isomorphic boundary: everything that may end up in the client
+	// bundle. Server-only modules (*.server.*), tests, and deliberate
+	// boundary fixtures are excluded from the roots here.
+	//
+	// NOTE on ambient types: this project keeps the Node types available
+	// because route modules legitimately import server-only accessors for use
+	// inside `createServerFn` handlers, which pulls those sources into the
+	// program. The per-file "no Node APIs in browser code" boundary is
+	// enforced by oxlint (no-restricted-imports / no-restricted-globals
+	// scoped to client-safe files), not by ambient-type removal.
+	"$schema": "https://json.schemastore.org/tsconfig.json",
+	"extends": "./tsconfig.base.json",
+	"include": ["src/**/*.ts", "src/**/*.tsx"],
+	"exclude": [
+		"src/**/*.server.ts",
+		"src/**/*.server.tsx",
+		"src/**/*.test.ts",
+		"src/**/*.test.tsx",
+		"src/__fixtures__"
+	],
+	"compilerOptions": {
+		"lib": ["DOM", "DOM.Iterable", "ES2022"],
+		"types": ["vite/client", "node"]
+	}
+}

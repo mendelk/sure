@@ -1,22 +1,26 @@
 {
-	"devDependencies": {
-		"@biomejs/biome": "1.9.3"
-	},
 	"name": "sure",
 	"version": "1.0.0",
-	"description": "The personal finance app for everyone",
 	"private": true,
-	"packageManager": "pnpm@10.15.0",
-	"engines": {
-		"node": ">=24"
-	},
+	"description": "The personal finance app for everyone",
+	"license": "ISC",
+	"author": "",
 	"scripts": {
 		"style:check": "biome check",
 		"style:fix": "biome check --write",
 		"lint": "biome lint",
 		"lint:fix": "biome lint --write",
+		"lint:rails": "biome lint",
+		"lint:web": "oxlint --ignore-pattern '**/__fixtures__/**' apps",
+		"lint:web:fix": "oxlint --fix --ignore-pattern '**/__fixtures__/**' apps",
 		"format:check": "biome format",
 		"format": "biome format --write",
+		"format:rails": "biome format",
+		"format:check:web": "oxfmt --check apps package.json pnpm-workspace.yaml",
+		"format:web": "oxfmt --write apps package.json pnpm-workspace.yaml",
+		"typecheck": "pnpm -r --if-present run typecheck",
+		"test": "pnpm -r --if-present run test",
+		"checks:web": "pnpm typecheck && pnpm lint:web && pnpm format:check:web && pnpm test",
 		"tokens:build": "node bin/tokens.mjs",
 		"tokens:check": "node bin/tokens.mjs && git diff --quiet -- app/assets/tailwind/sure-design-system/_generated.css",
 		"web:dev": "pnpm --filter @sure/web dev",
@@ -29,6 +33,14 @@
 		"web:install:clean": "pnpm install --frozen-lockfile",
 		"install:clean": "pnpm install --frozen-lockfile"
 	},
-	"author": "",
-	"license": "ISC"
+	"devDependencies": {
+		"@biomejs/biome": "1.9.3",
+		"oxfmt": "^0.66.0",
+		"oxlint": "^1.81.0",
+		"oxlint-tsgolint": "^7.0.2001"
+	},
+	"engines": {
+		"node": ">=24"
+	},
+	"packageManager": "pnpm@10.15.0"
 }

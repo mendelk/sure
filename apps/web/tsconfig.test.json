@@ -1,0 +1,16 @@
+{
+	// Test boundary: vitest suites run in Node, so Node globals and Node
+	// built-in imports are allowed here (and only here, outside *.server.*).
+	"$schema": "https://json.schemastore.org/tsconfig.json",
+	"extends": "./tsconfig.base.json",
+	"include": [
+		"src/**/*.test.ts",
+		"src/**/*.test.tsx",
+		"src/**/__tests__/**/*.ts",
+		"src/**/__tests__/**/*.tsx"
+	],
+	"compilerOptions": {
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"types": ["node", "vite/client"]
+	}
+}

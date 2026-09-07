@@ -1,24 +1,13 @@
 {
-	"include": ["**/*.ts", "**/*.tsx"],
+	// IDE / fallback project: covers the whole package (app + server + test
+	// + tooling + generated route tree) so editors get full IntelliSense.
+	// CI and `pnpm typecheck` enforce the stricter per-boundary projects
+	// (tsconfig.app.json / tsconfig.server.json / tsconfig.test.json).
+	"$schema": "https://json.schemastore.org/tsconfig.json",
+	"extends": "./tsconfig.base.json",
+	"include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],
 	"compilerOptions": {
-		"strict": true,
-		"noUnusedLocals": true,
-		"noUnusedParameters": true,
-		"esModuleInterop": true,
-		"jsx": "react-jsx",
-		"module": "ESNext",
-		"moduleResolution": "Bundler",
 		"lib": ["DOM", "DOM.Iterable", "ES2022"],
-		"isolatedModules": true,
-		"resolveJsonModule": true,
-		"skipLibCheck": true,
-		"target": "ES2022",
-		"allowJs": true,
-		"allowImportingTsExtensions": true,
-		"forceConsistentCasingInFileNames": true,
-		"paths": {
-			"~/*": ["./src/*"]
-		},
-		"noEmit": true
+		"types": ["vite/client", "node"]
 	}
 }

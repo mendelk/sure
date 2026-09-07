@@ -1,8 +1,5 @@
 import { createServerOnlyFn } from "@tanstack/react-start";
-import {
-	SURE_API_ORIGIN_ENV_VAR,
-	assertSureApiOrigin,
-} from "./sure-api-origin";
+import { SURE_API_ORIGIN_ENV_VAR, assertSureApiOrigin } from "./sure-api-origin";
 
 /**
  * Server-only accessor for the deployment-level Sure API origin.

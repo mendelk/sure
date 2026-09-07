@@ -27,9 +27,10 @@ type ErrorResponse = components["schemas"]["ErrorResponse"];
 
 type FetchImpl = (input: Request) => Promise<Response>;
 
-function mockFetch(
-	handler: (request: Request) => Response | Promise<Response>,
-): { fetchImpl: FetchImpl; requests: Request[] } {
+function mockFetch(handler: (request: Request) => Response | Promise<Response>): {
+	fetchImpl: FetchImpl;
+	requests: Request[];
+} {
 	const requests: Request[] = [];
 	const fetchImpl: FetchImpl = async (input: Request) => {
 		requests.push(input);
@@ -56,9 +57,7 @@ function errorBody(overrides: Partial<ErrorResponse> = {}): ErrorResponse {
 	return { error: "unprocessable_entity", ...overrides };
 }
 
-function collectionBody(
-	overrides: Partial<AccountCollection> = {},
-): AccountCollection {
+function collectionBody(overrides: Partial<AccountCollection> = {}): AccountCollection {
 	return {
 		accounts: [],
 		pagination: { page: 1, per_page: 25, total_count: 0, total_pages: 1 },
@@ -75,23 +74,44 @@ function testClient(fetchImpl: FetchImpl): SureClient {
 	});
 }
 
-async function expectApiError(
-	promise: Promise<unknown>,
-): Promise<ApiError> {
+async function expectApiError(promise: Promise<unknown>): Promise<ApiError> {
+	let threw = false;
+	let caught: unknown;
 	try {
 		await promise;
 	} catch (error) {
-		expect(isApiError(error)).toBe(true);
-		return error as ApiError;
+		threw = true;
+		caught = error;
 	}
-	throw new Error("Expected the request to throw an ApiError.");
+	expect(threw).toBe(true);
+	expect(isApiError(caught)).toBe(true);
+	if (!isApiError(caught)) {
+		throw new Error("Expected the request to throw an ApiError.");
+	}
+	return caught;
 }
+
+function firstRequest(requests: Request[]): Request {
+	return requestAt(requests, 0);
+}
+
+function requestAt(requests: Request[], index: number): Request {
+	const request = requests[index];
+	if (request === undefined) {
+		throw new Error(`Expected request ${index} to have been sent.`);
+	}
+	return request;
+}
+
+const malformedJsonFetch: FetchImpl = async () =>
+	new Response("definitely-not-json{{{", {
+		status: 200,
+		headers: { "Content-Type": "application/json" },
+	});
 
 describe("apiGet", () => {
 	it("sends pagination query params with correlation headers", async () => {
-		const { fetchImpl, requests } = mockFetch(() =>
-			jsonResponse(collectionBody()),
-		);
+		const { fetchImpl, requests } = mockFetch(() => jsonResponse(collectionBody()));
 		const client = testClient(fetchImpl);
 
 		const result = await apiGet(client, "/api/v1/accounts", {
@@ -99,15 +119,11 @@ describe("apiGet", () => {
 		});
 
 		expect(requests).toHaveLength(1);
-		const request = requests[0] as Request;
+		const request = firstRequest(requests);
 		expect(request.method).toBe("GET");
-		expect(request.url).toBe(
-			"http://localhost:3000/api/v1/accounts?page=2&per_page=10",
-		);
+		expect(request.url).toBe("http://localhost:3000/api/v1/accounts?page=2&per_page=10");
 		const sentId = request.headers.get(REQUEST_ID_HEADER);
-		expect(sentId).toMatch(
-			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-		);
+		expect(sentId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 		expect(result.requestId).toBe(sentId);
 		expect(result.data.pagination.page).toBe(1);
 	});
@@ -138,13 +154,11 @@ describe("apiGet", () => {
 	});
 
 	it("sends requests with same-origin credentials only", async () => {
-		const { fetchImpl, requests } = mockFetch(() =>
-			jsonResponse(collectionBody()),
-		);
+		const { fetchImpl, requests } = mockFetch(() => jsonResponse(collectionBody()));
 		const client = testClient(fetchImpl);
 
 		await apiGet(client, "/api/v1/accounts", { requestId: "req-cred-1" });
-		expect((requests[0] as Request).credentials).toBe("same-origin");
+		expect(firstRequest(requests).credentials).toBe("same-origin");
 
 		// A caller-supplied weaker/wider mode must not win: the session
 		// cookie goes to the BFF origin only, never cross-origin.
@@ -152,31 +166,25 @@ describe("apiGet", () => {
 			requestId: "req-cred-2",
 			credentials: "omit",
 		});
-		expect((requests[1] as Request).credentials).toBe("same-origin");
+		expect(requestAt(requests, 1).credentials).toBe("same-origin");
 	});
 
 	it("honours an explicit requestId and a pre-set correlation header", async () => {
-		const { fetchImpl, requests } = mockFetch(() =>
-			jsonResponse(collectionBody()),
-		);
+		const { fetchImpl, requests } = mockFetch(() => jsonResponse(collectionBody()));
 		const client = testClient(fetchImpl);
 
 		const explicit = await apiGet(client, "/api/v1/accounts", {
 			requestId: "req-explicit-1",
 		});
 		expect(explicit.requestId).toBe("req-explicit-1");
-		expect((requests[0] as Request).headers.get(REQUEST_ID_HEADER)).toBe(
-			"req-explicit-1",
-		);
+		expect(firstRequest(requests).headers.get(REQUEST_ID_HEADER)).toBe("req-explicit-1");
 
 		const preset = await apiGet(client, "/api/v1/accounts", {
 			headers: { [REQUEST_ID_HEADER]: "req-preset-1" },
 			requestId: "req-explicit-2",
 		});
 		expect(preset.requestId).toBe("req-preset-1");
-		expect((requests[1] as Request).headers.get(REQUEST_ID_HEADER)).toBe(
-			"req-preset-1",
-		);
+		expect(requestAt(requests, 1).headers.get(REQUEST_ID_HEADER)).toBe("req-preset-1");
 	});
 
 	it("sends path params", async () => {
@@ -189,21 +197,16 @@ describe("apiGet", () => {
 			params: { path: { id: "balance-1" } },
 		});
 
-		expect(new URL((requests[0] as Request).url).pathname).toBe(
-			"/api/v1/balances/balance-1",
-		);
+		expect(new URL(firstRequest(requests).url).pathname).toBe("/api/v1/balances/balance-1");
 	});
 });
 
 describe("apiPost", () => {
 	it("sends a typed JSON body", async () => {
-		const seen: string[] = [];
+		const seen: unknown[] = [];
 		const { fetchImpl } = mockFetch(async (request) => {
-			seen.push(await request.text());
-			return jsonResponse(
-				{ data: { ok: true } },
-				201,
-			);
+			seen.push(await request.json());
+			return jsonResponse({ data: { ok: true } }, 201);
 		});
 		const client = testClient(fetchImpl);
 
@@ -215,15 +218,13 @@ describe("apiPost", () => {
 			requestId: "req-post-1",
 		});
 
-		expect(JSON.parse(seen[0] as string)).toEqual(body);
+		expect(seen[0]).toEqual(body);
 	});
 });
 
 describe("apiDelete", () => {
 	it("resolves typed data for delete endpoints", async () => {
-		const { fetchImpl, requests } = mockFetch(() =>
-			jsonResponse({ data: { id: "tag-1" } }),
-		);
+		const { fetchImpl, requests } = mockFetch(() => jsonResponse({ data: { id: "tag-1" } }));
 		const client = testClient(fetchImpl);
 
 		const result = await apiDelete(client, "/api/v1/tags/{id}", {
@@ -231,7 +232,7 @@ describe("apiDelete", () => {
 			requestId: "req-delete-1",
 		});
 
-		expect((requests[0] as Request).method).toBe("DELETE");
+		expect(firstRequest(requests).method).toBe("DELETE");
 		expect(result.requestId).toBe("req-delete-1");
 	});
 });
@@ -275,23 +276,18 @@ describe("ApiError normalization", () => {
 		{ status: 404, kind: "notFound" },
 		{ status: 409, kind: "conflict" },
 		{ status: 500, kind: "http" },
-	])(
-		"maps $status to $kind",
-		async ({ status, kind }) => {
-			const { fetchImpl } = mockFetch(() =>
-				jsonResponse(errorBody({ error: "failure" }), status),
-			);
-			const client = testClient(fetchImpl);
+	])("maps $status to $kind", async ({ status, kind }) => {
+		const { fetchImpl } = mockFetch(() => jsonResponse(errorBody({ error: "failure" }), status));
+		const client = testClient(fetchImpl);
 
-			const error = await expectApiError(
-				apiGet(client, "/api/v1/accounts", { requestId: `req-${status}` }),
-			);
+		const error = await expectApiError(
+			apiGet(client, "/api/v1/accounts", { requestId: `req-${status}` }),
+		);
 
-			expect(error.kind).toBe(kind);
-			expect(error.status).toBe(status);
-			expect(error.requestId).toBe(`req-${status}`);
-		},
-	);
+		expect(error.kind).toBe(kind);
+		expect(error.status).toBe(status);
+		expect(error.requestId).toBe(`req-${status}`);
+	});
 
 	it("maps 429 to rateLimited with retryAfterMs from Retry-After", async () => {
 		const { fetchImpl } = mockFetch(() =>
@@ -322,14 +318,12 @@ describe("ApiError normalization", () => {
 		expect(error.kind).toBe("network");
 		expect(error.status).toBeUndefined();
 		expect(error.requestId).toBe("req-network-1");
-		expect((error.cause as Error)).toBe(cause);
+		expect(error.cause).toBe(cause);
 		expect(error.retryable).toBe(true);
 	});
 
 	it("maps aborts to aborted", async () => {
-		const { fetchImpl } = mockFetch(() =>
-			jsonResponse(collectionBody()),
-		);
+		const { fetchImpl } = mockFetch(() => jsonResponse(collectionBody()));
 		const client = testClient(fetchImpl);
 		const controller = new AbortController();
 		controller.abort();
@@ -347,12 +341,7 @@ describe("ApiError normalization", () => {
 	});
 
 	it("maps unparseable success bodies to parse", async () => {
-		const fetchImpl: FetchImpl = async () =>
-			new Response("definitely-not-json{{{", {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
-			});
-		const client = testClient(fetchImpl);
+		const client = testClient(malformedJsonFetch);
 
 		const error = await expectApiError(
 			apiGet(client, "/api/v1/accounts", { requestId: "req-parse-1" }),
@@ -379,11 +368,10 @@ describe("apiDownload", () => {
 		);
 		const client = testClient(fetchImpl);
 
-		const file = await apiDownload(
-			client,
-			"/api/v1/family_exports/{id}/download",
-			{ params: { path: { id: "export-1" } }, requestId: "req-dl-1" },
-		);
+		const file = await apiDownload(client, "/api/v1/family_exports/{id}/download", {
+			params: { path: { id: "export-1" } },
+			requestId: "req-dl-1",
+		});
 
 		expect(requests).toHaveLength(1);
 		expect(file.blob).toBeInstanceOf(Blob);
@@ -466,15 +454,9 @@ describe("compile-time types", () => {
 
 		const result = await apiGet(client, "/api/v1/accounts");
 
-		expectTypeOf(result.data).toEqualTypeOf<
-			ApiData<"get", "/api/v1/accounts">
-		>();
-		expectTypeOf(result.data.accounts).toEqualTypeOf<
-			components["schemas"]["AccountDetail"][]
-		>();
-		expectTypeOf(result.data.pagination).toEqualTypeOf<
-			components["schemas"]["Pagination"]
-		>();
+		expectTypeOf(result.data).toEqualTypeOf<ApiData<"get", "/api/v1/accounts">>();
+		expectTypeOf(result.data.accounts).toEqualTypeOf<components["schemas"]["AccountDetail"][]>();
+		expectTypeOf(result.data.pagination).toEqualTypeOf<components["schemas"]["Pagination"]>();
 		expectTypeOf(result.requestId).toEqualTypeOf<string>();
 	});
 

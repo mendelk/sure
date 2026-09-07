@@ -39,7 +39,11 @@ export type { components, paths };
 /** All documented API paths, e.g. `"/api/v1/accounts"`. */
 export type ApiPaths = keyof paths;
 
-/** The underlying type-safe client (API-key middleware applied). */
+/**
+ * The underlying type-safe client. Authentication is the BFF's `HttpOnly`
+ * session cookie only (`credentials: "same-origin"`): no API-key/bearer
+ * middleware is applied, per ADR-0001 D1/REQ-SESS-01.
+ */
 export type SureClient = Client<paths>;
 
 /** Header carrying the per-request correlation id. */
@@ -60,10 +64,10 @@ export type ApiErrorKind =
 export interface ApiErrorInit {
 	kind: ApiErrorKind;
 	message: string;
-	status?: number;
+	status?: number | undefined;
 	details?: unknown;
-	retryAfterMs?: number;
-	requestId?: string;
+	retryAfterMs?: number | undefined;
+	requestId?: string | undefined;
 	cause?: unknown;
 }
 
@@ -77,16 +81,13 @@ export interface ApiErrorInit {
  */
 export class ApiError extends Error {
 	readonly kind: ApiErrorKind;
-	readonly status?: number;
+	readonly status?: number | undefined;
 	readonly details?: unknown;
-	readonly retryAfterMs?: number;
-	readonly requestId?: string;
+	readonly retryAfterMs?: number | undefined;
+	readonly requestId?: string | undefined;
 
 	constructor(init: ApiErrorInit) {
-		super(
-			init.message,
-			init.cause === undefined ? undefined : { cause: init.cause },
-		);
+		super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
 		this.name = "ApiError";
 		this.kind = init.kind;
 		this.status = init.status;
@@ -197,27 +198,55 @@ export interface ApiRequestExtras {
  * when the operation requires neither params nor a body, so required
  * bodies/path params stay compile-time errors instead of runtime 422s.
  */
-export type ApiInit<Operation> = {} extends FetchOptions<Operation>
-	? [init?: FetchOptions<Operation> & ApiRequestExtras]
-	: [init: FetchOptions<Operation> & ApiRequestExtras];
+export type ApiInit<Operation> =
+	{} extends FetchOptions<Operation>
+		? [init?: FetchOptions<Operation> & ApiRequestExtras]
+		: [init: FetchOptions<Operation> & ApiRequestExtras];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object";
+}
+
+function appendHeaders(target: Headers, source: HeadersOptions | undefined): void {
+	if (source === undefined || source === null) {
+		return;
+	}
+	if (source instanceof Headers) {
+		source.forEach((value, key) => {
+			target.set(key, value);
+		});
+		return;
+	}
+	if (Array.isArray(source)) {
+		for (const [name, value] of source) {
+			target.set(name, value);
+		}
+		return;
+	}
+	for (const [name, value] of Object.entries(source)) {
+		if (value !== undefined && value !== null) {
+			target.set(name, String(value));
+		}
+	}
+}
+
+function isHeadersOptions(value: unknown): value is HeadersOptions {
+	return value instanceof Headers || Array.isArray(value) || isRecord(value);
+}
 
 function resolveRequestHeaders(
-	headers: HeadersOptions | undefined,
-	explicitRequestId: string | undefined,
+	headers: unknown,
+	explicitRequestId: unknown,
 	generateRequestId: () => string,
 ): { headers: Headers; requestId: string } {
 	const merged = new Headers();
-	if (headers !== undefined) {
-		new Headers(headers as HeadersInit).forEach((value, key) => {
-			merged.set(key, value);
-		});
-	}
+	appendHeaders(merged, isHeadersOptions(headers) ? headers : undefined);
 	const existing = merged.get(REQUEST_ID_HEADER);
 	if (existing !== null && existing !== "") {
 		return { headers: merged, requestId: existing };
 	}
 	const requestId =
-		explicitRequestId && explicitRequestId !== ""
+		typeof explicitRequestId === "string" && explicitRequestId !== ""
 			? explicitRequestId
 			: generateRequestId();
 	merged.set(REQUEST_ID_HEADER, requestId);
@@ -252,26 +281,26 @@ function parseRetryAfterMs(value: string | null): number | undefined {
 }
 
 function errorMessage(payload: unknown, fallback: string): string {
-	if (payload !== null && typeof payload === "object") {
-		const record = payload as Record<string, unknown>;
-		if (typeof record.message === "string" && record.message !== "") {
-			return record.message;
+	if (isRecord(payload)) {
+		const message = payload["message"];
+		if (typeof message === "string" && message !== "") {
+			return message;
 		}
-		if (typeof record.error === "string" && record.error !== "") {
-			return record.error;
+		const error = payload["error"];
+		if (typeof error === "string" && error !== "") {
+			return error;
 		}
 	}
 	return fallback;
 }
 
 function errorDetails(payload: unknown): unknown {
-	if (payload !== null && typeof payload === "object") {
-		const record = payload as Record<string, unknown>;
-		if (record.details !== undefined) {
-			return record.details;
+	if (isRecord(payload)) {
+		if (payload["details"] !== undefined) {
+			return payload["details"];
 		}
-		if (record.errors !== undefined) {
-			return record.errors;
+		if (payload["errors"] !== undefined) {
+			return payload["errors"];
 		}
 	}
 	return payload === undefined ? undefined : payload;
@@ -356,9 +385,7 @@ function errorFromThrown(
 		return error;
 	}
 	const name =
-		error !== null && typeof error === "object"
-			? (error as { name?: unknown }).name
-			: undefined;
+		error !== null && typeof error === "object" ? (error as { name?: unknown }).name : undefined;
 	if (name === "AbortError" || signal?.aborted === true) {
 		return new ApiError({
 			kind: "aborted",
@@ -397,6 +424,7 @@ interface PerformArgs {
 
 async function perform<T>(args: PerformArgs): Promise<ApiSuccess<T>> {
 	const { client, method, path, init, headers, requestId } = args;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Type-erased shared core: the public per-verb wrappers keep full static types, so this boundary reuses one implementation for every method/path without duplicating request logic.
 	const rawRequest = client.request as unknown as RawRequest;
 	let result: RawResult;
 	try {
@@ -412,18 +440,14 @@ async function perform<T>(args: PerformArgs): Promise<ApiSuccess<T>> {
 		throw errorFromThrown(error, readSignal(init), requestId);
 	}
 	if (result.error !== undefined || !result.response.ok) {
-		throw errorFromStatus(
-			result.response.status,
-			result.error,
-			result.response,
-			requestId,
-		);
+		throw errorFromStatus(result.response.status, result.error, result.response, requestId);
 	}
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Success data is typed per endpoint at the public wrappers; the shared core only forwards the already-normalized payload.
 	return { data: result.data as T, response: result.response, requestId };
 }
 
 function readSignal(init: Record<string, unknown> | undefined): AbortSignal | null | undefined {
-	const signal = init?.signal;
+	const signal = init?.["signal"];
 	return signal instanceof AbortSignal ? signal : undefined;
 }
 
@@ -431,14 +455,21 @@ function prepare(
 	client: SureClient,
 	method: "get" | "post" | "put" | "patch" | "delete",
 	path: string,
-	init: { headers?: HeadersOptions; requestId?: string } & Record<string, unknown>,
+	init:
+		| {
+				headers?: HeadersOptions;
+				requestId?: string | undefined;
+		  }
+		| undefined,
 ): PerformArgs {
 	const { headers, requestId } = resolveRequestHeaders(
 		init?.headers,
 		init?.requestId,
 		defaultGenerateRequestId,
 	);
-	const { requestId: _dropped, ...rest } = init ?? {};
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Single erasure point: public per-verb wrappers pass fully-typed init, so the shared core can operate on plain records without duplicating request logic per method.
+	const raw = (init ?? {}) as Record<string, unknown>;
+	const { requestId: _dropped, ...rest } = raw;
 	return { client, method, path, init: rest, headers, requestId };
 }
 
@@ -460,9 +491,7 @@ export function apiGet<Path extends GetPaths>(
 	...args: ApiInit<paths[Path]["get"]>
 ): Promise<ApiSuccess<ApiData<"get", Path>>> {
 	const [init] = args;
-	return perform<ApiData<"get", Path>>(
-		prepare(client, "get", path, ((init ?? {}) as Record<string, unknown>)),
-	);
+	return perform<ApiData<"get", Path>>(prepare(client, "get", path, init));
 }
 
 /** Typed POST with a JSON body (`body` is required exactly where the spec requires it). */
@@ -472,9 +501,7 @@ export function apiPost<Path extends PostPaths>(
 	...args: ApiInit<paths[Path]["post"]>
 ): Promise<ApiSuccess<ApiData<"post", Path>>> {
 	const [init] = args;
-	return perform<ApiData<"post", Path>>(
-		prepare(client, "post", path, ((init ?? {}) as Record<string, unknown>)),
-	);
+	return perform<ApiData<"post", Path>>(prepare(client, "post", path, init));
 }
 
 /** Typed PUT with a JSON body. */
@@ -484,9 +511,7 @@ export function apiPut<Path extends PutPaths>(
 	...args: ApiInit<paths[Path]["put"]>
 ): Promise<ApiSuccess<ApiData<"put", Path>>> {
 	const [init] = args;
-	return perform<ApiData<"put", Path>>(
-		prepare(client, "put", path, ((init ?? {}) as Record<string, unknown>)),
-	);
+	return perform<ApiData<"put", Path>>(prepare(client, "put", path, init));
 }
 
 /** Typed PATCH with a JSON body. */
@@ -496,9 +521,7 @@ export function apiPatch<Path extends PatchPaths>(
 	...args: ApiInit<paths[Path]["patch"]>
 ): Promise<ApiSuccess<ApiData<"patch", Path>>> {
 	const [init] = args;
-	return perform<ApiData<"patch", Path>>(
-		prepare(client, "patch", path, ((init ?? {}) as Record<string, unknown>)),
-	);
+	return perform<ApiData<"patch", Path>>(prepare(client, "patch", path, init));
 }
 
 /** Typed DELETE. */
@@ -508,9 +531,7 @@ export function apiDelete<Path extends DeletePaths>(
 	...args: ApiInit<paths[Path]["delete"]>
 ): Promise<ApiSuccess<ApiData<"delete", Path>>> {
 	const [init] = args;
-	return perform<ApiData<"delete", Path>>(
-		prepare(client, "delete", path, ((init ?? {}) as Record<string, unknown>)),
-	);
+	return perform<ApiData<"delete", Path>>(prepare(client, "delete", path, init));
 }
 
 /** Downloaded file envelope for binary endpoints (exports, attachments). */
@@ -554,24 +575,16 @@ export function apiDownload<Path extends GetPaths>(
 	...args: ApiInit<paths[Path]["get"]>
 ): Promise<DownloadedFile> {
 	const [init] = args;
-	const prepared = prepare(
-		client,
-		"get",
-		path,
-		(init ?? {}) as Record<string, unknown>,
-	);
+	const prepared = prepare(client, "get", path, init);
 	return (async () => {
 		const result = await perform<Blob>({
 			...prepared,
 			init: { ...prepared.init, parseAs: "blob" },
 		});
-		const contentType =
-			result.response.headers.get("Content-Type") ?? undefined;
+		const contentType = result.response.headers.get("Content-Type") ?? undefined;
 		return {
 			blob: result.data,
-			filename: parseFilename(
-				result.response.headers.get("Content-Disposition"),
-			),
+			filename: parseFilename(result.response.headers.get("Content-Disposition")),
 			contentType: contentType ?? undefined,
 			response: result.response,
 			requestId: result.requestId,
