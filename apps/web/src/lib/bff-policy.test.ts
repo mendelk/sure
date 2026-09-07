@@ -4,6 +4,8 @@ import {
 	BffError,
 	bffNoStoreHeaders,
 	checkBffMutationGuards,
+	coerceBffPrimitiveStrings,
+	decodeBffQueryObject,
 	extractUpstreamMessage,
 	filterBffRequestHeaders,
 	filterBffResponseHeaders,
@@ -80,6 +82,23 @@ describe("validateBffPath SSRF defenses", () => {
 			ok: true,
 			path: "/api/v1/accounts",
 			methods: ["GET", "POST"],
+			template: "/api/v1/accounts",
+			pathParams: {},
+		});
+	});
+
+	it("resolves templates and decodes path params for contract lookup", () => {
+		expect(validateBffPath("/api/v1/tags/tag-1")).toEqual({
+			ok: true,
+			path: "/api/v1/tags/tag-1",
+			methods: ["GET", "PATCH", "DELETE"],
+			template: "/api/v1/tags/{id}",
+			pathParams: { id: "tag-1" },
+		});
+		expect(validateBffPath("/api/v1/accounts/%41")).toMatchObject({
+			ok: true,
+			template: "/api/v1/accounts/{id}",
+			pathParams: { id: "A" },
 		});
 	});
 
@@ -166,6 +185,27 @@ describe("validateBffQuery", () => {
 		expect(validateBffQuery("?a=1\r\nX-Injected: yes").ok).toBe(false);
 		expect(validateBffQuery("?a=1#frag").ok).toBe(false);
 		expect(validateBffQuery(42).ok).toBe(false);
+	});
+});
+
+describe("contract wire decoding", () => {
+	it("decodes query strings to objects with arrays for repeats", () => {
+		expect(decodeBffQueryObject("?page=2&per_page=25")).toEqual({
+			page: "2",
+			per_page: "25",
+		});
+		expect(decodeBffQueryObject("tag=a&tag=b")).toEqual({ tag: ["a", "b"] });
+		expect(decodeBffQueryObject("")).toEqual({});
+	});
+
+	it("coerces primitive-looking strings without touching the rest", () => {
+		expect(
+			coerceBffPrimitiveStrings({ page: "2", flag: "true", name: "Cash", file: null }),
+		).toEqual({ page: 2, flag: true, name: "Cash", file: null });
+		expect(coerceBffPrimitiveStrings(["1", "x"])).toEqual([1, "x"]);
+		expect(coerceBffPrimitiveStrings("007")).toBe(7);
+		expect(coerceBffPrimitiveStrings("abc")).toBe("abc");
+		expect(coerceBffPrimitiveStrings(new Blob(["b"]))).toBeInstanceOf(Blob);
 	});
 });
 

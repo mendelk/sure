@@ -114,14 +114,15 @@ interface AllowEntry {
 	readonly methods: ReadonlySet<BffMethod>;
 	readonly exact: boolean;
 	readonly pattern?: RegExp | undefined;
+	readonly segments: readonly string[];
 }
 
 function entry(source: string, methods: readonly BffMethod[]): AllowEntry {
+	const segments = source.split("/");
 	if (!source.includes("{")) {
-		return { source, methods: new Set(methods), exact: true };
+		return { source, methods: new Set(methods), exact: true, segments };
 	}
-	const patternSource = `^${source
-		.split("/")
+	const patternSource = `^${segments
 		.map((segment) =>
 			segment.startsWith("{") && segment.endsWith("}")
 				? "[^/]+"
@@ -133,6 +134,7 @@ function entry(source: string, methods: readonly BffMethod[]): AllowEntry {
 		methods: new Set(methods),
 		exact: false,
 		pattern: new RegExp(patternSource),
+		segments,
 	};
 }
 
@@ -216,18 +218,63 @@ const ALLOW_ENTRIES: readonly AllowEntry[] = [
 	entry("/api/v1/valuations/{id}", ["GET", "PATCH"]),
 ];
 
-function findAllowEntry(path: string): AllowEntry | undefined {
+interface AllowMatch {
+	readonly entry: AllowEntry;
+	readonly pathParams: Record<string, string>;
+}
+
+function matchAllowEntry(path: string): AllowMatch | undefined {
 	for (const candidate of ALLOW_ENTRIES) {
 		if (candidate.exact && candidate.source === path) {
-			return candidate;
+			return { entry: candidate, pathParams: {} };
 		}
 	}
 	for (const candidate of ALLOW_ENTRIES) {
 		if (!candidate.exact && candidate.pattern?.test(path) === true) {
-			return candidate;
+			return { entry: candidate, pathParams: extractPathParams(candidate.segments, path) };
 		}
 	}
 	return undefined;
+}
+
+/**
+ * Pair template segments (`{id}`) with concrete segments. The path passed
+ * every SSRF gate already (no escapes, no encoded slashes), so per-segment
+ * decoding cannot smuggle separators.
+ */
+function extractPathParams(
+	templateSegments: readonly string[],
+	concretePath: string,
+): Record<string, string> {
+	const params: Record<string, string> = {};
+	const concreteSegments = concretePath.split("/");
+	for (let index = 0; index < templateSegments.length; index += 1) {
+		const template = templateSegments[index];
+		if (template !== undefined && template.startsWith("{") && template.endsWith("}")) {
+			const name = template.slice(1, -1);
+			const raw = concreteSegments[index] ?? "";
+			try {
+				params[name] = decodeURIComponent(raw);
+			} catch {
+				params[name] = raw;
+			}
+		}
+	}
+	return params;
+}
+
+/**
+ * Enumerate the allow-list for coverage checks (e.g. proving every entry
+ * resolves to a generated operation contract). Templates, not concrete paths.
+ */
+export function listBffAllowList(): {
+	readonly template: string;
+	readonly methods: readonly BffMethod[];
+}[] {
+	return ALLOW_ENTRIES.map((candidate) => ({
+		template: candidate.source,
+		methods: [...candidate.methods],
+	}));
 }
 
 export type BffPolicyErrorCode = "bad_path" | "bad_method" | "bad_content_type" | "bad_query";
@@ -237,6 +284,10 @@ export interface BffPathOk {
 	/** Validated path, forwarded verbatim (percent-encoding preserved). */
 	readonly path: string;
 	readonly methods: readonly BffMethod[];
+	/** OpenAPI path template (e.g. `/api/v1/tags/{id}`) for contract lookup. */
+	readonly template: string;
+	/** Decoded parameter segments keyed by template name. */
+	readonly pathParams: Record<string, string>;
 }
 
 export interface BffPolicyFailure {
@@ -323,11 +374,17 @@ export function validateBffPath(rawPath: unknown): BffPathResult {
 	if (!decoded.startsWith(BFF_API_PREFIX)) {
 		return fail("bad_path", "Request path must start with /api/v1/.");
 	}
-	const allowed = findAllowEntry(decoded);
+	const allowed = matchAllowEntry(decoded);
 	if (allowed === undefined) {
 		return fail("bad_path", "Request path is not allow-listed.");
 	}
-	return { ok: true, path: rawPath, methods: [...allowed.methods] };
+	return {
+		ok: true,
+		path: rawPath,
+		methods: [...allowed.entry.methods],
+		template: allowed.entry.source,
+		pathParams: allowed.pathParams,
+	};
 }
 
 /** Validate the HTTP method and its pairing with an allow-listed path. */
@@ -392,6 +449,80 @@ export function validateBffQuery(
 		return fail("bad_query", "Request query is invalid.");
 	}
 	return { ok: true, query: normalized === "" ? "" : `?${normalized}` };
+}
+
+/**
+ * Decode a validated query string into a plain object for contract input.
+ * Repeated keys collect into arrays. All values arrive as strings (the HTTP
+ * wire format); numeric/boolean literals stay strings here — the transport
+ * offers a coerced fallback (see `coerceBffPrimitiveStrings`) before the
+ * generated parser decides.
+ */
+export function decodeBffQueryObject(query: string): Record<string, string | string[]> {
+	const normalized = query.startsWith("?") ? query.slice(1) : query;
+	const params = new URLSearchParams(normalized);
+	const output: Record<string, string | string[]> = {};
+	params.forEach((value, key) => {
+		const existing = output[key];
+		if (existing === undefined) {
+			output[key] = value;
+		} else if (Array.isArray(existing)) {
+			existing.push(value);
+		} else {
+			output[key] = [existing, value];
+		}
+	});
+	return output;
+}
+
+const INT_PATTERN = /^[+-]?\d+$/;
+const FLOAT_PATTERN = /^[+-]?(\d+\.\d*|\.\d+|\d+)([eE][+-]?\d+)?$/;
+
+/**
+ * Coerce JSON-primitive-looking strings (`"2"` → `2`, `"true"` → `true`)
+ * one level deep. HTTP query strings and multipart fields are
+ * stringly-typed on the wire while generated parsers declare ints/booleans;
+ * this fallback decoding runs only when the raw strings already failed the
+ * parser, so string-typed fields are never corrupted — the generated
+ * parser remains the authority in both passes.
+ */
+export function coerceBffPrimitiveStrings(value: unknown): unknown {
+	if (typeof value === "string") {
+		if (value === "true") {
+			return true;
+		}
+		if (value === "false") {
+			return false;
+		}
+		if (value === "null") {
+			return null;
+		}
+		if (INT_PATTERN.test(value)) {
+			const parsed = Number(value);
+			if (Number.isSafeInteger(parsed)) {
+				return parsed;
+			}
+			return value;
+		}
+		if (FLOAT_PATTERN.test(value)) {
+			const parsed = Number(value);
+			if (Number.isFinite(parsed)) {
+				return parsed;
+			}
+		}
+		return value;
+	}
+	if (Array.isArray(value)) {
+		return value.map((item) => coerceBffPrimitiveStrings(item));
+	}
+	if (typeof value === "object" && value !== null && !(value instanceof Blob)) {
+		const output: Record<string, unknown> = {};
+		for (const [key, item] of Object.entries(value)) {
+			output[key] = coerceBffPrimitiveStrings(item);
+		}
+		return output;
+	}
+	return value;
 }
 
 function isForwardedRequestHeader(name: string): boolean {
@@ -541,7 +672,8 @@ export type BffErrorCode =
 	| "aborted"
 	| "network"
 	| "upstream"
-	| "rate_limited";
+	| "rate_limited"
+	| "contract";
 
 export interface BffErrorInit {
 	readonly code: BffErrorCode;

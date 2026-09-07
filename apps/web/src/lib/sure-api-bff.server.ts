@@ -21,8 +21,24 @@
  * and 4xx/429 are propagated (with `Retry-After`) rather than retried. The
  * auth refresh retry-once rule (REQ-AUTH-05) lives with the session work in
  * `t_alt_fnd_007`, not here.
+ *
+ * Generated-contract validation (`t_alt_fnd_018`, Orval/Zod from
+ * `docs/api/openapi.yaml` via `./api/bff-contracts.server`): every
+ * allow-listed operation validates outgoing path/query/body data before
+ * dispatch and upstream success/error data before forwarding. Contracts are
+ * gates, never transforms — forwarding stays byte-identical — and every
+ * violation fails closed with a redacted `BffError` (`code: "contract"`).
+ * No hand-written schemas exist here; the only hand-owned shape is the
+ * SSRF route/method allow-list in `./bff-policy`, which a coverage test
+ * pins to the generated registry.
  */
 import { getSureApiOrigin } from "./sure-api.server";
+import {
+	getOperationContract,
+	validateBffRequest,
+	validateUpstreamResponse,
+} from "./api/bff-contracts.server";
+import { isApiError } from "./api/client";
 import {
 	BFF_DEFAULT_TIMEOUT_MS,
 	BFF_MAX_ATTEMPTS,
@@ -31,6 +47,8 @@ import {
 	BFF_REQUEST_ID_HEADER,
 	BffError,
 	checkBffMutationGuards,
+	coerceBffPrimitiveStrings,
+	decodeBffQueryObject,
 	filterBffRequestHeaders,
 	filterBffResponseHeaders,
 	isIdempotentMethod,
@@ -245,6 +263,178 @@ function throwForTimeout(requestId: string): never {
 	});
 }
 
+function isJsonContentType(contentType: string | null): boolean {
+	if (contentType === null) {
+		return false;
+	}
+	return contentType.split(";")[0]?.trim().toLowerCase() === "application/json";
+}
+
+/** Map a generated-contract `ApiError` to the transport's redacted `BffError`. */
+function toContractError(requestId: string, status: number, message: string): BffError {
+	return new BffError({ code: "contract", status, message, requestId });
+}
+
+type DecodedBody =
+	| { readonly ok: true; readonly present: false }
+	| { readonly ok: true; readonly present: true; readonly data: unknown }
+	| { readonly ok: false; readonly message: string };
+
+/**
+ * Decode the outbound body into contract input. JSON travels as text in
+ * string/bytes/Blob shapes; multipart travels as `FormData` fields (file
+ * parts stay `Blob`s for `instanceof(Blob)` parsers). Streams cannot be
+ * validated and fail closed.
+ */
+async function decodeContractBody(
+	body: BffBodyInit | null | undefined,
+	contentType: string | undefined,
+): Promise<DecodedBody> {
+	if (body === undefined || body === null) {
+		return { ok: true, present: false };
+	}
+	if (typeof contentType === "string" && contentType.toLowerCase().startsWith("multipart/")) {
+		if (body instanceof FormData) {
+			const fields: Record<string, unknown> = {};
+			body.forEach((value, key) => {
+				fields[key] = value;
+			});
+			return { ok: true, present: true, data: fields };
+		}
+		return { ok: false, message: "Multipart bodies must be FormData." };
+	}
+	if (body instanceof FormData || body instanceof ReadableStream) {
+		return { ok: false, message: "Request body shape cannot be contract-validated." };
+	}
+	let text: string;
+	if (typeof body === "string") {
+		text = body;
+	} else if (body instanceof Uint8Array || body instanceof ArrayBuffer) {
+		text = new TextDecoder().decode(body);
+	} else {
+		try {
+			text = await body.text();
+		} catch {
+			return { ok: false, message: "Request body could not be read." };
+		}
+	}
+	try {
+		return { ok: true, present: true, data: JSON.parse(text) };
+	} catch {
+		return { ok: false, message: "Request body is not valid JSON." };
+	}
+}
+
+/**
+ * Validate outgoing path/query/body data against the generated operation
+ * contract (`t_alt_fnd_018`). Runs the raw wire-decoded values first, then
+ * a JSON-primitive-coerced fallback (query strings and multipart fields are
+ * stringly-typed on the wire); the generated parser is the authority in
+ * both passes. Header validation is the forwarding allow-list
+ * (`filterBffRequestHeaders`) — no operation documents header parsers.
+ */
+async function validateOutgoingRequest(args: {
+	readonly method: BffMethod;
+	readonly template: string;
+	readonly pathParams: Record<string, string>;
+	readonly query: string;
+	readonly contentType: string | undefined;
+	readonly body: BffBodyInit | null | undefined;
+	readonly requestId: string;
+}): Promise<void> {
+	if (getOperationContract(args.method, args.template) === undefined) {
+		throw toContractError(args.requestId, 500, "Upstream contract unavailable.");
+	}
+	const decoded = await decodeContractBody(args.body, args.contentType);
+	if (!decoded.ok) {
+		throw toContractError(args.requestId, 400, decoded.message);
+	}
+	const queryObject = decodeBffQueryObject(args.query);
+	const rawInput = {
+		pathParams: args.pathParams,
+		query: queryObject,
+		...(decoded.present ? { body: decoded.data } : {}),
+	};
+	try {
+		validateBffRequest(args.method, args.template, rawInput, args.requestId);
+		return;
+	} catch (error) {
+		if (!isApiError(error) || error.kind !== "contract") {
+			throw error;
+		}
+	}
+	const coercedInput = {
+		pathParams: coerceBffPrimitiveStrings(args.pathParams),
+		query: coerceBffPrimitiveStrings(queryObject),
+		...(decoded.present ? { body: coerceBffPrimitiveStrings(decoded.data) } : {}),
+	};
+	try {
+		validateBffRequest(args.method, args.template, coercedInput, args.requestId);
+	} catch (error) {
+		if (isApiError(error) && error.kind === "contract") {
+			throw toContractError(args.requestId, 400, error.message);
+		}
+		throw error;
+	}
+}
+
+function parseJsonSafely(text: string): unknown {
+	if (text === "") {
+		return "";
+	}
+	try {
+		return JSON.parse(text);
+	} catch {
+		return text;
+	}
+}
+
+/**
+ * Validate a buffered upstream success payload before forwarding (gate, not
+ * transform: the original bytes forward unchanged). Throws a generic
+ * redacted `contract` error on violation — malformed upstream data never
+ * reaches the browser.
+ */
+function validateUpstreamBytes(args: {
+	readonly method: BffMethod;
+	readonly template: string;
+	readonly status: number;
+	readonly bytes: ArrayBuffer;
+	readonly contentType: string | null;
+	readonly requestId: string;
+}): void {
+	const text = args.bytes.byteLength === 0 ? "" : new TextDecoder().decode(args.bytes);
+	let data: unknown = text;
+	if (text !== "") {
+		if (!isJsonContentType(args.contentType)) {
+			throw toContractError(args.requestId, 502, "Upstream response failed contract validation.");
+		}
+		try {
+			data = JSON.parse(text);
+		} catch {
+			throw toContractError(args.requestId, 502, "Upstream response failed contract validation.");
+		}
+	}
+	try {
+		validateUpstreamResponse(args.method, args.template, args.status, data, args.requestId);
+	} catch (error) {
+		if (isApiError(error) && error.kind === "contract") {
+			throw toContractError(args.requestId, 502, "Upstream response failed contract validation.");
+		}
+		throw error;
+	}
+}
+
+function streamOfBytes(bytes: ArrayBuffer): ReadableStream<Uint8Array> {
+	const view = new Uint8Array(bytes);
+	return new ReadableStream<Uint8Array>({
+		start(controller): void {
+			controller.enqueue(view);
+			controller.close();
+		},
+	});
+}
+
 /**
  * Proxy one browser request to the fixed Sure API origin.
  *
@@ -331,6 +521,21 @@ export async function proxyToSureApi(
 		});
 	}
 
+	// Generated-contract gate on outgoing data (t_alt_fnd_018). GET/DELETE
+	// never forward a body, so there is nothing to validate for them.
+	await validateOutgoingRequest({
+		method,
+		template: pathResult.template,
+		pathParams: pathResult.pathParams,
+		query: queryResult.query,
+		contentType: contentTypeResult.contentType,
+		body: method === "GET" || method === "DELETE" ? undefined : request.body,
+		requestId,
+	});
+
+	const isBinaryDownload =
+		getOperationContract(method, pathResult.template)?.isBinaryDownload === true;
+
 	const upstreamHeaders = filterBffRequestHeaders(inboundHeaders);
 	upstreamHeaders.set(BFF_REQUEST_ID_HEADER, requestId);
 	if (request.auth?.bearerToken !== undefined && request.auth.bearerToken !== "") {
@@ -412,7 +617,7 @@ export async function proxyToSureApi(
 
 		if (upstream.ok) {
 			const headers = buildBrowserHeaders(upstream.headers, requestId);
-			if (responseMode === "stream") {
+			if (responseMode === "stream" && isBinaryDownload) {
 				const declared = upstream.headers.get("Content-Length");
 				if (declared !== null && Number(declared) > BFF_MAX_RESPONSE_BYTES) {
 					void upstream.body?.cancel().catch(() => undefined);
@@ -435,9 +640,9 @@ export async function proxyToSureApi(
 				const stream = capStream(upstream.body, BFF_MAX_RESPONSE_BYTES, () => undefined);
 				return { status: upstream.status, headers, requestId, attempts, body: stream };
 			}
+			let body: ArrayBuffer;
 			try {
-				const body = await readWithCap(upstream, BFF_MAX_RESPONSE_BYTES);
-				return { status: upstream.status, headers, requestId, attempts, body };
+				body = await readWithCap(upstream, BFF_MAX_RESPONSE_BYTES);
 			} catch {
 				throw new BffError({
 					code: "payload_too_large",
@@ -446,6 +651,23 @@ export async function proxyToSureApi(
 					requestId,
 				});
 			}
+			// Contract gate on upstream data (binary downloads bypass JSON
+			// validation for 2xx per the generated `isBinaryDownload` rule).
+			// Stream mode over JSON re-streams the validated original bytes.
+			if (!isBinaryDownload) {
+				validateUpstreamBytes({
+					method,
+					template: pathResult.template,
+					status: upstream.status,
+					bytes: body,
+					contentType: upstream.headers.get("Content-Type"),
+					requestId,
+				});
+			}
+			if (responseMode === "stream") {
+				return { status: upstream.status, headers, requestId, attempts, body: streamOfBytes(body) };
+			}
+			return { status: upstream.status, headers, requestId, attempts, body };
 		}
 
 		if (idempotent && isRetryableUpstreamStatus(upstream.status) && attempts < BFF_MAX_ATTEMPTS) {
@@ -454,6 +676,20 @@ export async function proxyToSureApi(
 		}
 
 		const errorText = await readUpstreamErrorText(upstream);
+		try {
+			validateUpstreamResponse(
+				method,
+				pathResult.template,
+				upstream.status,
+				parseJsonSafely(errorText),
+				requestId,
+			);
+		} catch (error) {
+			if (isApiError(error) && error.kind === "contract") {
+				throw toContractError(requestId, 502, "Upstream error failed contract validation.");
+			}
+			throw error;
+		}
 		throw new BffError({
 			code: "upstream",
 			status: upstream.status,

@@ -204,6 +204,15 @@ server-side transport (ADR-0001 `t_alt_fnd_005`; threat model in
   caps with bounded buffered or streamed downloads, status + `Retry-After`
   + `X-Request-Id` propagation, and redacted `BffError`s safe for browser
   delivery (`toSafeBody()`; 5xx bodies replaced, 4xx hints scrubbed).
+- **Generated contracts (`t_alt_fnd_018`):** every allow-listed operation
+  validates outgoing path/query/body data and upstream success/error data
+  through the Orval-generated Zod parsers (`src/lib/api/bff-contracts.server.ts`)
+  before dispatch or forwarding — gates, never transforms — with wire
+  decoding (query/multipart strings, JSON bodies) plus a coerced fallback
+  pass, the generated parser authoritative in both. Violations fail closed
+  as redacted `contract` errors; binary downloads bypass JSON validation
+  per the generated `isBinaryDownload` rule. No hand-written schemas: the
+  route/method allow-list is covered by a test pinning it to the registry.
 - **Caching (REQ-TRAN-05):** every BFF response carries
   `Cache-Control: private, no-store` and `Vary: Cookie, Authorization`.
 - **Tests:** `bff-policy.test.ts` (SSRF matrix, method/path/header

@@ -1,16 +1,61 @@
 import { describe, expect, it } from "vitest";
 import { BFF_MAX_REQUEST_BYTES, BFF_MAX_RESPONSE_BYTES, BffError } from "./bff-policy";
+import { getOperationContract } from "./api/bff-contracts.server";
+import { listBffAllowList } from "./bff-policy";
 import { getSureApiKey, proxyToSureApi } from "./sure-api-bff.server";
 import type { BffProxyRequest } from "./sure-api-bff.server";
 
-// Transport verification (t_alt_fnd_005 + ADR-0001 REQ-TRAN-*/CTL-SEC-02):
-// SSRF, header stripping, method/path validation, CSRF/origin, size limits,
-// timeout/abort/retry semantics, binary streaming, caching headers, upstream
-// error mapping, and credential non-disclosure. The upstream origin is fixed
-// per test via deps — production resolves it from server-only env.
+// Transport verification (t_alt_fnd_005 + ADR-0001 REQ-TRAN-*/CTL-SEC-02,
+// contracts from t_alt_fnd_018): SSRF, header stripping, method/path
+// validation, CSRF/origin, generated-parser consumption on outgoing and
+// upstream data, size limits, timeout/abort/retry semantics, binary
+// streaming, caching headers, upstream error mapping, and credential
+// non-disclosure. The upstream origin is fixed per test via deps —
+// production resolves it from server-only env.
 
 const UPSTREAM = "http://sure-api.test";
 const BFF_ORIGIN = "https://bff.test";
+const UUID = "123e4567-e89b-12d3-a456-426614174000";
+const STAMP = "2026-01-01T00:00:00Z";
+
+const COLLECTION = {
+	accounts: [],
+	pagination: { page: 1, per_page: 25, total_count: 0, total_pages: 1 },
+};
+
+const TAG = {
+	id: UUID,
+	name: "Food",
+	color: "#22c55e",
+	created_at: STAMP,
+	updated_at: STAMP,
+};
+
+const ACCOUNT = {
+	id: UUID,
+	name: "Cash",
+	balance: "100.00",
+	balance_cents: 10000,
+	cash_balance: "100.00",
+	cash_balance_cents: 10000,
+	currency: "USD",
+	classification: "asset",
+	account_type: "depository",
+	status: "active",
+	created_at: STAMP,
+	updated_at: STAMP,
+};
+
+const SESSION = {
+	id: UUID,
+	type: "SureImport",
+	status: "pending",
+	chunks_count: 0,
+	summary: {},
+	chunks: [],
+	created_at: STAMP,
+	updated_at: STAMP,
+};
 
 interface SeenCall {
 	url: string;
@@ -49,11 +94,11 @@ function baseRequest(overrides: Partial<BffProxyRequest> = {}): BffProxyRequest 
 function mutationRequest(overrides: Partial<BffProxyRequest> = {}): BffProxyRequest {
 	return {
 		method: "POST",
-		path: "/api/v1/accounts",
+		path: "/api/v1/tags",
 		origin: BFF_ORIGIN,
 		csrfToken: "csrf-1",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ account: { name: "Cash" } }),
+		body: JSON.stringify({ tag: { name: "Food" } }),
 		bffOrigin: BFF_ORIGIN,
 		...overrides,
 	};
@@ -75,6 +120,7 @@ async function expectBffError(promise: Promise<unknown>): Promise<BffError> {
 	}
 	return caught;
 }
+
 function firstCall(calls: SeenCall[]): SeenCall {
 	const call = calls[0];
 	if (call === undefined) {
@@ -98,30 +144,6 @@ function requireStreamBody(
 	}
 	return body;
 }
-
-/** Upstream that hangs until aborted (rejects like a timed-out fetch). */
-const hangingUpstream: typeof fetch = async (_input, init) =>
-	new Promise<Response>((_resolve, reject) => {
-		init?.signal?.addEventListener(
-			"abort",
-			() => {
-				reject(new DOMException("The operation timed out.", "TimeoutError"));
-			},
-			{ once: true },
-		);
-	});
-
-/** Upstream that rejects like a caller-aborted fetch. */
-const abortingUpstream: typeof fetch = async (_input, init) =>
-	new Promise<Response>((_resolve, reject) => {
-		init?.signal?.addEventListener(
-			"abort",
-			() => {
-				reject(new DOMException("This operation was aborted.", "AbortError"));
-			},
-			{ once: true },
-		);
-	});
 
 async function readAll(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
 	const reader = stream.getReader();
@@ -147,6 +169,30 @@ async function readAll(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> 
 	}
 	return merged;
 }
+
+/** Upstream that hangs until aborted (rejects like a timed-out fetch). */
+const hangingUpstream: typeof fetch = async (_input, init) =>
+	new Promise<Response>((_resolve, reject) => {
+		init?.signal?.addEventListener(
+			"abort",
+			() => {
+				reject(new DOMException("The operation timed out.", "TimeoutError"));
+			},
+			{ once: true },
+		);
+	});
+
+/** Upstream that rejects like a caller-aborted fetch. */
+const abortingUpstream: typeof fetch = async (_input, init) =>
+	new Promise<Response>((_resolve, reject) => {
+		init?.signal?.addEventListener(
+			"abort",
+			() => {
+				reject(new DOMException("This operation was aborted.", "AbortError"));
+			},
+			{ once: true },
+		);
+	});
 
 describe("SSRF and validation gates (REQ-TRAN-03)", () => {
 	it("rejects absolute and escaping paths without touching the network", async () => {
@@ -195,7 +241,7 @@ describe("SSRF and validation gates (REQ-TRAN-03)", () => {
 	});
 
 	it("pins every upstream call to the fixed origin with safe fetch options", async () => {
-		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({ accounts: [] }));
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(COLLECTION));
 		await proxyToSureApi(baseRequest({ query: "?page=2" }), {
 			fetchImpl,
 			upstreamOrigin: UPSTREAM,
@@ -206,11 +252,23 @@ describe("SSRF and validation gates (REQ-TRAN-03)", () => {
 		expect(call.init.credentials).toBe("omit");
 		expect(call.init.redirect).toBe("manual");
 	});
+
+	it("resolves every allow-listed operation to a generated contract", () => {
+		const missing: string[] = [];
+		for (const { template, methods } of listBffAllowList()) {
+			for (const method of methods) {
+				if (getOperationContract(method, template) === undefined) {
+					missing.push(`${method} ${template}`);
+				}
+			}
+		}
+		expect(missing).toEqual([]);
+	});
 });
 
 describe("forwarded-header stripping (REQ-TRAN-03)", () => {
 	it("drops spoofable and credential headers before proxying", async () => {
-		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}));
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(COLLECTION));
 		await proxyToSureApi(
 			baseRequest({
 				headers: {
@@ -245,7 +303,7 @@ describe("forwarded-header stripping (REQ-TRAN-03)", () => {
 
 describe("CSRF and same-origin enforcement (REQ-TRAN-01)", () => {
 	it("lets GETs through without origin or token", async () => {
-		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}));
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(COLLECTION));
 		await proxyToSureApi(baseRequest(), { fetchImpl, upstreamOrigin: UPSTREAM });
 		expect(calls).toHaveLength(1);
 	});
@@ -269,7 +327,7 @@ describe("CSRF and same-origin enforcement (REQ-TRAN-01)", () => {
 	});
 
 	it("proxies mutations with same-origin plus token", async () => {
-		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}, 201));
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(TAG, 201));
 		const result = await proxyToSureApi(mutationRequest(), {
 			fetchImpl,
 			upstreamOrigin: UPSTREAM,
@@ -279,9 +337,79 @@ describe("CSRF and same-origin enforcement (REQ-TRAN-01)", () => {
 	});
 });
 
+describe("generated-contract request validation (t_alt_fnd_018)", () => {
+	it("rejects malformed request bodies with a redacted 400", async () => {
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(TAG, 201));
+		const error = await expectBffError(
+			proxyToSureApi(mutationRequest({ body: JSON.stringify({ tag: { password: "hunter2" } }) }), {
+				fetchImpl,
+				upstreamOrigin: UPSTREAM,
+			}),
+		);
+		expect(error.code).toBe("contract");
+		expect(error.status).toBe(400);
+		expect(error.requestId).toMatch(/./);
+		expect(JSON.stringify(error.toSafeBody())).not.toContain("hunter2");
+		expect(calls).toHaveLength(0);
+	});
+
+	it("rejects invalid query values and accepts coerced numerics", async () => {
+		const bad = mockUpstream(() => jsonResponse(COLLECTION));
+		const badError = await expectBffError(
+			proxyToSureApi(baseRequest({ query: "?page=one" }), {
+				fetchImpl: bad.fetchImpl,
+				upstreamOrigin: UPSTREAM,
+			}),
+		);
+		expect(badError.code).toBe("contract");
+		expect(badError.status).toBe(400);
+		expect(bad.calls).toHaveLength(0);
+
+		const good = mockUpstream(() => jsonResponse(COLLECTION));
+		const result = await proxyToSureApi(baseRequest({ query: "?page=2&per_page=10" }), {
+			fetchImpl: good.fetchImpl,
+			upstreamOrigin: UPSTREAM,
+		});
+		expect(result.status).toBe(200);
+		expect(good.calls).toHaveLength(1);
+	});
+
+	it("rejects undocumented query params and unknown path ids fail closed", async () => {
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(COLLECTION));
+		const error = await expectBffError(
+			proxyToSureApi(baseRequest({ query: "?admin=true" }), {
+				fetchImpl,
+				upstreamOrigin: UPSTREAM,
+			}),
+		);
+		expect(error.code).toBe("contract");
+		expect(calls).toHaveLength(0);
+	});
+
+	it("validates uuid path params through the generated parser", async () => {
+		const bad = mockUpstream(() => jsonResponse(ACCOUNT));
+		const badError = await expectBffError(
+			proxyToSureApi(baseRequest({ path: "/api/v1/accounts/not-a-uuid" }), {
+				fetchImpl: bad.fetchImpl,
+				upstreamOrigin: UPSTREAM,
+			}),
+		);
+		expect(badError.code).toBe("contract");
+		expect(bad.calls).toHaveLength(0);
+
+		const good = mockUpstream(() => jsonResponse(ACCOUNT));
+		const result = await proxyToSureApi(baseRequest({ path: `/api/v1/accounts/${UUID}` }), {
+			fetchImpl: good.fetchImpl,
+			upstreamOrigin: UPSTREAM,
+		});
+		expect(result.status).toBe(200);
+		expect(good.calls).toHaveLength(1);
+	});
+});
+
 describe("correlation, rate-limit, and cache propagation", () => {
 	it("propagates the inbound request id and no-store headers", async () => {
-		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}));
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(COLLECTION));
 		const result = await proxyToSureApi(
 			baseRequest({ headers: { "X-Request-Id": "req-corr-1" } }),
 			{ fetchImpl, upstreamOrigin: UPSTREAM },
@@ -294,7 +422,7 @@ describe("correlation, rate-limit, and cache propagation", () => {
 	});
 
 	it("generates a correlation id when none is supplied", async () => {
-		const { fetchImpl } = mockUpstream(() => jsonResponse({}));
+		const { fetchImpl } = mockUpstream(() => jsonResponse(COLLECTION));
 		const result = await proxyToSureApi(baseRequest(), {
 			fetchImpl,
 			upstreamOrigin: UPSTREAM,
@@ -324,7 +452,7 @@ describe("upstream error mapping (REQ-OPS-01)", () => {
 			jsonResponse({ error: "unprocessable_entity", message: "Name can't be blank" }, 422),
 		);
 		const error = await expectBffError(
-			proxyToSureApi(baseRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
+			proxyToSureApi(mutationRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
 		);
 		expect(error.code).toBe("upstream");
 		expect(error.status).toBe(422);
@@ -336,17 +464,58 @@ describe("upstream error mapping (REQ-OPS-01)", () => {
 		});
 	});
 
-	it("redacts 5xx bodies so upstream secrets never reach the browser", async () => {
+	it("fails closed when a 5xx body breaks its contract, without secrets", async () => {
 		const { fetchImpl } = mockUpstream(
 			() => new Response("boom Bearer super-secret-token password= hunter2", { status: 500 }),
 		);
 		const error = await expectBffError(
 			proxyToSureApi(baseRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
 		);
-		expect(error.status).toBe(500);
-		expect(error.message).toBe("Upstream request failed with status 500.");
+		expect(error.code).toBe("contract");
+		expect(error.status).toBe(502);
+		expect(error.message).toBe("Upstream error failed contract validation.");
 		expect(JSON.stringify(error.toSafeBody())).not.toContain("super-secret-token");
 		expect(JSON.stringify(error.toSafeBody())).not.toContain("hunter2");
+	});
+
+	it("fails closed on undocumented statuses", async () => {
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({ ok: true }, 418));
+		const error = await expectBffError(
+			proxyToSureApi(baseRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
+		);
+		expect(error.code).toBe("contract");
+		expect(error.status).toBe(502);
+		expect(calls).toHaveLength(1);
+	});
+
+	it("fails closed on malformed documented-error bodies", async () => {
+		const { fetchImpl } = mockUpstream(
+			() =>
+				new Response("not-json{{{", {
+					status: 422,
+					headers: { "Content-Type": "application/json" },
+				}),
+		);
+		const error = await expectBffError(
+			proxyToSureApi(mutationRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
+		);
+		expect(error.code).toBe("contract");
+		expect(error.status).toBe(502);
+	});
+});
+
+describe("generated-contract upstream validation (t_alt_fnd_018)", () => {
+	it("fails closed when a 200 body breaks its contract, without payload data", async () => {
+		const { fetchImpl } = mockUpstream(() =>
+			jsonResponse({ accounts: [{ id: 1, token: "secret-token-xyz" }] }),
+		);
+		const error = await expectBffError(
+			proxyToSureApi(baseRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
+		);
+		expect(error.code).toBe("contract");
+		expect(error.status).toBe(502);
+		const serialized = JSON.stringify(error.toSafeBody());
+		expect(serialized).not.toContain("secret-token-xyz");
 	});
 });
 
@@ -354,7 +523,7 @@ describe("credential handling (D1/REQ-SESS-01, CTL-SEC-01)", () => {
 	it("attaches server credentials upstream but never echoes them back", async () => {
 		const { fetchImpl } = mockUpstream(
 			() =>
-				new Response("{}", {
+				new Response(JSON.stringify(COLLECTION), {
 					status: 200,
 					headers: {
 						"Content-Type": "application/json",
@@ -378,7 +547,7 @@ describe("credential handling (D1/REQ-SESS-01, CTL-SEC-01)", () => {
 	});
 
 	it("supports a deployment API key without exposing it", async () => {
-		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}));
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(COLLECTION));
 		await proxyToSureApi(baseRequest({ auth: { apiKey: "deploy-key" } }), {
 			fetchImpl,
 			upstreamOrigin: UPSTREAM,
@@ -405,7 +574,7 @@ describe("timeout, abort, and safe retries", () => {
 	});
 
 	it("treats a pre-aborted caller as aborted without fetching", async () => {
-		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}));
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(COLLECTION));
 		const controller = new AbortController();
 		controller.abort();
 		const error = await expectBffError(
@@ -434,7 +603,7 @@ describe("timeout, abort, and safe retries", () => {
 		let seen = 0;
 		const { fetchImpl, calls } = mockUpstream(() => {
 			seen += 1;
-			return seen === 1 ? jsonResponse({ error: "x" }, 502) : jsonResponse({ ok: true });
+			return seen === 1 ? jsonResponse({ error: "x" }, 502) : jsonResponse(COLLECTION);
 		});
 		const result = await proxyToSureApi(baseRequest(), {
 			fetchImpl,
@@ -450,24 +619,32 @@ describe("timeout, abort, and safe retries", () => {
 		const error = await expectBffError(
 			proxyToSureApi(baseRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
 		);
-		expect(error.status).toBe(503);
+		// 503 is undocumented for this operation: fail closed, but only
+		// after the single permitted retry fired.
+		expect(error.code).toBe("contract");
+		expect(error.status).toBe(502);
 		expect(calls).toHaveLength(2);
 	});
 
 	it("never auto-retries POST, PATCH, 4xx, or 429", async () => {
 		const post = mockUpstream(() => jsonResponse({ error: "x" }, 502));
 		await expectBffError(
-			proxyToSureApi(mutationRequest(), { fetchImpl: post.fetchImpl, upstreamOrigin: UPSTREAM }),
+			proxyToSureApi(mutationRequest(), {
+				fetchImpl: post.fetchImpl,
+				upstreamOrigin: UPSTREAM,
+			}),
 		);
 		expect(post.calls).toHaveLength(1);
 
-		const notFound = mockUpstream(() => jsonResponse({ error: "x" }, 404));
-		await expectBffError(
-			proxyToSureApi(baseRequest(), {
+		const notFound = mockUpstream(() => jsonResponse({ error: "missing" }, 404));
+		const notFoundError = await expectBffError(
+			proxyToSureApi(baseRequest({ path: `/api/v1/tags/${UUID}` }), {
 				fetchImpl: notFound.fetchImpl,
 				upstreamOrigin: UPSTREAM,
 			}),
 		);
+		expect(notFoundError.code).toBe("upstream");
+		expect(notFoundError.status).toBe(404);
 		expect(notFound.calls).toHaveLength(1);
 	});
 
@@ -478,10 +655,7 @@ describe("timeout, abort, and safe retries", () => {
 			if (seen === 1) {
 				throw new TypeError("fetch failed");
 			}
-			return new Response("{}", {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
-			});
+			return jsonResponse(COLLECTION);
 		};
 		const result = await proxyToSureApi(baseRequest(), {
 			fetchImpl: flaky,
@@ -494,7 +668,7 @@ describe("timeout, abort, and safe retries", () => {
 
 describe("body limits and bounded streaming", () => {
 	it("rejects oversized request bodies with 413 before fetching", async () => {
-		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}, 201));
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(TAG, 201));
 		const error = await expectBffError(
 			proxyToSureApi(mutationRequest({ body: "a".repeat(BFF_MAX_REQUEST_BYTES + 1) }), {
 				fetchImpl,
@@ -534,7 +708,7 @@ describe("body limits and bounded streaming", () => {
 				}),
 		);
 		const result = await proxyToSureApi(
-			baseRequest({ path: "/api/v1/family_exports/export-1/download" }),
+			baseRequest({ path: `/api/v1/family_exports/${UUID}/download` }),
 			{ fetchImpl, upstreamOrigin: UPSTREAM },
 		);
 		expect(result.status).toBe(200);
@@ -543,7 +717,7 @@ describe("body limits and bounded streaming", () => {
 		expect(result.headers.get("Content-Disposition")).toBe('attachment; filename="export.zip"');
 	});
 
-	it("streams bounded downloads and errors past the cap", async () => {
+	it("validates JSON before re-streaming and fails closed past the cap", async () => {
 		const chunk = new Uint8Array(1024 * 1024);
 		const overflowing = new ReadableStream<Uint8Array>({
 			start(controller): void {
@@ -553,31 +727,36 @@ describe("body limits and bounded streaming", () => {
 				controller.close();
 			},
 		});
-		const okBytes = new Uint8Array([9, 8, 7]);
 		const { fetchImpl } = mockUpstream(() => new Response(overflowing, { status: 200 }));
-		const overflowingResult = await proxyToSureApi(baseRequest({ response: "stream" }), {
-			fetchImpl,
-			upstreamOrigin: UPSTREAM,
-		});
-		expect(requireStreamBody(overflowingResult.body)).toBeInstanceOf(ReadableStream);
-		await expect(readAll(requireStreamBody(overflowingResult.body))).rejects.toThrow(
-			"response_too_large",
+		const overflowError = await expectBffError(
+			proxyToSureApi(baseRequest({ response: "stream" }), {
+				fetchImpl,
+				upstreamOrigin: UPSTREAM,
+			}),
 		);
+		expect(overflowError.code).toBe("payload_too_large");
 
+		const payload = JSON.stringify(COLLECTION);
 		const okUpstream = mockUpstream(
-			() => new Response(okBytes, { status: 200, headers: { "Content-Type": "application/zip" } }),
+			() =>
+				new Response(payload, {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				}),
 		);
 		const okResult = await proxyToSureApi(baseRequest({ response: "stream" }), {
 			fetchImpl: okUpstream.fetchImpl,
 			upstreamOrigin: UPSTREAM,
 		});
-		await expect(readAll(requireStreamBody(okResult.body))).resolves.toEqual(okBytes);
+		const streamed = await readAll(requireStreamBody(okResult.body));
+		expect(new TextDecoder().decode(streamed)).toBe(payload);
 	});
 
-	it("forwards multipart chunk uploads with their boundary", async () => {
-		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}, 201));
+	it("forwards multipart chunk uploads with contract-valid fields", async () => {
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({ data: SESSION }, 201));
 		const form = new FormData();
-		form.append("chunk", new Blob(["row1\n"]), "chunk.csv");
+		form.append("sequence", "1");
+		form.append("raw_file_content", '{"rows":[]}\n');
 		const result = await proxyToSureApi(
 			{
 				method: "POST",
@@ -596,8 +775,31 @@ describe("body limits and bounded streaming", () => {
 		);
 	});
 
+	it("rejects multipart uploads that break the generated body contract", async () => {
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({ data: SESSION }, 201));
+		const form = new FormData();
+		form.append("sequence", "not-a-number");
+		const error = await expectBffError(
+			proxyToSureApi(
+				{
+					method: "POST",
+					path: "/api/v1/import_sessions/session-1/chunks",
+					origin: BFF_ORIGIN,
+					csrfToken: "csrf-3",
+					headers: { "Content-Type": "multipart/form-data; boundary=test-123" },
+					body: form,
+					bffOrigin: BFF_ORIGIN,
+				},
+				{ fetchImpl, upstreamOrigin: UPSTREAM },
+			),
+		);
+		expect(error.code).toBe("contract");
+		expect(error.status).toBe(400);
+		expect(calls).toHaveLength(0);
+	});
+
 	it("never sends a body on GET", async () => {
-		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}));
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(COLLECTION));
 		await proxyToSureApi(
 			baseRequest({
 				body: "ignored",
