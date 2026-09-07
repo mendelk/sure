@@ -8,9 +8,11 @@
 	// - Rails JavaScript (app/javascript) stays on Biome; Markdown stays
 	//   unformatted (out of scope for this workspace config); lockfiles are
 	//   never reformatted.
-	// - Generated files (routeTree.gen.ts, design-token outputs) and build
-	//   outputs are ignored. Token outputs stay byte-deterministic via
-	//   `npm run tokens:check` instead of the formatter.
+	// - Generated files (routeTree.gen.ts, openapi-typescript output,
+	//   design-token outputs) and build outputs are ignored: reformatting
+	//   generated output would make the `api:check` drift comparison fail,
+	//   and token outputs stay byte-deterministic via `npm run tokens:check`
+	//   instead of the formatter.
 	"$schema": "./node_modules/oxfmt/configuration_schema.json",
 	"useTabs": true,
 	"ignorePatterns": [
@@ -18,6 +20,7 @@
 		"**/dist/**",
 		"**/coverage/**",
 		"**/routeTree.gen.ts",
+		"**/openapi.d.ts",
 		"apps/web/src/styles/sure-tokens.stylex.ts",
 		"apps/web/src/styles/sure-token-values.ts",
 		"apps/web/src/styles/sure-theme.css",

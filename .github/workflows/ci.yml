@@ -80,6 +80,48 @@ jobs:
       - name: Lint/Format js code
         run: npm run lint
 
+  web_api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      SURE_API_ORIGIN: http://localhost:3000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d # v4.1.0
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        shell: bash
+
+      - name: Check OpenAPI types are up to date
+        run: pnpm web:api:check
+        shell: bash
+
+      - name: Build web app
+        run: pnpm web:build
+        shell: bash
+
+      - name: Typecheck web app
+        run: pnpm web:typecheck
+        shell: bash
+
+      - name: Test web app
+        run: pnpm web:test
+        shell: bash
+
   test_unit:
     runs-on: ubuntu-latest
     timeout-minutes: 10

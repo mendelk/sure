@@ -31,10 +31,13 @@ Run from the repo root (`pnpm --filter @sure/web <cmd>`) or from
 | `pnpm preview`     | Preview the production build (:5173)|
 | `pnpm typecheck`   | `tsc` over the browser/server/test boundaries (regenerates `routeTree.gen.ts` first) |
 | `pnpm test`        | `vitest run`                        |
+| `pnpm api:generate` | Regenerate OpenAPI types from `docs/api/openapi.yaml` |
+| `pnpm api:check`   | Fail when generated types drift from `docs/api/openapi.yaml` |
 | `pnpm install:clean` | Frozen reinstall from the lockfile |
 
 Root shortcuts: `pnpm web:dev`, `pnpm web:build`, `pnpm web:preview`,
-`pnpm web:typecheck`, `pnpm web:test`.
+`pnpm web:typecheck`, `pnpm web:test`, `pnpm web:api:generate`,
+`pnpm web:api:check`.
 
 Workspace-wide checks run from the repo root (see `CONVENTIONS.md` for the
 rules they enforce): `pnpm typecheck` (all packages, future-proof via
@@ -80,3 +83,45 @@ secrets) and the SSR loader re-validates on every server render.
 
 3. Open `http://localhost:5173`. The index page server-renders the
    configured API origin as its connection status.
+
+## Typed API client (`src/lib/api/`)
+
+- **Generator:** [`openapi-typescript`] + [`openapi-fetch`] (same
+  maintained org, deterministic output). `openapi-fetch` is a thin typed
+  `fetch` wrapper with no store or cache — TanStack Query remains the only
+  async-state layer.
+- **Generated types:** `src/lib/api/openapi.d.ts` is committed and built
+  only from `docs/api/openapi.yaml`. Regenerate with `pnpm api:generate`
+  (run twice → no diff). CI fails on drift via `pnpm web:api:check`.
+- **Fetch layer:** `src/lib/api/client.ts` exposes `createApiClient`
+  plus `apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete`/`apiDownload`
+  wrappers that normalize every outcome — validation (400/422), auth
+  (401/403), missing (404), conflicts (409), rate limits (429 +
+  `Retry-After`), other HTTP failures, unparseable bodies, aborts, and
+  network errors — into `ApiError` (`error.kind`, `error.retryable` for
+  Query retries). Every request carries an `X-Request-Id` correlation id.
+- **Browser auth (ADR-0001):** production browser calls target the
+  same-origin BFF — never the Rails API directly — and authenticate only
+  with the BFF's `HttpOnly` session cookie (`credentials: "same-origin"`,
+  pinned per request). This module defines no API-key/bearer-token
+  surface: no getters, no `Authorization`/`X-Api-Key` constants, no
+  injection middleware (see `docs/adr/0001-browser-auth-bff-threat-model.md`
+  D1/REQ-SESS-01).
+- **TanStack Query usage:** wrappers forward `AbortSignal`, so use them
+  directly as a `queryFn`:
+  ```ts
+  queryFn: ({ signal }) =>
+    apiGet(client, "/api/v1/accounts", {
+      params: { query: pageQuery(page, 25) },
+      signal,
+    }).then((result) => result.data),
+  ```
+- **Tests:** `src/lib/api/client.test.ts` covers success, query/path/JSON
+  bodies, file downloads, cancellation, correlation, pagination helpers,
+  Query interop, compile-time type assertions, and the ADR-0001 security
+  properties (no `Authorization`/`X-Api-Key` injection, same-origin
+  credentials) — all model shapes are referenced from the generated types,
+  never hand-copied.
+
+[`openapi-typescript`]: https://github.com/openapi-ts/openapi-typescript
+[`openapi-fetch`]: https://github.com/openapi-ts/openapi-fetch
