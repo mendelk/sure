@@ -1,0 +1,29 @@
+<%# locals: (merchant:) %>
+<% is_selected = merchant.id == @selected_merchant&.id %>
+
+<%= content_tag :div,
+      id: dom_id(merchant, "merchant_option"),
+      role: "option",
+      aria_selected: is_selected.to_s,
+      class: ["filterable-item flex justify-between items-center border-none rounded-lg px-2 py-1 group w-full hover:bg-container-inset-hover",
+              { "bg-container-inset": is_selected }],
+      data: { filter_name: merchant.name } do %>
+  <%= button_to transaction_path(@entry),
+        method: :patch,
+        data: { turbo_frame: dom_id(@entry) },
+        params: { grouped: params[:grouped], entry: { entryable_type: "Transaction", entryable_attributes: { id: @transaction.id, merchant_id: merchant.id } } },
+        class: "flex w-full items-center gap-1.5 cursor-pointer" do %>
+
+    <span class="flex items-center justify-center w-5 h-5 shrink-0">
+      <% if is_selected %><%= icon("check") %><% end %>
+    </span>
+
+    <% if merchant.logo_url.present? %>
+      <%= image_tag Setting.transform_brand_fetch_url(merchant.logo_url),
+          class: "w-5 h-5 rounded-full border border-secondary shrink-0",
+          loading: "lazy" %>
+    <% end %>
+
+    <span class="truncate text-sm text-primary"><%= merchant.name %></span>
+  <% end %>
+<% end %>
