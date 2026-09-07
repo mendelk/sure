@@ -75,6 +75,17 @@ dump.rdb
 # Ignore node related files
 node_modules
 
+# TanStack Start web app (apps/web)
+apps/web/dist
+apps/web/.output
+apps/web/.tanstack
+apps/web/coverage
+apps/web/*.tsbuildinfo
+apps/web/src/routeTree.gen.ts
+apps/web/.env
+apps/web/.env.*
+!apps/web/.env.example
+
 compose.yml
 
 plaid_test_accounts/
