@@ -221,4 +221,62 @@ class EntrySplitTest < ActiveSupport::TestCase
     assert_includes visible_entries.pluck(:id), non_excluded_child.id
     refute_includes visible_entries.pluck(:id), excluded_child.id
   end
+
+  test "split! creates a transfer counterpart when transfer_account is given" do
+    destination = accounts(:depository).family.accounts.create!(
+      name: "Split Transfer Dest",
+      balance: 0,
+      currency: "USD",
+      owner: users(:family_admin),
+      accountable: Depository.new
+    )
+
+    assert_difference -> { Transfer.count } => 1 do
+      children = @entry.split!([
+        { name: "Groceries", amount: 70, category_id: nil },
+        { name: "Transfer leg", amount: 30, transfer_account: destination }
+      ])
+
+      assert_equal 2, children.size
+      transfer_child = children.find { |c| c.name == "Transfer leg" }
+      assert transfer_child.transaction.transfer?
+      transfer = transfer_child.transaction.transfer
+      assert_equal @entry.account_id, transfer.from_account.id
+      assert_equal destination.id, transfer.to_account.id
+      assert_equal(-30, transfer.inflow_transaction.entry.amount.to_i)
+    end
+  end
+
+  test "split! rejects transfer to the same account" do
+    assert_raises(ActiveRecord::RecordInvalid) do
+      @entry.split!([
+        { name: "Part 1", amount: 50, transfer_account: @entry.account },
+        { name: "Part 2", amount: 50 }
+      ])
+    end
+  end
+
+  test "unsplit! removes transfer counterparts" do
+    destination = accounts(:depository).family.accounts.create!(
+      name: "Split Unsplit Dest",
+      balance: 0,
+      currency: "USD",
+      owner: users(:family_admin),
+      accountable: Depository.new
+    )
+
+    @entry.split!([
+      { name: "Groceries", amount: 70 },
+      { name: "Transfer leg", amount: 30, transfer_account: destination }
+    ])
+
+    transfer_id = @entry.child_entries.find_by(name: "Transfer leg").transaction.transfer.id
+    counterpart_entry_id = Transfer.find(transfer_id).inflow_transaction.entry.id
+
+    @entry.unsplit!
+
+    assert_empty Entry.where(id: counterpart_entry_id)
+    assert_empty Transfer.where(id: transfer_id)
+    assert_equal 0, @entry.child_entries.count
+  end
 end

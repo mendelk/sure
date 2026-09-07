@@ -19,9 +19,12 @@ en:
       original_date: "Date:"
       original_amount: "Amount"
       split_number: "Split #%{number}"
+      transfer_label: Transfer to
+      transfer_prompt: No transfer
     create:
       success: Transaction split successfully
       not_splittable: This transaction cannot be split.
+      invalid_transfer_account: Selected transfer account is invalid.
     destroy:
       success: Transaction unsplit successfully
     show:
