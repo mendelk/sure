@@ -1,6 +1,8 @@
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import stylex from "@stylexjs/unplugin";
+import type { UserOptions as StylexUserOptions } from "@stylexjs/unplugin";
 import { defineConfig, loadEnv } from "vite";
+import type { PluginOption } from "vite";
 import viteReact from "@vitejs/plugin-react";
 import { assertSureApiOrigin } from "./src/lib/sure-api-origin.ts";
 
@@ -23,6 +25,26 @@ function ensureSureApiOriginForServe(command: string, rawValue: unknown) {
 				`(e.g. SURE_API_ORIGIN=http://localhost:3000).`,
 		);
 	}
+}
+
+/**
+ * Typed adapter around `stylex.vite()`. @stylexjs/unplugin declares every
+ * bundler entry as returning `any`, which would poison the inferred
+ * `plugins` array type and trip typescript(no-unsafe-assignment). Narrow
+ * once at the third-party boundary: `any` flows into `unknown` (always
+ * safe), then a shape check narrows to Vite's `PluginOption` — no broad
+ * `any`, no rule disables.
+ */
+function isPluginOption(value: unknown): value is PluginOption {
+	return typeof value === "object" && value !== null;
+}
+
+function stylexVitePlugin(options: Partial<StylexUserOptions>): PluginOption {
+	const plugin: unknown = stylex.vite(options);
+	if (!isPluginOption(plugin)) {
+		throw new Error("[sure-web] StyleX Vite plugin did not return a plugin object.");
+	}
+	return plugin;
 }
 
 export default defineConfig(({ command, mode }) => {
@@ -48,7 +70,7 @@ export default defineConfig(({ command, mode }) => {
 			// on compiled CSS — and the plugin's serve-mode watchers keep the
 			// vitest worker's Vite server from closing cleanly — so stay off
 			// under vitest. Production builds (command "build") are unaffected.
-			stylex.vite({
+			stylexVitePlugin({
 				useCSSLayers: true,
 				devMode: process.env["VITEST"] ? "off" : "full",
 			}),
