@@ -1,0 +1,9 @@
+---
+en:
+  merchant:
+    dropdowns:
+      show:
+        clear: Clear merchant
+        manage_merchants: Manage merchants
+        no_merchants: No merchants found
+        search_placeholder: Search

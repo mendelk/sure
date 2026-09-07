@@ -48,6 +48,7 @@ class TransactionsController < ApplicationController
 
     @pagy, @transactions = pagy(base_scope, limit: safe_per_page(stored_params["per_page"]))
     Transaction::ActivitySecurityPreloader.new(@transactions).preload
+    @family_tags = Current.family.tags.alphabetically.to_a
 
     # Preload split parent data
     entry_ids = @transactions.map { |t| t.entry.id }

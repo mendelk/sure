@@ -1,6 +1,6 @@
 <%# locals: (transactions:, projected_recurring:, q:, pagy:) %>
 <div id="transactions"
-  data-controller="bulk-select checkbox-toggle drag-and-drop-import"
+  data-controller="bulk-select checkbox-toggle drag-and-drop-import transaction-columns"
   data-bulk-select-singular-label-value="<%= t(".transaction") %>"
   data-bulk-select-plural-label-value="<%= t(".transactions") %>"
   data-bulk-select-selected-label-value="<%= t("transactions.selection_bar.selected") %>"
@@ -24,7 +24,9 @@
     <div class="grow overflow-y-auto">
       <% if @transactions.any? %>
         <div class="grid-cols-12 bg-container-inset rounded-xl px-5 py-3 text-xs uppercase font-medium text-secondary items-center mb-4 grid">
-          <div class="pl-0.5 col-span-8 flex items-center gap-4">
+          <div class="pl-0.5 col-span-8 flex items-center gap-4"
+               data-transaction-columns-target="nameCell"
+               data-on-class="lg:col-span-6">
             <%= check_box_tag "selection_entry",
                 class: "checkbox checkbox--light hidden lg:block",
                 data: {
@@ -35,6 +37,7 @@
           </div>
 
           <p class="col-span-2 md:block hidden"><%= t("transactions.form.category_label") %></p>
+          <p class="col-span-2 hidden lg:block" data-transaction-columns-target="headerCol"><%= t("transactions.column_settings.title") %></p>
           <p class="col-span-2 col-start-11 md:col-start-auto justify-self-end md:block"><%= t("transactions.show.amount") %></p>
         </div>
       <% end %>
