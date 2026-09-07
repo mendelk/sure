@@ -29,12 +29,19 @@ Run from the repo root (`pnpm --filter @sure/web <cmd>`) or from
 | `pnpm dev`         | Start the dev server on port 5173   |
 | `pnpm build`       | Production build (client + SSR)     |
 | `pnpm preview`     | Preview the production build (:5173)|
-| `pnpm typecheck`   | `tsc --noEmit`                      |
+| `pnpm typecheck`   | `tsc` over the browser/server/test boundaries (regenerates `routeTree.gen.ts` first) |
 | `pnpm test`        | `vitest run`                        |
 | `pnpm install:clean` | Frozen reinstall from the lockfile |
 
 Root shortcuts: `pnpm web:dev`, `pnpm web:build`, `pnpm web:preview`,
 `pnpm web:typecheck`, `pnpm web:test`.
+
+Workspace-wide checks run from the repo root (see `CONVENTIONS.md` for the
+rules they enforce): `pnpm typecheck` (all packages, future-proof via
+`pnpm -r`), `pnpm lint:web` (oxlint, type-aware, browser/server import
+boundaries), `pnpm format:check:web` (oxfmt), `pnpm test`, or all four via
+`pnpm checks:web`. Naming, route, query-key, test, and environment
+conventions live in [`CONVENTIONS.md`](./CONVENTIONS.md).
 
 ## SURE_API_ORIGIN setup
 

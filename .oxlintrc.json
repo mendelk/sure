@@ -1,0 +1,134 @@
+{
+	// Root oxlint configuration for the pnpm workspace (apps/*).
+	//
+	// Scope: TypeScript/JavaScript sources under apps/. Rails JavaScript
+	// (app/javascript) stays on Biome via biome.json and the
+	// style:*/lint:rails/format:rails root scripts -- this config never
+	// touches it. Run from the repo root: `pnpm lint:web`.
+	//
+	// Boundaries enforced here (see apps/web/CONVENTIONS.md):
+	//  1. Client-safe modules must not import server-only (*.server.*)
+	//     modules. Route modules (src/routes/**) are server-capable and may
+	//     use them inside createServerFn handlers.
+	//  2. Client-safe modules (including routes) must not use Node.js
+	//     built-ins or Node globals. *.server.*, tooling configs, and tests
+	//     run in Node and are exempt via `overrides` below.
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["oxc", "typescript", "unicorn", "vitest"],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error"
+	},
+	"options": {
+		"typeAware": true
+	},
+	"ignorePatterns": [
+		"**/node_modules/**",
+		"**/dist/**",
+		"**/coverage/**",
+		"**/routeTree.gen.ts",
+		"**/*.min.*"
+	],
+	"rules": {
+		// --- Browser/server import boundary (restriction) ---
+		"no-restricted-imports": [
+			"error",
+			{
+				"patterns": [
+					{
+						"regex": "\\.server(\\.[cm]?[jt]sx?)?$",
+						"message": "Server-only modules (*.server.*) must not be imported from client-safe code. Route modules may use them inside createServerFn handlers; move shared logic to a plain module instead."
+					},
+					{
+						"regex": "^(node:.+|fs|fs/promises|path|path/posix|path/win32|os|util|util/types|events|stream|stream/promises|stream/consumers|crypto|child_process|cluster|dgram|dns|dns/promises|http|https|http2|net|tls|zlib|readline|repl|vm|worker_threads|perf_hooks|async_hooks|assert|assert/strict|buffer|querystring|url|punycode|string_decoder|timers|timers/promises|tty|v8|process|sys|constants|domain|module|inspector|diagnostics_channel|sqlite)$",
+						"message": "Node.js built-ins are unavailable in browser bundles. Keep this module client-safe or move the code to a *.server.* module."
+					}
+				]
+			}
+		],
+		"no-restricted-globals": [
+			"error",
+			{
+				"name": "process",
+				"message": "'process' is a Node global and is unavailable in browser bundles. Read env via a *.server.* accessor and pass values through server functions/loaders."
+			},
+			{
+				"name": "__dirname",
+				"message": "'__dirname' is a Node global and is unavailable in browser bundles. Move the code to a *.server.* module."
+			},
+			{
+				"name": "__filename",
+				"message": "'__filename' is a Node global and is unavailable in browser bundles. Move the code to a *.server.* module."
+			},
+			{
+				"name": "Buffer",
+				"message": "'Buffer' is a Node global and is unavailable in browser bundles. Move the code to a *.server.* module."
+			},
+			{
+				"name": "global",
+				"message": "'global' is a Node global; use 'globalThis' in client-safe code."
+			}
+		],
+		// --- Type-aware hardening (needs oxlint-tsgolint; see options) ---
+		"typescript/no-floating-promises": "error",
+		"typescript/no-misused-promises": "error",
+		"typescript/no-unnecessary-type-assertion": "error",
+		"typescript/no-explicit-any": "error",
+		"typescript/no-non-null-assertion": "error",
+		// The no-unsafe-* family stays at "warn": tsgolint occasionally
+		// resolves complex generic wrappers (e.g. TanStack's
+		// createServerOnlyFn) to the `error` type and then flags every use,
+		// which real tsc accepts. Warnings keep the signal visible without
+		// failing checks on tool-side false positives.
+		"typescript/no-unsafe-assignment": "warn",
+		"typescript/no-unsafe-argument": "warn",
+		"typescript/no-unsafe-call": "warn",
+		"typescript/no-unsafe-member-access": "warn",
+		"typescript/no-unsafe-return": "warn"
+	},
+	"overrides": [
+		{
+			// Server-only modules run on the server: Node imports/globals OK.
+			"files": ["**/*.server.*"],
+			"rules": {
+				"no-restricted-imports": "off",
+				"no-restricted-globals": "off"
+			}
+		},
+		{
+			// Route modules are server-capable (SSR + server functions) but
+			// still ship to the browser: server-only imports are allowed for
+			// use inside createServerFn handlers, Node stays banned so
+			// client-safe code cannot leak in by accident.
+			"files": ["**/src/routes/**"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "^(node:.+|fs|fs/promises|path|path/posix|path/win32|os|util|util/types|events|stream|stream/promises|stream/consumers|crypto|child_process|cluster|dgram|dns|dns/promises|http|https|http2|net|tls|zlib|readline|repl|vm|worker_threads|perf_hooks|async_hooks|assert|assert/strict|buffer|querystring|url|punycode|string_decoder|timers|timers/promises|tty|v8|process|sys|constants|domain|module|inspector|diagnostics_channel|sqlite)$",
+								"message": "Node.js built-ins are unavailable in browser bundles, and route modules hydrate in the browser. Keep route code client-safe or move the code to a *.server.* module called from a server function."
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			// Tests and Node tooling configs run in Node: no browser limits.
+			"files": [
+				"**/*.test.*",
+				"**/__tests__/**",
+				"**/vite.config.*",
+				"**/vitest.config.*",
+				"**/vitest.workspace.*"
+			],
+			"rules": {
+				"no-restricted-imports": "off",
+				"no-restricted-globals": "off",
+				"vitest/no-focused-tests": "error"
+			}
+		}
+	]
+}

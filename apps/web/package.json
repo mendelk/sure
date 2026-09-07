@@ -2,16 +2,17 @@
 	"name": "@sure/web",
 	"version": "0.1.0",
 	"private": true,
-	"type": "module",
 	"description": "Sure alternate frontend (TanStack Start)",
-	"engines": {
-		"node": ">=24"
-	},
+	"type": "module",
 	"scripts": {
 		"dev": "vite dev --port 5173",
 		"build": "vite build",
 		"preview": "vite preview --port 5173",
-		"typecheck": "tsc --noEmit",
+		"pretypecheck": "tsr generate",
+		"typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.test.json",
+		"typecheck:app": "tsc --noEmit -p tsconfig.app.json",
+		"typecheck:server": "tsc --noEmit -p tsconfig.server.json",
+		"typecheck:test": "tsc --noEmit -p tsconfig.test.json",
 		"test": "vitest run",
 		"install:clean": "pnpm install --frozen-lockfile"
 	},
@@ -24,6 +25,7 @@
 		"react-dom": "^19.2.0"
 	},
 	"devDependencies": {
+		"@tanstack/router-cli": "1.167.34",
 		"@types/node": "^24.0.0",
 		"@types/react": "^19.0.0",
 		"@types/react-dom": "^19.0.0",
@@ -31,5 +33,8 @@
 		"typescript": "~5.9.0",
 		"vite": "^8.0.0",
 		"vitest": "^3.2.0"
+	},
+	"engines": {
+		"node": ">=24"
 	}
 }
