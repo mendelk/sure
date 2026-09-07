@@ -1,0 +1,97 @@
+<%# locals: (entry:, transaction:) %>
+<%# Inline tag display + quick add/remove for transaction rows (desktop). %>
+<%# Used by both the global transactions table and the account activity feed, %>
+<%# since both render entries via transactions/_transaction. %>
+<% all_tags = defined?(@family_tags) && @family_tags ? @family_tags : Current.family.tags.alphabetically %>
+<% selected_ids = transaction.tags.map { |t| t.id.to_s }.to_set %>
+<% update_url = transaction.transfer.present? ? tags_transfer_path(transaction.transfer) : tags_transaction_path(entry) %>
+
+<div class="hidden lg:flex min-w-0 items-center"
+     data-controller="inline-tags"
+     data-inline-tags-update-url-value="<%= update_url %>">
+  <%= render DS::Popover.new(variant: "button", placement: "bottom-start", max_width: "280px") do |popover| %>
+    <% popover.with_button(class: "block min-w-0 max-w-full rounded-md focus-ring") do %>
+      <span class="flex min-w-0 items-center gap-1 group/tags" data-inline-tags-target="display">
+        <% if transaction.tags.any? %>
+          <% transaction.tags.first(3).each do |tag| %>
+            <%= render DS::Pill.new(
+              label: tag.name,
+              marker: false,
+              size: :sm,
+              custom_color: tag.color,
+              truncate: true
+            ) %>
+          <% end %>
+          <% if transaction.tags.size > 3 %>
+            <span class="text-xs text-secondary shrink-0">+<%= transaction.tags.size - 3 %></span>
+          <% end %>
+        <% else %>
+          <span class="text-xs text-secondary hover:text-primary transition-colors inline-flex items-center gap-1" data-inline-tags-target="emptyHint">
+            <%= icon "plus", size: "xs", color: "current" %>
+            <%= t("transactions.inline_tags.add_tag") %>
+          </span>
+        <% end %>
+        <span class="shrink-0 text-secondary opacity-60 group-hover/tags:opacity-100 transition-opacity" data-edit-icon title="<%= t("transactions.inline_tags.edit_tags") %>">
+          <%= icon "tag", size: "xs", color: "current" %>
+        </span>
+      </span>
+    <% end %>
+
+    <% popover.with_custom_content do %>
+      <div class="p-1.5 w-60">
+        <div class="flex items-center bg-container border border-secondary rounded-lg mb-1 focus-ring-within transition-shadow">
+          <%= render DS::SearchInput.new(
+            variant: :embedded,
+            class: "flex-1 min-w-0",
+            placeholder: t("transactions.inline_tags.search_placeholder"),
+            data: {
+              inline_tags_target: "search",
+              action: "input->inline-tags#filter"
+            }
+          ) %>
+        </div>
+
+        <div class="flex flex-col gap-0.5 max-h-64 overflow-auto" role="listbox" aria-multiselectable="true">
+          <% if all_tags.any? %>
+            <% all_tags.each do |tag| %>
+              <% selected = selected_ids.include?(tag.id.to_s) %>
+              <button type="button"
+                      class="text-primary text-sm cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-container-inset-hover <%= "bg-container-inset" if selected %>"
+                      role="option"
+                      aria-selected="<%= selected %>"
+                      data-action="click->inline-tags#toggle"
+                      data-inline-tags-target="option"
+                      data-tag-id="<%= tag.id %>"
+                      data-tag-name="<%= tag.name %>"
+                      data-tag-color="<%= tag.color %>"
+                      data-filter-name="<%= tag.name %>">
+                <span class="check-icon w-5 shrink-0 <%= "hidden" unless selected %>" data-inline-tags-target="check">
+                  <%= icon("check") %>
+                </span>
+                <%= render DS::Pill.new(
+                  label: tag.name,
+                  marker: false,
+                  size: :md,
+                  custom_color: tag.color
+                ) %>
+              </button>
+            <% end %>
+          <% else %>
+            <p class="px-3 py-2 text-sm text-secondary"><%= t("transactions.inline_tags.no_tags") %></p>
+            <%= render DS::Link.new(
+              text: t("transactions.inline_tags.manage_tags"),
+              href: tags_path,
+              variant: "ghost",
+              size: :sm,
+              frame: :_top
+            ) %>
+          <% end %>
+          <p class="hidden px-3 py-1 text-xs text-destructive"
+             data-inline-tags-target="error"
+             aria-live="assertive"
+             aria-atomic="true"></p>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+</div>
