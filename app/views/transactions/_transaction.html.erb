@@ -72,6 +72,7 @@
                             transaction.transfer.present? ? transfer_path(transaction.transfer) : entry_path(entry),
                             data: {
                               turbo_frame: "drawer",
+                              turbo_action: "advance",
                               turbo_prefetch: false
                             },
                             class: "hover:underline"
@@ -82,6 +83,7 @@
                             in_split_group ? entry_path(entry, grouped: true) : entry_path(entry),
                             data: {
                               turbo_frame: "drawer",
+                              turbo_action: "advance",
                               turbo_prefetch: false
                             },
                             class: "hover:underline"
@@ -206,7 +208,7 @@
         <%# Protection indicator - shows on hover when entry is protected from sync %>
         <% if entry.protected_from_sync? && !entry.excluded? %>
           <%= link_to entry_path(entry),
-                data: { turbo_frame: "drawer", turbo_prefetch: false },
+                data: { turbo_frame: "drawer", turbo_action: "advance", turbo_prefetch: false },
                 class: "invisible group-hover:visible transition-opacity",
                 title: t("entries.protection.tooltip") do %>
             <%= icon "lock", size: "sm", class: "text-secondary" %>
