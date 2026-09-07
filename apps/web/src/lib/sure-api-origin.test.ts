@@ -29,4 +29,36 @@ describe("assertSureApiOrigin", () => {
 			expect(result.ok).toBe(false);
 		}
 	});
+
+	it("rejects origins with credentials", () => {
+		for (const value of [
+			"http://user@localhost:3000",
+			"http://user:pass@localhost:3000",
+			"https://user:pass@api.example.com",
+		]) {
+			const result = assertSureApiOrigin(value);
+			expect(result.ok).toBe(false);
+		}
+	});
+
+	it("rejects origins with a non-root path", () => {
+		for (const value of [
+			"http://localhost:3000/api",
+			"https://api.example.com/v1",
+			"https://api.example.com/api/",
+		]) {
+			const result = assertSureApiOrigin(value);
+			expect(result.ok).toBe(false);
+		}
+	});
+
+	it("rejects origins with a query string", () => {
+		const result = assertSureApiOrigin("http://localhost:3000?foo=bar");
+		expect(result.ok).toBe(false);
+	});
+
+	it("rejects origins with a fragment", () => {
+		const result = assertSureApiOrigin("http://localhost:3000#section");
+		expect(result.ok).toBe(false);
+	});
 });

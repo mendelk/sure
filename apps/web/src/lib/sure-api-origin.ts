@@ -40,5 +40,21 @@ export function assertSureApiOrigin(
 		);
 	}
 
+	if (url.username !== "" || url.password !== "") {
+		return invalid("must not include credentials.");
+	}
+
+	if (url.pathname !== "/") {
+		return invalid(`must not include a path, got "${url.pathname}".`);
+	}
+
+	if (url.search !== "") {
+		return invalid(`must not include a query string, got "${url.search}".`);
+	}
+
+	if (url.hash !== "") {
+		return invalid(`must not include a fragment, got "${url.hash}".`);
+	}
+
 	return { ok: true, origin: url.origin };
 }
