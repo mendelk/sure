@@ -11,10 +11,7 @@ import * as stylex from "@stylexjs/stylex";
 import type * as React from "react";
 import { useEffect, useState } from "react";
 import { sureDarkTheme, sureLightTheme } from "~/styles/sure-tokens.stylex";
-import {
-	getInitialTheme,
-	sureThemeInlineScript,
-} from "~/styles/theme";
+import { getInitialTheme } from "~/styles/theme";
 import type { SureThemeName } from "~/styles/theme";
 import appCss from "~/styles/app.css?url";
 // Static theme shell (color-scheme defaults, reduced-motion + forced-colors
@@ -40,10 +37,14 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootComponent() {
-	// Stored choice wins, otherwise the OS default. Resolved on mount (SSR
-	// has no access to either); the inline script below already set
-	// data-theme pre-paint so there is no light flash on dark systems.
-	const [theme, setTheme] = useState<SureThemeName>("light");
+	// Stored choice wins, otherwise the OS default. Unresolved (null) until
+	// hydration: SSR and the first client render agree on "no theme yet", so
+	// there is no hydration mismatch, and no inline script is needed
+	// (ADR-0001 REQ-TRAN-02 forbids inline scripts under the enforced CSP).
+	// Pre-hydration, sure-theme.css gives UA chrome the correct
+	// light/dark system default via color-scheme; the app-level theme (both
+	// data-theme and the compiled StyleX class) resolves in the effect below.
+	const [theme, setTheme] = useState<SureThemeName | null>(null);
 	useEffect(() => {
 		setTheme(
 			getInitialTheme(
@@ -72,21 +73,22 @@ function RootDocument({
 	theme,
 }: {
 	children: React.ReactNode;
-	theme: SureThemeName;
+	theme: SureThemeName | null;
 }) {
 	return (
 		// The compiled StyleX theme class carries the semantic variables;
-		// data-theme drives color-scheme via sure-theme.css.
+		// data-theme drives color-scheme via sure-theme.css. Both stay absent
+		// until hydration resolves the theme, so SSR output matches the
+		// first client render exactly.
 		<html
 			lang="en"
-			data-theme={theme}
+			data-theme={theme ?? undefined}
 			{...stylex.props(theme === "dark" ? sureDarkTheme : sureLightTheme)}
 		>
 			<head>
 				<HeadContent />
 			</head>
 			<body>
-				<script dangerouslySetInnerHTML={{ __html: sureThemeInlineScript }} />
 				{children}
 				<Scripts />
 			</body>

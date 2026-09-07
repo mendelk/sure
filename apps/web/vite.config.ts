@@ -47,7 +47,14 @@ export default defineConfig(({ command, mode }) => {
 			// Compile the generated semantic theme (src/styles/sure-tokens.stylex.ts)
 			// and any stylex.create() call sites. Keep before viteReact to preserve
 			// Fast Refresh; useCSSLayers keeps StyleX output ordered in @layers.
-			stylex.vite({ useCSSLayers: true }),
+			// Unit tests assert on generated source text and plain values, never
+			// on compiled CSS — and the plugin's serve-mode watchers keep the
+			// vitest worker's Vite server from closing cleanly — so stay off
+			// under vitest. Production builds (command "build") are unaffected.
+			stylex.vite({
+				useCSSLayers: true,
+				devMode: process.env.VITEST ? "off" : "full",
+			}),
 			// react's vite plugin must come after start's vite plugin
 			viteReact(),
 		],

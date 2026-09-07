@@ -53,16 +53,4 @@ export function persistThemeChoice(theme: SureThemeName | null): void {
 	localStorage.setItem(SURE_THEME_STORAGE_KEY, theme);
 }
 
-/**
- * Inline `<script>` for the document `<head>` (or top of `<body>`): sets
- * `data-theme` before first paint so the OS-default dark path does not flash
- * light. Rendered via dangerouslySetInnerHTML in the root route. Kept as a
- * string constant — not a function of the helpers above — so it can run with
- * zero dependencies; the drift test asserts the key literals stay in sync.
- */
-export const sureThemeInlineScript: string =
-	`(function(){try{var s=null;try{s=localStorage.getItem("sure-theme")}catch(e){}` +
-	`var t=(s==="light"||s==="dark")?s:(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");` +
-	`document.documentElement.setAttribute("data-theme",t)}catch(e){}})();`;
-
 export { THEME_NAMES };

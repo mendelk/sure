@@ -1,5 +1,7 @@
-// Unit tests for the handwritten theme runtime: stored preference,
-// OS color-scheme default, and the pre-paint inline script contract.
+// Unit tests for the handwritten theme runtime: stored preference and OS
+// color-scheme default. There is intentionally no inline theme script
+// (ADR-0001 REQ-TRAN-02 forbids inline scripts); csp-no-inline-scripts.test
+// proves none exists.
 import { describe, expect, it } from "vitest";
 import {
 	SURE_THEME_ATTR,
@@ -7,7 +9,6 @@ import {
 	getInitialTheme,
 	isThemeName,
 	parseStoredTheme,
-	sureThemeInlineScript,
 	systemThemeName,
 } from "./theme";
 
@@ -32,10 +33,8 @@ describe("theme runtime", () => {
 		expect(systemThemeName(false)).toBe("light");
 	});
 
-	it("keeps the inline pre-paint script in sync with the runtime contract", () => {
-		expect(sureThemeInlineScript).toContain(`"${SURE_THEME_STORAGE_KEY}"`);
-		expect(sureThemeInlineScript).toContain(SURE_THEME_ATTR);
-		expect(sureThemeInlineScript).toContain("(prefers-color-scheme: dark)");
-		expect(sureThemeInlineScript).not.toContain("import");
+	it("exposes stable storage-key and attribute constants for the root route", () => {
+		expect(SURE_THEME_STORAGE_KEY).toBe("sure-theme");
+		expect(SURE_THEME_ATTR).toBe("data-theme");
 	});
 });

@@ -69,16 +69,21 @@ trend.color = fills.success; // status colors double as chart accents
 
 Resolution order: explicit user choice (`localStorage["sure-theme"]`) wins,
 otherwise the OS `prefers-color-scheme` default applies (`theme.ts`
-`getInitialTheme`). The root route injects `sureThemeInlineScript` before
-first paint (sets `data-theme`, no flash) and applies the matching compiled
-theme declaratively with `stylex.props`:
+`getInitialTheme`). The root route resolves the theme on hydration and
+applies the matching compiled theme declaratively with `stylex.props`.
+There are deliberately NO inline scripts: ADR-0001 REQ-TRAN-02 requires an
+enforced CSP with no inline scripts, so `dangerouslySetInnerHTML` and
+pre-hydration theme scripts are prohibited (the `csp-no-inline-scripts`
+test fails the suite if either appears in `src/`).
 
 ```tsx
 import * as stylex from "@stylexjs/stylex";
 import { sureDarkTheme, sureLightTheme } from "~/styles/sure-tokens.stylex";
 import { getInitialTheme } from "~/styles/theme";
 
-const [theme, setTheme] = useState<SureThemeName>("light");
+// null until hydration: SSR and the first client render agree, so there is
+// no hydration mismatch and no inline script is needed.
+const [theme, setTheme] = useState<SureThemeName | null>(null);
 useEffect(() => {
 	setTheme(
 		getInitialTheme(
@@ -89,10 +94,16 @@ useEffect(() => {
 }, []);
 
 <html
-	data-theme={theme}
+	data-theme={theme ?? undefined}
 	{...stylex.props(theme === "dark" ? sureDarkTheme : sureLightTheme)}
 >
 ```
+
+Pre-hydration, `data-theme` is absent, so `sure-theme.css` falls through to
+the system default (`color-scheme: light dark` plus the
+`prefers-color-scheme: dark` rule): scrollbars, form controls, and other UA
+chrome already match the OS before React hydrates. The app-level variables
+resolve to the OS-default theme in the hydration effect above.
 
 `data-theme` also drives `color-scheme` (sure-theme.css), so scrollbars and
 form controls follow the app theme. A user-facing toggle (persisted via
