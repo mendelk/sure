@@ -31,10 +31,17 @@ import createClient, {
 	type HeadersOptions,
 	type MethodResponse,
 } from "openapi-fetch";
+import type { OperationContract } from "./operation-contracts";
+import { getOperationContract, parseOperationResponse } from "./operation-contracts";
+import type { RedactedIssue } from "./contract";
+import { describeContractViolation } from "./contract";
 import type { components, paths } from "./openapi";
 
 /** Re-export the generated schema so consumers never hand-copy models. */
 export type { components, paths };
+
+/** Re-export the operation-contract types (validation is mandatory in `perform`). */
+export type { OperationContract, RedactedIssue };
 
 /** All documented API paths, e.g. `"/api/v1/accounts"`. */
 export type ApiPaths = keyof paths;
@@ -58,6 +65,7 @@ export type ApiErrorKind =
 	| "rateLimited"
 	| "http"
 	| "parse"
+	| "contract"
 	| "aborted"
 	| "network";
 
@@ -76,8 +84,10 @@ export interface ApiErrorInit {
  * (400/422 with an `ErrorResponse` body), authorization (401/403),
  * missing resources (404), conflicts such as "export not ready" (409),
  * rate limiting (429, with `retryAfterMs` parsed from `Retry-After`),
- * other HTTP failures, unparseable success bodies, aborted requests, and
- * network failures. Narrow on `kind`, or use `retryable` for Query retries.
+ * contract violations (documented success payloads that fail their
+ * generated Zod parser, with redacted diagnostics), other HTTP failures,
+ * unparseable success bodies, aborted requests, and network failures.
+ * Narrow on `kind`, or use `retryable` for Query retries.
  */
 export class ApiError extends Error {
 	readonly kind: ApiErrorKind;
@@ -191,6 +201,13 @@ export interface ApiRequestExtras {
 	 * tests for deterministic assertions.
 	 */
 	requestId?: string;
+}
+
+/** Redacted contract-violation details carried on `{ kind: "contract" }` errors. */
+export interface ContractErrorDetails {
+	readonly operation: string;
+	readonly status: number;
+	readonly issues: readonly RedactedIssue[];
 }
 
 /**
@@ -311,9 +328,13 @@ function errorFromStatus(
 	payload: unknown,
 	response: Response,
 	requestId: string,
+	contractIssues?: readonly RedactedIssue[],
 ): ApiError {
-	const message = errorMessage(payload, `Request failed with status ${status}.`);
-	const details = errorDetails(payload);
+	const message =
+		contractIssues !== undefined
+			? `Request failed with status ${status}.`
+			: errorMessage(payload, `Request failed with status ${status}.`);
+	const details = contractIssues !== undefined ? { issues: contractIssues } : errorDetails(payload);
 	switch (status) {
 		case 400:
 		case 422:
@@ -422,8 +443,60 @@ interface PerformArgs {
 	requestId: string;
 }
 
+/**
+ * Resolve the operation contract for a request. Validation is mandatory:
+ * every public wrapper funnels through `perform`, so no success payload
+ * can bypass its parser. Unknown operations fail closed.
+ */
+function requireContract(method: string, path: string, requestId: string): OperationContract {
+	const contract = getOperationContract(method, path);
+	if (contract === undefined) {
+		throw new ApiError({
+			kind: "contract",
+			message: `No API contract for ${method.toUpperCase()} ${path}.`,
+			requestId,
+		});
+	}
+	return contract;
+}
+
+function contractError(
+	contract: OperationContract,
+	status: number,
+	issues: readonly RedactedIssue[],
+	totalIssues: number,
+	requestId: string,
+): ApiError {
+	const details: ContractErrorDetails = {
+		operation: contract.operation,
+		status,
+		issues,
+	};
+	return new ApiError({
+		kind: "contract",
+		message: describeContractViolation(contract.operation, status, issues, totalIssues),
+		status,
+		details,
+		requestId,
+	});
+}
+
+function validateSuccessData(
+	contract: OperationContract,
+	status: number,
+	data: unknown,
+	requestId: string,
+): unknown {
+	const parsed = parseOperationResponse(contract, status, data);
+	if (!parsed.ok) {
+		throw contractError(contract, status, parsed.issues, parsed.issues.length, requestId);
+	}
+	return parsed.data;
+}
+
 async function perform<T>(args: PerformArgs): Promise<ApiSuccess<T>> {
 	const { client, method, path, init, headers, requestId } = args;
+	const contract = requireContract(method, path, requestId);
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Type-erased shared core: the public per-verb wrappers keep full static types, so this boundary reuses one implementation for every method/path without duplicating request logic.
 	const rawRequest = client.request as unknown as RawRequest;
 	let result: RawResult;
@@ -440,10 +513,18 @@ async function perform<T>(args: PerformArgs): Promise<ApiSuccess<T>> {
 		throw errorFromThrown(error, readSignal(init), requestId);
 	}
 	if (result.error !== undefined || !result.response.ok) {
-		throw errorFromStatus(result.response.status, result.error, result.response, requestId);
+		const status = result.response.status;
+		const parsed = parseOperationResponse(contract, status, result.error);
+		if (parsed.ok) {
+			throw errorFromStatus(status, parsed.data, result.response, requestId);
+		}
+		// Malformed (or undocumented) error bodies never surface raw: the
+		// status-mapped error keeps its kind with redacted diagnostics.
+		throw errorFromStatus(status, undefined, result.response, requestId, parsed.issues);
 	}
+	const data = validateSuccessData(contract, result.response.status, result.data, requestId);
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Success data is typed per endpoint at the public wrappers; the shared core only forwards the already-normalized payload.
-	return { data: result.data as T, response: result.response, requestId };
+	return { data: data as T, response: result.response, requestId };
 }
 
 function readSignal(init: Record<string, unknown> | undefined): AbortSignal | null | undefined {
@@ -469,7 +550,7 @@ function prepare(
 	);
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Single erasure point: public per-verb wrappers pass fully-typed init, so the shared core can operate on plain records without duplicating request logic per method.
 	const raw = (init ?? {}) as Record<string, unknown>;
-	const { requestId: _dropped, ...rest } = raw;
+	const { requestId: _droppedRequestId, ...rest } = raw;
 	return { client, method, path, init: rest, headers, requestId };
 }
 
@@ -567,7 +648,9 @@ function parseFilename(contentDisposition: string | null): string | undefined {
  * Download a binary response (e.g. `GET /api/v1/family_exports/{id}/download`)
  * as a `Blob`, honouring cancellation via `signal`. Throws `ApiError` for
  * non-2xx outcomes (including 409 "export not ready") just like the JSON
- * wrappers.
+ * wrappers. The download operation is the explicit binary exception to
+ * JSON validation: response bytes travel as a `Blob`, never through a
+ * JSON parser.
  */
 export function apiDownload<Path extends GetPaths>(
 	client: SureClient,
@@ -581,9 +664,10 @@ export function apiDownload<Path extends GetPaths>(
 			...prepared,
 			init: { ...prepared.init, parseAs: "blob" },
 		});
+		const blob: Blob = result.data;
 		const contentType = result.response.headers.get("Content-Type") ?? undefined;
 		return {
-			blob: result.data,
+			blob,
 			filename: parseFilename(result.response.headers.get("Content-Disposition")),
 			contentType: contentType ?? undefined,
 			response: result.response,

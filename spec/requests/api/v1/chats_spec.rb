@@ -218,6 +218,8 @@ RSpec.describe 'API V1 Chats', type: :request do
       end
 
       response '404', 'chat not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
         let(:id) { SecureRandom.uuid }
 
         run_test!

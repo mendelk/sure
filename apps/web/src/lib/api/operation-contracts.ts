@@ -1,0 +1,1710 @@
+/**
+ * Operation registry indexing the Orval-generated Zod parsers.
+ *
+ * Hand-written adapter (index/compose only): this module maps each
+ * `"METHOD /path"` operation to the parsers Orval already generated under
+ * `./zod/` — it interprets no OpenAPI schemas, formats, combinators,
+ * media types, or validation rules itself. Every schema referenced below
+ * is a generated export; adding an API operation means regenerating with
+ * `pnpm --filter @sure/web api:zod` and adding one entry here (the
+ * operation-coverage test fails until both sides agree).
+ *
+ * Client-safe and secret-free: no credentials, no server-only
+ * configuration, no Node APIs — safe to import from browser bundles and
+ * from `*.server.*` BFF modules alike. Route code that calls a single
+ * operation should import that operation's `./zod/endpoints/*` module
+ * directly for the smallest bundle; this registry is the full-surface
+ * lookup for the typed fetch layer and the BFF transport.
+ */
+import { z } from "zod";
+import { redactZodIssues, type OperationParseResult } from "./contract";
+
+import {
+	GetApiV1Accounts200Response,
+	GetApiV1AccountsId200Response,
+	GetApiV1AccountsId401Response,
+	GetApiV1AccountsId403Response,
+	GetApiV1AccountsId404Response,
+	GetApiV1AccountsIdParams,
+	GetApiV1AccountsIdQueryParams,
+	GetApiV1AccountsQueryParams,
+	PostApiV1Accounts201Response,
+	PostApiV1Accounts403Response,
+	PostApiV1Accounts422Response,
+	PostApiV1AccountsBody,
+} from "./zod/endpoints/accounts/accounts.zod";
+import {
+	PatchApiV1AuthEnableAi200Response,
+	PatchApiV1AuthEnableAi401Response,
+	PatchApiV1AuthEnableAi403Response,
+	PostApiV1AuthLogin200Response,
+	PostApiV1AuthLogin401Response,
+	PostApiV1AuthLoginBody,
+	PostApiV1AuthRefresh200Response,
+	PostApiV1AuthRefresh400Response,
+	PostApiV1AuthRefresh401Response,
+	PostApiV1AuthRefreshBody,
+	PostApiV1AuthSignup201Response,
+	PostApiV1AuthSignup403Response,
+	PostApiV1AuthSignup422Response,
+	PostApiV1AuthSignupBody,
+	PostApiV1AuthSsoCreateAccount200Response,
+	PostApiV1AuthSsoCreateAccount400Response,
+	PostApiV1AuthSsoCreateAccount401Response,
+	PostApiV1AuthSsoCreateAccount403Response,
+	PostApiV1AuthSsoCreateAccount422Response,
+	PostApiV1AuthSsoCreateAccountBody,
+	PostApiV1AuthSsoExchange200Response,
+	PostApiV1AuthSsoExchange401Response,
+	PostApiV1AuthSsoExchangeBody,
+	PostApiV1AuthSsoLink200Response,
+	PostApiV1AuthSsoLink400Response,
+	PostApiV1AuthSsoLink401Response,
+	PostApiV1AuthSsoLink403Response,
+	PostApiV1AuthSsoLinkBody,
+} from "./zod/endpoints/auth/auth.zod";
+import {
+	GetApiV1BalanceSheet200Response,
+	GetApiV1BalanceSheet401Response,
+} from "./zod/endpoints/balance-sheet/balance-sheet.zod";
+import {
+	GetApiV1Balances200Response,
+	GetApiV1Balances401Response,
+	GetApiV1Balances403Response,
+	GetApiV1Balances422Response,
+	GetApiV1BalancesId200Response,
+	GetApiV1BalancesId401Response,
+	GetApiV1BalancesId403Response,
+	GetApiV1BalancesId404Response,
+	GetApiV1BalancesIdParams,
+	GetApiV1BalancesQueryParams,
+} from "./zod/endpoints/balances/balances.zod";
+import {
+	GetApiV1BudgetCategories200Response,
+	GetApiV1BudgetCategories401Response,
+	GetApiV1BudgetCategories403Response,
+	GetApiV1BudgetCategories422Response,
+	GetApiV1BudgetCategoriesId200Response,
+	GetApiV1BudgetCategoriesId401Response,
+	GetApiV1BudgetCategoriesId403Response,
+	GetApiV1BudgetCategoriesId404Response,
+	GetApiV1BudgetCategoriesIdParams,
+	GetApiV1BudgetCategoriesQueryParams,
+} from "./zod/endpoints/budget-categories/budget-categories.zod";
+import {
+	GetApiV1Budgets200Response,
+	GetApiV1Budgets401Response,
+	GetApiV1Budgets403Response,
+	GetApiV1Budgets422Response,
+	GetApiV1BudgetsId200Response,
+	GetApiV1BudgetsId401Response,
+	GetApiV1BudgetsId403Response,
+	GetApiV1BudgetsId404Response,
+	GetApiV1BudgetsIdParams,
+	GetApiV1BudgetsQueryParams,
+} from "./zod/endpoints/budgets/budgets.zod";
+import {
+	GetApiV1Categories200Response,
+	GetApiV1CategoriesId200Response,
+	GetApiV1CategoriesId404Response,
+	GetApiV1CategoriesIdParams,
+	GetApiV1CategoriesQueryParams,
+	PostApiV1Categories201Response,
+	PostApiV1Categories400Response,
+	PostApiV1Categories401Response,
+	PostApiV1Categories403Response,
+	PostApiV1Categories422Response,
+	PostApiV1CategoriesBody,
+} from "./zod/endpoints/categories/categories.zod";
+import {
+	PostApiV1ChatsChatIdMessages201Response,
+	PostApiV1ChatsChatIdMessages404Response,
+	PostApiV1ChatsChatIdMessages422Response,
+	PostApiV1ChatsChatIdMessagesBody,
+	PostApiV1ChatsChatIdMessagesParams,
+	PostApiV1ChatsChatIdMessagesRetry202Response,
+	PostApiV1ChatsChatIdMessagesRetry404Response,
+	PostApiV1ChatsChatIdMessagesRetry422Response,
+	PostApiV1ChatsChatIdMessagesRetryParams,
+} from "./zod/endpoints/chat-messages/chat-messages.zod";
+import {
+	DeleteApiV1ChatsId204Response,
+	DeleteApiV1ChatsId404Response,
+	DeleteApiV1ChatsIdParams,
+	GetApiV1Chats200Response,
+	GetApiV1Chats403Response,
+	GetApiV1ChatsId200Response,
+	GetApiV1ChatsId404Response,
+	GetApiV1ChatsIdParams,
+	PatchApiV1ChatsId200Response,
+	PatchApiV1ChatsId404Response,
+	PatchApiV1ChatsId422Response,
+	PatchApiV1ChatsIdBody,
+	PatchApiV1ChatsIdParams,
+	PostApiV1Chats201Response,
+	PostApiV1Chats422Response,
+	PostApiV1ChatsBody,
+} from "./zod/endpoints/chats/chats.zod";
+import {
+	GetApiV1FamilyExports200Response,
+	GetApiV1FamilyExports401Response,
+	GetApiV1FamilyExports403Response,
+	GetApiV1FamilyExportsId200Response,
+	GetApiV1FamilyExportsId401Response,
+	GetApiV1FamilyExportsId403Response,
+	GetApiV1FamilyExportsId404Response,
+	GetApiV1FamilyExportsIdDownload302Response,
+	GetApiV1FamilyExportsIdDownload401Response,
+	GetApiV1FamilyExportsIdDownload403Response,
+	GetApiV1FamilyExportsIdDownload404Response,
+	GetApiV1FamilyExportsIdDownload409Response,
+	GetApiV1FamilyExportsIdDownloadParams,
+	GetApiV1FamilyExportsIdParams,
+	GetApiV1FamilyExportsQueryParams,
+	PostApiV1FamilyExports202Response,
+	PostApiV1FamilyExports401Response,
+	PostApiV1FamilyExports403Response,
+	PostApiV1FamilyExports422Response,
+	PostApiV1FamilyExportsBody,
+} from "./zod/endpoints/family-exports/family-exports.zod";
+import {
+	GetApiV1FamilySettings200Response,
+	GetApiV1FamilySettings401Response,
+	GetApiV1FamilySettings403Response,
+} from "./zod/endpoints/family-settings/family-settings.zod";
+import {
+	GetApiV1Holdings200Response,
+	GetApiV1Holdings401Response,
+	GetApiV1Holdings422Response,
+	GetApiV1HoldingsId200Response,
+	GetApiV1HoldingsId401Response,
+	GetApiV1HoldingsId404Response,
+	GetApiV1HoldingsIdParams,
+	GetApiV1HoldingsQueryParams,
+} from "./zod/endpoints/holdings/holdings.zod";
+import {
+	GetApiV1ImportSessionsId200Response,
+	GetApiV1ImportSessionsId401Response,
+	GetApiV1ImportSessionsId403Response,
+	GetApiV1ImportSessionsId404Response,
+	GetApiV1ImportSessionsIdParams,
+	PostApiV1ImportSessions201Response,
+	PostApiV1ImportSessions401Response,
+	PostApiV1ImportSessions403Response,
+	PostApiV1ImportSessions409Response,
+	PostApiV1ImportSessions422Response,
+	PostApiV1ImportSessionsBody,
+	PostApiV1ImportSessionsIdChunks201Response,
+	PostApiV1ImportSessionsIdChunks401Response,
+	PostApiV1ImportSessionsIdChunks403Response,
+	PostApiV1ImportSessionsIdChunks404Response,
+	PostApiV1ImportSessionsIdChunks409Response,
+	PostApiV1ImportSessionsIdChunks422Response,
+	PostApiV1ImportSessionsIdChunksBody,
+	PostApiV1ImportSessionsIdChunksParams,
+	PostApiV1ImportSessionsIdPublish202Response,
+	PostApiV1ImportSessionsIdPublish401Response,
+	PostApiV1ImportSessionsIdPublish403Response,
+	PostApiV1ImportSessionsIdPublish404Response,
+	PostApiV1ImportSessionsIdPublish409Response,
+	PostApiV1ImportSessionsIdPublish422Response,
+	PostApiV1ImportSessionsIdPublish503Response,
+	PostApiV1ImportSessionsIdPublishParams,
+} from "./zod/endpoints/import-sessions/import-sessions.zod";
+import {
+	GetApiV1Imports200Response,
+	GetApiV1ImportsId200Response,
+	GetApiV1ImportsId404Response,
+	GetApiV1ImportsIdParams,
+	GetApiV1ImportsIdRows200Response,
+	GetApiV1ImportsIdRows401Response,
+	GetApiV1ImportsIdRows403Response,
+	GetApiV1ImportsIdRows404Response,
+	GetApiV1ImportsIdRows500Response,
+	GetApiV1ImportsIdRowsParams,
+	GetApiV1ImportsIdRowsQueryParams,
+	GetApiV1ImportsQueryParams,
+	PostApiV1Imports201Response,
+	PostApiV1Imports422Response,
+	PostApiV1Imports500Response,
+	PostApiV1ImportsBody,
+	PostApiV1ImportsPreflight200Response,
+	PostApiV1ImportsPreflight401Response,
+	PostApiV1ImportsPreflight404Response,
+	PostApiV1ImportsPreflight422Response,
+	PostApiV1ImportsPreflightBody,
+} from "./zod/endpoints/imports/imports.zod";
+import {
+	GetApiV1Insights200Response,
+	GetApiV1Insights403Response,
+} from "./zod/endpoints/insights/insights.zod";
+import {
+	DeleteApiV1MerchantsId204Response,
+	DeleteApiV1MerchantsId404Response,
+	DeleteApiV1MerchantsIdParams,
+	GetApiV1Merchants200Response,
+	GetApiV1MerchantsId200Response,
+	GetApiV1MerchantsId404Response,
+	GetApiV1MerchantsIdParams,
+	PatchApiV1MerchantsId200Response,
+	PatchApiV1MerchantsId404Response,
+	PatchApiV1MerchantsIdBody,
+	PatchApiV1MerchantsIdParams,
+	PostApiV1Merchants201Response,
+	PostApiV1Merchants401Response,
+	PostApiV1Merchants422Response,
+	PostApiV1MerchantsBody,
+	PostApiV1MerchantsImport201Response,
+	PostApiV1MerchantsImport401Response,
+	PostApiV1MerchantsImport422Response,
+	PostApiV1MerchantsImportBody,
+} from "./zod/endpoints/merchants/merchants.zod";
+import {
+	GetApiV1ProviderConnections200Response,
+	GetApiV1ProviderConnections401Response,
+	GetApiV1ProviderConnections403Response,
+} from "./zod/endpoints/provider-connections/provider-connections.zod";
+import {
+	DeleteApiV1PushSubscriptionsId204Response,
+	DeleteApiV1PushSubscriptionsIdParams,
+	PostApiV1PushSubscriptions201Response,
+	PostApiV1PushSubscriptions422Response,
+	PostApiV1PushSubscriptionsBody,
+} from "./zod/endpoints/push-subscriptions/push-subscriptions.zod";
+import {
+	DeleteApiV1RecurringTransactionsId200Response,
+	DeleteApiV1RecurringTransactionsId401Response,
+	DeleteApiV1RecurringTransactionsId403Response,
+	DeleteApiV1RecurringTransactionsId404Response,
+	DeleteApiV1RecurringTransactionsIdParams,
+	GetApiV1RecurringTransactions200Response,
+	GetApiV1RecurringTransactions401Response,
+	GetApiV1RecurringTransactions422Response,
+	GetApiV1RecurringTransactionsId200Response,
+	GetApiV1RecurringTransactionsId401Response,
+	GetApiV1RecurringTransactionsId404Response,
+	GetApiV1RecurringTransactionsIdParams,
+	GetApiV1RecurringTransactionsQueryParams,
+	PatchApiV1RecurringTransactionsId200Response,
+	PatchApiV1RecurringTransactionsId401Response,
+	PatchApiV1RecurringTransactionsId403Response,
+	PatchApiV1RecurringTransactionsId404Response,
+	PatchApiV1RecurringTransactionsId422Response,
+	PatchApiV1RecurringTransactionsIdBody,
+	PatchApiV1RecurringTransactionsIdParams,
+	PostApiV1RecurringTransactions201Response,
+	PostApiV1RecurringTransactions401Response,
+	PostApiV1RecurringTransactions403Response,
+	PostApiV1RecurringTransactions404Response,
+	PostApiV1RecurringTransactions422Response,
+	PostApiV1RecurringTransactionsBody,
+} from "./zod/endpoints/recurring-transactions/recurring-transactions.zod";
+import {
+	GetApiV1RejectedTransfers200Response,
+	GetApiV1RejectedTransfers401Response,
+	GetApiV1RejectedTransfers403Response,
+	GetApiV1RejectedTransfers422Response,
+	GetApiV1RejectedTransfersId200Response,
+	GetApiV1RejectedTransfersId401Response,
+	GetApiV1RejectedTransfersId403Response,
+	GetApiV1RejectedTransfersId404Response,
+	GetApiV1RejectedTransfersIdParams,
+	GetApiV1RejectedTransfersQueryParams,
+} from "./zod/endpoints/rejected-transfers/rejected-transfers.zod";
+import {
+	GetApiV1RuleRuns200Response,
+	GetApiV1RuleRuns401Response,
+	GetApiV1RuleRuns403Response,
+	GetApiV1RuleRuns422Response,
+	GetApiV1RuleRunsId200Response,
+	GetApiV1RuleRunsId401Response,
+	GetApiV1RuleRunsId403Response,
+	GetApiV1RuleRunsId404Response,
+	GetApiV1RuleRunsIdParams,
+	GetApiV1RuleRunsQueryParams,
+} from "./zod/endpoints/rule-runs/rule-runs.zod";
+import {
+	GetApiV1Rules200Response,
+	GetApiV1Rules401Response,
+	GetApiV1Rules403Response,
+	GetApiV1Rules422Response,
+	GetApiV1RulesId200Response,
+	GetApiV1RulesId401Response,
+	GetApiV1RulesId403Response,
+	GetApiV1RulesId404Response,
+	GetApiV1RulesIdParams,
+	GetApiV1RulesQueryParams,
+} from "./zod/endpoints/rules/rules.zod";
+import {
+	GetApiV1Securities200Response,
+	GetApiV1Securities401Response,
+	GetApiV1Securities403Response,
+	GetApiV1Securities422Response,
+	GetApiV1SecuritiesId200Response,
+	GetApiV1SecuritiesId401Response,
+	GetApiV1SecuritiesId403Response,
+	GetApiV1SecuritiesId404Response,
+	GetApiV1SecuritiesIdParams,
+	GetApiV1SecuritiesQueryParams,
+} from "./zod/endpoints/securities/securities.zod";
+import {
+	GetApiV1SecurityPrices200Response,
+	GetApiV1SecurityPrices401Response,
+	GetApiV1SecurityPrices403Response,
+	GetApiV1SecurityPrices422Response,
+	GetApiV1SecurityPricesId200Response,
+	GetApiV1SecurityPricesId401Response,
+	GetApiV1SecurityPricesId403Response,
+	GetApiV1SecurityPricesId404Response,
+	GetApiV1SecurityPricesIdParams,
+	GetApiV1SecurityPricesQueryParams,
+} from "./zod/endpoints/security-prices/security-prices.zod";
+import {
+	GetApiV1Syncs200Response,
+	GetApiV1Syncs401Response,
+	GetApiV1Syncs403Response,
+	GetApiV1SyncsId200Response,
+	GetApiV1SyncsId401Response,
+	GetApiV1SyncsId403Response,
+	GetApiV1SyncsId404Response,
+	GetApiV1SyncsIdParams,
+	GetApiV1SyncsLatest200Response,
+	GetApiV1SyncsLatest401Response,
+	GetApiV1SyncsLatest403Response,
+	GetApiV1SyncsQueryParams,
+} from "./zod/endpoints/syncs/syncs.zod";
+import {
+	DeleteApiV1TagsId204Response,
+	DeleteApiV1TagsId404Response,
+	DeleteApiV1TagsIdParams,
+	GetApiV1Tags200Response,
+	GetApiV1TagsId200Response,
+	GetApiV1TagsId404Response,
+	GetApiV1TagsIdParams,
+	PatchApiV1TagsId200Response,
+	PatchApiV1TagsId404Response,
+	PatchApiV1TagsIdBody,
+	PatchApiV1TagsIdParams,
+	PostApiV1Tags201Response,
+	PostApiV1Tags422Response,
+	PostApiV1TagsBody,
+} from "./zod/endpoints/tags/tags.zod";
+import {
+	DeleteApiV1TradesId200Response,
+	DeleteApiV1TradesId401Response,
+	DeleteApiV1TradesId403Response,
+	DeleteApiV1TradesId404Response,
+	DeleteApiV1TradesIdParams,
+	GetApiV1Trades200Response,
+	GetApiV1Trades401Response,
+	GetApiV1Trades422Response,
+	GetApiV1TradesId200Response,
+	GetApiV1TradesId401Response,
+	GetApiV1TradesId404Response,
+	GetApiV1TradesIdParams,
+	GetApiV1TradesQueryParams,
+	PatchApiV1TradesId200Response,
+	PatchApiV1TradesId401Response,
+	PatchApiV1TradesId403Response,
+	PatchApiV1TradesId404Response,
+	PatchApiV1TradesIdBody,
+	PatchApiV1TradesIdParams,
+	PostApiV1Trades201Response,
+	PostApiV1Trades401Response,
+	PostApiV1Trades403Response,
+	PostApiV1Trades404Response,
+	PostApiV1Trades422Response,
+	PostApiV1TradesBody,
+} from "./zod/endpoints/trades/trades.zod";
+import {
+	DeleteApiV1TransactionsId200Response,
+	DeleteApiV1TransactionsId404Response,
+	DeleteApiV1TransactionsIdParams,
+	GetApiV1Transactions200Response,
+	GetApiV1TransactionsId200Response,
+	GetApiV1TransactionsId404Response,
+	GetApiV1TransactionsIdParams,
+	GetApiV1TransactionsQueryParams,
+	PatchApiV1TransactionsId200Response,
+	PatchApiV1TransactionsId404Response,
+	PatchApiV1TransactionsIdBody,
+	PatchApiV1TransactionsIdParams,
+	PostApiV1Transactions200Response,
+	PostApiV1Transactions201Response,
+	PostApiV1Transactions422Response,
+	PostApiV1TransactionsBody,
+	PostApiV1TransactionsTransactionIdSplit201Response,
+	PostApiV1TransactionsTransactionIdSplit401Response,
+	PostApiV1TransactionsTransactionIdSplit403Response,
+	PostApiV1TransactionsTransactionIdSplit404Response,
+	PostApiV1TransactionsTransactionIdSplit422Response,
+	PostApiV1TransactionsTransactionIdSplitBody,
+	PostApiV1TransactionsTransactionIdSplitParams,
+} from "./zod/endpoints/transactions/transactions.zod";
+import {
+	GetApiV1Transfers200Response,
+	GetApiV1Transfers401Response,
+	GetApiV1Transfers403Response,
+	GetApiV1Transfers422Response,
+	GetApiV1TransfersId200Response,
+	GetApiV1TransfersId401Response,
+	GetApiV1TransfersId403Response,
+	GetApiV1TransfersId404Response,
+	GetApiV1TransfersIdParams,
+	GetApiV1TransfersQueryParams,
+} from "./zod/endpoints/transfers/transfers.zod";
+import {
+	DeleteApiV1UsersMe200Response,
+	DeleteApiV1UsersMe401Response,
+	DeleteApiV1UsersMe403Response,
+	DeleteApiV1UsersMe422Response,
+	DeleteApiV1UsersReset200Response,
+	DeleteApiV1UsersReset401Response,
+	DeleteApiV1UsersReset403Response,
+	DeleteApiV1UsersReset500Response,
+	GetApiV1UsersResetStatus200Response,
+	GetApiV1UsersResetStatus401Response,
+	GetApiV1UsersResetStatus403Response,
+} from "./zod/endpoints/users/users.zod";
+import {
+	GetApiV1Valuations200Response,
+	GetApiV1Valuations401Response,
+	GetApiV1Valuations422Response,
+	GetApiV1ValuationsId200Response,
+	GetApiV1ValuationsId404Response,
+	GetApiV1ValuationsIdParams,
+	GetApiV1ValuationsQueryParams,
+	PatchApiV1ValuationsId200Response,
+	PatchApiV1ValuationsId404Response,
+	PatchApiV1ValuationsId422Response,
+	PatchApiV1ValuationsIdBody,
+	PatchApiV1ValuationsIdParams,
+	PostApiV1Valuations200Response,
+	PostApiV1Valuations201Response,
+	PostApiV1Valuations404Response,
+	PostApiV1Valuations422Response,
+	PostApiV1ValuationsBody,
+} from "./zod/endpoints/valuations/valuations.zod";
+
+export interface OperationContract {
+	readonly operation: string;
+	readonly method: string;
+	readonly path: string;
+	readonly pathParams?: z.ZodType | undefined;
+	readonly queryParams?: z.ZodType | undefined;
+	readonly headerParams?: z.ZodType | undefined;
+	readonly body?: z.ZodType | undefined;
+	/** True only for the binary redirect download (Blob, not JSON). */
+	readonly isBinaryDownload: boolean;
+	/** Every documented response status for the operation. */
+	responses: Record<string, z.ZodType>;
+}
+
+const CONTRACTS: Record<string, OperationContract> = {
+	"DELETE /api/v1/chats/{id}": {
+		operation: "DELETE /api/v1/chats/{id}",
+		method: "DELETE",
+		path: "/api/v1/chats/{id}",
+		pathParams: DeleteApiV1ChatsIdParams,
+		isBinaryDownload: false,
+		responses: { 204: DeleteApiV1ChatsId204Response, 404: DeleteApiV1ChatsId404Response },
+	},
+	"DELETE /api/v1/merchants/{id}": {
+		operation: "DELETE /api/v1/merchants/{id}",
+		method: "DELETE",
+		path: "/api/v1/merchants/{id}",
+		pathParams: DeleteApiV1MerchantsIdParams,
+		isBinaryDownload: false,
+		responses: { 204: DeleteApiV1MerchantsId204Response, 404: DeleteApiV1MerchantsId404Response },
+	},
+	"DELETE /api/v1/push_subscriptions/{id}": {
+		operation: "DELETE /api/v1/push_subscriptions/{id}",
+		method: "DELETE",
+		path: "/api/v1/push_subscriptions/{id}",
+		pathParams: DeleteApiV1PushSubscriptionsIdParams,
+		isBinaryDownload: false,
+		responses: { 204: DeleteApiV1PushSubscriptionsId204Response },
+	},
+	"DELETE /api/v1/recurring_transactions/{id}": {
+		operation: "DELETE /api/v1/recurring_transactions/{id}",
+		method: "DELETE",
+		path: "/api/v1/recurring_transactions/{id}",
+		pathParams: DeleteApiV1RecurringTransactionsIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: DeleteApiV1RecurringTransactionsId200Response,
+			401: DeleteApiV1RecurringTransactionsId401Response,
+			403: DeleteApiV1RecurringTransactionsId403Response,
+			404: DeleteApiV1RecurringTransactionsId404Response,
+		},
+	},
+	"DELETE /api/v1/tags/{id}": {
+		operation: "DELETE /api/v1/tags/{id}",
+		method: "DELETE",
+		path: "/api/v1/tags/{id}",
+		pathParams: DeleteApiV1TagsIdParams,
+		isBinaryDownload: false,
+		responses: { 204: DeleteApiV1TagsId204Response, 404: DeleteApiV1TagsId404Response },
+	},
+	"DELETE /api/v1/trades/{id}": {
+		operation: "DELETE /api/v1/trades/{id}",
+		method: "DELETE",
+		path: "/api/v1/trades/{id}",
+		pathParams: DeleteApiV1TradesIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: DeleteApiV1TradesId200Response,
+			401: DeleteApiV1TradesId401Response,
+			403: DeleteApiV1TradesId403Response,
+			404: DeleteApiV1TradesId404Response,
+		},
+	},
+	"DELETE /api/v1/transactions/{id}": {
+		operation: "DELETE /api/v1/transactions/{id}",
+		method: "DELETE",
+		path: "/api/v1/transactions/{id}",
+		pathParams: DeleteApiV1TransactionsIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: DeleteApiV1TransactionsId200Response,
+			404: DeleteApiV1TransactionsId404Response,
+		},
+	},
+	"DELETE /api/v1/users/me": {
+		operation: "DELETE /api/v1/users/me",
+		method: "DELETE",
+		path: "/api/v1/users/me",
+		isBinaryDownload: false,
+		responses: {
+			200: DeleteApiV1UsersMe200Response,
+			401: DeleteApiV1UsersMe401Response,
+			403: DeleteApiV1UsersMe403Response,
+			422: DeleteApiV1UsersMe422Response,
+		},
+	},
+	"DELETE /api/v1/users/reset": {
+		operation: "DELETE /api/v1/users/reset",
+		method: "DELETE",
+		path: "/api/v1/users/reset",
+		isBinaryDownload: false,
+		responses: {
+			200: DeleteApiV1UsersReset200Response,
+			401: DeleteApiV1UsersReset401Response,
+			403: DeleteApiV1UsersReset403Response,
+			500: DeleteApiV1UsersReset500Response,
+		},
+	},
+	"GET /api/v1/accounts": {
+		operation: "GET /api/v1/accounts",
+		method: "GET",
+		path: "/api/v1/accounts",
+		queryParams: GetApiV1AccountsQueryParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1Accounts200Response },
+	},
+	"GET /api/v1/accounts/{id}": {
+		operation: "GET /api/v1/accounts/{id}",
+		method: "GET",
+		path: "/api/v1/accounts/{id}",
+		pathParams: GetApiV1AccountsIdParams,
+		queryParams: GetApiV1AccountsIdQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1AccountsId200Response,
+			401: GetApiV1AccountsId401Response,
+			403: GetApiV1AccountsId403Response,
+			404: GetApiV1AccountsId404Response,
+		},
+	},
+	"GET /api/v1/balance_sheet": {
+		operation: "GET /api/v1/balance_sheet",
+		method: "GET",
+		path: "/api/v1/balance_sheet",
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1BalanceSheet200Response, 401: GetApiV1BalanceSheet401Response },
+	},
+	"GET /api/v1/balances": {
+		operation: "GET /api/v1/balances",
+		method: "GET",
+		path: "/api/v1/balances",
+		queryParams: GetApiV1BalancesQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1Balances200Response,
+			401: GetApiV1Balances401Response,
+			403: GetApiV1Balances403Response,
+			422: GetApiV1Balances422Response,
+		},
+	},
+	"GET /api/v1/balances/{id}": {
+		operation: "GET /api/v1/balances/{id}",
+		method: "GET",
+		path: "/api/v1/balances/{id}",
+		pathParams: GetApiV1BalancesIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1BalancesId200Response,
+			401: GetApiV1BalancesId401Response,
+			403: GetApiV1BalancesId403Response,
+			404: GetApiV1BalancesId404Response,
+		},
+	},
+	"GET /api/v1/budget_categories": {
+		operation: "GET /api/v1/budget_categories",
+		method: "GET",
+		path: "/api/v1/budget_categories",
+		queryParams: GetApiV1BudgetCategoriesQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1BudgetCategories200Response,
+			401: GetApiV1BudgetCategories401Response,
+			403: GetApiV1BudgetCategories403Response,
+			422: GetApiV1BudgetCategories422Response,
+		},
+	},
+	"GET /api/v1/budget_categories/{id}": {
+		operation: "GET /api/v1/budget_categories/{id}",
+		method: "GET",
+		path: "/api/v1/budget_categories/{id}",
+		pathParams: GetApiV1BudgetCategoriesIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1BudgetCategoriesId200Response,
+			401: GetApiV1BudgetCategoriesId401Response,
+			403: GetApiV1BudgetCategoriesId403Response,
+			404: GetApiV1BudgetCategoriesId404Response,
+		},
+	},
+	"GET /api/v1/budgets": {
+		operation: "GET /api/v1/budgets",
+		method: "GET",
+		path: "/api/v1/budgets",
+		queryParams: GetApiV1BudgetsQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1Budgets200Response,
+			401: GetApiV1Budgets401Response,
+			403: GetApiV1Budgets403Response,
+			422: GetApiV1Budgets422Response,
+		},
+	},
+	"GET /api/v1/budgets/{id}": {
+		operation: "GET /api/v1/budgets/{id}",
+		method: "GET",
+		path: "/api/v1/budgets/{id}",
+		pathParams: GetApiV1BudgetsIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1BudgetsId200Response,
+			401: GetApiV1BudgetsId401Response,
+			403: GetApiV1BudgetsId403Response,
+			404: GetApiV1BudgetsId404Response,
+		},
+	},
+	"GET /api/v1/categories": {
+		operation: "GET /api/v1/categories",
+		method: "GET",
+		path: "/api/v1/categories",
+		queryParams: GetApiV1CategoriesQueryParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1Categories200Response },
+	},
+	"GET /api/v1/categories/{id}": {
+		operation: "GET /api/v1/categories/{id}",
+		method: "GET",
+		path: "/api/v1/categories/{id}",
+		pathParams: GetApiV1CategoriesIdParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1CategoriesId200Response, 404: GetApiV1CategoriesId404Response },
+	},
+	"GET /api/v1/chats": {
+		operation: "GET /api/v1/chats",
+		method: "GET",
+		path: "/api/v1/chats",
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1Chats200Response, 403: GetApiV1Chats403Response },
+	},
+	"GET /api/v1/chats/{id}": {
+		operation: "GET /api/v1/chats/{id}",
+		method: "GET",
+		path: "/api/v1/chats/{id}",
+		pathParams: GetApiV1ChatsIdParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1ChatsId200Response, 404: GetApiV1ChatsId404Response },
+	},
+	"GET /api/v1/family_exports": {
+		operation: "GET /api/v1/family_exports",
+		method: "GET",
+		path: "/api/v1/family_exports",
+		queryParams: GetApiV1FamilyExportsQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1FamilyExports200Response,
+			401: GetApiV1FamilyExports401Response,
+			403: GetApiV1FamilyExports403Response,
+		},
+	},
+	"GET /api/v1/family_exports/{id}": {
+		operation: "GET /api/v1/family_exports/{id}",
+		method: "GET",
+		path: "/api/v1/family_exports/{id}",
+		pathParams: GetApiV1FamilyExportsIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1FamilyExportsId200Response,
+			401: GetApiV1FamilyExportsId401Response,
+			403: GetApiV1FamilyExportsId403Response,
+			404: GetApiV1FamilyExportsId404Response,
+		},
+	},
+	"GET /api/v1/family_exports/{id}/download": {
+		operation: "GET /api/v1/family_exports/{id}/download",
+		method: "GET",
+		path: "/api/v1/family_exports/{id}/download",
+		pathParams: GetApiV1FamilyExportsIdDownloadParams,
+		isBinaryDownload: true,
+		responses: {
+			302: GetApiV1FamilyExportsIdDownload302Response,
+			401: GetApiV1FamilyExportsIdDownload401Response,
+			403: GetApiV1FamilyExportsIdDownload403Response,
+			404: GetApiV1FamilyExportsIdDownload404Response,
+			409: GetApiV1FamilyExportsIdDownload409Response,
+		},
+	},
+	"GET /api/v1/family_settings": {
+		operation: "GET /api/v1/family_settings",
+		method: "GET",
+		path: "/api/v1/family_settings",
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1FamilySettings200Response,
+			401: GetApiV1FamilySettings401Response,
+			403: GetApiV1FamilySettings403Response,
+		},
+	},
+	"GET /api/v1/holdings": {
+		operation: "GET /api/v1/holdings",
+		method: "GET",
+		path: "/api/v1/holdings",
+		queryParams: GetApiV1HoldingsQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1Holdings200Response,
+			401: GetApiV1Holdings401Response,
+			422: GetApiV1Holdings422Response,
+		},
+	},
+	"GET /api/v1/holdings/{id}": {
+		operation: "GET /api/v1/holdings/{id}",
+		method: "GET",
+		path: "/api/v1/holdings/{id}",
+		pathParams: GetApiV1HoldingsIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1HoldingsId200Response,
+			401: GetApiV1HoldingsId401Response,
+			404: GetApiV1HoldingsId404Response,
+		},
+	},
+	"GET /api/v1/import_sessions/{id}": {
+		operation: "GET /api/v1/import_sessions/{id}",
+		method: "GET",
+		path: "/api/v1/import_sessions/{id}",
+		pathParams: GetApiV1ImportSessionsIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1ImportSessionsId200Response,
+			401: GetApiV1ImportSessionsId401Response,
+			403: GetApiV1ImportSessionsId403Response,
+			404: GetApiV1ImportSessionsId404Response,
+		},
+	},
+	"GET /api/v1/imports": {
+		operation: "GET /api/v1/imports",
+		method: "GET",
+		path: "/api/v1/imports",
+		queryParams: GetApiV1ImportsQueryParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1Imports200Response },
+	},
+	"GET /api/v1/imports/{id}": {
+		operation: "GET /api/v1/imports/{id}",
+		method: "GET",
+		path: "/api/v1/imports/{id}",
+		pathParams: GetApiV1ImportsIdParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1ImportsId200Response, 404: GetApiV1ImportsId404Response },
+	},
+	"GET /api/v1/imports/{id}/rows": {
+		operation: "GET /api/v1/imports/{id}/rows",
+		method: "GET",
+		path: "/api/v1/imports/{id}/rows",
+		pathParams: GetApiV1ImportsIdRowsParams,
+		queryParams: GetApiV1ImportsIdRowsQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1ImportsIdRows200Response,
+			401: GetApiV1ImportsIdRows401Response,
+			403: GetApiV1ImportsIdRows403Response,
+			404: GetApiV1ImportsIdRows404Response,
+			500: GetApiV1ImportsIdRows500Response,
+		},
+	},
+	"GET /api/v1/insights": {
+		operation: "GET /api/v1/insights",
+		method: "GET",
+		path: "/api/v1/insights",
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1Insights200Response, 403: GetApiV1Insights403Response },
+	},
+	"GET /api/v1/merchants": {
+		operation: "GET /api/v1/merchants",
+		method: "GET",
+		path: "/api/v1/merchants",
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1Merchants200Response },
+	},
+	"GET /api/v1/merchants/{id}": {
+		operation: "GET /api/v1/merchants/{id}",
+		method: "GET",
+		path: "/api/v1/merchants/{id}",
+		pathParams: GetApiV1MerchantsIdParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1MerchantsId200Response, 404: GetApiV1MerchantsId404Response },
+	},
+	"GET /api/v1/provider_connections": {
+		operation: "GET /api/v1/provider_connections",
+		method: "GET",
+		path: "/api/v1/provider_connections",
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1ProviderConnections200Response,
+			401: GetApiV1ProviderConnections401Response,
+			403: GetApiV1ProviderConnections403Response,
+		},
+	},
+	"GET /api/v1/recurring_transactions": {
+		operation: "GET /api/v1/recurring_transactions",
+		method: "GET",
+		path: "/api/v1/recurring_transactions",
+		queryParams: GetApiV1RecurringTransactionsQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1RecurringTransactions200Response,
+			401: GetApiV1RecurringTransactions401Response,
+			422: GetApiV1RecurringTransactions422Response,
+		},
+	},
+	"GET /api/v1/recurring_transactions/{id}": {
+		operation: "GET /api/v1/recurring_transactions/{id}",
+		method: "GET",
+		path: "/api/v1/recurring_transactions/{id}",
+		pathParams: GetApiV1RecurringTransactionsIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1RecurringTransactionsId200Response,
+			401: GetApiV1RecurringTransactionsId401Response,
+			404: GetApiV1RecurringTransactionsId404Response,
+		},
+	},
+	"GET /api/v1/rejected_transfers": {
+		operation: "GET /api/v1/rejected_transfers",
+		method: "GET",
+		path: "/api/v1/rejected_transfers",
+		queryParams: GetApiV1RejectedTransfersQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1RejectedTransfers200Response,
+			401: GetApiV1RejectedTransfers401Response,
+			403: GetApiV1RejectedTransfers403Response,
+			422: GetApiV1RejectedTransfers422Response,
+		},
+	},
+	"GET /api/v1/rejected_transfers/{id}": {
+		operation: "GET /api/v1/rejected_transfers/{id}",
+		method: "GET",
+		path: "/api/v1/rejected_transfers/{id}",
+		pathParams: GetApiV1RejectedTransfersIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1RejectedTransfersId200Response,
+			401: GetApiV1RejectedTransfersId401Response,
+			403: GetApiV1RejectedTransfersId403Response,
+			404: GetApiV1RejectedTransfersId404Response,
+		},
+	},
+	"GET /api/v1/rule_runs": {
+		operation: "GET /api/v1/rule_runs",
+		method: "GET",
+		path: "/api/v1/rule_runs",
+		queryParams: GetApiV1RuleRunsQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1RuleRuns200Response,
+			401: GetApiV1RuleRuns401Response,
+			403: GetApiV1RuleRuns403Response,
+			422: GetApiV1RuleRuns422Response,
+		},
+	},
+	"GET /api/v1/rule_runs/{id}": {
+		operation: "GET /api/v1/rule_runs/{id}",
+		method: "GET",
+		path: "/api/v1/rule_runs/{id}",
+		pathParams: GetApiV1RuleRunsIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1RuleRunsId200Response,
+			401: GetApiV1RuleRunsId401Response,
+			403: GetApiV1RuleRunsId403Response,
+			404: GetApiV1RuleRunsId404Response,
+		},
+	},
+	"GET /api/v1/rules": {
+		operation: "GET /api/v1/rules",
+		method: "GET",
+		path: "/api/v1/rules",
+		queryParams: GetApiV1RulesQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1Rules200Response,
+			401: GetApiV1Rules401Response,
+			403: GetApiV1Rules403Response,
+			422: GetApiV1Rules422Response,
+		},
+	},
+	"GET /api/v1/rules/{id}": {
+		operation: "GET /api/v1/rules/{id}",
+		method: "GET",
+		path: "/api/v1/rules/{id}",
+		pathParams: GetApiV1RulesIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1RulesId200Response,
+			401: GetApiV1RulesId401Response,
+			403: GetApiV1RulesId403Response,
+			404: GetApiV1RulesId404Response,
+		},
+	},
+	"GET /api/v1/securities": {
+		operation: "GET /api/v1/securities",
+		method: "GET",
+		path: "/api/v1/securities",
+		queryParams: GetApiV1SecuritiesQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1Securities200Response,
+			401: GetApiV1Securities401Response,
+			403: GetApiV1Securities403Response,
+			422: GetApiV1Securities422Response,
+		},
+	},
+	"GET /api/v1/securities/{id}": {
+		operation: "GET /api/v1/securities/{id}",
+		method: "GET",
+		path: "/api/v1/securities/{id}",
+		pathParams: GetApiV1SecuritiesIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1SecuritiesId200Response,
+			401: GetApiV1SecuritiesId401Response,
+			403: GetApiV1SecuritiesId403Response,
+			404: GetApiV1SecuritiesId404Response,
+		},
+	},
+	"GET /api/v1/security_prices": {
+		operation: "GET /api/v1/security_prices",
+		method: "GET",
+		path: "/api/v1/security_prices",
+		queryParams: GetApiV1SecurityPricesQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1SecurityPrices200Response,
+			401: GetApiV1SecurityPrices401Response,
+			403: GetApiV1SecurityPrices403Response,
+			422: GetApiV1SecurityPrices422Response,
+		},
+	},
+	"GET /api/v1/security_prices/{id}": {
+		operation: "GET /api/v1/security_prices/{id}",
+		method: "GET",
+		path: "/api/v1/security_prices/{id}",
+		pathParams: GetApiV1SecurityPricesIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1SecurityPricesId200Response,
+			401: GetApiV1SecurityPricesId401Response,
+			403: GetApiV1SecurityPricesId403Response,
+			404: GetApiV1SecurityPricesId404Response,
+		},
+	},
+	"GET /api/v1/syncs": {
+		operation: "GET /api/v1/syncs",
+		method: "GET",
+		path: "/api/v1/syncs",
+		queryParams: GetApiV1SyncsQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1Syncs200Response,
+			401: GetApiV1Syncs401Response,
+			403: GetApiV1Syncs403Response,
+		},
+	},
+	"GET /api/v1/syncs/latest": {
+		operation: "GET /api/v1/syncs/latest",
+		method: "GET",
+		path: "/api/v1/syncs/latest",
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1SyncsLatest200Response,
+			401: GetApiV1SyncsLatest401Response,
+			403: GetApiV1SyncsLatest403Response,
+		},
+	},
+	"GET /api/v1/syncs/{id}": {
+		operation: "GET /api/v1/syncs/{id}",
+		method: "GET",
+		path: "/api/v1/syncs/{id}",
+		pathParams: GetApiV1SyncsIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1SyncsId200Response,
+			401: GetApiV1SyncsId401Response,
+			403: GetApiV1SyncsId403Response,
+			404: GetApiV1SyncsId404Response,
+		},
+	},
+	"GET /api/v1/tags": {
+		operation: "GET /api/v1/tags",
+		method: "GET",
+		path: "/api/v1/tags",
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1Tags200Response },
+	},
+	"GET /api/v1/tags/{id}": {
+		operation: "GET /api/v1/tags/{id}",
+		method: "GET",
+		path: "/api/v1/tags/{id}",
+		pathParams: GetApiV1TagsIdParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1TagsId200Response, 404: GetApiV1TagsId404Response },
+	},
+	"GET /api/v1/trades": {
+		operation: "GET /api/v1/trades",
+		method: "GET",
+		path: "/api/v1/trades",
+		queryParams: GetApiV1TradesQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1Trades200Response,
+			401: GetApiV1Trades401Response,
+			422: GetApiV1Trades422Response,
+		},
+	},
+	"GET /api/v1/trades/{id}": {
+		operation: "GET /api/v1/trades/{id}",
+		method: "GET",
+		path: "/api/v1/trades/{id}",
+		pathParams: GetApiV1TradesIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1TradesId200Response,
+			401: GetApiV1TradesId401Response,
+			404: GetApiV1TradesId404Response,
+		},
+	},
+	"GET /api/v1/transactions": {
+		operation: "GET /api/v1/transactions",
+		method: "GET",
+		path: "/api/v1/transactions",
+		queryParams: GetApiV1TransactionsQueryParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1Transactions200Response },
+	},
+	"GET /api/v1/transactions/{id}": {
+		operation: "GET /api/v1/transactions/{id}",
+		method: "GET",
+		path: "/api/v1/transactions/{id}",
+		pathParams: GetApiV1TransactionsIdParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1TransactionsId200Response, 404: GetApiV1TransactionsId404Response },
+	},
+	"GET /api/v1/transfers": {
+		operation: "GET /api/v1/transfers",
+		method: "GET",
+		path: "/api/v1/transfers",
+		queryParams: GetApiV1TransfersQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1Transfers200Response,
+			401: GetApiV1Transfers401Response,
+			403: GetApiV1Transfers403Response,
+			422: GetApiV1Transfers422Response,
+		},
+	},
+	"GET /api/v1/transfers/{id}": {
+		operation: "GET /api/v1/transfers/{id}",
+		method: "GET",
+		path: "/api/v1/transfers/{id}",
+		pathParams: GetApiV1TransfersIdParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1TransfersId200Response,
+			401: GetApiV1TransfersId401Response,
+			403: GetApiV1TransfersId403Response,
+			404: GetApiV1TransfersId404Response,
+		},
+	},
+	"GET /api/v1/users/reset/status": {
+		operation: "GET /api/v1/users/reset/status",
+		method: "GET",
+		path: "/api/v1/users/reset/status",
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1UsersResetStatus200Response,
+			401: GetApiV1UsersResetStatus401Response,
+			403: GetApiV1UsersResetStatus403Response,
+		},
+	},
+	"GET /api/v1/valuations": {
+		operation: "GET /api/v1/valuations",
+		method: "GET",
+		path: "/api/v1/valuations",
+		queryParams: GetApiV1ValuationsQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: GetApiV1Valuations200Response,
+			401: GetApiV1Valuations401Response,
+			422: GetApiV1Valuations422Response,
+		},
+	},
+	"GET /api/v1/valuations/{id}": {
+		operation: "GET /api/v1/valuations/{id}",
+		method: "GET",
+		path: "/api/v1/valuations/{id}",
+		pathParams: GetApiV1ValuationsIdParams,
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1ValuationsId200Response, 404: GetApiV1ValuationsId404Response },
+	},
+	"PATCH /api/v1/auth/enable_ai": {
+		operation: "PATCH /api/v1/auth/enable_ai",
+		method: "PATCH",
+		path: "/api/v1/auth/enable_ai",
+		isBinaryDownload: false,
+		responses: {
+			200: PatchApiV1AuthEnableAi200Response,
+			401: PatchApiV1AuthEnableAi401Response,
+			403: PatchApiV1AuthEnableAi403Response,
+		},
+	},
+	"PATCH /api/v1/chats/{id}": {
+		operation: "PATCH /api/v1/chats/{id}",
+		method: "PATCH",
+		path: "/api/v1/chats/{id}",
+		pathParams: PatchApiV1ChatsIdParams,
+		body: PatchApiV1ChatsIdBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PatchApiV1ChatsId200Response,
+			404: PatchApiV1ChatsId404Response,
+			422: PatchApiV1ChatsId422Response,
+		},
+	},
+	"PATCH /api/v1/merchants/{id}": {
+		operation: "PATCH /api/v1/merchants/{id}",
+		method: "PATCH",
+		path: "/api/v1/merchants/{id}",
+		pathParams: PatchApiV1MerchantsIdParams,
+		body: PatchApiV1MerchantsIdBody,
+		isBinaryDownload: false,
+		responses: { 200: PatchApiV1MerchantsId200Response, 404: PatchApiV1MerchantsId404Response },
+	},
+	"PATCH /api/v1/recurring_transactions/{id}": {
+		operation: "PATCH /api/v1/recurring_transactions/{id}",
+		method: "PATCH",
+		path: "/api/v1/recurring_transactions/{id}",
+		pathParams: PatchApiV1RecurringTransactionsIdParams,
+		body: PatchApiV1RecurringTransactionsIdBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PatchApiV1RecurringTransactionsId200Response,
+			401: PatchApiV1RecurringTransactionsId401Response,
+			403: PatchApiV1RecurringTransactionsId403Response,
+			404: PatchApiV1RecurringTransactionsId404Response,
+			422: PatchApiV1RecurringTransactionsId422Response,
+		},
+	},
+	"PATCH /api/v1/tags/{id}": {
+		operation: "PATCH /api/v1/tags/{id}",
+		method: "PATCH",
+		path: "/api/v1/tags/{id}",
+		pathParams: PatchApiV1TagsIdParams,
+		body: PatchApiV1TagsIdBody,
+		isBinaryDownload: false,
+		responses: { 200: PatchApiV1TagsId200Response, 404: PatchApiV1TagsId404Response },
+	},
+	"PATCH /api/v1/trades/{id}": {
+		operation: "PATCH /api/v1/trades/{id}",
+		method: "PATCH",
+		path: "/api/v1/trades/{id}",
+		pathParams: PatchApiV1TradesIdParams,
+		body: PatchApiV1TradesIdBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PatchApiV1TradesId200Response,
+			401: PatchApiV1TradesId401Response,
+			403: PatchApiV1TradesId403Response,
+			404: PatchApiV1TradesId404Response,
+		},
+	},
+	"PATCH /api/v1/transactions/{id}": {
+		operation: "PATCH /api/v1/transactions/{id}",
+		method: "PATCH",
+		path: "/api/v1/transactions/{id}",
+		pathParams: PatchApiV1TransactionsIdParams,
+		body: PatchApiV1TransactionsIdBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PatchApiV1TransactionsId200Response,
+			404: PatchApiV1TransactionsId404Response,
+		},
+	},
+	"PATCH /api/v1/valuations/{id}": {
+		operation: "PATCH /api/v1/valuations/{id}",
+		method: "PATCH",
+		path: "/api/v1/valuations/{id}",
+		pathParams: PatchApiV1ValuationsIdParams,
+		body: PatchApiV1ValuationsIdBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PatchApiV1ValuationsId200Response,
+			404: PatchApiV1ValuationsId404Response,
+			422: PatchApiV1ValuationsId422Response,
+		},
+	},
+	"POST /api/v1/accounts": {
+		operation: "POST /api/v1/accounts",
+		method: "POST",
+		path: "/api/v1/accounts",
+		body: PostApiV1AccountsBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1Accounts201Response,
+			403: PostApiV1Accounts403Response,
+			422: PostApiV1Accounts422Response,
+		},
+	},
+	"POST /api/v1/auth/login": {
+		operation: "POST /api/v1/auth/login",
+		method: "POST",
+		path: "/api/v1/auth/login",
+		body: PostApiV1AuthLoginBody,
+		isBinaryDownload: false,
+		responses: { 200: PostApiV1AuthLogin200Response, 401: PostApiV1AuthLogin401Response },
+	},
+	"POST /api/v1/auth/refresh": {
+		operation: "POST /api/v1/auth/refresh",
+		method: "POST",
+		path: "/api/v1/auth/refresh",
+		body: PostApiV1AuthRefreshBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PostApiV1AuthRefresh200Response,
+			400: PostApiV1AuthRefresh400Response,
+			401: PostApiV1AuthRefresh401Response,
+		},
+	},
+	"POST /api/v1/auth/signup": {
+		operation: "POST /api/v1/auth/signup",
+		method: "POST",
+		path: "/api/v1/auth/signup",
+		body: PostApiV1AuthSignupBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1AuthSignup201Response,
+			403: PostApiV1AuthSignup403Response,
+			422: PostApiV1AuthSignup422Response,
+		},
+	},
+	"POST /api/v1/auth/sso_create_account": {
+		operation: "POST /api/v1/auth/sso_create_account",
+		method: "POST",
+		path: "/api/v1/auth/sso_create_account",
+		body: PostApiV1AuthSsoCreateAccountBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PostApiV1AuthSsoCreateAccount200Response,
+			400: PostApiV1AuthSsoCreateAccount400Response,
+			401: PostApiV1AuthSsoCreateAccount401Response,
+			403: PostApiV1AuthSsoCreateAccount403Response,
+			422: PostApiV1AuthSsoCreateAccount422Response,
+		},
+	},
+	"POST /api/v1/auth/sso_exchange": {
+		operation: "POST /api/v1/auth/sso_exchange",
+		method: "POST",
+		path: "/api/v1/auth/sso_exchange",
+		body: PostApiV1AuthSsoExchangeBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PostApiV1AuthSsoExchange200Response,
+			401: PostApiV1AuthSsoExchange401Response,
+		},
+	},
+	"POST /api/v1/auth/sso_link": {
+		operation: "POST /api/v1/auth/sso_link",
+		method: "POST",
+		path: "/api/v1/auth/sso_link",
+		body: PostApiV1AuthSsoLinkBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PostApiV1AuthSsoLink200Response,
+			400: PostApiV1AuthSsoLink400Response,
+			401: PostApiV1AuthSsoLink401Response,
+			403: PostApiV1AuthSsoLink403Response,
+		},
+	},
+	"POST /api/v1/categories": {
+		operation: "POST /api/v1/categories",
+		method: "POST",
+		path: "/api/v1/categories",
+		body: PostApiV1CategoriesBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1Categories201Response,
+			400: PostApiV1Categories400Response,
+			401: PostApiV1Categories401Response,
+			403: PostApiV1Categories403Response,
+			422: PostApiV1Categories422Response,
+		},
+	},
+	"POST /api/v1/chats": {
+		operation: "POST /api/v1/chats",
+		method: "POST",
+		path: "/api/v1/chats",
+		body: PostApiV1ChatsBody,
+		isBinaryDownload: false,
+		responses: { 201: PostApiV1Chats201Response, 422: PostApiV1Chats422Response },
+	},
+	"POST /api/v1/chats/{chat_id}/messages": {
+		operation: "POST /api/v1/chats/{chat_id}/messages",
+		method: "POST",
+		path: "/api/v1/chats/{chat_id}/messages",
+		pathParams: PostApiV1ChatsChatIdMessagesParams,
+		body: PostApiV1ChatsChatIdMessagesBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1ChatsChatIdMessages201Response,
+			404: PostApiV1ChatsChatIdMessages404Response,
+			422: PostApiV1ChatsChatIdMessages422Response,
+		},
+	},
+	"POST /api/v1/chats/{chat_id}/messages/retry": {
+		operation: "POST /api/v1/chats/{chat_id}/messages/retry",
+		method: "POST",
+		path: "/api/v1/chats/{chat_id}/messages/retry",
+		pathParams: PostApiV1ChatsChatIdMessagesRetryParams,
+		isBinaryDownload: false,
+		responses: {
+			202: PostApiV1ChatsChatIdMessagesRetry202Response,
+			404: PostApiV1ChatsChatIdMessagesRetry404Response,
+			422: PostApiV1ChatsChatIdMessagesRetry422Response,
+		},
+	},
+	"POST /api/v1/family_exports": {
+		operation: "POST /api/v1/family_exports",
+		method: "POST",
+		path: "/api/v1/family_exports",
+		body: PostApiV1FamilyExportsBody,
+		isBinaryDownload: false,
+		responses: {
+			202: PostApiV1FamilyExports202Response,
+			401: PostApiV1FamilyExports401Response,
+			403: PostApiV1FamilyExports403Response,
+			422: PostApiV1FamilyExports422Response,
+		},
+	},
+	"POST /api/v1/import_sessions": {
+		operation: "POST /api/v1/import_sessions",
+		method: "POST",
+		path: "/api/v1/import_sessions",
+		body: PostApiV1ImportSessionsBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1ImportSessions201Response,
+			401: PostApiV1ImportSessions401Response,
+			403: PostApiV1ImportSessions403Response,
+			409: PostApiV1ImportSessions409Response,
+			422: PostApiV1ImportSessions422Response,
+		},
+	},
+	"POST /api/v1/import_sessions/{id}/chunks": {
+		operation: "POST /api/v1/import_sessions/{id}/chunks",
+		method: "POST",
+		path: "/api/v1/import_sessions/{id}/chunks",
+		pathParams: PostApiV1ImportSessionsIdChunksParams,
+		body: PostApiV1ImportSessionsIdChunksBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1ImportSessionsIdChunks201Response,
+			401: PostApiV1ImportSessionsIdChunks401Response,
+			403: PostApiV1ImportSessionsIdChunks403Response,
+			404: PostApiV1ImportSessionsIdChunks404Response,
+			409: PostApiV1ImportSessionsIdChunks409Response,
+			422: PostApiV1ImportSessionsIdChunks422Response,
+		},
+	},
+	"POST /api/v1/import_sessions/{id}/publish": {
+		operation: "POST /api/v1/import_sessions/{id}/publish",
+		method: "POST",
+		path: "/api/v1/import_sessions/{id}/publish",
+		pathParams: PostApiV1ImportSessionsIdPublishParams,
+		isBinaryDownload: false,
+		responses: {
+			202: PostApiV1ImportSessionsIdPublish202Response,
+			401: PostApiV1ImportSessionsIdPublish401Response,
+			403: PostApiV1ImportSessionsIdPublish403Response,
+			404: PostApiV1ImportSessionsIdPublish404Response,
+			409: PostApiV1ImportSessionsIdPublish409Response,
+			422: PostApiV1ImportSessionsIdPublish422Response,
+			503: PostApiV1ImportSessionsIdPublish503Response,
+		},
+	},
+	"POST /api/v1/imports": {
+		operation: "POST /api/v1/imports",
+		method: "POST",
+		path: "/api/v1/imports",
+		body: PostApiV1ImportsBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1Imports201Response,
+			422: PostApiV1Imports422Response,
+			500: PostApiV1Imports500Response,
+		},
+	},
+	"POST /api/v1/imports/preflight": {
+		operation: "POST /api/v1/imports/preflight",
+		method: "POST",
+		path: "/api/v1/imports/preflight",
+		body: PostApiV1ImportsPreflightBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PostApiV1ImportsPreflight200Response,
+			401: PostApiV1ImportsPreflight401Response,
+			404: PostApiV1ImportsPreflight404Response,
+			422: PostApiV1ImportsPreflight422Response,
+		},
+	},
+	"POST /api/v1/merchants": {
+		operation: "POST /api/v1/merchants",
+		method: "POST",
+		path: "/api/v1/merchants",
+		body: PostApiV1MerchantsBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1Merchants201Response,
+			401: PostApiV1Merchants401Response,
+			422: PostApiV1Merchants422Response,
+		},
+	},
+	"POST /api/v1/merchants/import": {
+		operation: "POST /api/v1/merchants/import",
+		method: "POST",
+		path: "/api/v1/merchants/import",
+		body: PostApiV1MerchantsImportBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1MerchantsImport201Response,
+			401: PostApiV1MerchantsImport401Response,
+			422: PostApiV1MerchantsImport422Response,
+		},
+	},
+	"POST /api/v1/push_subscriptions": {
+		operation: "POST /api/v1/push_subscriptions",
+		method: "POST",
+		path: "/api/v1/push_subscriptions",
+		body: PostApiV1PushSubscriptionsBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1PushSubscriptions201Response,
+			422: PostApiV1PushSubscriptions422Response,
+		},
+	},
+	"POST /api/v1/recurring_transactions": {
+		operation: "POST /api/v1/recurring_transactions",
+		method: "POST",
+		path: "/api/v1/recurring_transactions",
+		body: PostApiV1RecurringTransactionsBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1RecurringTransactions201Response,
+			401: PostApiV1RecurringTransactions401Response,
+			403: PostApiV1RecurringTransactions403Response,
+			404: PostApiV1RecurringTransactions404Response,
+			422: PostApiV1RecurringTransactions422Response,
+		},
+	},
+	"POST /api/v1/tags": {
+		operation: "POST /api/v1/tags",
+		method: "POST",
+		path: "/api/v1/tags",
+		body: PostApiV1TagsBody,
+		isBinaryDownload: false,
+		responses: { 201: PostApiV1Tags201Response, 422: PostApiV1Tags422Response },
+	},
+	"POST /api/v1/trades": {
+		operation: "POST /api/v1/trades",
+		method: "POST",
+		path: "/api/v1/trades",
+		body: PostApiV1TradesBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1Trades201Response,
+			401: PostApiV1Trades401Response,
+			403: PostApiV1Trades403Response,
+			404: PostApiV1Trades404Response,
+			422: PostApiV1Trades422Response,
+		},
+	},
+	"POST /api/v1/transactions": {
+		operation: "POST /api/v1/transactions",
+		method: "POST",
+		path: "/api/v1/transactions",
+		body: PostApiV1TransactionsBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PostApiV1Transactions200Response,
+			201: PostApiV1Transactions201Response,
+			422: PostApiV1Transactions422Response,
+		},
+	},
+	"POST /api/v1/transactions/{transaction_id}/split": {
+		operation: "POST /api/v1/transactions/{transaction_id}/split",
+		method: "POST",
+		path: "/api/v1/transactions/{transaction_id}/split",
+		pathParams: PostApiV1TransactionsTransactionIdSplitParams,
+		body: PostApiV1TransactionsTransactionIdSplitBody,
+		isBinaryDownload: false,
+		responses: {
+			201: PostApiV1TransactionsTransactionIdSplit201Response,
+			401: PostApiV1TransactionsTransactionIdSplit401Response,
+			403: PostApiV1TransactionsTransactionIdSplit403Response,
+			404: PostApiV1TransactionsTransactionIdSplit404Response,
+			422: PostApiV1TransactionsTransactionIdSplit422Response,
+		},
+	},
+	"POST /api/v1/valuations": {
+		operation: "POST /api/v1/valuations",
+		method: "POST",
+		path: "/api/v1/valuations",
+		body: PostApiV1ValuationsBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PostApiV1Valuations200Response,
+			201: PostApiV1Valuations201Response,
+			404: PostApiV1Valuations404Response,
+			422: PostApiV1Valuations422Response,
+		},
+	},
+};
+
+/** Full-surface lookup keyed by METHOD and path template. */
+export function getOperationContract(method: string, path: string): OperationContract | undefined {
+	return CONTRACTS[`${method.toUpperCase()} ${path}`];
+}
+
+/**
+ * Validate an upstream response payload through the operation contract.
+ * Binary downloads bypass JSON validation for success statuses only
+ * (Blob bodies have no JSON schema); error statuses always validate
+ * against their documented parsers. Every other status must have a
+ * documented parser or the result fails closed with `part: "status"`.
+ * Empty-string bodies (the empty-payload form some transports produce)
+ * normalize to `undefined` before parsing so `void` responses accept them.
+ */
+export function parseOperationResponse(
+	contract: OperationContract,
+	status: number,
+	data: unknown,
+): OperationParseResult {
+	if (contract.isBinaryDownload && status >= 200 && status < 400) {
+		return { ok: true, data };
+	}
+	const parser = contract.responses[String(status)];
+	if (parser === undefined) {
+		const documented = Object.keys(contract.responses).join(", ");
+		return {
+			ok: false,
+			part: "status",
+			issues: [
+				{
+					path: "$",
+					expected: `documented status (${documented === "" ? "none" : documented})`,
+					received: String(status),
+				},
+			],
+		};
+	}
+	if (parser instanceof z.ZodUnknown) {
+		return {
+			ok: false,
+			part: "response",
+			issues: [{ path: "$", expected: "documented response schema", received: "unknown" }],
+		};
+	}
+	const parsed = parser.safeParse(data === "" ? undefined : data);
+	if (!parsed.success) {
+		return { ok: false, part: "response", issues: redactZodIssues(parsed.error) };
+	}
+	return { ok: true, data: parsed.data };
+}
+
+/** Outgoing request parts validated by the BFF transport before dispatch. */
+export interface OperationRequestInput {
+	readonly pathParams?: unknown;
+	readonly query?: unknown;
+	readonly headers?: unknown;
+	readonly body?: unknown;
+}
+
+/**
+ * Validate outgoing request parts through the operation contract, in
+ * path → query → body order, failing on the first rejected part. Parts
+ * the operation does not document are skipped.
+ */
+export function parseOperationRequest(
+	contract: OperationContract,
+	input: OperationRequestInput,
+): OperationParseResult {
+	const validated: Record<string, unknown> = {};
+	const parts = [
+		{ key: "pathParams", part: "pathParams", parser: contract.pathParams, data: input.pathParams },
+		{ key: "query", part: "query", parser: contract.queryParams, data: input.query },
+		{ key: "headers", part: "headers", parser: contract.headerParams, data: input.headers },
+		{ key: "body", part: "body", parser: contract.body, data: input.body },
+	] as const;
+	for (const { key, part, parser, data } of parts) {
+		if (parser === undefined) {
+			const supplied =
+				data !== undefined &&
+				(data === null ||
+					typeof data !== "object" ||
+					Array.isArray(data) ||
+					Object.keys(data).length > 0);
+			if (supplied) {
+				return {
+					ok: false,
+					part,
+					issues: [{ path: "$", expected: `no documented ${part}`, received: typeof data }],
+				};
+			}
+			continue;
+		}
+		const candidate = data === undefined && part !== "body" ? {} : data;
+		const parsed = parser.safeParse(candidate);
+		if (!parsed.success) {
+			return { ok: false, part, issues: redactZodIssues(parsed.error) };
+		}
+		validated[key] = parsed.data;
+	}
+	return { ok: true, data: validated };
+}

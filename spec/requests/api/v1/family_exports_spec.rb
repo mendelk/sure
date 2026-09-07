@@ -84,7 +84,7 @@ RSpec.describe "Api::V1::FamilyExports", type: :request do
   end
 
   path "/api/v1/family_exports/{id}" do
-    parameter name: :id, in: :path, type: :string, format: :uuid, required: true
+    parameter name: :id, in: :path, required: true, schema: { type: :string, format: :uuid }
 
     get "Shows a family export" do
       tags "Family Exports"
@@ -117,7 +117,7 @@ RSpec.describe "Api::V1::FamilyExports", type: :request do
   end
 
   path "/api/v1/family_exports/{id}/download" do
-    parameter name: :id, in: :path, type: :string, format: :uuid, required: true
+    parameter name: :id, in: :path, required: true, schema: { type: :string, format: :uuid }
 
     get "Downloads a completed family export" do
       tags "Family Exports"

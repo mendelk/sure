@@ -14,9 +14,12 @@ const HEX_LITERAL = /#[0-9a-fA-F]{3,8}\b/g;
 
 // Machine-generated sources carry upstream literals verbatim (OpenAPI
 // contract examples, router codegen) and are pinned byte-identical by
-// their own generators (`api:check`, `tsr generate`), so the hex backstop
-// only applies to hand-written product code.
+// their own generators (`api:check`, `api:zod:check`, `tsr generate`), so
+// the hex backstop only applies to hand-written product code.
 const GENERATED_BASENAMES = new Set(["openapi.d.ts", "routeTree.gen.ts"]);
+// The Orval Zod tree is entirely generated (see above); hex literals in it
+// are OpenAPI example strings, not palette usage.
+const GENERATED_DIRS = new Set(["lib/api/zod"]);
 
 function sourceFiles(dir: string): string[] {
 	const out: string[] = [];
@@ -24,6 +27,7 @@ function sourceFiles(dir: string): string[] {
 		const full = join(dir, entry);
 		if (statSync(full).isDirectory()) {
 			if (entry === "styles") continue;
+			if (GENERATED_DIRS.has(full.replace(`${SRC}/`, ""))) continue;
 			out.push(...sourceFiles(full));
 		} else if (/\.(ts|tsx)$/.test(entry) && !/[.-]test\.[jt]sx?$/.test(entry)) {
 			if (!GENERATED_BASENAMES.has(entry)) {

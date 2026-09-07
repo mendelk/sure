@@ -138,12 +138,16 @@ RSpec.describe 'API V1 Users', type: :request do
       end
 
       response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
         let(:'X-Api-Key') { 'invalid-key' }
 
         run_test!
       end
 
       response '403', 'insufficient scope' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
         let(:api_key) do
           key = ApiKey.generate_secure_key
           ApiKey.create!(

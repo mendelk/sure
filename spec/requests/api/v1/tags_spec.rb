@@ -204,6 +204,8 @@ RSpec.describe 'API V1 Tags', type: :request do
       end
 
       response '404', 'tag not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
         let(:id) { SecureRandom.uuid }
 
         run_test!
