@@ -60,7 +60,8 @@ module TransactionsHelper
         key: key,
         label: t("transactions.search.filters.#{translation_key}"),
         kind: "options",
-        inputName: input_name
+        inputName: input_name,
+        excludedInputName: input_name.sub("q[", "q[excluded_")
       }
     end
 

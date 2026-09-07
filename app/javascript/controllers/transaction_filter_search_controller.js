@@ -49,6 +49,13 @@ export default class extends Controller {
       return;
     }
 
+    // Slack-style negative filters (e.g. `-category:House`) only apply to
+    // faceted filters. Branch/value filters (date, amount) can't be negated.
+    if (term.negated && filter.kind !== "options") {
+      this.hideMenu();
+      return;
+    }
+
     const options = this.optionsFor(filter, term.query);
     this.menuTarget.replaceChildren();
 
@@ -61,7 +68,9 @@ export default class extends Controller {
         "flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-primary hover:bg-surface-hover";
       button.textContent = option.label;
       button.addEventListener("mousedown", (event) => event.preventDefault());
-      button.addEventListener("click", () => this.select(filter, option));
+      button.addEventListener("click", () =>
+        this.select(filter, option, term.negated),
+      );
       this.menuTarget.append(button);
     }
 
@@ -77,7 +86,7 @@ export default class extends Controller {
     );
   }
 
-  select(filter, option) {
+  select(filter, option, negated = false) {
     if (filter.kind === "branch") {
       this.replaceCurrentTerm(`${option.key}:`);
       this.activeIndex = 0;
@@ -86,10 +95,25 @@ export default class extends Controller {
     }
 
     if (filter.kind === "options") {
-      const input = this.formElements(filter.inputName).find(
-        (element) => element.value === option.value,
-      );
-      if (input) input.checked = true;
+      if (negated && filter.excludedInputName) {
+        // Negative filters have no popover checkboxes; persist as hidden
+        // inputs (also rendered server-side for already-applied values).
+        const exists = this.formElements(filter.excludedInputName).some(
+          (element) => element.value === option.value,
+        );
+        if (!exists) {
+          const hidden = document.createElement("input");
+          hidden.type = "hidden";
+          hidden.name = filter.excludedInputName;
+          hidden.value = option.value;
+          this.element.append(hidden);
+        }
+      } else {
+        const input = this.formElements(filter.inputName).find(
+          (element) => element.value === option.value,
+        );
+        if (input) input.checked = true;
+      }
     } else {
       const input = this.formElements(filter.inputName)[0];
       if (input) input.value = option.value;
@@ -107,7 +131,9 @@ export default class extends Controller {
     const { inputName, value } = event.currentTarget.dataset;
 
     for (const input of this.formElements(inputName)) {
-      if (input.type === "checkbox" || input.type === "radio") {
+      if (input.type === "hidden") {
+        if (input.value === value) input.remove();
+      } else if (input.type === "checkbox" || input.type === "radio") {
         if (input.value === value) input.checked = false;
       } else {
         input.value = "";
@@ -130,8 +156,19 @@ export default class extends Controller {
       return value ? [{ label: value, value }] : [];
     }
 
+    // Don't offer values that are already selected, either positively or as
+    // exclusions, to avoid contradictory include+exclude states.
+    const excludedValues = new Set(
+      (filter.excludedInputName
+        ? this.formElements(filter.excludedInputName)
+        : []
+      ).map((element) => element.value),
+    );
+
     return this.formElements(filter.inputName)
-      .filter((input) => !input.checked)
+      .filter(
+        (input) => !input.checked && !excludedValues.has(input.value),
+      )
       .map((input) => ({
         label:
           this.element
@@ -189,6 +226,19 @@ export default class extends Controller {
             value: input.value,
           });
         }
+
+        // Slack-style exclusions render as `-Label: value` tokens backed by
+        // hidden inputs (see select()).
+        if (filter.excludedInputName) {
+          for (const input of this.formElements(filter.excludedInputName)) {
+            tokens.push({
+              label: `-${filter.label}`,
+              displayValue: this.displayValueFor(filter, input.value),
+              inputName: filter.excludedInputName,
+              value: input.value,
+            });
+          }
+        }
       } else if (filter.kind === "branch") {
         for (const child of filter.options) {
           const input = this.formElements(child.inputName)[0];
@@ -215,12 +265,15 @@ export default class extends Controller {
   }
 
   currentTerm() {
-    const match = this.inputTarget.value.match(/(^|\s)([a-z-]+):([^:]*)$/i);
+    const match = this.inputTarget.value.match(
+      /(^|\s)(-?)([a-z-]+):([^:]*)$/i,
+    );
     if (!match) return null;
 
     return {
-      key: match[2].toLowerCase(),
-      query: match[3],
+      negated: match[2] === "-",
+      key: match[3].toLowerCase(),
+      query: match[4],
       start: match.index + match[1].length,
     };
   }
@@ -245,6 +298,21 @@ export default class extends Controller {
     return Array.from(this.element.elements).filter(
       (element) => element.name === name,
     );
+  }
+
+  // Excluded values are stored in hidden inputs with no <label>, so resolve
+  // the human-readable label from the matching positive checkbox instead.
+  displayValueFor(filter, value) {
+    const positive = this.formElements(filter.inputName).find(
+      (element) => element.value === value,
+    );
+    if (positive?.id) {
+      return (
+        this.element.querySelector(`label[for='${positive.id}']`)?.textContent.trim() ||
+        value
+      );
+    }
+    return value;
   }
 
   matches(label, query) {

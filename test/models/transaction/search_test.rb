@@ -670,4 +670,199 @@ class Transaction::SearchTest < ActiveSupport::TestCase
     assert_includes confirmed_ids, confirmed.entryable.id
     assert_not_includes pending_ids, confirmed.entryable.id
   end
+
+  test "excluded_categories removes matching category but keeps others and uncategorized" do
+    food = create_transaction(
+      account: @checking_account,
+      amount: 100,
+      category: categories(:food_and_drink)
+    )
+
+    other = create_transaction(
+      account: @checking_account,
+      amount: 50,
+      category: categories(:income)
+    )
+
+    uncategorized = create_transaction(
+      account: @checking_account,
+      amount: 200
+    )
+
+    result_ids = Transaction::Search.new(@family, filters: { excluded_categories: [ "Food & Drink" ] }).transactions_scope.pluck(:id)
+
+    assert_not_includes result_ids, food.entryable.id
+    assert_includes result_ids, other.entryable.id
+    assert_includes result_ids, uncategorized.entryable.id
+  end
+
+  test "excluded_categories removes subcategories when parent is excluded" do
+    parent = create_transaction(
+      account: @checking_account,
+      amount: 100,
+      category: categories(:food_and_drink)
+    )
+
+    child = create_transaction(
+      account: @checking_account,
+      amount: 75,
+      category: categories(:subcategory)
+    )
+
+    result_ids = Transaction::Search.new(@family, filters: { excluded_categories: [ "Food & Drink" ] }).transactions_scope.pluck(:id)
+
+    assert_not_includes result_ids, parent.entryable.id
+    assert_not_includes result_ids, child.entryable.id
+  end
+
+  test "excluded_categories with Uncategorized removes only uncategorized non-transfer rows" do
+    categorized = create_transaction(
+      account: @checking_account,
+      amount: 100,
+      category: categories(:food_and_drink)
+    )
+
+    uncategorized = create_transaction(
+      account: @checking_account,
+      amount: 200
+    )
+
+    result_ids = Transaction::Search.new(@family, filters: { excluded_categories: [ Category.uncategorized.name ] }).transactions_scope.pluck(:id)
+
+    assert_includes result_ids, categorized.entryable.id
+    assert_not_includes result_ids, uncategorized.entryable.id
+  end
+
+  test "excluded_tags removes tagged transactions but keeps untagged" do
+    tagged = create_transaction(
+      account: @checking_account,
+      amount: 100,
+      tags: [ tags(:one) ]
+    )
+
+    untagged = create_transaction(
+      account: @checking_account,
+      amount: 50
+    )
+
+    result_ids = Transaction::Search.new(@family, filters: { excluded_tags: [ tags(:one).name ] }).transactions_scope.pluck(:id)
+
+    assert_not_includes result_ids, tagged.entryable.id
+    assert_includes result_ids, untagged.entryable.id
+  end
+
+  test "excluded_merchants removes matching merchant but keeps merchant-less rows" do
+    with_merchant = create_transaction(
+      account: @checking_account,
+      amount: 100,
+      merchant: merchants(:netflix)
+    )
+
+    without_merchant = create_transaction(
+      account: @checking_account,
+      amount: 50
+    )
+
+    result_ids = Transaction::Search.new(@family, filters: { excluded_merchants: [ "Netflix" ] }).transactions_scope.pluck(:id)
+
+    assert_not_includes result_ids, with_merchant.entryable.id
+    assert_includes result_ids, without_merchant.entryable.id
+  end
+
+  test "excluded_types removes only the excluded type" do
+    expense = create_transaction(account: @checking_account, amount: 100, kind: "standard")
+    income = create_transaction(account: @checking_account, amount: -100, kind: "standard")
+    transfer = create_transaction(account: @checking_account, amount: 200, kind: "funds_movement")
+
+    expense_id, income_id, transfer_id = [ expense, income, transfer ].map { |e| e.entryable.id }
+
+    transfer_excluded = Transaction::Search.new(@family, filters: { excluded_types: [ "transfer" ] }).transactions_scope.pluck(:id)
+    assert_includes transfer_excluded, expense_id
+    assert_includes transfer_excluded, income_id
+    assert_not_includes transfer_excluded, transfer_id
+
+    expense_excluded = Transaction::Search.new(@family, filters: { excluded_types: [ "expense" ] }).transactions_scope.pluck(:id)
+    assert_not_includes expense_excluded, expense_id
+    assert_includes expense_excluded, income_id
+    assert_includes expense_excluded, transfer_id
+  end
+
+  test "excluded_status removes pending but keeps confirmed and vice versa" do
+    confirmed = create_transaction(account: @checking_account, amount: 100, kind: "standard")
+    pending_entry = create_transaction(account: @checking_account, amount: 100, kind: "standard")
+    pending_entry.entryable.update!(extra: { "simplefin" => { "pending" => true } })
+
+    confirmed_id, pending_id = confirmed.entryable.id, pending_entry.entryable.id
+
+    excluding_pending = Transaction::Search.new(@family, filters: { excluded_status: [ "pending" ] }).transactions_scope.pluck(:id)
+    assert_includes excluding_pending, confirmed_id
+    assert_not_includes excluding_pending, pending_id
+
+    excluding_confirmed = Transaction::Search.new(@family, filters: { excluded_status: [ "confirmed" ] }).transactions_scope.pluck(:id)
+    assert_not_includes excluding_confirmed, confirmed_id
+    assert_includes excluding_confirmed, pending_id
+  end
+
+  test "excluded_accounts removes transactions in the excluded account" do
+    checking = create_transaction(account: @checking_account, amount: 100)
+    credit_card = create_transaction(account: @credit_card_account, amount: 50)
+
+    result_ids = Transaction::Search.new(@family, filters: { excluded_accounts: [ @checking_account.name ] }).transactions_scope.pluck(:id)
+
+    assert_not_includes result_ids, checking.entryable.id
+    assert_includes result_ids, credit_card.entryable.id
+  end
+
+  test "positive and negative filters combine" do
+    food_expense = create_transaction(
+      account: @checking_account,
+      amount: 100,
+      category: categories(:food_and_drink),
+      kind: "standard"
+    )
+
+    other_expense = create_transaction(
+      account: @checking_account,
+      amount: 50,
+      category: categories(:income),
+      kind: "standard"
+    )
+
+    food_transfer = create_transaction(
+      account: @checking_account,
+      amount: 200,
+      category: categories(:food_and_drink),
+      kind: "funds_movement"
+    )
+
+    result_ids = Transaction::Search.new(
+      @family,
+      filters: { types: [ "expense" ], excluded_categories: [ "Food & Drink" ] }
+    ).transactions_scope.pluck(:id)
+
+    assert_not_includes result_ids, food_expense.entryable.id
+    assert_not_includes result_ids, food_transfer.entryable.id
+    assert_includes result_ids, other_expense.entryable.id
+  end
+
+  test "totals respects excluded categories" do
+    create_transaction(
+      account: @checking_account,
+      amount: 100,
+      category: categories(:food_and_drink),
+      kind: "standard"
+    )
+
+    create_transaction(
+      account: @checking_account,
+      amount: 50,
+      category: categories(:income),
+      kind: "standard"
+    )
+
+    totals = Transaction::Search.new(@family, filters: { excluded_categories: [ "Food & Drink" ] }).totals
+
+    assert_equal 1, totals.count
+    assert_equal Money.new(50, "USD"), totals.expense_money
+  end
 end

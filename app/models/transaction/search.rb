@@ -14,6 +14,13 @@ class Transaction::Search
   attribute :categories, array: true
   attribute :merchants, array: true
   attribute :tags, array: true
+  attribute :excluded_categories, array: true
+  attribute :excluded_merchants, array: true
+  attribute :excluded_tags, array: true
+  attribute :excluded_accounts, array: true
+  attribute :excluded_account_ids, array: true
+  attribute :excluded_types, array: true
+  attribute :excluded_status, array: true
   attribute :active_accounts_only, :boolean, default: true
 
   attr_reader :family, :accessible_account_ids
@@ -42,6 +49,12 @@ class Transaction::Search
       query = EntrySearch.apply_date_filters(query, start_date, end_date)
       query = EntrySearch.apply_amount_filter(query, amount, amount_operator)
       query = EntrySearch.apply_accounts_filter(query, accounts, account_ids)
+      query = apply_category_exclusion(query, excluded_categories)
+      query = apply_type_exclusion(query, excluded_types)
+      query = apply_status_exclusion(query, excluded_status)
+      query = apply_merchant_exclusion(query, excluded_merchants)
+      query = apply_tag_exclusion(query, excluded_tags)
+      query = apply_excluded_accounts_filter(query, excluded_accounts, excluded_account_ids)
 
       query
     end
@@ -207,5 +220,51 @@ class Transaction::Search
       else
         query
       end
+    end
+
+    # Slack-style negative filters (e.g. `-category:House`). Each exclusion
+    # reuses its positive builder against a subquery so NULL semantics
+    # (uncategorized, untagged, merchant-less rows) stay consistent with the
+    # positive filter: only rows the positive filter would match are removed.
+    def apply_category_exclusion(query, excluded)
+      return query unless excluded.present?
+
+      excluded_ids = apply_category_filter(family.transactions, excluded).select(:id)
+      query.where.not(id: excluded_ids)
+    end
+
+    def apply_type_exclusion(query, excluded)
+      return query unless excluded.present?
+
+      excluded_ids = apply_type_filter(family.transactions, excluded).select(:id)
+      query.where.not(id: excluded_ids)
+    end
+
+    def apply_status_exclusion(query, excluded)
+      return query unless excluded.present?
+
+      excluded_ids = apply_status_filter(family.transactions, excluded).select(:id)
+      query.where.not(id: excluded_ids)
+    end
+
+    def apply_merchant_exclusion(query, excluded)
+      return query unless excluded.present?
+
+      excluded_ids = apply_merchant_filter(family.transactions, excluded).select(:id)
+      query.where.not(id: excluded_ids)
+    end
+
+    def apply_tag_exclusion(query, excluded)
+      return query unless excluded.present?
+
+      excluded_ids = apply_tag_filter(family.transactions, excluded).select(:id)
+      query.where.not(id: excluded_ids)
+    end
+
+    def apply_excluded_accounts_filter(query, excluded_accounts, excluded_account_ids)
+      # Accounts are always present (inner join), so direct negation is NULL-safe
+      query = query.where.not(accounts: { name: excluded_accounts }) if excluded_accounts.present?
+      query = query.where.not(accounts: { id: excluded_account_ids }) if excluded_account_ids.present?
+      query
     end
 end
