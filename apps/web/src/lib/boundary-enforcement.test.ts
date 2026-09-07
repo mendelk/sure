@@ -61,6 +61,8 @@ describe("browser/server import boundaries", () => {
 		const lint = runOxlint([
 			"apps/web/src/lib/sure-api-origin.ts",
 			"apps/web/src/lib/sure-api.server.ts",
+			"apps/web/src/lib/bff-policy.ts",
+			"apps/web/src/lib/sure-api-bff.server.ts",
 			"apps/web/src/routes/index.tsx",
 		]);
 
