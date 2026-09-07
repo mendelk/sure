@@ -117,12 +117,17 @@
 		},
 		{
 			// Tests and Node tooling configs run in Node: no browser limits.
+			// This covers vitest suites, vite/vitest configs, and the
+			// Storybook Node config (apps/web/.storybook/main.ts). Story
+			// files (*.stories.*) and preview run in the browser and stay
+			// under the client-safe boundaries above.
 			"files": [
 				"**/*.test.*",
 				"**/__tests__/**",
 				"**/vite.config.*",
 				"**/vitest.config.*",
-				"**/vitest.workspace.*"
+				"**/vitest.workspace.*",
+				"**/.storybook/main.*"
 			],
 			"rules": {
 				"no-restricted-imports": "off",

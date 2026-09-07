@@ -80,6 +80,7 @@ apps/web/dist
 apps/web/.output
 apps/web/.tanstack
 apps/web/coverage
+apps/web/storybook-static
 apps/web/*.tsbuildinfo
 apps/web/src/routeTree.gen.ts
 apps/web/.env
