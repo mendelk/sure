@@ -15,6 +15,8 @@ class Transactions::MergedBadgeViewTest < ActionView::TestCase
       date: Date.today
     )
 
+    Current.session = Session.create!(user: users(:family_admin))
+
     html = render(partial: "transactions/transaction", locals: { entry: entry, balance_trend: nil, view_ctx: "global" })
 
     assert_not_includes html, "Merged from pending to posted", "Merged badge should no longer be shown in UI"
