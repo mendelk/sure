@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fnd_006"
 title: "Threat-model browser authentication and BFF"
 type: "task"
-status: "todo"
+status: "done"
 priority: "critical"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["security", "architecture", "auth"]
 subtaskIds: []

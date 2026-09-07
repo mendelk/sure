@@ -39,12 +39,12 @@ config:
 Establish the architecture, security, generated API client, design system, application shell, PWA baseline, test harness, observability, and CI required by every feature workstream.
 
 ## Tasks
-- [ ] [[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]
+- [x] [[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]
 - [ ] [[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]
 - [ ] [[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript, lint, formatting, and workspace scripts]]
 - [ ] [[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]
 - [ ] [[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]
-- [ ] [[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]
+- [x] [[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]
 - [ ] [[implement-secure-login-refresh-and-logout-sessions|Implement secure login, refresh, and logout sessions]]
 - [ ] [[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]
 - [ ] [[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]

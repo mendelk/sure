@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fnd_001"
 title: "Audit web parity surface and API gap matrix"
 type: "task"
-status: "todo"
+status: "done"
 priority: "critical"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["discovery", "api", "parity"]
 subtaskIds: []
