@@ -37,41 +37,51 @@
       <div data-split-transaction-target="rowsContainer" class="space-y-3">
         <% @children.each_with_index do |child, index| %>
           <div class="p-3 rounded-lg border border-secondary bg-container" data-split-transaction-target="row">
-            <div class="flex flex-wrap md:flex-nowrap items-end gap-2">
-              <div class="w-full md:flex-1 md:w-auto min-w-0 md:min-w-28">
-                <label class="text-xs font-medium text-secondary uppercase tracking-wide block mb-1"><%= t("splits.new.name_label") %></label>
-                <input type="text"
-                       name="split[splits][<%= index %>][name]"
-                       placeholder="<%= t("splits.new.name_placeholder") %>"
-                       class="form-field__input border border-secondary rounded-md px-2.5 py-1.5 w-full text-sm text-primary bg-container"
-                       required
-                       autocomplete="off"
-                       value="<%= child.name %>"
-                       data-split-transaction-target="nameInput">
+            <div class="space-y-2">
+              <div class="flex flex-wrap items-end gap-2">
+                <div class="min-w-0 flex-1 basis-48">
+                  <label class="text-xs font-medium text-secondary uppercase tracking-wide block mb-1"><%= t("splits.new.name_label") %></label>
+                  <input type="text"
+                         name="split[splits][<%= index %>][name]"
+                         placeholder="<%= t("splits.new.name_placeholder") %>"
+                         class="form-field__input border border-secondary rounded-md px-2.5 py-1.5 w-full text-sm text-primary bg-container"
+                         required
+                         autocomplete="off"
+                         value="<%= child.name %>"
+                         data-split-transaction-target="nameInput">
+                </div>
+                <div class="min-w-28 max-w-36 flex-1 basis-28">
+                  <label class="text-xs font-medium text-secondary uppercase tracking-wide block mb-1"><%= t("splits.new.amount_label") %></label>
+                  <input type="number"
+                         name="split[splits][<%= index %>][amount]"
+                         placeholder="0.00"
+                         step="0.01"
+                         class="form-field__input border border-secondary rounded-md px-2.5 py-1.5 w-full text-sm text-primary bg-container"
+                         required
+                         autocomplete="off"
+                         value="<%= (-child.amount).to_f %>"
+                         data-split-transaction-target="amountInput"
+                         data-action="input->split-transaction#updateRemaining">
+                </div>
               </div>
-              <div class="flex-1 md:flex-none md:w-28">
-                <label class="text-xs font-medium text-secondary uppercase tracking-wide block mb-1"><%= t("splits.new.amount_label") %></label>
-                <input type="number"
-                       name="split[splits][<%= index %>][amount]"
-                       placeholder="0.00"
-                       step="0.01"
-                       class="form-field__input border border-secondary rounded-md px-2.5 py-1.5 w-full text-sm text-primary bg-container"
-                       required
-                       autocomplete="off"
-                       value="<%= (-child.amount).to_f %>"
-                       data-split-transaction-target="amountInput"
-                       data-action="input->split-transaction#updateRemaining">
+              <div class="flex flex-wrap items-end gap-2">
+                <%= render "splits/category_select",
+                            name: "split[splits][#{index}][category_id]",
+                            categories: @categories,
+                            selected_id: child.entryable.try(:category_id) %>
+                <% transfer = child.entryable.try(:transfer) %>
+                <% selected_transfer_id = transfer ? (transfer.from_account&.id == @entry.account_id ? transfer.to_account&.id : transfer.from_account&.id) : nil %>
+                <%= render "splits/transfer_select",
+                            name: "split[splits][#{index}][transfer_account_id]",
+                            accounts: @transfer_accounts,
+                            selected_id: selected_transfer_id %>
+                <button type="button"
+                        class="w-8 h-8 shrink-0 flex items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface-hover transition-colors"
+                        aria-label="<%= t("splits.new.remove_row") %>"
+                        data-action="click->split-transaction#removeRow">
+                  <%= icon "x", size: "sm" %>
+                </button>
               </div>
-              <%= render "splits/category_select",
-                         name: "split[splits][#{index}][category_id]",
-                         categories: @categories,
-                         selected_id: child.entryable.try(:category_id) %>
-              <button type="button"
-                      class="w-8 h-8 shrink-0 flex items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface-hover transition-colors"
-                      aria-label="<%= t("splits.new.remove_row") %>"
-                      data-action="click->split-transaction#removeRow">
-                <%= icon "x", size: "sm" %>
-              </button>
             </div>
           </div>
         <% end %>

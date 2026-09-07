@@ -13,7 +13,7 @@
       <% if icon %>
         <%= helpers.icon(icon, color: destructive? ? :destructive : :default) %>
       <% end %>
-      <%= tag.span(text, class: text_classes) %>
+      <%= tag.span(text, class: "#{text_classes} min-w-0 break-words") %>
     <% end %>
   </div>
 <% end %>

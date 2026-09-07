@@ -285,6 +285,18 @@ class TransfersControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "show links each leg to its transaction" do
+    transfer = transfers(:one)
+
+    get transfer_url(transfer)
+    assert_response :success
+
+    assert_select "a[href=?][data-turbo-frame=?][data-turbo-action=?]",
+      entry_path(entries(:transfer_out)), "drawer", "advance"
+    assert_select "a[href=?][data-turbo-frame=?][data-turbo-action=?]",
+      entry_path(entries(:transfer_in)), "drawer", "advance"
+  end
+
   test "can create transfer with tags on both sides" do
     tag = tags(:one)
 

@@ -1,4 +1,10 @@
-<%= render DS::Dialog.new(frame: "drawer", responsive: true) do |dialog| %>
+<%# Skip the turbo-frame wrapper on full page loads: the layout already
+    provides an empty #drawer frame, and a second one would duplicate the
+    id and confuse subsequent drawer navigation.
+    close_fallback_url: direct loads have no history to return to, so
+    closing navigates to the transactions list instead of stranding the
+    user on an empty page. %>
+<%= render DS::Dialog.new(frame: "drawer", responsive: true, disable_frame: !turbo_frame_request?, close_fallback_url: transactions_path) do |dialog| %>
   <% dialog.with_header(custom_header: true) do %>
     <div class="flex items-start justify-between gap-4">
       <%= render "transactions/header", entry: @entry %>
@@ -95,6 +101,29 @@
           <% end %>
         <% end %>
       </div>
+    <% end %>
+    <% if @entry.transaction.transfer? %>
+      <% transfer = @entry.transaction.transfer %>
+      <% counterpart_transaction = transfer.inflow_transaction_id == @entry.transaction.id ? transfer.outflow_transaction : transfer.inflow_transaction %>
+      <% counterpart_entry = counterpart_transaction&.entry %>
+      <% if counterpart_entry.present? && accessible_accounts.where(id: counterpart_entry.account_id).exists? %>
+        <% dialog.with_section(title: t(".matching_transfer"), open: true) do %>
+          <div class="flex items-center justify-between gap-4 p-3">
+            <div class="text-sm space-y-1">
+              <h4 class="text-primary"><%= counterpart_entry.name %></h4>
+              <p class="text-secondary"><%= counterpart_entry.account.name %> • <%= counterpart_entry.date.strftime("%b %d, %Y") %></p>
+            </div>
+            <%= render DS::Link.new(
+              text: t(".view_matching_transfer"),
+              icon: "arrow-right-left",
+              variant: "outline",
+              href: entry_path(counterpart_entry),
+              frame: :drawer,
+              data: { turbo_action: "advance", turbo_prefetch: false }
+            ) %>
+          </div>
+        <% end %>
+      <% end %>
     <% end %>
     <% dialog.with_section(title: t(".details")) do %>
       <div class="space-y-2">

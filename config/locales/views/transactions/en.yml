@@ -115,6 +115,8 @@ en:
       provider_extras: "Provider extras"
       transfer_or_debt_payment: "Transfer or Debt Payment?"
       open_matcher: "Open matcher"
+      matching_transfer: "Matching transfer"
+      view_matching_transfer: "View matching transaction"
       convert: "Convert"
     activity_labels:
       buy: Buy

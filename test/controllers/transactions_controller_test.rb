@@ -110,6 +110,24 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_enqueued_with(job: SyncJob)
   end
 
+  test "show links a transfer leg to its matching transaction" do
+    transfer = create_transfer(
+      from_account: accounts(:depository),
+      to_account: accounts(:credit_card),
+      amount: 100
+    )
+    # create_transfer queries transaction entries during build, leaving a
+    # stale nil cached on the in-memory objects — reload before use.
+    outflow_entry = transfer.outflow_transaction.reload.entry
+    inflow_entry = transfer.inflow_transaction.reload.entry
+
+    get transaction_url(outflow_entry)
+    assert_response :success
+
+    assert_select "a[href=?][data-turbo-frame=?][data-turbo-action=?]",
+      entry_path(inflow_entry), "drawer", "advance"
+  end
+
   test "re-renders show with mark-recurring state when update fails validation" do
     family = families(:empty)
     sign_in users(:empty)

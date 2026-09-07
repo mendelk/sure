@@ -50,5 +50,6 @@ en:
       destination_fee: Destination fee
       category: Category
       uncategorized: Uncategorized
+      view_transaction: View transaction
     update:
       success: Transfer updated
