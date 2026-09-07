@@ -37,7 +37,7 @@ class DS::Dialog < DesignSystemComponent
     end
   end
 
-  attr_reader :variant, :auto_open, :reload_on_close, :width, :disable_frame, :content_class, :disable_click_outside, :opts, :responsive, :scrollable, :heading_level, :title_id
+  attr_reader :variant, :auto_open, :reload_on_close, :width, :disable_frame, :content_class, :disable_click_outside, :opts, :responsive, :scrollable, :heading_level, :title_id, :close_fallback_url
 
   VARIANTS = %w[modal drawer].freeze
   # `expanded` is the "give this cramped thing the whole screen" shape used by
@@ -62,7 +62,7 @@ class DS::Dialog < DesignSystemComponent
 
   class_attribute :defaults_provider, default: nil
 
-  def initialize(variant: "modal", auto_open: true, reload_on_close: false, width: "md", frame: nil, disable_frame: false, content_class: nil, disable_click_outside: nil, responsive: false, scrollable: true, heading_level: 2, **opts)
+  def initialize(variant: "modal", auto_open: true, reload_on_close: false, width: "md", frame: nil, disable_frame: false, content_class: nil, disable_click_outside: nil, responsive: false, scrollable: true, heading_level: 2, close_fallback_url: nil, **opts)
     unless heading_level.is_a?(Integer) && VALID_HEADING_LEVELS.cover?(heading_level)
       raise ArgumentError, "heading_level must be an Integer between 1 and 6, got: #{heading_level.inspect}"
     end
@@ -81,6 +81,7 @@ class DS::Dialog < DesignSystemComponent
     @scrollable = scrollable
     @heading_level = heading_level
     @title_id = "dialog-title-#{SecureRandom.hex(4)}"
+    @close_fallback_url = close_fallback_url
     @opts = opts
   end
 
@@ -139,6 +140,7 @@ class DS::Dialog < DesignSystemComponent
     data[:DS__dialog_auto_open_value] = auto_open
     data[:DS__dialog_reload_on_close_value] = reload_on_close
     data[:DS__dialog_disable_click_outside_value] = disable_click_outside
+    data[:close_fallback_url] = close_fallback_url if close_fallback_url.present?
     data[:action] = [ "click->DS--dialog#clickOutside", data[:action] ].compact.join(" ")
     data[:hotkey] = "esc:DS--dialog#close"
     merged_opts[:data] = data

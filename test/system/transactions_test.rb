@@ -61,6 +61,32 @@ class TransactionsTest < ApplicationSystemTestCase
     end
   end
 
+  test "merchant menu item text wraps within the menu panel" do
+    # Long merchant + category names produce an "Always categorize ..." item
+    # that previously overflowed the 18rem panel when inheriting nowrap
+    # from the transaction row.
+    merchant = @user.family.merchants.create!(name: "Whole Foods Market Downtown")
+    category = @user.family.categories.create!(name: "Entertainment and Leisure")
+    entry = create_transaction("long merchant", Date.current, 100, category: category, merchant: merchant)
+    visit transactions_url
+
+    find("[data-testid='merchant-rule-menu-#{entry.transaction.id}-desktop'] button").click
+
+    overflow = evaluate_script(<<~JS)
+      (() => {
+        const menu = Array.from(document.querySelectorAll('[role="menu"]'))
+          .find(m => m.getBoundingClientRect().width > 0);
+        if (!menu) return "NO OPEN MENU";
+        const panelRight = menu.firstElementChild.getBoundingClientRect().right;
+        return Math.max(...Array.from(menu.querySelectorAll("a span:last-child"))
+          .map(s => s.getBoundingClientRect().right - panelRight));
+      })()
+    JS
+
+    assert overflow.is_a?(Numeric), "expected open merchant menu, got: #{overflow.inspect}"
+    assert_operator overflow, :<=, 1, "menu item text overflows the panel"
+  end
+
   test "can add and remove a category filter from search" do
     category = @transaction.transaction.category
 

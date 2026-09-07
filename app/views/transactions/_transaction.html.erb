@@ -78,6 +78,7 @@
                           open_path,
                           data: {
                             turbo_frame: "drawer",
+                            turbo_action: "advance",
                             turbo_prefetch: false,
                             clickable_row_target: "link"
                           },
@@ -210,7 +211,7 @@
         <%# Protection indicator - shows on hover when entry is protected from sync %>
         <% if entry.protected_from_sync? && !entry.excluded? %>
           <%= link_to entry_path(entry),
-                data: { turbo_frame: "drawer", turbo_prefetch: false },
+                data: { turbo_frame: "drawer", turbo_action: "advance", turbo_prefetch: false },
                 class: "invisible group-hover:visible transition-opacity",
                 title: t("entries.protection.tooltip") do %>
             <%= icon "lock", size: "sm", class: "text-secondary" %>
