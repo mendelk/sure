@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fnd_018"
 title: "Generate OpenAPI Zod runtime parsers"
 type: "task"
-status: "todo"
+status: "done"
 priority: "critical"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["frontend", "openapi", "zod", "api", "type-safety"]
 subtaskIds: []
