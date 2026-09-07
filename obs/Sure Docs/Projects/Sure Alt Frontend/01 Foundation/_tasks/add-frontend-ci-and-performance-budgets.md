@@ -13,7 +13,7 @@ progress: 0
 assignees: []
 tags: ["ci", "performance", "security"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_003", "t_alt_fnd_004", "t_alt_fnd_012"]
+dependencies: ["t_alt_fnd_003", "t_alt_fnd_004", "t_alt_fnd_012", "t_alt_fnd_018"]
 timeEstimate: 24
 createdAt: "2026-09-07T01:09:35.000Z"
 updatedAt: "2026-09-07T01:09:35.000Z"

@@ -13,7 +13,7 @@ progress: 0
 assignees: []
 tags: ["frontend", "backend", "security"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_004", "t_alt_fnd_006"]
+dependencies: ["t_alt_fnd_004", "t_alt_fnd_006", "t_alt_fnd_018"]
 timeEstimate: 32
 createdAt: "2026-09-07T01:09:35.000Z"
 updatedAt: "2026-09-07T01:09:35.000Z"

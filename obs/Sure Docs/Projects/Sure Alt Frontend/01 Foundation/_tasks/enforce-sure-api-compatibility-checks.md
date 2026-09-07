@@ -13,7 +13,7 @@ progress: 0
 assignees: []
 tags: ["api", "compatibility", "operations"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_004", "t_alt_fnd_005"]
+dependencies: ["t_alt_fnd_004", "t_alt_fnd_005", "t_alt_fnd_018"]
 timeEstimate: 20
 createdAt: "2026-09-07T01:09:35.000Z"
 updatedAt: "2026-09-07T01:09:35.000Z"
