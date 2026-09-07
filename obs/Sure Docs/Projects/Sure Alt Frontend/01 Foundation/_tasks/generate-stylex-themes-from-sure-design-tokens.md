@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fnd_008"
 title: "Generate StyleX themes from Sure design tokens"
 type: "task"
-status: "todo"
+status: "done"
 priority: "high"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["design-system", "stylex", "tooling"]
 subtaskIds: []
