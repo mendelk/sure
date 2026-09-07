@@ -1,0 +1,53 @@
+/**
+ * GENERATED — do not edit by hand. Operation contract for GET /api/v1/rule_runs.
+ *
+ * Source: docs/api/openapi.yaml (sha256: fb4401a6f8bec7280f908403d66dfa23cf2d8d9fa9fe287771d97e859b32657f)
+ * Generator: apps/web/scripts/generate-zod-contracts.mjs (version 1)
+ * Regenerate with: pnpm --filter @sure/web contracts:generate
+ */
+
+import { z } from "zod";
+import { apiGet } from "../../client";
+import type { ApiData, ApiInit, ApiSuccess, SureClient } from "../../client";
+import type { OperationContract } from "../../contract";
+import type { paths } from "../../openapi";
+import { ErrorResponse, RuleRunCollection } from "../zod-schemas";
+export const queryParams = z.object({
+	end_executed_at: z.iso.datetime().optional(),
+	execution_type: z.enum(["manual", "scheduled"]).optional(),
+	page: z.number().int().optional(),
+	per_page: z.number().int().optional(),
+	rule_id: z.string().optional(),
+	start_executed_at: z.iso.datetime().optional(),
+	status: z.enum(["pending", "success", "failed"]).optional(),
+});
+const success200 = RuleRunCollection;
+const error401 = ErrorResponse;
+const error403 = ErrorResponse;
+const error422 = ErrorResponse;
+export const GetApiV1RuleRunsContract: OperationContract = {
+	operation: "GET /api/v1/rule_runs",
+	method: "GET",
+	path: "/api/v1/rule_runs",
+	pathParams: undefined,
+	queryParams: queryParams,
+	headerParams: undefined,
+	requestBody: undefined,
+	requestMultipartBody: undefined,
+	requestBodyRequired: false,
+	isMultipart: false,
+	successResponses: { 200: success200 },
+	errorResponses: { 401: error401, 403: error403, 422: error422 },
+	emptyResponseStatuses: [],
+	emptyErrorStatuses: [],
+	isBinaryResponse: false,
+	binaryResponse: undefined,
+};
+/** Validated GET /api/v1/rule_runs: success payloads are parsed through the operation contract before they reach callers. */
+export function getApiV1RuleRuns(
+	client: SureClient,
+	...args: ApiInit<paths["/api/v1/rule_runs"]["get"]>
+): Promise<ApiSuccess<ApiData<"get", "/api/v1/rule_runs">>> {
+	const [init] = args;
+	return apiGet(client, "/api/v1/rule_runs", { ...init, contract: GetApiV1RuleRunsContract });
+}
