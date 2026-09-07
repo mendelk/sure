@@ -105,7 +105,7 @@ RSpec.describe "Api::V1::Syncs", type: :request do
   end
 
   path "/api/v1/syncs/{id}" do
-    parameter name: :id, in: :path, type: :string, format: :uuid, required: true
+    parameter name: :id, in: :path, required: true, schema: { type: :string, format: :uuid }
 
     get "Shows a sync" do
       description "Return sanitized status metadata for a single family-scoped sync."

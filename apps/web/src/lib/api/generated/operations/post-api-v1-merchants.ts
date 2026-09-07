@@ -1,7 +1,7 @@
 /**
  * GENERATED — do not edit by hand. Operation contract for POST /api/v1/merchants.
  *
- * Source: docs/api/openapi.yaml (sha256: fb4401a6f8bec7280f908403d66dfa23cf2d8d9fa9fe287771d97e859b32657f)
+ * Source: docs/api/openapi.yaml (sha256: d9a13d3511d7165bf6b97a776e4e0e6f520b014e54bf49e2bd14387f42140f7b)
  * Generator: apps/web/scripts/generate-zod-contracts.mjs (version 1)
  * Regenerate with: pnpm --filter @sure/web contracts:generate
  */

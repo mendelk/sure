@@ -4920,10 +4920,10 @@ paths:
     parameters:
     - name: id
       in: path
-      format: uuid
       required: true
       schema:
         type: string
+        format: uuid
     get:
       summary: Shows a family export
       tags:
@@ -4959,10 +4959,10 @@ paths:
     parameters:
     - name: id
       in: path
-      format: uuid
       required: true
       schema:
         type: string
+        format: uuid
     get:
       summary: Downloads a completed family export
       tags:
@@ -7246,10 +7246,10 @@ paths:
     parameters:
     - name: id
       in: path
-      format: uuid
       required: true
       schema:
         type: string
+        format: uuid
     get:
       summary: Shows a sync
       description: Return sanitized status metadata for a single family-scoped sync.

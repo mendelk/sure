@@ -1832,7 +1832,6 @@ export interface paths {
             query?: never;
             header?: never;
             path: {
-                /** Format: uuid */
                 id: string;
             };
             cookie?: never;
@@ -1843,7 +1842,6 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    /** Format: uuid */
                     id: string;
                 };
                 cookie?: never;
@@ -1901,7 +1899,6 @@ export interface paths {
             query?: never;
             header?: never;
             path: {
-                /** Format: uuid */
                 id: string;
             };
             cookie?: never;
@@ -1912,7 +1909,6 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    /** Format: uuid */
                     id: string;
                 };
                 cookie?: never;
@@ -4736,7 +4732,6 @@ export interface paths {
             query?: never;
             header?: never;
             path: {
-                /** Format: uuid */
                 id: string;
             };
             cookie?: never;
@@ -4750,7 +4745,6 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    /** Format: uuid */
                     id: string;
                 };
                 cookie?: never;
