@@ -31,10 +31,13 @@ Run from the repo root (`pnpm --filter @sure/web <cmd>`) or from
 | `pnpm preview`     | Preview the production build (:5173)|
 | `pnpm typecheck`   | `tsc --noEmit`                      |
 | `pnpm test`        | `vitest run`                        |
+| `pnpm api:generate` | Regenerate OpenAPI types from `docs/api/openapi.yaml` |
+| `pnpm api:check`   | Fail when generated types drift from `docs/api/openapi.yaml` |
 | `pnpm install:clean` | Frozen reinstall from the lockfile |
 
 Root shortcuts: `pnpm web:dev`, `pnpm web:build`, `pnpm web:preview`,
-`pnpm web:typecheck`, `pnpm web:test`.
+`pnpm web:typecheck`, `pnpm web:test`, `pnpm web:api:generate`,
+`pnpm web:api:check`.
 
 ## SURE_API_ORIGIN setup
 
@@ -73,3 +76,36 @@ secrets) and the SSR loader re-validates on every server render.
 
 3. Open `http://localhost:5173`. The index page server-renders the
    configured API origin as its connection status.
+
+## Typed API client (`src/lib/api/`)
+
+- **Generator:** [`openapi-typescript`] + [`openapi-fetch`] (same
+  maintained org, deterministic output). `openapi-fetch` is a thin typed
+  `fetch` wrapper with no store or cache — TanStack Query remains the only
+  async-state layer.
+- **Generated types:** `src/lib/api/openapi.d.ts` is committed and built
+  only from `docs/api/openapi.yaml`. Regenerate with `pnpm api:generate`
+  (run twice → no diff). CI fails on drift via `pnpm web:api:check`.
+- **Fetch layer:** `src/lib/api/client.ts` exposes `createApiClient`
+  (`X-Api-Key` auth, `X-Request-Id` correlation) plus `apiGet`/`apiPost`/
+  `apiPut`/`apiPatch`/`apiDelete`/`apiDownload` wrappers that normalize
+  every outcome — validation (400/422), auth (401/403), missing (404),
+  conflicts (409), rate limits (429 + `Retry-After`), other HTTP failures,
+  unparseable bodies, aborts, and network errors — into `ApiError`
+  (`error.kind`, `error.retryable` for Query retries).
+- **TanStack Query usage:** wrappers forward `AbortSignal`, so use them
+  directly as a `queryFn`:
+  ```ts
+  queryFn: ({ signal }) =>
+    apiGet(client, "/api/v1/accounts", {
+      params: { query: pageQuery(page, 25) },
+      signal,
+    }).then((result) => result.data),
+  ```
+- **Tests:** `src/lib/api/client.test.ts` covers success, query/path/JSON
+  bodies, file downloads, cancellation, correlation, pagination helpers,
+  Query interop, and compile-time type assertions — all model shapes are
+  referenced from the generated types, never hand-copied.
+
+[`openapi-typescript`]: https://github.com/openapi-ts/openapi-typescript
+[`openapi-fetch`]: https://github.com/openapi-ts/openapi-fetch

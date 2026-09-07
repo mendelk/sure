@@ -1,0 +1,615 @@
+/**
+ * Thin typed fetch layer for the Sure Rails API.
+ *
+ * Tooling choice (documented decision): [`openapi-typescript`] generates the
+ * `paths`/`components` types in `./openapi.d.ts` directly from
+ * `docs/api/openapi.yaml`, and [`openapi-fetch`] provides the runtime — a
+ * type-safe `fetch` wrapper with no store, cache, or component model. There
+ * is deliberately no second state-management abstraction: TanStack Query
+ * remains the only async-state layer, and every helper below accepts a
+ * standard `AbortSignal` so it can be used directly as a Query `queryFn`.
+ *
+ * Regenerate the types with a single command (from `apps/web`):
+ *
+ * ```sh
+ * pnpm api:generate
+ * ```
+ *
+ * [`openapi-typescript`]: https://github.com/openapi-ts/openapi-typescript
+ * [`openapi-fetch`]: https://github.com/openapi-ts/openapi-fetch
+ */
+import createClient, {
+	type Client,
+	type ClientPathsWithMethod,
+	type FetchOptions,
+	type HeadersOptions,
+	type MethodResponse,
+} from "openapi-fetch";
+import type { components, paths } from "./openapi";
+
+/** Re-export the generated schema so consumers never hand-copy models. */
+export type { components, paths };
+
+/** All documented API paths, e.g. `"/api/v1/accounts"`. */
+export type ApiPaths = keyof paths;
+
+/** The underlying type-safe client (API-key middleware applied). */
+export type SureClient = Client<paths>;
+
+/** Header carrying the per-request correlation id. */
+export const REQUEST_ID_HEADER = "X-Request-Id";
+
+/** Header carrying the Sure API key (`apiKeyAuth` security scheme). */
+export const API_KEY_HEADER = "X-Api-Key";
+
+export type ApiErrorKind =
+	| "validation"
+	| "unauthorized"
+	| "forbidden"
+	| "notFound"
+	| "conflict"
+	| "rateLimited"
+	| "http"
+	| "parse"
+	| "aborted"
+	| "network";
+
+export interface ApiErrorInit {
+	kind: ApiErrorKind;
+	message: string;
+	status?: number;
+	details?: unknown;
+	retryAfterMs?: number;
+	requestId?: string;
+	cause?: unknown;
+}
+
+/**
+ * Single application-level error for every API failure mode: validation
+ * (400/422 with an `ErrorResponse` body), authorization (401/403),
+ * missing resources (404), conflicts such as "export not ready" (409),
+ * rate limiting (429, with `retryAfterMs` parsed from `Retry-After`),
+ * other HTTP failures, unparseable success bodies, aborted requests, and
+ * network failures. Narrow on `kind`, or use `retryable` for Query retries.
+ */
+export class ApiError extends Error {
+	readonly kind: ApiErrorKind;
+	readonly status?: number;
+	readonly details?: unknown;
+	readonly retryAfterMs?: number;
+	readonly requestId?: string;
+
+	constructor(init: ApiErrorInit) {
+		super(
+			init.message,
+			init.cause === undefined ? undefined : { cause: init.cause },
+		);
+		this.name = "ApiError";
+		this.kind = init.kind;
+		this.status = init.status;
+		this.details = init.details;
+		this.retryAfterMs = init.retryAfterMs;
+		this.requestId = init.requestId;
+	}
+
+	/**
+	 * Whether retrying later could succeed. Suitable for TanStack Query:
+	 * `retry: (count, error) => isApiError(error) && error.retryable && count < 3`.
+	 */
+	get retryable(): boolean {
+		if (this.kind === "rateLimited" || this.kind === "network") {
+			return true;
+		}
+		if (this.kind === "http" && this.status !== undefined) {
+			return this.status >= 500 || this.status === 409;
+		}
+		if (this.kind === "conflict") {
+			return true;
+		}
+		return false;
+	}
+}
+
+/** Type guard for errors produced by this module. */
+export function isApiError(error: unknown): error is ApiError {
+	return error instanceof ApiError;
+}
+
+export interface CreateApiClientOptions {
+	/** API origin, e.g. `http://localhost:3000` (no trailing path). */
+	baseUrl: string;
+	/** Returns the `X-Api-Key` value, or `undefined` when logged out. */
+	getApiKey?: () => string | undefined;
+	/** Override `fetch` (tests, SSR runtimes). Defaults to `globalThis.fetch`. */
+	fetchImpl?: (input: Request) => Promise<Response>;
+}
+
+function defaultGenerateRequestId(): string {
+	const cryptoRef = globalThis.crypto;
+	if (cryptoRef && typeof cryptoRef.randomUUID === "function") {
+		return cryptoRef.randomUUID();
+	}
+	return `req-${Date.now().toString(36)}-${Math.floor(Math.random() * 0xffffffff).toString(36)}`;
+}
+
+/**
+ * Create the shared API client. Installs middleware that injects the
+ * `X-Api-Key` header (when `getApiKey` yields a key) and guarantees an
+ * `X-Request-Id` correlation header. Prefer the `apiGet`/`apiPost`/…
+ * wrappers over calling verbs directly so outcomes are normalized to
+ * `ApiError` and the correlation id is returned to the caller.
+ */
+export function createApiClient(options: CreateApiClientOptions): SureClient {
+	const client = createClient<paths>({
+		baseUrl: options.baseUrl,
+		...(options.fetchImpl === undefined ? {} : { fetch: options.fetchImpl }),
+		headers: {},
+	});
+	client.use(apiAuthMiddleware({ getApiKey: options.getApiKey }));
+	return client;
+}
+
+/**
+ * Middleware injecting the `X-Api-Key` header when a key is available and
+ * the caller did not set one explicitly. Installed by `createApiClient`;
+ * exported for tests and advanced composition.
+ */
+export function apiAuthMiddleware(
+	options: Pick<CreateApiClientOptions, "getApiKey">,
+): Parameters<SureClient["use"]>[0] {
+	return {
+		onRequest({ request }) {
+			const apiKey = options.getApiKey?.();
+			if (apiKey === undefined || apiKey === "") {
+				return undefined;
+			}
+			if (request.headers.has(API_KEY_HEADER)) {
+				return undefined;
+			}
+			const headers = new Headers(request.headers);
+			headers.set(API_KEY_HEADER, apiKey);
+			return new Request(request, { headers });
+		},
+	};
+}
+
+/** Success envelope: typed data plus transport metadata for Query layers. */
+export interface ApiSuccess<T> {
+	data: T;
+	response: Response;
+	requestId: string;
+}
+
+type GetPaths = ClientPathsWithMethod<SureClient, "get">;
+type PostPaths = ClientPathsWithMethod<SureClient, "post">;
+type PutPaths = ClientPathsWithMethod<SureClient, "put">;
+type PatchPaths = ClientPathsWithMethod<SureClient, "patch">;
+type DeletePaths = ClientPathsWithMethod<SureClient, "delete">;
+
+export type ApiData<
+	Method extends "get" | "post" | "put" | "patch" | "delete",
+	Path extends ClientPathsWithMethod<SureClient, Method>,
+> = MethodResponse<SureClient, Method, Path>;
+
+/** Extra per-request options accepted by every wrapper. */
+export interface ApiRequestExtras {
+	/**
+	 * Correlation id sent as `X-Request-Id` and echoed on success/error.
+	 * An explicit header already present in `headers` wins; otherwise this
+	 * value wins; otherwise a fresh id is generated. Pass a fixed value in
+	 * tests for deterministic assertions.
+	 */
+	requestId?: string;
+}
+
+/**
+ * Mirrors openapi-fetch's own init optionality: `init` is optional exactly
+ * when the operation requires neither params nor a body, so required
+ * bodies/path params stay compile-time errors instead of runtime 422s.
+ */
+export type ApiInit<Operation> = {} extends FetchOptions<Operation>
+	? [init?: FetchOptions<Operation> & ApiRequestExtras]
+	: [init: FetchOptions<Operation> & ApiRequestExtras];
+
+function resolveRequestHeaders(
+	headers: HeadersOptions | undefined,
+	explicitRequestId: string | undefined,
+	generateRequestId: () => string,
+): { headers: Headers; requestId: string } {
+	const merged = new Headers();
+	if (headers !== undefined) {
+		new Headers(headers as HeadersInit).forEach((value, key) => {
+			merged.set(key, value);
+		});
+	}
+	const existing = merged.get(REQUEST_ID_HEADER);
+	if (existing !== null && existing !== "") {
+		return { headers: merged, requestId: existing };
+	}
+	const requestId =
+		explicitRequestId && explicitRequestId !== ""
+			? explicitRequestId
+			: generateRequestId();
+	merged.set(REQUEST_ID_HEADER, requestId);
+	return { headers: merged, requestId };
+}
+
+interface RawResult {
+	data?: unknown;
+	error?: unknown;
+	response: Response;
+}
+
+type RawRequest = (
+	method: string,
+	url: string,
+	init?: Record<string, unknown>,
+) => Promise<RawResult>;
+
+function parseRetryAfterMs(value: string | null): number | undefined {
+	if (value === null || value.trim() === "") {
+		return undefined;
+	}
+	const seconds = Number(value);
+	if (Number.isFinite(seconds) && seconds >= 0) {
+		return Math.round(seconds * 1000);
+	}
+	const dateMs = Date.parse(value);
+	if (!Number.isNaN(dateMs)) {
+		return Math.max(0, dateMs - Date.now());
+	}
+	return undefined;
+}
+
+function errorMessage(payload: unknown, fallback: string): string {
+	if (payload !== null && typeof payload === "object") {
+		const record = payload as Record<string, unknown>;
+		if (typeof record.message === "string" && record.message !== "") {
+			return record.message;
+		}
+		if (typeof record.error === "string" && record.error !== "") {
+			return record.error;
+		}
+	}
+	return fallback;
+}
+
+function errorDetails(payload: unknown): unknown {
+	if (payload !== null && typeof payload === "object") {
+		const record = payload as Record<string, unknown>;
+		if (record.details !== undefined) {
+			return record.details;
+		}
+		if (record.errors !== undefined) {
+			return record.errors;
+		}
+	}
+	return payload === undefined ? undefined : payload;
+}
+
+function errorFromStatus(
+	status: number,
+	payload: unknown,
+	response: Response,
+	requestId: string,
+): ApiError {
+	const message = errorMessage(payload, `Request failed with status ${status}.`);
+	const details = errorDetails(payload);
+	switch (status) {
+		case 400:
+		case 422:
+			return new ApiError({
+				kind: "validation",
+				message,
+				status,
+				details,
+				requestId,
+			});
+		case 401:
+			return new ApiError({
+				kind: "unauthorized",
+				message,
+				status,
+				details,
+				requestId,
+			});
+		case 403:
+			return new ApiError({
+				kind: "forbidden",
+				message,
+				status,
+				details,
+				requestId,
+			});
+		case 404:
+			return new ApiError({
+				kind: "notFound",
+				message,
+				status,
+				details,
+				requestId,
+			});
+		case 409:
+			return new ApiError({
+				kind: "conflict",
+				message,
+				status,
+				details,
+				requestId,
+			});
+		case 429:
+			return new ApiError({
+				kind: "rateLimited",
+				message,
+				status,
+				details,
+				retryAfterMs: parseRetryAfterMs(response.headers.get("Retry-After")),
+				requestId,
+			});
+		default:
+			return new ApiError({
+				kind: "http",
+				message,
+				status,
+				details,
+				requestId,
+			});
+	}
+}
+
+function errorFromThrown(
+	error: unknown,
+	signal: AbortSignal | null | undefined,
+	requestId: string,
+): unknown {
+	if (isApiError(error)) {
+		return error;
+	}
+	const name =
+		error !== null && typeof error === "object"
+			? (error as { name?: unknown }).name
+			: undefined;
+	if (name === "AbortError" || signal?.aborted === true) {
+		return new ApiError({
+			kind: "aborted",
+			message: "Request was aborted.",
+			requestId,
+			cause: error,
+		});
+	}
+	if (error instanceof SyntaxError) {
+		return new ApiError({
+			kind: "parse",
+			message: "Response body could not be parsed.",
+			requestId,
+			cause: error,
+		});
+	}
+	if (error instanceof TypeError) {
+		return new ApiError({
+			kind: "network",
+			message: "Network request failed.",
+			requestId,
+			cause: error,
+		});
+	}
+	return error;
+}
+
+interface PerformArgs {
+	client: SureClient;
+	method: "get" | "post" | "put" | "patch" | "delete";
+	path: string;
+	init: Record<string, unknown> | undefined;
+	headers: Headers;
+	requestId: string;
+}
+
+async function perform<T>(args: PerformArgs): Promise<ApiSuccess<T>> {
+	const { client, method, path, init, headers, requestId } = args;
+	const rawRequest = client.request as unknown as RawRequest;
+	let result: RawResult;
+	try {
+		result = await rawRequest(method, path, { ...init, headers });
+	} catch (error) {
+		throw errorFromThrown(error, readSignal(init), requestId);
+	}
+	if (result.error !== undefined || !result.response.ok) {
+		throw errorFromStatus(
+			result.response.status,
+			result.error,
+			result.response,
+			requestId,
+		);
+	}
+	return { data: result.data as T, response: result.response, requestId };
+}
+
+function readSignal(init: Record<string, unknown> | undefined): AbortSignal | null | undefined {
+	const signal = init?.signal;
+	return signal instanceof AbortSignal ? signal : undefined;
+}
+
+function prepare(
+	client: SureClient,
+	method: "get" | "post" | "put" | "patch" | "delete",
+	path: string,
+	init: { headers?: HeadersOptions; requestId?: string } & Record<string, unknown>,
+): PerformArgs {
+	const { headers, requestId } = resolveRequestHeaders(
+		init?.headers,
+		init?.requestId,
+		defaultGenerateRequestId,
+	);
+	const { requestId: _dropped, ...rest } = init ?? {};
+	return { client, method, path, init: rest, headers, requestId };
+}
+
+/**
+ * Typed GET. `signal` (e.g. from a TanStack Query `queryFn`) cancels the
+ * request and surfaces as `{ kind: "aborted" }`:
+ *
+ * ```ts
+ * queryFn: ({ signal }) =>
+ *   apiGet(client, "/api/v1/accounts", {
+ *     params: { query: { page: 1, per_page: 25 } },
+ *     signal,
+ *   }).then((result) => result.data),
+ * ```
+ */
+export function apiGet<Path extends GetPaths>(
+	client: SureClient,
+	path: Path,
+	...args: ApiInit<paths[Path]["get"]>
+): Promise<ApiSuccess<ApiData<"get", Path>>> {
+	const [init] = args;
+	return perform<ApiData<"get", Path>>(
+		prepare(client, "get", path, ((init ?? {}) as Record<string, unknown>)),
+	);
+}
+
+/** Typed POST with a JSON body (`body` is required exactly where the spec requires it). */
+export function apiPost<Path extends PostPaths>(
+	client: SureClient,
+	path: Path,
+	...args: ApiInit<paths[Path]["post"]>
+): Promise<ApiSuccess<ApiData<"post", Path>>> {
+	const [init] = args;
+	return perform<ApiData<"post", Path>>(
+		prepare(client, "post", path, ((init ?? {}) as Record<string, unknown>)),
+	);
+}
+
+/** Typed PUT with a JSON body. */
+export function apiPut<Path extends PutPaths>(
+	client: SureClient,
+	path: Path,
+	...args: ApiInit<paths[Path]["put"]>
+): Promise<ApiSuccess<ApiData<"put", Path>>> {
+	const [init] = args;
+	return perform<ApiData<"put", Path>>(
+		prepare(client, "put", path, ((init ?? {}) as Record<string, unknown>)),
+	);
+}
+
+/** Typed PATCH with a JSON body. */
+export function apiPatch<Path extends PatchPaths>(
+	client: SureClient,
+	path: Path,
+	...args: ApiInit<paths[Path]["patch"]>
+): Promise<ApiSuccess<ApiData<"patch", Path>>> {
+	const [init] = args;
+	return perform<ApiData<"patch", Path>>(
+		prepare(client, "patch", path, ((init ?? {}) as Record<string, unknown>)),
+	);
+}
+
+/** Typed DELETE. */
+export function apiDelete<Path extends DeletePaths>(
+	client: SureClient,
+	path: Path,
+	...args: ApiInit<paths[Path]["delete"]>
+): Promise<ApiSuccess<ApiData<"delete", Path>>> {
+	const [init] = args;
+	return perform<ApiData<"delete", Path>>(
+		prepare(client, "delete", path, ((init ?? {}) as Record<string, unknown>)),
+	);
+}
+
+/** Downloaded file envelope for binary endpoints (exports, attachments). */
+export interface DownloadedFile {
+	blob: Blob;
+	filename: string | undefined;
+	contentType: string | undefined;
+	response: Response;
+	requestId: string;
+}
+
+function parseFilename(contentDisposition: string | null): string | undefined {
+	if (contentDisposition === null) {
+		return undefined;
+	}
+	const utf8Match = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(contentDisposition);
+	if (utf8Match?.[1]) {
+		try {
+			return decodeURIComponent(utf8Match[1].trim().replace(/^"|"$/g, ""));
+		} catch {
+			return utf8Match[1].trim();
+		}
+	}
+	const quotedMatch = /filename\s*=\s*"([^"]+)"/i.exec(contentDisposition);
+	if (quotedMatch?.[1]) {
+		return quotedMatch[1];
+	}
+	const bareMatch = /filename\s*=\s*([^;]+)/i.exec(contentDisposition);
+	return bareMatch?.[1]?.trim().replace(/^"|"$/g, "") || undefined;
+}
+
+/**
+ * Download a binary response (e.g. `GET /api/v1/family_exports/{id}/download`)
+ * as a `Blob`, honouring cancellation via `signal`. Throws `ApiError` for
+ * non-2xx outcomes (including 409 "export not ready") just like the JSON
+ * wrappers.
+ */
+export function apiDownload<Path extends GetPaths>(
+	client: SureClient,
+	path: Path,
+	...args: ApiInit<paths[Path]["get"]>
+): Promise<DownloadedFile> {
+	const [init] = args;
+	const prepared = prepare(
+		client,
+		"get",
+		path,
+		(init ?? {}) as Record<string, unknown>,
+	);
+	return (async () => {
+		const result = await perform<Blob>({
+			...prepared,
+			init: { ...prepared.init, parseAs: "blob" },
+		});
+		const contentType =
+			result.response.headers.get("Content-Type") ?? undefined;
+		return {
+			blob: result.data,
+			filename: parseFilename(
+				result.response.headers.get("Content-Disposition"),
+			),
+			contentType: contentType ?? undefined,
+			response: result.response,
+			requestId: result.requestId,
+		};
+	})();
+}
+
+/** Query params for paginated list endpoints (`page`/`per_page`). */
+export interface PageQuery {
+	page?: number;
+	per_page?: number;
+}
+
+/** Build `{ page, per_page }` query params, omitting unset values. */
+export function pageQuery(page?: number, perPage?: number): PageQuery {
+	return {
+		...(page === undefined ? {} : { page }),
+		...(perPage === undefined ? {} : { per_page: perPage }),
+	};
+}
+
+/** Pagination envelope shared by list endpoints (from the generated schema). */
+export type Pagination = components["schemas"]["Pagination"];
+
+/** Extract the `pagination` envelope from a list response body, if present. */
+export function getPagination(
+	body: { pagination?: Pagination } | null | undefined,
+): Pagination | undefined {
+	return body?.pagination;
+}
+
+/** Whether another page follows (`page < total_pages`). */
+export function hasNextPage(pagination: Pagination | undefined): boolean {
+	if (pagination === undefined) {
+		return false;
+	}
+	return pagination.page < pagination.total_pages;
+}
