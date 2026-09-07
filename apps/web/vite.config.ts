@@ -1,4 +1,5 @@
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import stylex from "@stylexjs/unplugin";
 import { defineConfig, loadEnv } from "vite";
 import viteReact from "@vitejs/plugin-react";
 import { assertSureApiOrigin } from "./src/lib/sure-api-origin.ts";
@@ -43,6 +44,10 @@ export default defineConfig(({ command, mode }) => {
 		},
 		plugins: [
 			tanstackStart(),
+			// Compile the generated semantic theme (src/styles/sure-tokens.stylex.ts)
+			// and any stylex.create() call sites. Keep before viteReact to preserve
+			// Fast Refresh; useCSSLayers keeps StyleX output ordered in @layers.
+			stylex.vite({ useCSSLayers: true }),
 			// react's vite plugin must come after start's vite plugin
 			viteReact(),
 		],

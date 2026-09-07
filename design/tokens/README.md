@@ -118,7 +118,22 @@ The pre-resolved alpha tints (`color.gray.tint-5`, `color.gray.tint-10`, `color.
 ## Consumers
 
 - Rails / Tailwind: via the generated CSS, automatically.
+- Alternate frontend (`apps/web`, StyleX): via the generated semantic theme —
+  `apps/web/src/styles/sure-tokens.stylex.ts` (`vars` + light/dark themes),
+  `sure-token-values.ts` (plain-data twin), and `sure-theme.css`
+  (`color-scheme` / reduced-motion / forced-colors shell). Same build, same
+  source, fully-resolved concrete values (`color-mix()` for alpha). Palette
+  ladders are inlined, never exported, so web product code cannot consume raw
+  palette tokens. Usage rules: `apps/web/src/styles/README.md`.
 - Lookbook reference page: `/design-system/inspect/design_tokens/*` reads `sure.tokens.json` at request time.
 - External tools (Figma Tokens Studio, AI design tools, etc.): point them at this file.
 
 If a consumer wants a different shape, transform the JSON in their tooling rather than editing the source here.
+
+## Drift checks
+
+`npm run tokens:check` rebuilds and fails if ANY generated file drifts from
+this JSON — the Rails `_generated.css` and all three
+`apps/web/src/styles/sure-*` files. Commit the JSON and every generated file
+together. The web suite (`pnpm web:test`) additionally pins representative
+light/dark values, theme-shell media queries, and the semantic-only rule.
