@@ -9,6 +9,15 @@
               } do |form| %>
   <%= hidden_field_tag :per_page, params[:per_page] %>
 
+  <%# Persist slack-style negative filters (e.g. `-category:House`). These have
+      no checkboxes in the filter popover; they are created via the text input
+      and rendered as removable tokens by transaction-filter-search. %>
+  <% %w[excluded_categories excluded_merchants excluded_tags excluded_accounts excluded_account_ids excluded_types excluded_status].each do |param| %>
+    <% Array(@q[param]).each do |value| %>
+      <%= hidden_field_tag "q[#{param}][]", value, id: nil %>
+    <% end %>
+  <% end %>
+
   <div class="flex gap-2 mb-4">
     <div class="grow relative">
       <div class="flex flex-wrap items-center px-3 py-2 gap-2 border border-secondary rounded-lg focus-within:ring-secondary focus-within:border-secondary">
