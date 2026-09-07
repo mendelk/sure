@@ -22,7 +22,7 @@
 		"test": "pnpm -r --if-present run test",
 		"checks:web": "pnpm typecheck && pnpm lint:web && pnpm format:check:web && pnpm test",
 		"tokens:build": "node bin/tokens.mjs",
-		"tokens:check": "node bin/tokens.mjs && git diff --quiet -- app/assets/tailwind/sure-design-system/_generated.css",
+		"tokens:check": "node bin/tokens.mjs && git diff --quiet -- app/assets/tailwind/sure-design-system/_generated.css apps/web/src/styles/sure-tokens.stylex.ts apps/web/src/styles/sure-token-values.ts apps/web/src/styles/sure-theme.css",
 		"web:dev": "pnpm --filter @sure/web dev",
 		"web:build": "pnpm --filter @sure/web build",
 		"web:preview": "pnpm --filter @sure/web preview",

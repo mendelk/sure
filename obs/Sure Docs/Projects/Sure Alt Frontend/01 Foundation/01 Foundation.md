@@ -46,7 +46,7 @@ Establish the architecture, security, generated API client, design system, appli
 - [ ] [[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]
 - [x] [[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]
 - [ ] [[implement-secure-login-refresh-and-logout-sessions|Implement secure login, refresh, and logout sessions]]
-- [ ] [[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]
+- [x] [[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]
 - [ ] [[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]
 - [ ] [[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]
 - [ ] [[add-localization-theme-and-privacy-foundations|Add localization, theme, and privacy foundations]]
