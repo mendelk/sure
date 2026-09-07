@@ -87,12 +87,19 @@ secrets) and the SSR loader re-validates on every server render.
   only from `docs/api/openapi.yaml`. Regenerate with `pnpm api:generate`
   (run twice → no diff). CI fails on drift via `pnpm web:api:check`.
 - **Fetch layer:** `src/lib/api/client.ts` exposes `createApiClient`
-  (`X-Api-Key` auth, `X-Request-Id` correlation) plus `apiGet`/`apiPost`/
-  `apiPut`/`apiPatch`/`apiDelete`/`apiDownload` wrappers that normalize
-  every outcome — validation (400/422), auth (401/403), missing (404),
-  conflicts (409), rate limits (429 + `Retry-After`), other HTTP failures,
-  unparseable bodies, aborts, and network errors — into `ApiError`
-  (`error.kind`, `error.retryable` for Query retries).
+  plus `apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete`/`apiDownload`
+  wrappers that normalize every outcome — validation (400/422), auth
+  (401/403), missing (404), conflicts (409), rate limits (429 +
+  `Retry-After`), other HTTP failures, unparseable bodies, aborts, and
+  network errors — into `ApiError` (`error.kind`, `error.retryable` for
+  Query retries). Every request carries an `X-Request-Id` correlation id.
+- **Browser auth (ADR-0001):** production browser calls target the
+  same-origin BFF — never the Rails API directly — and authenticate only
+  with the BFF's `HttpOnly` session cookie (`credentials: "same-origin"`,
+  pinned per request). This module defines no API-key/bearer-token
+  surface: no getters, no `Authorization`/`X-Api-Key` constants, no
+  injection middleware (see `docs/adr/0001-browser-auth-bff-threat-model.md`
+  D1/REQ-SESS-01).
 - **TanStack Query usage:** wrappers forward `AbortSignal`, so use them
   directly as a `queryFn`:
   ```ts
@@ -104,8 +111,10 @@ secrets) and the SSR loader re-validates on every server render.
   ```
 - **Tests:** `src/lib/api/client.test.ts` covers success, query/path/JSON
   bodies, file downloads, cancellation, correlation, pagination helpers,
-  Query interop, and compile-time type assertions — all model shapes are
-  referenced from the generated types, never hand-copied.
+  Query interop, compile-time type assertions, and the ADR-0001 security
+  properties (no `Authorization`/`X-Api-Key` injection, same-origin
+  credentials) — all model shapes are referenced from the generated types,
+  never hand-copied.
 
 [`openapi-typescript`]: https://github.com/openapi-ts/openapi-typescript
 [`openapi-fetch`]: https://github.com/openapi-ts/openapi-fetch

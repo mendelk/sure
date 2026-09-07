@@ -15,6 +15,12 @@
  * pnpm api:generate
  * ```
  *
+ * Browser authentication (ADR-0001 D1/REQ-SESS-01): production browser calls
+ * target the same-origin BFF and authenticate with its `HttpOnly` session
+ * cookie only. This module defines no API-key/bearer-token surface at all —
+ * no getters, no constants, no injection middleware — so no Sure credential
+ * is ever readable from page JavaScript.
+ *
  * [`openapi-typescript`]: https://github.com/openapi-ts/openapi-typescript
  * [`openapi-fetch`]: https://github.com/openapi-ts/openapi-fetch
  */
@@ -38,9 +44,6 @@ export type SureClient = Client<paths>;
 
 /** Header carrying the per-request correlation id. */
 export const REQUEST_ID_HEADER = "X-Request-Id";
-
-/** Header carrying the Sure API key (`apiKeyAuth` security scheme). */
-export const API_KEY_HEADER = "X-Api-Key";
 
 export type ApiErrorKind =
 	| "validation"
@@ -116,10 +119,17 @@ export function isApiError(error: unknown): error is ApiError {
 }
 
 export interface CreateApiClientOptions {
-	/** API origin, e.g. `http://localhost:3000` (no trailing path). */
+	/**
+	 * API base URL.
+	 *
+	 * Browser calls MUST target the same-origin BFF (ADR-0001 D1/REQ-SESS-01:
+	 * the browser holds only the BFF's `HttpOnly` session cookie, never a
+	 * Sure token or API key). In the browser that means a same-origin base
+	 * such as `""` (relative URLs) or `window.location.origin` — never the
+	 * Rails origin directly. Absolute Rails origins are for server-side use
+	 * only (SSR, tests, the BFF's own upstream configuration).
+	 */
 	baseUrl: string;
-	/** Returns the `X-Api-Key` value, or `undefined` when logged out. */
-	getApiKey?: () => string | undefined;
 	/** Override `fetch` (tests, SSR runtimes). Defaults to `globalThis.fetch`. */
 	fetchImpl?: (input: Request) => Promise<Response>;
 }
@@ -133,44 +143,24 @@ function defaultGenerateRequestId(): string {
 }
 
 /**
- * Create the shared API client. Installs middleware that injects the
- * `X-Api-Key` header (when `getApiKey` yields a key) and guarantees an
- * `X-Request-Id` correlation header. Prefer the `apiGet`/`apiPost`/…
- * wrappers over calling verbs directly so outcomes are normalized to
- * `ApiError` and the correlation id is returned to the caller.
+ * Create the shared API client.
+ *
+ * Authentication is the BFF's `HttpOnly` session cookie and nothing else
+ * (ADR-0001 D1/REQ-SESS-01): this module never reads, stores, or injects
+ * API keys, bearer tokens, or `Authorization` headers from JavaScript, so a
+ * successful XSS finds no Sure credential to steal. Every request is sent
+ * with `credentials: "same-origin"` so the cookie goes to the BFF origin
+ * only, never cross-origin. Prefer the `apiGet`/`apiPost`/… wrappers over
+ * calling verbs directly so outcomes are normalized to `ApiError` and the
+ * correlation id is returned to the caller.
  */
 export function createApiClient(options: CreateApiClientOptions): SureClient {
-	const client = createClient<paths>({
+	return createClient<paths>({
 		baseUrl: options.baseUrl,
 		...(options.fetchImpl === undefined ? {} : { fetch: options.fetchImpl }),
 		headers: {},
+		credentials: "same-origin",
 	});
-	client.use(apiAuthMiddleware({ getApiKey: options.getApiKey }));
-	return client;
-}
-
-/**
- * Middleware injecting the `X-Api-Key` header when a key is available and
- * the caller did not set one explicitly. Installed by `createApiClient`;
- * exported for tests and advanced composition.
- */
-export function apiAuthMiddleware(
-	options: Pick<CreateApiClientOptions, "getApiKey">,
-): Parameters<SureClient["use"]>[0] {
-	return {
-		onRequest({ request }) {
-			const apiKey = options.getApiKey?.();
-			if (apiKey === undefined || apiKey === "") {
-				return undefined;
-			}
-			if (request.headers.has(API_KEY_HEADER)) {
-				return undefined;
-			}
-			const headers = new Headers(request.headers);
-			headers.set(API_KEY_HEADER, apiKey);
-			return new Request(request, { headers });
-		},
-	};
 }
 
 /** Success envelope: typed data plus transport metadata for Query layers. */
@@ -410,7 +400,14 @@ async function perform<T>(args: PerformArgs): Promise<ApiSuccess<T>> {
 	const rawRequest = client.request as unknown as RawRequest;
 	let result: RawResult;
 	try {
-		result = await rawRequest(method, path, { ...init, headers });
+		// Pin same-origin credentials per request (in addition to the client
+		// default) so caller-supplied init can never downgrade cookie
+		// handling to "omit" or widen it to cross-origin "include".
+		result = await rawRequest(method, path, {
+			...init,
+			headers,
+			credentials: "same-origin",
+		});
 	} catch (error) {
 		throw errorFromThrown(error, readSignal(init), requestId);
 	}

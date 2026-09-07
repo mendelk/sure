@@ -1,7 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
-	API_KEY_HEADER,
 	REQUEST_ID_HEADER,
 	type ApiData,
 	ApiError,
@@ -67,13 +66,11 @@ function collectionBody(
 	};
 }
 
-function testClient(
-	fetchImpl: FetchImpl,
-	apiKey: string | null = "test-key",
-): SureClient {
+function testClient(fetchImpl: FetchImpl): SureClient {
+	// NB: absolute base URL here is test-only. Production browser calls use a
+	// same-origin BFF base (see client.ts); the Rails origin is server-side.
 	return createApiClient({
 		baseUrl: "http://localhost:3000",
-		getApiKey: apiKey === null ? () => undefined : () => apiKey,
 		fetchImpl,
 	});
 }
@@ -91,7 +88,7 @@ async function expectApiError(
 }
 
 describe("apiGet", () => {
-	it("sends pagination query params with auth and correlation headers", async () => {
+	it("sends pagination query params with correlation headers", async () => {
 		const { fetchImpl, requests } = mockFetch(() =>
 			jsonResponse(collectionBody()),
 		);
@@ -107,7 +104,6 @@ describe("apiGet", () => {
 		expect(request.url).toBe(
 			"http://localhost:3000/api/v1/accounts?page=2&per_page=10",
 		);
-		expect(request.headers.get(API_KEY_HEADER)).toBe("test-key");
 		const sentId = request.headers.get(REQUEST_ID_HEADER);
 		expect(sentId).toMatch(
 			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
@@ -116,15 +112,47 @@ describe("apiGet", () => {
 		expect(result.data.pagination.page).toBe(1);
 	});
 
-	it("omits the API key header when logged out", async () => {
+	it("injects no Authorization or X-Api-Key credential header", async () => {
+		const { fetchImpl, requests } = mockFetch((request) =>
+			jsonResponse({ ok: new URL(request.url).pathname }),
+		);
+		const client = testClient(fetchImpl);
+
+		await apiGet(client, "/api/v1/accounts", { requestId: "req-sec-1" });
+		await apiPost(client, "/api/v1/accounts", {
+			body: {
+				account: { name: "Cash", balance: 0, account_type: "depository" },
+			},
+			requestId: "req-sec-2",
+		});
+		await apiDelete(client, "/api/v1/tags/{id}", {
+			params: { path: { id: "tag-1" } },
+			requestId: "req-sec-3",
+		});
+
+		expect(requests.length).toBeGreaterThan(0);
+		for (const request of requests) {
+			expect(request.headers.has("Authorization")).toBe(false);
+			expect(request.headers.has("X-Api-Key")).toBe(false);
+		}
+	});
+
+	it("sends requests with same-origin credentials only", async () => {
 		const { fetchImpl, requests } = mockFetch(() =>
 			jsonResponse(collectionBody()),
 		);
-		const client = testClient(fetchImpl, null);
+		const client = testClient(fetchImpl);
 
-		await apiGet(client, "/api/v1/accounts");
+		await apiGet(client, "/api/v1/accounts", { requestId: "req-cred-1" });
+		expect((requests[0] as Request).credentials).toBe("same-origin");
 
-		expect((requests[0] as Request).headers.has(API_KEY_HEADER)).toBe(false);
+		// A caller-supplied weaker/wider mode must not win: the session
+		// cookie goes to the BFF origin only, never cross-origin.
+		await apiGet(client, "/api/v1/accounts", {
+			requestId: "req-cred-2",
+			credentials: "omit",
+		});
+		expect((requests[1] as Request).credentials).toBe("same-origin");
 	});
 
 	it("honours an explicit requestId and a pre-set correlation header", async () => {
