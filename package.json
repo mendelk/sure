@@ -28,6 +28,8 @@
 		"web:preview": "pnpm --filter @sure/web preview",
 		"web:typecheck": "pnpm --filter @sure/web typecheck",
 		"web:test": "pnpm --filter @sure/web test",
+		"web:api:generate": "pnpm --filter @sure/web api:generate",
+		"web:api:check": "pnpm --filter @sure/web api:check",
 		"web:install:clean": "pnpm install --frozen-lockfile",
 		"install:clean": "pnpm install --frozen-lockfile"
 	},

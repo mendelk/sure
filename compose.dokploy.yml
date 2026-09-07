@@ -45,6 +45,25 @@ services:
     networks:
       - sure_net
 
+  # Alternate frontend (TanStack Start), the default UI for this branch.
+  # Served at http://localhost:5173 and talks to the Rails "web" service
+  # over the internal Docker network.
+  # Build it from the repo root: docker compose -f compose.dokploy.yml build frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      SURE_API_ORIGIN: ${SURE_API_ORIGIN:-http://web:3000}
+    ports:
+      - ${FRONTEND_PORT:-5173}:5173
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+    networks:
+      - sure_net
+
   worker:
     build: .
     command: bundle exec sidekiq

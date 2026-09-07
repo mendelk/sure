@@ -10,6 +10,7 @@ taskIds:
   - "t_alt_fnd_002"
   - "t_alt_fnd_003"
   - "t_alt_fnd_004"
+  - "t_alt_fnd_018"
   - "t_alt_fnd_005"
   - "t_alt_fnd_006"
   - "t_alt_fnd_007"
@@ -42,7 +43,8 @@ Establish the architecture, security, generated API client, design system, appli
 - [x] [[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]
 - [x] [[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]
 - [x] [[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript, lint, formatting, and workspace scripts]]
-- [ ] [[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]
+- [x] [[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]
+- [ ] [[generate-openapi-zod-runtime-parsers|Generate OpenAPI Zod runtime parsers]]
 - [ ] [[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]
 - [x] [[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]
 - [ ] [[implement-secure-login-refresh-and-logout-sessions|Implement secure login, refresh, and logout sessions]]
