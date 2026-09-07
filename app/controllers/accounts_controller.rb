@@ -138,6 +138,7 @@ class AccountsController < ApplicationController
         associations: [ :transfer_as_inflow, :transfer_as_outflow, :category, :merchant, :tags ]
       ).call
     end
+    @family_tags = Current.family.tags.alphabetically.to_a
 
     trades = @entries.filter_map { |e| e.entryable if e.entryable_type == "Trade" }
     if trades.any?
