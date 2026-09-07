@@ -31,16 +31,16 @@ Run from the repo root (`pnpm --filter @sure/web <cmd>`) or from
 | `pnpm preview`     | Preview the production build (:5173)|
 | `pnpm typecheck`   | `tsc` over the browser/server/test boundaries (regenerates `routeTree.gen.ts` first) |
 | `pnpm test`        | `vitest run`                        |
-| `pnpm api:generate` | Regenerate OpenAPI types AND Zod contracts from `docs/api/openapi.yaml` |
-| `pnpm api:check`   | Fail when generated types or Zod contracts drift from `docs/api/openapi.yaml` |
-| `pnpm contracts:generate` | Regenerate Zod contracts only |
-| `pnpm contracts:check` | Fail when Zod contracts drift (CI gate) |
+| `pnpm api:generate` | Regenerate OpenAPI types AND Zod parsers from `docs/api/openapi.yaml` |
+| `pnpm api:check`   | Fail when generated types or Zod parsers drift from `docs/api/openapi.yaml` |
+| `pnpm api:zod` | Regenerate Zod parsers only (Orval) |
+| `pnpm api:zod:check` | Fail when Zod parsers drift (CI gate) |
 | `pnpm install:clean` | Frozen reinstall from the lockfile |
 
 Root shortcuts: `pnpm web:dev`, `pnpm web:build`, `pnpm web:preview`,
 `pnpm web:typecheck`, `pnpm web:test`, `pnpm web:api:generate`,
-`pnpm web:api:check`, `pnpm web:contracts:generate`,
-`pnpm web:contracts:check`.
+`pnpm web:api:check`, `pnpm web:api:zod:generate`,
+`pnpm web:api:zod:check`.
 
 ## API contracts (Zod runtime parsers)
 
@@ -49,34 +49,48 @@ not enough: upstream payloads are validated at runtime through generated
 Zod parsers before they reach TanStack Query or application state.
 
 - Source: `docs/api/openapi.yaml` (canonical; Ruby request specs own it).
-- Generator: `scripts/generate-zod-contracts.mjs`, a small deterministic
-  in-repo generator built on the maintained `yaml` (spec parsing) and
-  `zod` (runtime) libraries — exact versions pinned in `package.json`
-  (`zod 4.5.4`, `yaml 2.9.0`, `openapi-typescript ^7.13.0`). A bespoke
-  generator (instead of an off-the-shelf OpenAPI-to-Zod tool) gives
-  operation-scoped modules, fail-closed coverage (unsupported constructs
-  abort generation instead of emitting `unknown`), and redacted
-  diagnostics; static and runtime contracts are cross-checked by
+- Generator: [Orval](https://orval.dev) `8.30.0` (pinned in
+  `package.json`), emitting Zod `4.5.4` parsers (pinned runtime
+  dependency; `override.zod.version: 4` in `orval.config.ts` so output
+  never depends on the installed Zod). One documented build patch is
+  applied via `pnpm` (`patches/orval@8.30.0.patch`, wired through
+  `patchedDependencies`): Orval's recursive-schema `zod.ZodType<X>` pin
+  spells optional properties as `name?: T`, but the pinned schema
+  admits `undefined`, so the pin fails under this repo's
+  `exactOptionalPropertyTypes`; the patch widens spec-declared optional
+  properties with `| undefined` (names from the schema's own `required`
+  list, non-matching lines untouched so future shapes fail closed).
+  Static and runtime contracts are cross-checked by
   `src/lib/api/contract-compat.test.ts` so they cannot silently diverge.
-- Output (`src/lib/api/generated/`, committed): `zod-schemas.ts` (one
-  parser per component schema), `operations/<method>-<path>.ts` (one
-  module per `METHOD /path` with params/body/success/error parsers, a
-  `*Contract` value, and a typed validating fetch wrapper),
-  `operation-contracts.ts` (`"METHOD /path"` registry + BFF lookup), and
-  `manifest.json` (source sha + operation list for drift/coverage checks).
-- Consume operation-scoped wrappers so routes only bundle the parsers
-  they call: `import { getApiV1Accounts } from
-  "~/lib/api/generated/operations/get-api-v1-accounts"`. The generic
-  `apiGet`/`apiPost`/… wrappers accept a `contract` extra for the same
-  validation. Violations throw `{ kind: "contract" }` `ApiError`s whose
-  details carry schema paths and type tokens only — never raw payloads,
-  tokens, or credentials.
+- Output (`src/lib/api/zod/`, committed): `models/*.zod.ts` (one reusable
+  parser per `#/components/schemas/*`, recursive cycles closed with
+  `zod.lazy`) and `endpoints/<tag>/<tag>.zod.ts` (one module per API tag
+  with operation-keyed parsers: `<Method><Path>QueryParams`,
+  `<Method><Path>Body`, and `<Method><Path><Status>Response` for every
+  documented status). Generator-provided format validation (`uuid`,
+  `email`, `url`, `date`, `date-time`) is preserved, never weakened.
+- `src/lib/api/operation-contracts.ts` is a hand-written adapter that
+  only indexes those generated exports into a `"METHOD /path"` registry
+  (`getOperationContract`) plus `parseOperationResponse` /
+  `parseOperationRequest` helpers — no schema interpretation of its own.
+  Import operation-scoped `./zod/endpoints/*` modules directly in routes
+  for the smallest bundles; the registry is the full-surface lookup for
+  the typed fetch layer and the BFF transport.
+- Validation is mandatory: every `apiGet`/`apiPost`/`apiPut`/`apiPatch`/
+  `apiDelete` success payload must parse against its documented status
+  parser, and undocumented success statuses fail closed (the binary
+  export download is the explicit `Blob` exception). Error payloads that
+  fail their parser never surface raw — the status-mapped error keeps
+  its kind with redacted diagnostics. Violations throw `{ kind:
+  "contract" }` `ApiError`s carrying correlation (`requestId`) and
+  schema paths/type tokens only — never raw payloads, tokens, or
+  credentials.
 - Server-only BFF code validates via `src/lib/api/bff-contracts.server.ts`
   (`validateBffRequest` / `validateUpstreamResponse`), which is secret-free
   and safe to import from `createServerFn` handlers.
-- After any OpenAPI change, run `pnpm api:generate` (types + contracts)
+- After any OpenAPI change, run `pnpm api:generate` (types + parsers)
   and commit the result; CI (`pnpm web:api:check`,
-  `pnpm web:contracts:check`, coverage + runtime suites) fails otherwise.
+  `pnpm web:api:zod:check`, coverage + runtime suites) fails otherwise.
 
 Workspace-wide checks run from the repo root (see `CONVENTIONS.md` for the
 rules they enforce): `pnpm typecheck` (all packages, future-proof via

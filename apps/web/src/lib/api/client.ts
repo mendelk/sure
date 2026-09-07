@@ -31,14 +31,16 @@ import createClient, {
 	type HeadersOptions,
 	type MethodResponse,
 } from "openapi-fetch";
-import type { OperationContract, RedactedIssue } from "./contract";
-import { describeContractViolation, redactZodIssues } from "./contract";
+import type { OperationContract } from "./operation-contracts";
+import { getOperationContract, parseOperationResponse } from "./operation-contracts";
+import type { RedactedIssue } from "./contract";
+import { describeContractViolation } from "./contract";
 import type { components, paths } from "./openapi";
 
 /** Re-export the generated schema so consumers never hand-copy models. */
 export type { components, paths };
 
-/** Re-export the operation-contract type for validated call sites. */
+/** Re-export the operation-contract types (validation is mandatory in `perform`). */
 export type { OperationContract, RedactedIssue };
 
 /** All documented API paths, e.g. `"/api/v1/accounts"`. */
@@ -199,17 +201,6 @@ export interface ApiRequestExtras {
 	 * tests for deterministic assertions.
 	 */
 	requestId?: string;
-	/**
-	 * Generated operation contract (see `./generated/operations/*` and the
-	 * per-operation fetch wrappers). When present, documented success
-	 * payloads are parsed through the contract before they reach callers:
-	 * violations throw `{ kind: "contract" }` with redacted diagnostics,
-	 * so malformed upstream data can never enter application state.
-	 * Error payloads are validated leniently (a malformed error body never
-	 * masks the original status-mapped error). Undocumented success
-	 * statuses pass through so additive API changes stay resilient.
-	 */
-	contract?: OperationContract | undefined;
 }
 
 /** Redacted contract-violation details carried on `{ kind: "contract" }` errors. */
@@ -337,9 +328,13 @@ function errorFromStatus(
 	payload: unknown,
 	response: Response,
 	requestId: string,
+	contractIssues?: readonly RedactedIssue[],
 ): ApiError {
-	const message = errorMessage(payload, `Request failed with status ${status}.`);
-	const details = errorDetails(payload);
+	const message =
+		contractIssues !== undefined
+			? `Request failed with status ${status}.`
+			: errorMessage(payload, `Request failed with status ${status}.`);
+	const details = contractIssues !== undefined ? { issues: contractIssues } : errorDetails(payload);
 	switch (status) {
 		case 400:
 		case 422:
@@ -446,7 +441,23 @@ interface PerformArgs {
 	init: Record<string, unknown> | undefined;
 	headers: Headers;
 	requestId: string;
-	contract: OperationContract | undefined;
+}
+
+/**
+ * Resolve the operation contract for a request. Validation is mandatory:
+ * every public wrapper funnels through `perform`, so no success payload
+ * can bypass its parser. Unknown operations fail closed.
+ */
+function requireContract(method: string, path: string, requestId: string): OperationContract {
+	const contract = getOperationContract(method, path);
+	if (contract === undefined) {
+		throw new ApiError({
+			kind: "contract",
+			message: `No API contract for ${method.toUpperCase()} ${path}.`,
+			requestId,
+		});
+	}
+	return contract;
 }
 
 function contractError(
@@ -471,49 +482,21 @@ function contractError(
 }
 
 function validateSuccessData(
-	contract: OperationContract | undefined,
+	contract: OperationContract,
 	status: number,
 	data: unknown,
 	requestId: string,
 ): unknown {
-	if (contract === undefined) {
-		return data;
-	}
-	const parser = contract.successResponses[String(status)];
-	if (parser === undefined) {
-		return data;
-	}
-	const parsed = parser.safeParse(data);
-	if (!parsed.success) {
-		throw contractError(
-			contract,
-			status,
-			redactZodIssues(parsed.error),
-			parsed.error.issues.length,
-			requestId,
-		);
+	const parsed = parseOperationResponse(contract, status, data);
+	if (!parsed.ok) {
+		throw contractError(contract, status, parsed.issues, parsed.issues.length, requestId);
 	}
 	return parsed.data;
 }
 
-function validateErrorPayload(
-	contract: OperationContract | undefined,
-	status: number,
-	payload: unknown,
-): unknown {
-	if (contract === undefined) {
-		return payload;
-	}
-	const parser = contract.errorResponses[String(status)];
-	if (parser === undefined) {
-		return payload;
-	}
-	const parsed = parser.safeParse(payload);
-	return parsed.success ? parsed.data : payload;
-}
-
 async function perform<T>(args: PerformArgs): Promise<ApiSuccess<T>> {
-	const { client, method, path, init, headers, requestId, contract } = args;
+	const { client, method, path, init, headers, requestId } = args;
+	const contract = requireContract(method, path, requestId);
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Type-erased shared core: the public per-verb wrappers keep full static types, so this boundary reuses one implementation for every method/path without duplicating request logic.
 	const rawRequest = client.request as unknown as RawRequest;
 	let result: RawResult;
@@ -530,8 +513,14 @@ async function perform<T>(args: PerformArgs): Promise<ApiSuccess<T>> {
 		throw errorFromThrown(error, readSignal(init), requestId);
 	}
 	if (result.error !== undefined || !result.response.ok) {
-		const payload = validateErrorPayload(contract, result.response.status, result.error);
-		throw errorFromStatus(result.response.status, payload, result.response, requestId);
+		const status = result.response.status;
+		const parsed = parseOperationResponse(contract, status, result.error);
+		if (parsed.ok) {
+			throw errorFromStatus(status, parsed.data, result.response, requestId);
+		}
+		// Malformed (or undocumented) error bodies never surface raw: the
+		// status-mapped error keeps its kind with redacted diagnostics.
+		throw errorFromStatus(status, undefined, result.response, requestId, parsed.issues);
 	}
 	const data = validateSuccessData(contract, result.response.status, result.data, requestId);
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Success data is typed per endpoint at the public wrappers; the shared core only forwards the already-normalized payload.
@@ -551,7 +540,6 @@ function prepare(
 		| {
 				headers?: HeadersOptions;
 				requestId?: string | undefined;
-				contract?: OperationContract | undefined;
 		  }
 		| undefined,
 ): PerformArgs {
@@ -562,9 +550,8 @@ function prepare(
 	);
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Single erasure point: public per-verb wrappers pass fully-typed init, so the shared core can operate on plain records without duplicating request logic per method.
 	const raw = (init ?? {}) as Record<string, unknown>;
-	const { requestId: _droppedRequestId, contract: _droppedContract, ...rest } = raw;
-	const contract = init?.contract;
-	return { client, method, path, init: rest, headers, requestId, contract };
+	const { requestId: _droppedRequestId, ...rest } = raw;
+	return { client, method, path, init: rest, headers, requestId };
 }
 
 /**
@@ -661,8 +648,9 @@ function parseFilename(contentDisposition: string | null): string | undefined {
  * Download a binary response (e.g. `GET /api/v1/family_exports/{id}/download`)
  * as a `Blob`, honouring cancellation via `signal`. Throws `ApiError` for
  * non-2xx outcomes (including 409 "export not ready") just like the JSON
- * wrappers. When the operation contract marks a binary response, the Blob
- * is validated through the contract before it reaches callers.
+ * wrappers. The download operation is the explicit binary exception to
+ * JSON validation: response bytes travel as a `Blob`, never through a
+ * JSON parser.
  */
 export function apiDownload<Path extends GetPaths>(
 	client: SureClient,
@@ -676,24 +664,7 @@ export function apiDownload<Path extends GetPaths>(
 			...prepared,
 			init: { ...prepared.init, parseAs: "blob" },
 		});
-		const binaryParser =
-			prepared.contract?.isBinaryResponse === true ? prepared.contract.binaryResponse : undefined;
-		let blob: Blob = result.data;
-		if (binaryParser !== undefined && prepared.contract !== undefined) {
-			const parsed = binaryParser.safeParse(blob);
-			if (!parsed.success) {
-				throw contractError(
-					prepared.contract,
-					result.response.status,
-					redactZodIssues(parsed.error),
-					parsed.error.issues.length,
-					result.requestId,
-				);
-			}
-			if (parsed.data instanceof Blob) {
-				blob = parsed.data;
-			}
-		}
+		const blob: Blob = result.data;
 		const contentType = result.response.headers.get("Content-Type") ?? undefined;
 		return {
 			blob,

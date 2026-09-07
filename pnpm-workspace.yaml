@@ -1,2 +1,5 @@
 packages:
-  - "apps/*"
+  - apps/*
+
+patchedDependencies:
+  orval@8.30.0: patches/orval@8.30.0.patch

@@ -28,7 +28,7 @@
 		"**/coverage/**",
 		"**/routeTree.gen.ts",
 		"**/openapi.d.ts",
-		"apps/web/src/lib/api/generated/**",
+		"apps/web/src/lib/api/zod/**",
 		"**/*.min.*"
 	],
 	"rules": {
@@ -136,12 +136,14 @@
 		},
 		{
 			// Tests and Node tooling configs run in Node: no browser limits.
+			// (orval.config.* is Node-only generator config, same class.)
 			"files": [
 				"**/*.test.*",
 				"**/__tests__/**",
 				"**/vite.config.*",
 				"**/vitest.config.*",
-				"**/vitest.workspace.*"
+				"**/vitest.workspace.*",
+				"**/orval.config.*"
 			],
 			"rules": {
 				"no-restricted-imports": "off",

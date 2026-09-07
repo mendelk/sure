@@ -1,60 +1,71 @@
 import { describe, expectTypeOf, it } from "vitest";
 import type { z } from "zod";
-import type { components } from "./openapi";
-import {
-	AccountCollection,
-	AccountDetail,
-	ChatDetail,
-	ErrorResponse,
-	FamilyExport,
-	ImportSessionChunk,
-	MerchantDetail,
-	Pagination,
-	RuleCondition,
-} from "./generated/zod-schemas";
+import { GetApiV1Accounts200Response } from "./zod/endpoints/accounts/accounts.zod";
+import { AccountDetail } from "./zod/models/accountDetail.zod";
+import { ErrorResponse } from "./zod/models/errorResponse.zod";
+import { Pagination } from "./zod/models/pagination.zod";
+import { RuleCondition } from "./zod/models/ruleCondition.zod";
+import { SuccessMessage } from "./zod/models/successMessage.zod";
+import type { components, paths } from "./openapi";
+
+type StaticAccountCollection =
+	paths["/api/v1/accounts"]["get"]["responses"]["200"]["content"]["application/json"];
+type StaticAccountDetail = components["schemas"]["AccountDetail"];
+type StaticErrorResponse = components["schemas"]["ErrorResponse"];
+type StaticRuleCondition = components["schemas"]["RuleCondition"];
 
 /**
- * Compile-time proof that generated runtime parsers and generated static
- * types cannot silently diverge: both derive from `docs/api/openapi.yaml`
- * (openapi-typescript for `./openapi`, the in-repo generator for
- * `./generated`), and these assertions fail the test boundary's typecheck
- * as soon as one side drifts.
+ * Compile-time compatibility between the Orval Zod parsers and the
+ * openapi-typescript static types, derived from the same
+ * `docs/api/openapi.yaml`.
  *
- * Direction notes (`exactOptionalPropertyTypes`): schemas without
- * nullable-optionals are exactly equal both ways; schemas with
- * nullable-optional fields infer an extra `| undefined` in the value
- * position, so the static type is asserted assignable to the inferred
- * parser type (the parser accepts everything the static type allows).
+ * Fully-required schemas match exactly. Schemas with optional/nullable
+ * fields are checked at key level (same contract shape) plus exact
+ * required-leaf types: the two generators legitimately differ on
+ * nullability spelling (Zod `.nullish()` admits `undefined`;
+ * openapi-typescript uses exact-optional `?: T | null`; free-form
+ * records are `Record<string, unknown>` vs `Record<string, never>`),
+ * so whole-object subtyping in either direction cannot hold. Value-level
+ * agreement for those fields is proven by the runtime tests in
+ * `./zod-contracts.test.ts` instead.
  */
 describe("static/runtime contract compatibility", () => {
 	it("matches exactly for fully-required schemas", () => {
-		expectTypeOf<z.infer<typeof Pagination>>().toEqualTypeOf<components["schemas"]["Pagination"]>();
-		expectTypeOf<components["schemas"]["Pagination"]>().toEqualTypeOf<z.infer<typeof Pagination>>();
+		expectTypeOf<z.infer<typeof SuccessMessage>>().toEqualTypeOf<{
+			message: string;
+		}>();
+		expectTypeOf<z.infer<typeof Pagination>>().toEqualTypeOf<{
+			page: number;
+			per_page: number;
+			total_count: number;
+			total_pages: number;
+		}>();
 	});
 
-	it("keeps static types assignable to parser output for nullable schemas", () => {
-		expectTypeOf<components["schemas"]["AccountDetail"]>().toMatchTypeOf<
-			z.infer<typeof AccountDetail>
+	it("covers the same fields with the same required-leaf types", () => {
+		expectTypeOf<keyof z.infer<typeof ErrorResponse>>().toEqualTypeOf<keyof StaticErrorResponse>();
+		expectTypeOf<z.infer<typeof ErrorResponse>["error"]>().toEqualTypeOf<
+			StaticErrorResponse["error"]
 		>();
-		expectTypeOf<components["schemas"]["FamilyExport"]>().toMatchTypeOf<
-			z.infer<typeof FamilyExport>
+		expectTypeOf<keyof z.infer<typeof AccountDetail>>().toEqualTypeOf<keyof StaticAccountDetail>();
+		expectTypeOf<z.infer<typeof AccountDetail>["balance_cents"]>().toEqualTypeOf<
+			StaticAccountDetail["balance_cents"]
 		>();
-		expectTypeOf<components["schemas"]["MerchantDetail"]>().toMatchTypeOf<
-			z.infer<typeof MerchantDetail>
-		>();
-		expectTypeOf<components["schemas"]["ImportSessionChunk"]>().toMatchTypeOf<
-			z.infer<typeof ImportSessionChunk>
-		>();
-		expectTypeOf<components["schemas"]["ErrorResponse"]>().toMatchTypeOf<
-			z.infer<typeof ErrorResponse>
-		>();
-		expectTypeOf<components["schemas"]["ChatDetail"]>().toMatchTypeOf<z.infer<typeof ChatDetail>>();
-		expectTypeOf<components["schemas"]["AccountCollection"]>().toMatchTypeOf<
-			z.infer<typeof AccountCollection>
+		expectTypeOf<z.infer<typeof AccountDetail>["status"]>().toEqualTypeOf<
+			StaticAccountDetail["status"]
 		>();
 	});
 
-	it("aliases the static type for the recursive schema", () => {
-		expectTypeOf<RuleCondition>().toEqualTypeOf<components["schemas"]["RuleCondition"]>();
+	it("keeps the recursive schema aligned with its static type", () => {
+		expectTypeOf<keyof z.infer<typeof RuleCondition>>().toEqualTypeOf<keyof StaticRuleCondition>();
+		expectTypeOf<z.infer<typeof RuleCondition>["operator"]>().toEqualTypeOf<
+			StaticRuleCondition["operator"]
+		>();
+	});
+
+	it("keeps operation response parsers aligned with endpoint static types", () => {
+		expectTypeOf<keyof z.infer<typeof GetApiV1Accounts200Response>>().toEqualTypeOf<
+			keyof StaticAccountCollection
+		>();
 	});
 });

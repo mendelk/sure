@@ -111,7 +111,7 @@ jobs:
         shell: bash
 
       - name: Check Zod contracts are up to date
-        run: pnpm web:contracts:check
+        run: pnpm web:api:zod:check
         shell: bash
 
       - name: Build web app

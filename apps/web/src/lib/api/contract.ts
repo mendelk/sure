@@ -7,48 +7,12 @@
  * (`./bff-contracts.server`) can build on it without leaking secrets
  * across the browser/server boundary.
  *
- * `OperationContract` values themselves are generated from the canonical
- * `docs/api/openapi.yaml` by
- * `apps/web/scripts/generate-zod-contracts.mjs` — never hand-written —
- * so static types (`./openapi`, via openapi-typescript) and these runtime
- * parsers always derive from the same source.
+ * `OperationContract` values live in `./operation-contracts`, a
+ * hand-written registry that only indexes the Orval-generated parsers
+ * under `./zod/` — never hand-written schemas — so static types
+ * (`./openapi`, via openapi-typescript) and these runtime parsers always
+ * derive from the same canonical `docs/api/openapi.yaml` source.
  */
-import type { z } from "zod";
-
-/**
- * Runtime parsers for a single OpenAPI operation, keyed upstream by
- * `"METHOD /path"` (see `./generated/operation-contracts`).
- *
- * Every schema below is a Zod parser: objects strip unknown keys (additive
- * API changes stay forward-compatible), `nullable`/`optional` mirror the
- * spec, empty responses parse as `void`, and binary downloads parse as
- * `Blob`. Operations import only their own contract module, so a route
- * never pays for the whole API surface in its browser bundle.
- */
-export interface OperationContract {
-	readonly operation: string;
-	readonly method: string;
-	readonly path: string;
-	readonly pathParams?: z.ZodType | undefined;
-	readonly queryParams?: z.ZodType | undefined;
-	readonly headerParams?: z.ZodType | undefined;
-	readonly requestBody?: z.ZodType | undefined;
-	readonly requestMultipartBody?: z.ZodType | undefined;
-	readonly requestBodyRequired: boolean;
-	/** True when the operation accepts `multipart/form-data` uploads. */
-	readonly isMultipart: boolean;
-	/** Documented JSON success responses, keyed by status code. */
-	readonly successResponses: Record<string, z.ZodType>;
-	/** Documented JSON error responses, keyed by status code. */
-	readonly errorResponses: Record<string, z.ZodType>;
-	/** Success statuses documented without content (204/302): parse as void. */
-	readonly emptyResponseStatuses: readonly number[];
-	/** Error statuses documented without content: no error parser exists. */
-	readonly emptyErrorStatuses: readonly number[];
-	/** True for redirect-to-binary download endpoints (Blob bodies). */
-	readonly isBinaryResponse: boolean;
-	readonly binaryResponse?: z.ZodType | undefined;
-}
 
 /** A single redacted contract issue: schema paths and type names only. */
 export interface RedactedIssue {

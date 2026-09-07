@@ -12,13 +12,14 @@
  * bundle.
  */
 import { ApiError } from "./client";
-import type { OperationContract, OperationParseResult } from "./contract";
+import type { OperationParseResult } from "./contract";
 import { describeContractViolation } from "./contract";
+import type { OperationContract } from "./operation-contracts";
 import {
 	getOperationContract,
 	parseOperationRequest,
 	parseOperationResponse,
-} from "./generated/operation-contracts";
+} from "./operation-contracts";
 
 export { getOperationContract, parseOperationRequest, parseOperationResponse };
 export type { OperationContract, OperationParseResult };
@@ -53,12 +54,14 @@ function toContractError(
 /**
  * Validate an outgoing BFF request before it leaves the server. Throws a
  * redacted `{ kind: "contract" }` ApiError on the first failing part.
+ * Multipart uploads validate through the same generated body parser
+ * (file parts arrive as `File`/`Blob`, per the OpenAPI `format: binary`
+ * field).
  */
 export function validateBffRequest(
 	method: string,
 	path: string,
 	input: BffValidationInput,
-	contentType?: string,
 	requestId?: string,
 ): unknown {
 	const contract = getOperationContract(method, path);
@@ -69,7 +72,7 @@ export function validateBffRequest(
 			requestId,
 		});
 	}
-	const result = parseOperationRequest(contract, input, contentType);
+	const result = parseOperationRequest(contract, input);
 	if (!result.ok) {
 		throw toContractError(contract.operation, undefined, result, requestId);
 	}

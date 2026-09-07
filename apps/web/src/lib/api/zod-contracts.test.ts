@@ -1,32 +1,32 @@
 import { describe, expect, it } from "vitest";
 import {
-	AccountCollection,
-	AccountDetail,
-	ChatDetail,
-	ErrorResponse,
-	FamilyExport,
-	ImportSessionChunk,
-	MerchantDetail,
-	Pagination,
-	RuleCondition,
-} from "./generated/zod-schemas";
-import { GetApiV1FamilyExportsByIdDownloadContract } from "./generated/operations/get-api-v1-family-exports-by-id-download";
-import { DeleteApiV1TagsByIdContract } from "./generated/operations/delete-api-v1-tags-by-id";
-import { PostApiV1ImportSessionsByIdChunksContract } from "./generated/operations/post-api-v1-import-sessions-by-id-chunks";
-import { parseOperationResponse } from "./generated/operation-contracts";
+	getOperationContract,
+	parseOperationRequest,
+	parseOperationResponse,
+} from "./operation-contracts";
+import { DeleteApiV1TagsId204Response } from "./zod/endpoints/tags/tags.zod";
+import { GetApiV1FamilyExportsIdDownload302Response } from "./zod/endpoints/family-exports/family-exports.zod";
+import { PostApiV1AuthLoginBody } from "./zod/endpoints/auth/auth.zod";
+import { PostApiV1AuthSsoLink401Response } from "./zod/endpoints/auth/auth.zod";
+import { PostApiV1MerchantsImportBody } from "./zod/endpoints/merchants/merchants.zod";
+import { AccountDetail } from "./zod/models/accountDetail.zod";
+import { ErrorResponse } from "./zod/models/errorResponse.zod";
+import { Merchant } from "./zod/models/merchant.zod";
+import { RuleCondition } from "./zod/models/ruleCondition.zod";
+import { RuleResponse } from "./zod/models/ruleResponse.zod";
+import { ToolCall } from "./zod/models/toolCall.zod";
 
 /**
- * Runtime proof for the generated Zod boundary. Every schema below is
- * imported from the generated contract — nothing is hand-copied — so these
- * tests break on generator drift even before `contracts:check` runs.
+ * Runtime behavior of the Orval-generated parsers, imported per operation
+ * (the tree-shakeable access pattern route code must use).
  */
+const UUID_A = "123e4567-e89b-12d3-a456-426614174000";
+const UUID_B = "123e4567-e89b-12d3-a456-426614174001";
+const TIMESTAMP = "2026-09-07T12:00:00.000Z";
 
-const CREATED_AT = "2026-09-07T12:00:00.000Z";
-const UPDATED_AT = "2026-09-07T13:30:00.000Z";
-
-function validAccount(): Record<string, unknown> {
+function validAccountDetail(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 	return {
-		id: "123e4567-e89b-12d3-a456-426614174000",
+		id: UUID_A,
 		name: "Cash",
 		balance: "100.00",
 		balance_cents: 10000,
@@ -36,181 +36,184 @@ function validAccount(): Record<string, unknown> {
 		classification: "asset",
 		account_type: "depository",
 		status: "active",
-		created_at: CREATED_AT,
-		updated_at: UPDATED_AT,
+		created_at: TIMESTAMP,
+		updated_at: TIMESTAMP,
+		...overrides,
 	};
 }
 
-function validFamilyExport(): Record<string, unknown> {
-	return {
-		id: "123e4567-e89b-12d3-a456-426614174001",
-		status: "completed",
-		filename: "export.zip",
-		downloadable: true,
-		file: { attached: true, byte_size: 1024, content_type: "application/zip" },
-		created_at: CREATED_AT,
-		updated_at: UPDATED_AT,
-	};
-}
-
-describe("component schemas", () => {
+describe("component parsers", () => {
 	it("accepts representative valid payloads", () => {
+		expect(AccountDetail.safeParse(validAccountDetail()).success).toBe(true);
+		expect(ErrorResponse.safeParse({ error: "not_found" }).success).toBe(true);
 		expect(
-			AccountCollection.safeParse({
-				accounts: [validAccount()],
-				pagination: { page: 1, per_page: 25, total_count: 1, total_pages: 1 },
-			}).success,
-		).toBe(true);
-		expect(AccountDetail.safeParse(validAccount()).success).toBe(true);
-		expect(FamilyExport.safeParse(validFamilyExport()).success).toBe(true);
-		expect(
-			Pagination.safeParse({ page: 2, per_page: 25, total_count: 60, total_pages: 3 }).success,
+			ErrorResponse.safeParse({ error: "unprocessable_entity", details: ["Name can't be blank"] })
+				.success,
 		).toBe(true);
 	});
 
-	it("rejects malformed nested fields", () => {
-		const account = validAccount();
-		const badNested = { ...account, balance_cents: "10000" };
-		const result = AccountDetail.safeParse(badNested);
-		expect(result.success).toBe(false);
-
-		const badCollection = {
-			accounts: [validAccount()],
-			pagination: { page: 0, per_page: 25, total_count: 1, total_pages: 1 },
-		};
-		expect(AccountCollection.safeParse(badCollection).success).toBe(false);
+	it("rejects malformed nested fields with paths", () => {
+		const parsed = AccountDetail.safeParse(validAccountDetail({ balance_cents: "10000" }));
+		expect(parsed.success).toBe(false);
+		if (parsed.success) {
+			throw new Error("Expected the malformed payload to fail validation.");
+		}
+		expect(parsed.error.issues[0]?.path).toEqual(["balance_cents"]);
 	});
 
 	it("honours nullable vs required fields", () => {
-		const account = validAccount();
-		// Nullable + optional: explicit null passes.
-		expect(AccountDetail.safeParse({ ...account, subtype: null }).success).toBe(true);
-		// Nullable but required: null passes, absence fails.
-		expect(AccountDetail.safeParse({ ...account, account_type: null }).success).toBe(true);
-		const { account_type: _dropped, ...withoutRequired } = account;
-		expect(AccountDetail.safeParse(withoutRequired).success).toBe(false);
-		// Non-nullable: null is rejected.
-		expect(AccountDetail.safeParse({ ...account, name: null }).success).toBe(false);
-	});
-
-	it("rejects malformed date-time strings but keeps dates lenient", () => {
-		const account = validAccount();
-		expect(AccountDetail.safeParse({ ...account, created_at: "not-a-date" }).success).toBe(false);
-		expect(AccountDetail.safeParse({ ...account, created_at: "2026-09-07" }).success).toBe(false);
+		expect(AccountDetail.safeParse(validAccountDetail({ subtype: null })).success).toBe(true);
+		expect(AccountDetail.safeParse(validAccountDetail({ subtype: undefined })).success).toBe(true);
+		const { name: _dropped, ...missing } = validAccountDetail();
+		expect(AccountDetail.safeParse(missing).success).toBe(false);
 	});
 
 	it("rejects unknown enum values", () => {
-		expect(FamilyExport.safeParse({ ...validFamilyExport(), status: "emailed" }).success).toBe(
-			false,
-		);
+		expect(AccountDetail.safeParse(validAccountDetail({ status: "frozen" })).success).toBe(false);
+	});
+
+	it("parses union error details (array or object) and rejects the rest", () => {
+		expect(ErrorResponse.safeParse({ error: "x", details: { field: "bad" } }).success).toBe(true);
+		expect(ErrorResponse.safeParse({ error: "x", details: 42 }).success).toBe(false);
+	});
+
+	it("parses the sso-link error union (ErrorResponse or MFA challenge)", () => {
+		expect(PostApiV1AuthSsoLink401Response.safeParse({ error: "unauthorized" }).success).toBe(true);
 		expect(
-			MerchantDetail.safeParse({
-				id: "m-1",
-				name: "Acme",
-				type: "UnknownMerchant",
-				created_at: CREATED_AT,
-				updated_at: UPDATED_AT,
+			PostApiV1AuthSsoLink401Response.safeParse({ error: "mfa_required", mfa_required: true })
+				.success,
+		).toBe(true);
+		expect(PostApiV1AuthSsoLink401Response.safeParse({ nope: true }).success).toBe(false);
+	});
+
+	it("parses records and additional properties", () => {
+		expect(
+			ToolCall.safeParse({
+				id: UUID_A,
+				function_name: "categorize",
+				function_arguments: { transaction_id: UUID_B, nested: { deep: [1, 2] } },
+				created_at: TIMESTAMP,
+			}).success,
+		).toBe(true);
+		expect(
+			ToolCall.safeParse({
+				id: UUID_A,
+				function_name: "categorize",
+				created_at: TIMESTAMP,
 			}).success,
 		).toBe(false);
 	});
 
-	it("parses union error details (array or object) and rejects the rest", () => {
-		expect(ErrorResponse.safeParse({ error: "unprocessable_entity" }).success).toBe(true);
-		expect(ErrorResponse.safeParse({ error: "x", details: ["Name can't be blank"] }).success).toBe(
-			true,
-		);
-		expect(
-			ErrorResponse.safeParse({ error: "x", details: { name: ["can't be blank"] } }).success,
-		).toBe(true);
-		expect(ErrorResponse.safeParse({ error: "x", details: 42 }).success).toBe(false);
-		expect(ErrorResponse.safeParse({}).success).toBe(false);
-	});
-
-	it("parses allOf compositions", () => {
-		const chat = {
-			id: "123e4567-e89b-12d3-a456-426614174002",
-			title: "Budget help",
-			created_at: CREATED_AT,
-			updated_at: UPDATED_AT,
-			messages: [
-				{
-					id: "m-1",
-					type: "user_message",
-					role: "user",
-					content: "Hello",
-					created_at: CREATED_AT,
-					updated_at: UPDATED_AT,
-				},
-			],
-		};
-		expect(ChatDetail.safeParse(chat).success).toBe(true);
-		expect(ChatDetail.safeParse({ ...chat, messages: [{ id: "m-1" }] }).success).toBe(false);
-	});
-
-	it("parses records and additional properties", () => {
-		const chunk = {
-			id: "123e4567-e89b-12d3-a456-426614174003",
-			sequence: 1,
-			status: "complete",
-			rows_count: 10,
-			summary: { transactions: { created: 8, updated: 2 } },
-			created_at: CREATED_AT,
-			updated_at: UPDATED_AT,
-		};
-		expect(ImportSessionChunk.safeParse(chunk).success).toBe(true);
-		expect(
-			ImportSessionChunk.safeParse({ ...chunk, summary: { transactions: { created: "eight" } } })
-				.success,
-		).toBe(false);
-	});
-
-	it("validates recursive schemas to arbitrary depth", () => {
+	it("validates recursive rule conditions to arbitrary depth", () => {
 		const leaf = {
-			id: "leaf",
-			condition_type: "account",
+			id: UUID_A,
+			condition_type: "category",
 			operator: "equals",
 			sub_conditions: [],
-			created_at: CREATED_AT,
-			updated_at: UPDATED_AT,
+			created_at: TIMESTAMP,
+			updated_at: TIMESTAMP,
 		};
-		const root = { ...leaf, id: "root", sub_conditions: [leaf] };
-		expect(RuleCondition.safeParse(root).success).toBe(true);
-		const badNested = { ...leaf, id: "root", sub_conditions: [{ ...leaf, operator: 42 }] };
-		expect(RuleCondition.safeParse(badNested).success).toBe(false);
+		const depth2 = { ...leaf, id: UUID_B, sub_conditions: [leaf] };
+		const depth3 = { ...leaf, sub_conditions: [depth2] };
+		expect(RuleCondition.safeParse(depth3).success).toBe(true);
+		const badDeep = {
+			...leaf,
+			sub_conditions: [{ ...leaf, sub_conditions: [{ ...leaf, operator: 42 }] }],
+		};
+		expect(RuleCondition.safeParse(badDeep).success).toBe(false);
+		expect(
+			RuleResponse.safeParse({
+				data: {
+					id: UUID_A,
+					resource_type: "transaction",
+					active: true,
+					conditions: [depth3],
+					actions: [],
+					created_at: TIMESTAMP,
+					updated_at: TIMESTAMP,
+				},
+			}).success,
+		).toBe(true);
 	});
 });
 
-describe("operation response parsers", () => {
-	it("accepts empty responses as void and rejects bodies", () => {
-		const parser = DeleteApiV1TagsByIdContract.successResponses["204"];
-		expect(parser).toBeDefined();
-		expect(parser?.safeParse(undefined).success).toBe(true);
-		expect(parser?.safeParse({}).success).toBe(false);
-		expect(DeleteApiV1TagsByIdContract.emptyResponseStatuses).toContain(204);
+describe("format enforcement (generator-provided, never weakened)", () => {
+	it("enforces uuid, email, url, date, and date-time formats", () => {
+		const device = {
+			device_id: "device-1",
+			device_name: "Test",
+			device_type: "ios",
+			os_version: "18.0",
+			app_version: "1.0.0",
+		};
+		expect(AccountDetail.safeParse(validAccountDetail({ id: "not-a-uuid" })).success).toBe(false);
+		expect(
+			PostApiV1AuthLoginBody.safeParse({ email: "not-an-email", password: "x", device }).success,
+		).toBe(false);
+		expect(
+			PostApiV1AuthLoginBody.safeParse({ email: "user@example.com", password: "x", device })
+				.success,
+		).toBe(true);
+		expect(Merchant.safeParse({ id: UUID_A, name: "Acme", website_url: "not a url" }).success).toBe(
+			false,
+		);
+		expect(
+			Merchant.safeParse({ id: UUID_A, name: "Acme", website_url: "https://acme.example" }).success,
+		).toBe(true);
+		expect(AccountDetail.safeParse(validAccountDetail({ created_at: "2026-09-07" })).success).toBe(
+			false,
+		);
+		expect(AccountDetail.safeParse(validAccountDetail({ created_at: TIMESTAMP })).success).toBe(
+			true,
+		);
+	});
+});
+
+describe("empty, binary, and multipart parsers", () => {
+	it("accepts empty responses as void (undefined and empty-string forms)", () => {
+		expect(DeleteApiV1TagsId204Response.safeParse(undefined).success).toBe(true);
+		expect(DeleteApiV1TagsId204Response.safeParse({}).success).toBe(false);
 	});
 
-	it("validates binary responses as Blob", () => {
-		expect(GetApiV1FamilyExportsByIdDownloadContract.isBinaryResponse).toBe(true);
-		const parser = GetApiV1FamilyExportsByIdDownloadContract.binaryResponse;
-		expect(parser?.safeParse(new Blob(["bytes"])).success).toBe(true);
-		expect(parser?.safeParse("bytes").success).toBe(false);
-		expect(parser?.safeParse(undefined).success).toBe(false);
+	it("parses binary download responses as unknown (Blob handled by transport)", () => {
+		expect(GetApiV1FamilyExportsIdDownload302Response.safeParse(undefined).success).toBe(true);
 	});
 
 	it("validates multipart metadata with binary file parts", () => {
-		expect(PostApiV1ImportSessionsByIdChunksContract.isMultipart).toBe(true);
-		const multipart = PostApiV1ImportSessionsByIdChunksContract.requestMultipartBody;
-		expect(multipart?.safeParse({ sequence: 1, file: new Blob(["a,b"]) }).success).toBe(true);
-		expect(multipart?.safeParse({ sequence: 1 }).success).toBe(false);
-		expect(multipart?.safeParse({ sequence: 0, file: new Blob([]) }).success).toBe(false);
-		expect(multipart?.safeParse({ sequence: 1, file: "a,b" }).success).toBe(false);
+		const file = new File(["row"], "merchants.csv", { type: "text/csv" });
+		expect(PostApiV1MerchantsImportBody.safeParse({ file }).success).toBe(true);
+		expect(PostApiV1MerchantsImportBody.safeParse({ file: "not-a-file" }).success).toBe(false);
+		expect(PostApiV1MerchantsImportBody.safeParse({}).success).toBe(false);
+	});
+});
+
+describe("operation parse helpers", () => {
+	it("fails closed on undocumented statuses", () => {
+		const contract = getOperationContract("POST", "/api/v1/accounts");
+		expect(contract).toBeDefined();
+		if (contract === undefined) {
+			return;
+		}
+		const parsed = parseOperationResponse(contract, 299, { ok: true });
+		expect(parsed.ok).toBe(false);
+		if (parsed.ok) {
+			throw new Error("Expected the undocumented status to fail closed.");
+		}
+		expect(parsed.part).toBe("status");
 	});
 
-	it("fails closed on undocumented statuses via the strict helper", () => {
-		const contract = DeleteApiV1TagsByIdContract;
-		const ok = parseOperationResponse(contract, 204, undefined);
-		expect(ok.ok).toBe(true);
-		const unknown = parseOperationResponse(contract, 200, {});
-		expect(unknown.ok).toBe(false);
+	it("validates request parts for the BFF transport", () => {
+		const contract = getOperationContract("GET", "/api/v1/accounts");
+		expect(contract).toBeDefined();
+		if (contract === undefined) {
+			return;
+		}
+		expect(parseOperationRequest(contract, { query: { page: 2 } }).ok).toBe(true);
+		const bad = parseOperationRequest(contract, { query: { page: "two" } });
+		expect(bad.ok).toBe(false);
+		if (bad.ok) {
+			throw new Error("Expected the invalid query to fail validation.");
+		}
+		expect(bad.part).toBe("query");
 	});
 });

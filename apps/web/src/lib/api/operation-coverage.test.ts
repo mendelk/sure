@@ -1,279 +1,366 @@
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
-import {
-	OPERATION_CONTRACTS,
-	OPERATION_KEYS,
-	getOperationContract,
-} from "./generated/operation-contracts";
+import { getOperationContract } from "./operation-contracts";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(here, "..", "..", "..", "..", "..");
-const openapiPath = path.join(repoRoot, "docs/api/openapi.yaml");
-const manifestPath = path.join(here, "generated", "manifest.json");
+/**
+ * Operation coverage: every `METHOD /path` in the canonical
+ * `docs/api/openapi.yaml` must resolve to a registry entry whose parsers
+ * are the Orval-generated exports — no undocumented exceptions, no silent
+ * `any`/`unknown` degradation.
+ *
+ * Path helpers resolve from this file (`apps/web/src/lib/api/`).
+ */
+const apiDir = new URL(".", import.meta.url).pathname.replace(/\/$/, "");
+const repoRoot = resolve(apiDir, "..", "..", "..", "..", "..");
+const webDir = join(repoRoot, "apps", "web");
+const openapiPath = join(repoRoot, "docs", "api", "openapi.yaml");
+const zodDir = join(apiDir, "zod");
+const orvalBin = join(webDir, "node_modules", ".bin", "orval");
+const orvalConfig = join(webDir, "orval.config.ts");
 
-const METHODS = ["get", "post", "put", "patch", "delete"] as const;
-
-interface YamlOperation {
-	method: string;
-	path: string;
-	params: { path: string[]; query: string[]; header: string[] };
-	requestBody: { json: boolean; multipart: boolean; required: boolean };
-	responses: { status: string; hasJsonContent: boolean }[];
+interface OpenapiOperation {
+	readonly method: string;
+	readonly path: string;
+	readonly node: Record<string, unknown>;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-	if (typeof value !== "object" || value === null || Array.isArray(value)) {
-		return undefined;
-	}
-	const record: Record<string, unknown> = {};
-	for (const [key, entry] of Object.entries(value)) {
-		record[key] = entry;
-	}
-	return record;
+interface OpenapiSpec {
+	readonly operations: OpenapiOperation[];
+	readonly raw: Record<string, unknown>;
 }
 
-function asStringArray(value: unknown): string[] | undefined {
-	if (!Array.isArray(value)) {
-		return undefined;
-	}
-	const strings: string[] = [];
-	for (const entry of value) {
-		if (typeof entry !== "string") {
-			return undefined;
-		}
-		strings.push(entry);
-	}
-	return strings;
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function readParams(value: unknown): { name: string; in: string }[] {
-	if (value === undefined) {
-		return [];
+function asRecord(value: unknown, what: string): Record<string, unknown> {
+	if (!isRecord(value)) {
+		throw new Error(`Expected ${what} to be an object.`);
 	}
-	if (!Array.isArray(value)) {
-		throw new Error("OpenAPI parameters must be an array");
-	}
-	return value.map((entry) => {
-		const record = asRecord(entry);
-		const name = record?.["name"];
-		const location = record?.["in"];
-		if (typeof name !== "string" || typeof location !== "string") {
-			throw new Error("OpenAPI parameters must have string `name` and `in`");
-		}
-		return { name, in: location };
-	});
+	return value;
 }
 
-function loadYamlOperations(): YamlOperation[] {
-	const text = readFileSync(openapiPath, "utf8");
-	const parsed: unknown = parseYaml(text);
-	const document = asRecord(parsed);
-	const paths = asRecord(document?.["paths"]);
-	if (paths === undefined) {
-		throw new Error("OpenAPI document must have a `paths` map");
+function asRecordArray(value: unknown): Record<string, unknown>[] {
+	if (!Array.isArray(value) || !value.every(isRecord)) {
+		throw new Error("Expected an array of objects.");
 	}
-	const operations: YamlOperation[] = [];
-	for (const [operationPath, rawItem] of Object.entries(paths)) {
-		const item = asRecord(rawItem) ?? {};
-		const pathLevelParams = readParams(item["parameters"]);
-		for (const method of METHODS) {
-			const operation = asRecord(item[method]);
-			if (operation === undefined) {
+	return value;
+}
+
+function asStringArray(value: unknown): string[] {
+	if (
+		!Array.isArray(value) ||
+		!value.every((entry): entry is string => typeof entry === "string")
+	) {
+		throw new Error("Expected an array of strings.");
+	}
+	return value;
+}
+
+function loadSpec(): OpenapiSpec {
+	const raw = asRecord(parseYaml(readFileSync(openapiPath, "utf8")), "OpenAPI document");
+	const paths = asRecord(raw["paths"], "OpenAPI paths");
+	const operations: OpenapiOperation[] = [];
+	for (const [path, item] of Object.entries(paths)) {
+		const pathItem = asRecord(item, `path item ${path}`);
+		for (const [method, node] of Object.entries(pathItem)) {
+			if (method === "parameters") {
 				continue;
 			}
-			const seen = new Map<string, { name: string; in: string }>();
-			for (const param of [...pathLevelParams, ...readParams(operation["parameters"])]) {
-				seen.set(`${param.in}:${param.name}`, param);
-			}
-			const params: { path: string[]; query: string[]; header: string[] } = {
-				path: [],
-				query: [],
-				header: [],
-			};
-			for (const param of seen.values()) {
-				if (param.in === "path" || param.in === "query" || param.in === "header") {
-					params[param.in].push(param.name);
-				}
-			}
-			const body = asRecord(operation["requestBody"]);
-			const bodyContent = asRecord(body?.["content"]) ?? {};
-			const responses = asRecord(operation["responses"]) ?? {};
-			operations.push({
-				method,
-				path: operationPath,
-				params,
-				requestBody: {
-					json: "application/json" in bodyContent,
-					multipart: "multipart/form-data" in bodyContent,
-					required: body?.["required"] === true,
-				},
-				responses: Object.keys(responses).map((status) => {
-					const response = asRecord(responses[status]);
-					const responseContent = asRecord(response?.["content"]) ?? {};
-					return { status, hasJsonContent: "application/json" in responseContent };
-				}),
-			});
+			operations.push({ method: method.toUpperCase(), path, node: asRecord(node, "operation") });
 		}
 	}
-	return operations;
+	// Document order is deterministic; no sorting needed for assertions.
+	return { operations, raw };
 }
 
-/** Field names of a generated `z.object(...)` parser, via its public shape. */
-function objectFieldNames(parser: unknown): string[] | undefined {
-	// `in` narrows `unknown` without an assertion; the shape itself is a
-	// plain object, so copying its entries is safe (unlike copying the
-	// schema, whose accessors live on the prototype).
-	if (typeof parser !== "object" || parser === null || !("shape" in parser)) {
-		return undefined;
-	}
-	const shape = asRecord(parser.shape);
-	if (shape === undefined) {
-		return undefined;
-	}
-	return Object.keys(shape);
+function pascalSegment(segment: string): string {
+	return segment
+		.split(/[^A-Za-z0-9]+/)
+		.filter((part) => part !== "")
+		.map((part) => part[0]?.toUpperCase() + part.slice(1))
+		.join("");
 }
 
-function sameMembers(actual: readonly string[], expected: readonly string[]): boolean {
-	return actual.length === expected.length && actual.every((member) => expected.includes(member));
-}
-
-function fieldProblems(group: string, parser: unknown, expected: string[]): string[] {
-	if (expected.length === 0) {
-		return parser === undefined
-			? []
-			: [`${group} parser should be absent when the spec documents no ${group} params`];
-	}
-	if (parser === undefined) {
-		return [`${group} parser should exist`];
-	}
-	const fields = objectFieldNames(parser);
-	if (fields === undefined) {
-		return [`${group} parser should expose an object shape`];
-	}
-	return sameMembers(fields, expected)
-		? []
-		: [`${group} fields [${fields.join(", ")}] should equal spec params [${expected.join(", ")}]`];
-}
-
-function contractProblems(operation: YamlOperation): string[] {
-	const key = `${operation.method.toUpperCase()} ${operation.path}`;
-	const contract = getOperationContract(operation.method, operation.path);
-	if (contract === undefined) {
-		return [`missing contract for ${key}`];
-	}
-	const problems: string[] = [];
-	const prefix = (message: string): string => `${key}: ${message}`;
-	if (contract.operation !== key) {
-		problems.push(prefix(`operation field ${contract.operation} should equal ${key}`));
-	}
-	for (const [group, parser, expected] of [
-		["pathParams", contract.pathParams, operation.params.path],
-		["queryParams", contract.queryParams, operation.params.query],
-		["headerParams", contract.headerParams, operation.params.header],
-	] as const) {
-		for (const problem of fieldProblems(group, parser, expected)) {
-			problems.push(prefix(problem));
+/** Mirror of Orval's operation naming: method + path, `{param}` → Pascal(param). */
+function orvalBase(method: string, path: string): string {
+	const parts = [method[0]?.toUpperCase() + method.slice(1).toLowerCase(), "Api", "V1"];
+	for (const segment of path.split("/")) {
+		if (segment === "" || segment === "api" || segment === "v1") {
+			continue;
 		}
+		const param = /^\{([^}]+)\}$/.exec(segment);
+		parts.push(pascalSegment(param?.[1] ?? segment));
 	}
-	if ((contract.requestBody !== undefined) !== operation.requestBody.json) {
-		problems.push(prefix("requestBody presence should match the documented JSON body"));
+	return parts.join("");
+}
+
+function tagDir(tag: string): string {
+	return tag
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
+function parametersOf(op: OpenapiOperation, spec: OpenapiSpec): Record<string, unknown>[] {
+	const paths = asRecord(spec.raw["paths"], "OpenAPI paths");
+	const item = asRecord(paths[op.path] ?? {}, `path item ${op.path}`);
+	const inherited = Array.isArray(item["parameters"]) ? asRecordArray(item["parameters"]) : [];
+	const own = Array.isArray(op.node["parameters"]) ? asRecordArray(op.node["parameters"]) : [];
+	return [...inherited, ...own];
+}
+
+function responsesOf(op: OpenapiOperation): Record<string, Record<string, unknown>> {
+	const responses = op.node["responses"] ?? {};
+	const out: Record<string, Record<string, unknown>> = {};
+	for (const [status, response] of Object.entries(asRecord(responses, "responses"))) {
+		out[status] = asRecord(response, "response");
 	}
-	if ((contract.requestMultipartBody !== undefined) !== operation.requestBody.multipart) {
-		problems.push(
-			prefix("requestMultipartBody presence should match the documented multipart body"),
-		);
-	}
-	if (contract.isMultipart !== operation.requestBody.multipart) {
-		problems.push(prefix("isMultipart should match the documented multipart body"));
-	}
-	if (contract.requestBodyRequired !== operation.requestBody.required) {
-		problems.push(prefix("requestBodyRequired should match the spec"));
-	}
-	for (const response of operation.responses) {
-		if (response.status.startsWith("2")) {
-			if (operation.path.includes("/download") && response.status === "302") {
-				if (!contract.isBinaryResponse) {
-					problems.push(prefix("download endpoint should flag isBinaryResponse"));
-				}
-				if (!contract.emptyResponseStatuses.includes(302)) {
-					problems.push(prefix("should record empty status 302"));
-				}
-				continue;
-			}
-			if (response.hasJsonContent) {
-				if (contract.successResponses[response.status] === undefined) {
-					problems.push(prefix(`should parse documented success status ${response.status}`));
-				}
-			} else if (!contract.emptyResponseStatuses.includes(Number(response.status))) {
-				problems.push(prefix(`should record empty status ${response.status}`));
-			}
-		} else if (/^[45]/.test(response.status)) {
-			if (response.hasJsonContent) {
-				if (contract.errorResponses[response.status] === undefined) {
-					problems.push(prefix(`should parse documented error status ${response.status}`));
-				}
-			} else if (!contract.emptyErrorStatuses.includes(Number(response.status))) {
-				problems.push(prefix(`should record empty error status ${response.status}`));
+	return out;
+}
+
+function responsesOfStatus(op: OpenapiOperation, status: string): Record<string, unknown> {
+	return responsesOf(op)[status] ?? {};
+}
+
+function hasContent(response: Record<string, unknown>): boolean {
+	return isRecord(response["content"]) && Object.keys(response["content"]).length > 0;
+}
+
+/** All `.zod.ts` files under the generated tree. */
+function zodFiles(): string[] {
+	const files: string[] = [];
+	const walk = (dir: string): void => {
+		for (const entry of readdirSync(dir)) {
+			const full = join(dir, entry);
+			if (statSync(full).isDirectory()) {
+				walk(full);
+			} else if (entry.endsWith(".zod.ts")) {
+				files.push(full);
 			}
 		}
-	}
-	return problems;
+	};
+	walk(zodDir);
+	return files;
 }
 
-function readManifestJson(): unknown {
-	const parsed: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
-	return parsed;
-}
-
-function readManifestOperations(): string[] {
-	const operations = asStringArray(asRecord(readManifestJson())?.["operations"]);
-	if (operations === undefined) {
-		throw new Error("manifest must list string operations");
-	}
-	return operations;
-}
+const spec = loadSpec();
 
 describe("operation coverage", () => {
 	it("covers every OpenAPI method/path with no undocumented exceptions", () => {
-		const yamlOperations = loadYamlOperations();
-		const expectedKeys = yamlOperations.map(
-			(operation) => `${operation.method.toUpperCase()} ${operation.path}`,
-		);
-		const problems: string[] = [];
-		if (yamlOperations.length === 0) {
-			problems.push("no operations found in docs/api/openapi.yaml");
-		}
-		for (const [label, raw] of [
-			["registry keys", [...OPERATION_KEYS]],
-			["manifest operations", readManifestOperations()],
-			["registry map keys", Object.keys(OPERATION_CONTRACTS)],
-		] as const) {
-			if (!sameMembers(raw, expectedKeys)) {
-				problems.push(`${label} should equal the OpenAPI operation list`);
+		expect(spec.operations.length).toBeGreaterThan(0);
+		const missing: string[] = [];
+		for (const op of spec.operations) {
+			const contract = getOperationContract(op.method, op.path);
+			if (contract === undefined) {
+				missing.push(`${op.method} ${op.path}`);
+				continue;
 			}
+			expect(contract.operation).toBe(`${op.method} ${op.path}`);
+			expect(contract.method).toBe(op.method);
+			expect(contract.path).toBe(op.path);
 		}
-		const manifest = asRecord(readManifestJson());
-		const manifestSha = manifest?.["openapiSha256"];
-		const manifestCount = manifest?.["operationCount"];
-		const yamlText = readFileSync(openapiPath, "utf8");
-		if (manifestSha !== createHash("sha256").update(yamlText, "utf8").digest("hex")) {
-			problems.push("manifest sha256 should match docs/api/openapi.yaml");
+		expect(missing).toEqual([]);
+	});
+
+	it("exposes request and response parsers matching the documented layers", () => {
+		for (const op of spec.operations) {
+			const contract = getOperationContract(op.method, op.path);
+			expect(contract, `${op.method} ${op.path}`).toBeDefined();
+			if (contract === undefined) {
+				continue;
+			}
+			const params = parametersOf(op, spec);
+			const hasPath = params.some((param) => param["in"] === "path");
+			const hasQuery = params.some((param) => param["in"] === "query");
+			expect(contract.pathParams !== undefined, `${contract.operation} path params`).toBe(hasPath);
+			expect(contract.queryParams !== undefined, `${contract.operation} query params`).toBe(
+				hasQuery,
+			);
+			expect(contract.body !== undefined, `${contract.operation} request body`).toBe(
+				"requestBody" in op.node,
+			);
+			const statuses = Object.keys(responsesOf(op));
+			expect(new Set(Object.keys(contract.responses))).toEqual(new Set(statuses));
 		}
-		if (manifestCount !== expectedKeys.length) {
-			problems.push("manifest operationCount should match the OpenAPI operation list");
-		}
-		for (const operation of yamlOperations) {
-			problems.push(...contractProblems(operation));
-		}
-		expect(problems).toEqual([]);
 	});
 
 	it("returns undefined for undocumented operations", () => {
 		expect(getOperationContract("GET", "/api/v1/nope")).toBeUndefined();
 		expect(getOperationContract("get", "/api/v1/accounts")).toBeDefined();
 	});
+
+	it("derives every registry entry from an Orval-generated export", () => {
+		for (const op of spec.operations) {
+			const tags = Array.isArray(op.node["tags"]) ? asStringArray(op.node["tags"]) : ["default"];
+			const file = join(
+				zodDir,
+				"endpoints",
+				tagDir(tags[0] ?? "default"),
+				`${tagDir(tags[0] ?? "default")}.zod.ts`,
+			);
+			expect(existsSync(file), `tag file for ${op.method} ${op.path}`).toBe(true);
+			const content = readFileSync(file, "utf8");
+			expect(content.includes(`export const ${orvalBase(op.method, op.path)}`)).toBe(true);
+		}
+	});
+
+	it("emits no zod.any() anywhere in the generated tree", () => {
+		const offenders: string[] = [];
+		for (const file of zodFiles()) {
+			if (readFileSync(file, "utf8").includes("zod.any()")) {
+				offenders.push(file);
+			}
+		}
+		expect(offenders).toEqual([]);
+	});
+
+	it("never degrades recursion to zod.array(zod.unknown())", () => {
+		const offenders = zodFiles().filter((file) =>
+			readFileSync(file, "utf8").includes("zod.array(zod.unknown())"),
+		);
+		expect(offenders).toEqual([]);
+	});
+
+	it("uses empty parsers only for responses documented without content", () => {
+		const emptyConst = /^export const (\w+?)(\d+)Response = zod\.(unknown|void)\(\)$/;
+		const found = new Map<string, string>();
+		for (const file of zodFiles()) {
+			for (const line of readFileSync(file, "utf8").split("\n")) {
+				const match = emptyConst.exec(line.trim());
+				if (match?.[1] && match[2]) {
+					found.set(`${match[1]}|${match[2]}`, file);
+				}
+			}
+		}
+		const expected = new Map<string, string>();
+		for (const op of spec.operations) {
+			for (const [status, response] of Object.entries(responsesOf(op))) {
+				if (!hasContent(response)) {
+					expected.set(`${orvalBase(op.method, op.path)}|${status}`, `${op.method} ${op.path}`);
+				}
+			}
+		}
+		expect(new Set(found.keys())).toEqual(new Set(expected.keys()));
+	});
+
+	it("uses record(string, unknown) only where the spec declares free-form objects", () => {
+		const opBaseToOp = new Map(spec.operations.map((op) => [orvalBase(op.method, op.path), op]));
+		const components = asRecord(
+			asRecord(spec.raw["components"], "components")["schemas"],
+			"schemas",
+		);
+		const subtreeHasFreeForm = (node: unknown): boolean => {
+			if (Array.isArray(node)) {
+				return node.some(subtreeHasFreeForm);
+			}
+			if (!isRecord(node)) {
+				return false;
+			}
+			if (node["additionalProperties"] === true) {
+				return true;
+			}
+			return Object.values(node).some(subtreeHasFreeForm);
+		};
+		const specSubtreeForConst = (name: string): unknown => {
+			const bodyMatch = /^(.*)Body$/.exec(name);
+			if (bodyMatch?.[1]) {
+				const op = opBaseToOp.get(bodyMatch[1]);
+				return op?.node["requestBody"];
+			}
+			const responseMatch = /^(.*?)(\d+)Response$/.exec(name);
+			if (responseMatch?.[1] && responseMatch[2]) {
+				const op = opBaseToOp.get(responseMatch[1]);
+				return op ? responsesOfStatus(op, responseMatch[2]) : undefined;
+			}
+			return components[name];
+		};
+		const violations: string[] = [];
+		for (const file of zodFiles()) {
+			let current: string | undefined;
+			for (const line of readFileSync(file, "utf8").split("\n")) {
+				const declared = /^export const (\w+)/.exec(line.trim())?.[1];
+				if (declared) {
+					current = declared;
+				}
+				if (line.includes("zod.record(zod.string(), zod.unknown())")) {
+					const subtree = current === undefined ? undefined : specSubtreeForConst(current);
+					if (subtree === undefined || !subtreeHasFreeForm(subtree)) {
+						violations.push(`${file.split("/zod/")[1]}:${current ?? "?"}`);
+					}
+				}
+			}
+		}
+		expect(violations).toEqual([]);
+	});
+});
+
+describe("generation determinism and drift", () => {
+	it("generates byte-identical output across two runs", () => {
+		const first = mkdtempSync(join(tmpdir(), "sure-zod-det-a-"));
+		const second = mkdtempSync(join(tmpdir(), "sure-zod-det-b-"));
+		try {
+			for (const dir of [first, second]) {
+				execFileSync(orvalBin, ["--config", orvalConfig, "--fail-on-warnings"], {
+					cwd: webDir,
+					env: { ...process.env, SURE_ZOD_OUT_DIR: join(dir, "zod") },
+					stdio: "pipe",
+				});
+			}
+			expect(() => {
+				execFileSync("diff", ["-r", first, second], { stdio: "pipe" });
+			}).not.toThrow();
+		} finally {
+			rmSync(first, { recursive: true, force: true });
+			rmSync(second, { recursive: true, force: true });
+		}
+	}, 120_000);
+
+	it("matches the committed tree exactly (drift fails loudly)", () => {
+		const dir = mkdtempSync(join(tmpdir(), "sure-zod-drift-"));
+		try {
+			execFileSync(orvalBin, ["--config", orvalConfig, "--fail-on-warnings"], {
+				cwd: webDir,
+				env: { ...process.env, SURE_ZOD_OUT_DIR: join(dir, "zod") },
+				stdio: "pipe",
+			});
+			expect(() => {
+				execFileSync("diff", ["-r", "-u", zodDir, join(dir, "zod")], { stdio: "pipe" });
+			}).not.toThrow();
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	}, 120_000);
+
+	it("detects intentional tampering of the generated tree", () => {
+		const dir = mkdtempSync(join(tmpdir(), "sure-zod-tamper-"));
+		try {
+			execFileSync("cp", ["-r", zodDir, join(dir, "zod")], { stdio: "pipe" });
+			const victim = join(dir, "zod", "models", "errorResponse.zod.ts");
+			const original = readFileSync(victim, "utf8");
+			expect(original.includes("ErrorResponse")).toBe(true);
+			writeFileSync(victim, `${original}\n// tampered\n`);
+			let diffed = false;
+			try {
+				execFileSync("diff", ["-r", zodDir, join(dir, "zod")], { stdio: "pipe" });
+			} catch {
+				diffed = true;
+			}
+			expect(diffed).toBe(true);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	}, 60_000);
 });

@@ -21,7 +21,7 @@
 		"**/coverage/**",
 		"**/routeTree.gen.ts",
 		"**/openapi.d.ts",
-		"apps/web/src/lib/api/generated/**",
+		"apps/web/src/lib/api/zod/**",
 		"apps/web/src/styles/sure-tokens.stylex.ts",
 		"apps/web/src/styles/sure-token-values.ts",
 		"apps/web/src/styles/sure-theme.css",

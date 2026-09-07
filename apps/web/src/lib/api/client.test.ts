@@ -129,9 +129,31 @@ describe("apiGet", () => {
 	});
 
 	it("injects no Authorization or X-Api-Key credential header", async () => {
-		const { fetchImpl, requests } = mockFetch((request) =>
-			jsonResponse({ ok: new URL(request.url).pathname }),
-		);
+		const { fetchImpl, requests } = mockFetch((request) => {
+			if (request.method === "DELETE") {
+				return new Response(null, { status: 204 });
+			}
+			if (request.method === "POST") {
+				return jsonResponse(
+					{
+						id: "123e4567-e89b-12d3-a456-426614174002",
+						name: "Cash",
+						balance: "0.00",
+						balance_cents: 0,
+						cash_balance: "0.00",
+						cash_balance_cents: 0,
+						currency: "USD",
+						classification: "asset",
+						account_type: "depository",
+						status: "active",
+						created_at: "2026-09-07T12:00:00.000Z",
+						updated_at: "2026-09-07T12:00:00.000Z",
+					},
+					201,
+				);
+			}
+			return jsonResponse(collectionBody());
+		});
 		const client = testClient(fetchImpl);
 
 		await apiGet(client, "/api/v1/accounts", { requestId: "req-sec-1" });
@@ -188,8 +210,26 @@ describe("apiGet", () => {
 	});
 
 	it("sends path params", async () => {
-		const { fetchImpl, requests } = mockFetch((request) =>
-			jsonResponse({ id: "abc", requestPath: new URL(request.url).pathname }),
+		const { fetchImpl, requests } = mockFetch(() =>
+			jsonResponse({
+				id: "123e4567-e89b-12d3-a456-426614174000",
+				date: "2026-09-07",
+				currency: "USD",
+				flows_factor: 1,
+				balance: "100.00",
+				balance_cents: 10000,
+				start_balance: "100.00",
+				start_balance_cents: 10000,
+				end_balance: "100.00",
+				end_balance_cents: 10000,
+				account: {
+					id: "123e4567-e89b-12d3-a456-426614174001",
+					name: "Cash",
+					account_type: "depository",
+				},
+				created_at: "2026-09-07T12:00:00.000Z",
+				updated_at: "2026-09-07T12:00:00.000Z",
+			}),
 		);
 		const client = testClient(fetchImpl);
 
@@ -206,7 +246,23 @@ describe("apiPost", () => {
 		const seen: unknown[] = [];
 		const { fetchImpl } = mockFetch(async (request) => {
 			seen.push(await request.json());
-			return jsonResponse({ data: { ok: true } }, 201);
+			return jsonResponse(
+				{
+					id: "123e4567-e89b-12d3-a456-426614174002",
+					name: "Cash",
+					balance: "100.00",
+					balance_cents: 10000,
+					cash_balance: "100.00",
+					cash_balance_cents: 10000,
+					currency: "USD",
+					classification: "asset",
+					account_type: "depository",
+					status: "active",
+					created_at: "2026-09-07T12:00:00.000Z",
+					updated_at: "2026-09-07T12:00:00.000Z",
+				},
+				201,
+			);
 		});
 		const client = testClient(fetchImpl);
 
@@ -223,8 +279,8 @@ describe("apiPost", () => {
 });
 
 describe("apiDelete", () => {
-	it("resolves typed data for delete endpoints", async () => {
-		const { fetchImpl, requests } = mockFetch(() => jsonResponse({ data: { id: "tag-1" } }));
+	it("resolves empty data for 204 delete endpoints", async () => {
+		const { fetchImpl, requests } = mockFetch(() => new Response(null, { status: 204 }));
 		const client = testClient(fetchImpl);
 
 		const result = await apiDelete(client, "/api/v1/tags/{id}", {
@@ -464,15 +520,17 @@ describe("compile-time types", () => {
 		const client = testClient(async () => jsonResponse(collectionBody()));
 
 		expectTypeOf(apiGet).toBeFunction();
+		// Runtime calls below are compile-time assertions only: contract
+		// validation may reject their responses, so rejections are tolerated.
 		// @ts-expect-error - path is not in the OpenAPI document
-		void apiGet(client, "/api/v1/nope");
+		void apiGet(client, "/api/v1/nope").catch(() => undefined);
 		void apiGet(client, "/api/v1/accounts", {
 			// @ts-expect-error - page must be a number
 			params: { query: { page: "one" } },
-		});
+		}).catch(() => undefined);
 		// @ts-expect-error - POST /accounts requires a JSON body
-		void apiPost(client, "/api/v1/accounts");
+		void apiPost(client, "/api/v1/accounts").catch(() => undefined);
 		// @ts-expect-error - path params are required
-		void apiGet(client, "/api/v1/balances/{id}");
+		void apiGet(client, "/api/v1/balances/{id}").catch(() => undefined);
 	});
 });

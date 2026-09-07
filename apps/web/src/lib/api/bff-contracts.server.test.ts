@@ -1,116 +1,96 @@
 import { describe, expect, it } from "vitest";
 import { ApiError, isApiError } from "./client";
-import {
-	getOperationContract,
-	validateBffRequest,
-	validateUpstreamResponse,
-} from "./bff-contracts.server";
+import { validateBffRequest, validateUpstreamResponse } from "./bff-contracts.server";
 
-/**
- * Server-only proof that the BFF transport can validate outgoing requests
- * and upstream Rails responses through the generated contracts — without
- * importing credentials or server-only configuration (this module's
- * imports are isomorphic and secret-free, enforced by the lint boundary).
- */
-function catchThrown(fn: () => unknown): unknown {
-	try {
-		fn();
-	} catch (error) {
-		return error;
+const SECRET = "secret-token-xyz-789";
+
+function contractErrorOf(value: unknown): ApiError {
+	expect(isApiError(value)).toBe(true);
+	if (!isApiError(value)) {
+		throw new Error("Expected an ApiError.");
 	}
-	throw new Error("Expected the function to throw.");
+	expect(value.kind).toBe("contract");
+	return value;
 }
 
-function expectContractError(caught: unknown, requestId: string): ApiError {
-	expect(isApiError(caught)).toBe(true);
-	if (!isApiError(caught)) {
-		throw new Error("Expected the function to throw an ApiError.");
-	}
-	expect(caught.kind).toBe("contract");
-	expect(caught.requestId).toBe(requestId);
-	return caught;
-}
-describe("BFF contract validation", () => {
-	it("looks up contracts without server-only configuration", () => {
-		const contract = getOperationContract("GET", "/api/v1/accounts");
-		expect(contract?.operation).toBe("GET /api/v1/accounts");
-		expect(getOperationContract("GET", "/api/v1/nope")).toBeUndefined();
-	});
-
-	it("validates outgoing requests", () => {
+describe("validateBffRequest", () => {
+	it("accepts valid outgoing request parts", () => {
 		const data = validateBffRequest(
 			"GET",
 			"/api/v1/accounts",
-			{ query: { page: 2, per_page: 10 } },
-			undefined,
+			{ query: { page: 1, per_page: 25 } },
 			"req-bff-1",
 		);
-		expect(data).toEqual({ query: { page: 2, per_page: 10 } });
+		expect(data).toEqual({ query: { page: 1, per_page: 25 } });
 	});
 
-	it("rejects malformed outgoing requests with redacted errors", () => {
-		const caught = catchThrown(() =>
-			validateBffRequest(
-				"GET",
-				"/api/v1/accounts",
-				{ query: { page: "two" } },
-				undefined,
-				"req-bff-2",
-			),
-		);
-		expectContractError(caught, "req-bff-2");
-		expect(JSON.stringify(caught)).not.toContain("two");
+	it("throws a redacted contract error for invalid request parts", () => {
+		let caught: unknown;
+		try {
+			validateBffRequest("GET", "/api/v1/accounts", { query: { page: "one" } });
+		} catch (error) {
+			caught = error;
+		}
+		const apiError = contractErrorOf(caught);
+		expect(apiError.requestId).toBeUndefined();
+		expect(JSON.stringify(apiError.details)).not.toContain("one");
 	});
 
-	it("selects the multipart parser for multipart uploads", () => {
-		const file = new Blob(["a,b"], { type: "text/csv" });
-		const data = validateBffRequest(
-			"POST",
-			"/api/v1/import_sessions/{id}/chunks",
-			{ pathParams: { id: "session-1" }, body: { sequence: 1, file } },
-			"multipart/form-data; boundary=xyz",
-			"req-bff-3",
-		);
-		expect(data).toEqual({ pathParams: { id: "session-1" }, body: { sequence: 1, file } });
+	it("fails closed for operations without a contract", () => {
+		let caught: unknown;
+		try {
+			validateBffRequest("GET", "/api/v1/nope", {});
+		} catch (error) {
+			caught = error;
+		}
+		const apiError = contractErrorOf(caught);
+		expect(apiError.message).toContain("GET /api/v1/nope");
 	});
+});
 
-	it("validates upstream responses", () => {
-		const data = validateUpstreamResponse(
-			"GET",
-			"/api/v1/accounts",
-			200,
-			{
-				accounts: [],
-				pagination: { page: 1, per_page: 25, total_count: 0, total_pages: 1 },
-			},
-			"req-bff-4",
-		);
+describe("validateUpstreamResponse", () => {
+	it("accepts valid upstream payloads", () => {
+		const data = validateUpstreamResponse("GET", "/api/v1/accounts", 200, {
+			accounts: [],
+			pagination: { page: 1, per_page: 25, total_count: 0, total_pages: 1 },
+		});
 		expect(data).toEqual({
 			accounts: [],
 			pagination: { page: 1, per_page: 25, total_count: 0, total_pages: 1 },
 		});
 	});
 
-	it("fails closed on a malformed upstream response", () => {
-		const caught = catchThrown(() =>
-			validateUpstreamResponse("GET", "/api/v1/accounts", 200, { accounts: [] }, "req-bff-5"),
-		);
-		expect(caught).toBeInstanceOf(ApiError);
-		expectContractError(caught, "req-bff-5");
+	it("throws a redacted contract error without raw payload data", () => {
+		let caught: unknown;
+		try {
+			validateUpstreamResponse("GET", "/api/v1/accounts", 200, {
+				accounts: [{ id: 1, token: SECRET }],
+				pagination: { page: 1, per_page: 25, total_count: 1, total_pages: 1 },
+			});
+		} catch (error) {
+			caught = error;
+		}
+		const apiError = contractErrorOf(caught);
+		const serialized = JSON.stringify({ message: apiError.message, details: apiError.details });
+		expect(serialized).toContain("GET /api/v1/accounts");
+		expect(serialized).not.toContain(SECRET);
 	});
 
-	it("fails closed on an undocumented upstream status", () => {
-		const caught = catchThrown(() =>
-			validateUpstreamResponse("GET", "/api/v1/accounts", 203, { future: true }, "req-bff-6"),
-		);
-		expect(caught).toBeInstanceOf(ApiError);
-		expectContractError(caught, "req-bff-6");
+	it("fails closed on undocumented statuses", () => {
+		let caught: unknown;
+		try {
+			validateUpstreamResponse("GET", "/api/v1/accounts", 418, { ok: true });
+		} catch (error) {
+			caught = error;
+		}
+		const apiError = contractErrorOf(caught);
+		expect(apiError.status).toBe(418);
 	});
 
-	it("fails closed for undocumented operations", () => {
-		const caught = catchThrown(() =>
-			validateUpstreamResponse("GET", "/api/v1/nope", 200, {}, "req-bff-7"),
-		);
-		expect(isApiError(caught)).toBe(true);
+	it("validates documented error payloads through their parsers", () => {
+		const data = validateUpstreamResponse("POST", "/api/v1/accounts", 422, {
+			error: "unprocessable_entity",
+		});
+		expect(data).toEqual({ error: "unprocessable_entity" });
 	});
 });

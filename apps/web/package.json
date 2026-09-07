@@ -14,10 +14,10 @@
 		"typecheck:server": "tsc --noEmit -p tsconfig.server.json",
 		"typecheck:test": "tsc --noEmit -p tsconfig.test.json",
 		"test": "vitest run",
-		"api:generate": "openapi-typescript ../../docs/api/openapi.yaml -o src/lib/api/openapi.d.ts && pnpm contracts:generate",
-		"api:check": "openapi-typescript ../../docs/api/openapi.yaml -o /tmp/sure-openapi-check.d.ts && diff -u /tmp/sure-openapi-check.d.ts src/lib/api/openapi.d.ts && pnpm contracts:check",
-		"contracts:generate": "node scripts/generate-zod-contracts.mjs",
-		"contracts:check": "node scripts/generate-zod-contracts.mjs --check",
+		"api:generate": "openapi-typescript ../../docs/api/openapi.yaml -o src/lib/api/openapi.d.ts && pnpm api:zod",
+		"api:check": "openapi-typescript ../../docs/api/openapi.yaml -o /tmp/sure-openapi-check.d.ts && diff -u /tmp/sure-openapi-check.d.ts src/lib/api/openapi.d.ts && pnpm api:zod:check",
+		"api:zod": "orval --config ./orval.config.ts --fail-on-warnings",
+		"api:zod:check": "node ./scripts/check-openapi-zod.mjs",
 		"install:clean": "pnpm install --frozen-lockfile"
 	},
 	"dependencies": {
@@ -39,6 +39,7 @@
 		"@types/react-dom": "^19.0.0",
 		"@vitejs/plugin-react": "^6.0.0",
 		"openapi-typescript": "^7.13.0",
+		"orval": "8.30.0",
 		"typescript": "~5.9.0",
 		"vite": "^8.0.0",
 		"vitest": "^3.2.0",

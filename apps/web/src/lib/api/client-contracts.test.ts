@@ -1,32 +1,27 @@
-import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, expectTypeOf, it } from "vitest";
-import { type ApiData, ApiError, apiGet, getPagination, isApiError } from "./client";
-import { createApiClient, type SureClient } from "./client";
+import { describe, expect, it } from "vitest";
 import {
-	GetApiV1AccountsContract,
-	getApiV1Accounts,
-} from "./generated/operations/get-api-v1-accounts";
-import { getApiV1FamilyExportsByIdDownload } from "./generated/operations/get-api-v1-family-exports-by-id-download";
-
-/**
- * Typed-client proof: with an operation contract attached, malformed
- * upstream payloads throw redacted `{ kind: "contract" }` errors before
- * data reaches TanStack Query or application state — and those errors
- * never carry secrets or raw financial payloads.
- */
+	type ApiData,
+	ApiError,
+	apiDelete,
+	apiDownload,
+	apiGet,
+	apiPatch,
+	apiPost,
+	apiPut,
+	createApiClient,
+	isApiError,
+	type SureClient,
+} from "./client";
 
 type FetchImpl = (input: Request) => Promise<Response>;
 
-function mockFetch(handler: (request: Request) => Response | Promise<Response>): {
-	fetchImpl: FetchImpl;
-	requests: Request[];
-} {
-	const requests: Request[] = [];
-	const fetchImpl: FetchImpl = async (input: Request) => {
-		requests.push(input);
-		return handler(input);
-	};
-	return { fetchImpl, requests };
+function testClient(fetchImpl: FetchImpl): SureClient {
+	// NB: absolute base URL here is test-only. Production browser calls use
+	// a same-origin BFF base (see client.ts); the Rails origin is server-side.
+	return createApiClient({
+		baseUrl: "http://localhost:3000",
+		fetchImpl,
+	});
 }
 
 function jsonResponse(payload: unknown, status = 200): Response {
@@ -34,10 +29,6 @@ function jsonResponse(payload: unknown, status = 200): Response {
 		status,
 		headers: { "Content-Type": "application/json" },
 	});
-}
-
-function testClient(fetchImpl: FetchImpl): SureClient {
-	return createApiClient({ baseUrl: "http://localhost:3000", fetchImpl });
 }
 
 function validCollection(): Record<string, unknown> {
@@ -48,15 +39,12 @@ function validCollection(): Record<string, unknown> {
 }
 
 async function expectApiError(promise: Promise<unknown>): Promise<ApiError> {
-	let threw = false;
 	let caught: unknown;
 	try {
 		await promise;
 	} catch (error) {
-		threw = true;
 		caught = error;
 	}
-	expect(threw).toBe(true);
 	expect(isApiError(caught)).toBe(true);
 	if (!isApiError(caught)) {
 		throw new Error("Expected the request to throw an ApiError.");
@@ -64,167 +52,144 @@ async function expectApiError(promise: Promise<unknown>): Promise<ApiError> {
 	return caught;
 }
 
-describe("contract-validated requests", () => {
-	it("passes valid upstream payloads through with stripped unknown keys", async () => {
-		const pagination = { page: 1, per_page: 25, total_count: 0, total_pages: 1 };
-		const { fetchImpl } = mockFetch(() =>
-			jsonResponse({
-				accounts: [],
-				pagination: { ...pagination, injected: 1 },
-				injected: "drop-me",
-			}),
+const SECRET_TOKEN = "secret-token-abc-123";
+const SECRET_NAME = "Secret Offshore Holdings";
+
+describe("mandatory response validation", () => {
+	it("throws a correlated, redacted contract error for malformed success payloads", async () => {
+		const client = testClient(async () =>
+			jsonResponse(
+				{
+					accounts: [{ id: "not-a-uuid", token: SECRET_TOKEN, name: SECRET_NAME }],
+					pagination: { page: 1, per_page: 25, total_count: 1, total_pages: 1 },
+				},
+				200,
+			),
 		);
-		const client = testClient(fetchImpl);
-
-		const result = await apiGet(client, "/api/v1/accounts", {
-			contract: GetApiV1AccountsContract,
-			requestId: "req-valid-1",
-		});
-
-		expect(result.requestId).toBe("req-valid-1");
-		expect(getPagination(result.data)?.page).toBe(1);
-		expect(Object.keys(result.data)).not.toContain("injected");
-	});
-
-	it("throws a redacted contract error for malformed upstream payloads", async () => {
-		const secret = "sk-live-SECRET-TOKEN-12345";
-		const { fetchImpl } = mockFetch(() =>
-			jsonResponse({
-				accounts: [
-					{
-						id: "a-1",
-						name: "Cash",
-						balance_cents: "not-a-number",
-						api_key: secret,
-						password: "hunter2",
-					},
-				],
-				pagination: { page: 1, per_page: 25, total_count: 1, total_pages: 1 },
-			}),
-		);
-		const client = testClient(fetchImpl);
 
 		const error = await expectApiError(
-			apiGet(client, "/api/v1/accounts", {
-				contract: GetApiV1AccountsContract,
-				requestId: "req-contract-1",
-			}),
+			apiGet(client, "/api/v1/accounts", { requestId: "req-contract-1" }),
 		);
 
 		expect(error.kind).toBe("contract");
 		expect(error.status).toBe(200);
 		expect(error.requestId).toBe("req-contract-1");
 		expect(error.retryable).toBe(false);
-		const serialized = JSON.stringify(error);
+		const serialized = JSON.stringify({ message: error.message, details: error.details });
 		expect(serialized).toContain("GET /api/v1/accounts");
-		// Redaction: no raw values, tokens, or credentials leak into the error.
-		for (const leaked of [secret, "hunter2", "not-a-number", "api_key", "password"]) {
-			expect(serialized).not.toContain(leaked);
-		}
+		expect(serialized).not.toContain(SECRET_TOKEN);
+		expect(serialized).not.toContain(SECRET_NAME);
+		expect(serialized).not.toContain("not-a-uuid");
 	});
 
-	it("keeps error responses lenient so malformed error bodies never mask status errors", async () => {
-		const { fetchImpl } = mockFetch(() => new Response("upstream exploded", { status: 422 }));
-		const client = testClient(fetchImpl);
+	it("fails closed on undocumented success statuses", async () => {
+		const client = testClient(async () => jsonResponse({ ok: true }, 200));
 
 		const error = await expectApiError(
-			apiGet(client, "/api/v1/accounts", {
-				contract: GetApiV1AccountsContract,
-				requestId: "req-lenient-1",
+			apiPost(client, "/api/v1/accounts", {
+				body: { account: { name: "Cash", balance: 0, account_type: "depository" } },
+				requestId: "req-undocumented-1",
+			}),
+		);
+
+		// POST /accounts documents 201/403/422 — a 200 is undocumented.
+		expect(error.kind).toBe("contract");
+		expect(error.requestId).toBe("req-undocumented-1");
+	});
+
+	it("fails closed for unknown operations", async () => {
+		const client = testClient(async () => jsonResponse({ ok: true }, 200));
+
+		const error = await expectApiError(
+			// @ts-expect-error - unknown paths cannot have contracts
+			apiGet(client, "/api/v1/nope", { requestId: "req-unknown-1" }),
+		);
+
+		expect(error.kind).toBe("contract");
+		expect(error.requestId).toBe("req-unknown-1");
+	});
+
+	it("validates through every public entry point (no unvalidated path)", async () => {
+		const garbage = async () => jsonResponse({ garbage: true }, 200);
+		const body = { account: { name: "Cash", balance: 0, account_type: "depository" } } as const;
+
+		await expect(
+			expectApiError(apiGet(testClient(garbage), "/api/v1/accounts")),
+		).resolves.toMatchObject({ kind: "contract" });
+		await expect(
+			expectApiError(apiPost(testClient(garbage), "/api/v1/accounts", { body })),
+		).resolves.toMatchObject({ kind: "contract" });
+		await expect(
+			expectApiError(
+				apiPatch(testClient(garbage), "/api/v1/tags/{id}", {
+					params: { path: { id: "t" } },
+					body: { tag: { name: "T" } },
+				}),
+			),
+		).resolves.toMatchObject({ kind: "contract" });
+		await expect(
+			expectApiError(
+				apiDelete(testClient(garbage), "/api/v1/tags/{id}", { params: { path: { id: "t" } } }),
+			),
+		).resolves.toMatchObject({ kind: "contract" });
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- PUT has no documented operation; this untyped call must still fail closed through contract lookup.
+		const putError = expectApiError(apiPut(testClient(garbage), "/x" as never, {} as never));
+		await expect(putError).resolves.toMatchObject({ kind: "contract" });
+	});
+
+	it("passes valid payloads through with stripped unknown keys", async () => {
+		const client = testClient(async () =>
+			jsonResponse({ ...validCollection(), future_field: "ignored" }),
+		);
+
+		const result: ApiData<"get", "/api/v1/accounts"> = (await apiGet(client, "/api/v1/accounts"))
+			.data;
+		expect(result.pagination.page).toBe(1);
+		expect("future_field" in result).toBe(false);
+	});
+});
+
+describe("error payload hygiene", () => {
+	it("keeps the status-mapped kind but drops malformed error bodies", async () => {
+		const client = testClient(async () =>
+			jsonResponse({ wrong: "shape", leaked: SECRET_TOKEN }, 422),
+		);
+
+		const error = await expectApiError(
+			apiPost(client, "/api/v1/accounts", {
+				body: { account: { name: "", balance: 0, account_type: "depository" } },
+				requestId: "req-bad-error-1",
 			}),
 		);
 
 		expect(error.kind).toBe("validation");
 		expect(error.status).toBe(422);
-		expect(error.requestId).toBe("req-lenient-1");
+		expect(error.requestId).toBe("req-bad-error-1");
+		const serialized = JSON.stringify({ message: error.message, details: error.details });
+		expect(serialized).not.toContain(SECRET_TOKEN);
+		expect(serialized).not.toContain("shape");
 	});
 
-	it("passes undocumented success statuses through for forward compatibility", async () => {
-		const { fetchImpl } = mockFetch(() => jsonResponse({ future: true }, 203));
-		const client = testClient(fetchImpl);
-
-		const result = await apiGet(client, "/api/v1/accounts", {
-			contract: GetApiV1AccountsContract,
-			requestId: "req-future-1",
-		});
-
-		expect(result.requestId).toBe("req-future-1");
-	});
-});
-
-describe("generated operation wrappers", () => {
-	it("validates through the typed wrapper and preserves static types", async () => {
-		const { fetchImpl } = mockFetch(() => jsonResponse(validCollection()));
-		const client = testClient(fetchImpl);
-
-		const result = await getApiV1Accounts(client, { requestId: "req-wrap-1" });
-
-		expectTypeOf(result.data).toEqualTypeOf<ApiData<"get", "/api/v1/accounts">>();
-		expect(result.requestId).toBe("req-wrap-1");
-	});
-
-	it("rejects malformed payloads through the wrapper with correlation metadata", async () => {
-		const { fetchImpl } = mockFetch(() => jsonResponse({ accounts: "nope", pagination: null }));
-		const client = testClient(fetchImpl);
-
-		const error = await expectApiError(getApiV1Accounts(client, { requestId: "req-wrap-2" }));
-
-		expect(error.kind).toBe("contract");
-		expect(error.requestId).toBe("req-wrap-2");
-	});
-
-	it("feeds validated data into TanStack Query", async () => {
-		const { fetchImpl } = mockFetch(() => jsonResponse(validCollection()));
-		const client = testClient(fetchImpl);
-		const queryClient = new QueryClient();
-
-		const data = await queryClient.fetchQuery({
-			queryKey: ["accounts", "contracted"],
-			queryFn: ({ signal }) => getApiV1Accounts(client, { signal }).then((result) => result.data),
-		});
-
-		expect(getPagination(data)?.total_pages).toBe(1);
-	});
-
-	it("keeps malformed payloads out of TanStack Query state", async () => {
-		const { fetchImpl } = mockFetch(() =>
-			jsonResponse({ accounts: [], pagination: { page: "one" } }),
+	it("extracts message and details from valid error bodies", async () => {
+		const client = testClient(async () =>
+			jsonResponse({ error: "unauthorized", message: "Session expired" }, 401),
 		);
-		const client = testClient(fetchImpl);
-		const queryClient = new QueryClient();
+
+		const error = await expectApiError(apiGet(client, "/api/v1/balances"));
+		expect(error.kind).toBe("unauthorized");
+		expect(error.message).toBe("Session expired");
+	});
+
+	it("sanitizes non-JSON error bodies on the binary download path", async () => {
+		const client = testClient(async () => new Response("oops", { status: 409 }));
 
 		const error = await expectApiError(
-			queryClient.fetchQuery({
-				queryKey: ["accounts", "contracted-bad"],
-				queryFn: ({ signal }) => getApiV1Accounts(client, { signal }).then((result) => result.data),
-				retry: false,
+			apiDownload(client, "/api/v1/family_exports/{id}/download", {
+				params: { path: { id: "export-1" } },
 			}),
 		);
 
-		expect(error.kind).toBe("contract");
-	});
-
-	it("downloads validated binary payloads through the wrapper", async () => {
-		const bytes = new Uint8Array([9, 8, 7]);
-		const { fetchImpl } = mockFetch(
-			() =>
-				new Response(bytes, {
-					status: 200,
-					headers: {
-						"Content-Type": "application/zip",
-						"Content-Disposition": 'attachment; filename="export.zip"',
-					},
-				}),
-		);
-		const client = testClient(fetchImpl);
-
-		const file = await getApiV1FamilyExportsByIdDownload(client, {
-			params: { path: { id: "export-1" } },
-			requestId: "req-dl-contract-1",
-		});
-
-		expect(file.blob).toBeInstanceOf(Blob);
-		expect(file.filename).toBe("export.zip");
-		expect(file.requestId).toBe("req-dl-contract-1");
+		expect(error.kind).toBe("conflict");
+		expect(JSON.stringify(error.details ?? null)).not.toContain("oops");
 	});
 });
