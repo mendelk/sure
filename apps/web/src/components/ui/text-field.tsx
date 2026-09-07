@@ -67,7 +67,7 @@ const fieldStyles = stylex.create({
 		borderColor: vars.borderPrimary,
 		borderRadius: vars.radiusMd,
 		"::placeholder": {
-			color: vars.textSubdued,
+			color: vars.textSecondary,
 		},
 		":disabled": {
 			backgroundColor: vars.buttonBgDisabled,
@@ -88,7 +88,7 @@ const fieldStyles = stylex.create({
 	},
 	error: {
 		fontSize: 12,
-		color: vars.destructive,
+		color: vars.textDestructiveStrong,
 	},
 });
 

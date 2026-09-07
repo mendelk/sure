@@ -135,6 +135,23 @@
 				"no-restricted-globals": "off",
 				"vitest/no-focused-tests": "error"
 			}
+		},
+		{
+			// Node harness scripts (apps/web/scripts/*) run in Node, never
+			// bundled: Node imports/globals are fine, and the type-aware
+			// no-unsafe-* rules have no type info for .mjs sources outside
+			// tsconfig (pure noise). Execution is the check for these files
+			// (test:browser runs green in CI).
+			"files": ["apps/web/scripts/**"],
+			"rules": {
+				"no-restricted-imports": "off",
+				"no-restricted-globals": "off",
+				"typescript/no-unsafe-assignment": "off",
+				"typescript/no-unsafe-argument": "off",
+				"typescript/no-unsafe-call": "off",
+				"typescript/no-unsafe-member-access": "off",
+				"typescript/no-unsafe-return": "off"
+			}
 		}
 	]
 }

@@ -59,18 +59,21 @@ function stylexVitePlugin(options: Partial<StylexUserOptions>): PluginOption {
  * whose pre-bundler rewrites bare `react` imports to `deps/react.js` — a
  * second React copy next to the natively externalized one used by
  * react-dom/react-aria. Two copies means every hook call throws "Invalid
- * hook call". Neither `optimizeDeps.disabled` in static config nor
+ * hook call". Neither static `optimizeDeps` config nor
  * `test.deps.optimizer` survives the Start plugin's later `config` hook
  * (verified: the merged `optimizeDeps.include` still lists React), so this
  * `configResolved` mutation — which runs after all `config` hooks but
  * before the optimizer starts — is the single effective switch. Scoped to
  * vitest: dev/build behavior is untouched.
+ *
+ * NB: `optimizeDeps.disabled` is deprecated (Vite warns and ignores it);
+ * the supported off switch is `noDiscovery` with an empty `include`.
  */
 function disableOptimizerUnderVitest(): PluginOption {
 	return {
 		name: "sure-web:disable-optimizer-under-vitest",
 		configResolved(config) {
-			config.optimizeDeps.disabled = true;
+			config.optimizeDeps.noDiscovery = true;
 			config.optimizeDeps.entries = [];
 			config.optimizeDeps.include = [];
 		},

@@ -122,6 +122,18 @@ jobs:
         run: pnpm web:test
         shell: bash
 
+      - name: Install Chromium for Storybook browser checks
+        run: pnpm --filter @sure/web exec playwright install --only-shell --with-deps chromium
+        shell: bash
+
+      - name: Build static Storybook
+        run: pnpm --filter @sure/web build-storybook
+        shell: bash
+
+      - name: Browser Storybook checks (interactions + axe incl. color-contrast)
+        run: pnpm --filter @sure/web test:browser
+        shell: bash
+
   test_unit:
     runs-on: ubuntu-latest
     timeout-minutes: 10

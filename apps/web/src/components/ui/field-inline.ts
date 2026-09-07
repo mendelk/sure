@@ -28,7 +28,7 @@ export const fieldInlineStyles = stylex.create({
 	},
 	error: {
 		fontSize: 12,
-		color: vars.destructive,
+		color: vars.textDestructiveStrong,
 	},
 	comboWrap: {
 		position: "relative",
@@ -49,7 +49,7 @@ export const fieldInlineStyles = stylex.create({
 		borderColor: vars.borderPrimary,
 		borderRadius: vars.radiusMd,
 		"::placeholder": {
-			color: vars.textSubdued,
+			color: vars.textSecondary,
 		},
 		":disabled": {
 			backgroundColor: vars.buttonBgDisabled,

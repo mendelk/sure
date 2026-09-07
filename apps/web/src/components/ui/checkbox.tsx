@@ -41,7 +41,15 @@ const boxStyles = stylex.create({
 		color: vars.textInverse,
 		transitionProperty: "background-color, border-color",
 		transitionDuration: "120ms",
+		// React Aria sets data-selected/data-disabled on the checkbox root
+		// only. The decorative box below re-exposes the render state as its
+		// own data attributes (see SureCheckbox), so these selectors match
+		// the element they are compiled onto.
 		"[data-selected=true]": {
+			backgroundColor: vars.bgInverse,
+			borderColor: vars.borderSolid,
+		},
+		"[data-indeterminate=true]": {
 			backgroundColor: vars.bgInverse,
 			borderColor: vars.borderSolid,
 		},
@@ -67,6 +75,9 @@ const boxStyles = stylex.create({
 		borderRadius: 999,
 		transitionProperty: "background-color",
 		transitionDuration: "150ms",
+		// Same render-state propagation as the checkbox box: SureSwitch
+		// mirrors isSelected/isDisabled onto this element so the compiled
+		// selectors below match.
 		"[data-selected=true]": {
 			backgroundColor: vars.bgInverse,
 		},
@@ -125,7 +136,13 @@ export function SureCheckbox({ children, ...rest }: SureCheckboxProps): React.Re
 		>
 			{(state) => (
 				<>
-					<span aria-hidden="true" {...stylex.props(boxStyles.box)}>
+					<span
+						aria-hidden="true"
+						data-selected={state.isSelected || undefined}
+						data-indeterminate={state.isIndeterminate || undefined}
+						data-disabled={state.isDisabled || undefined}
+						{...stylex.props(boxStyles.box)}
+					>
 						{state.isSelected || state.isIndeterminate ? (
 							<CheckGlyph indeterminate={state.isIndeterminate} />
 						) : null}
@@ -147,10 +164,23 @@ export function SureSwitch({ children, ...rest }: SureSwitchProps): React.ReactE
 			{...rest}
 			className={() => stylex.props(sureFont.base, boxStyles.root, sureFocus.ring).className ?? ""}
 		>
-			<span aria-hidden="true" {...stylex.props(boxStyles.track)}>
-				<span aria-hidden="true" {...stylex.props(boxStyles.thumb)} />
-			</span>
-			<span>{children}</span>
+			{(state) => (
+				<>
+					<span
+						aria-hidden="true"
+						data-selected={state.isSelected || undefined}
+						data-disabled={state.isDisabled || undefined}
+						{...stylex.props(boxStyles.track)}
+					>
+						<span
+							aria-hidden="true"
+							data-selected={state.isSelected || undefined}
+							{...stylex.props(boxStyles.thumb)}
+						/>
+					</span>
+					<span>{children}</span>
+				</>
+			)}
 		</AriaSwitch>
 	);
 }

@@ -43,7 +43,9 @@ const tabsStyles = stylex.create({
 		paddingInline: 14,
 		fontSize: 14,
 		fontWeight: vars.fontWeightMedium,
-		color: vars.textSecondary,
+		// Muted but still ≥4.5:1 on the tab group surface (textSecondary
+		// is 4.4:1 there and fails axe color-contrast).
+		color: vars.textSecondaryStrong,
 		backgroundColor: "transparent",
 		borderStyle: "none",
 		borderWidth: 0,

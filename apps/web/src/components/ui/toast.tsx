@@ -1,19 +1,26 @@
 // SureToast (apps/web).
 //
-// Toast notifications: a live-region queue with auto-dismiss, per-toast
-// dismiss buttons, and optional actions. Destructive toasts assert
-// (role="alert"); others use role="status". Wrap the app (or story) once
-// in SureToastProvider, then call `toast()` from the context.
+// Toast notifications on React Aria behavior: a `ToastQueue` owns ordering
+// and auto-dismiss timers (pausing on hover/focus), `ToastRegion` renders
+// the labelled live region, and each `Toast` manages focus, NVDA
+// announcement (role="alert" content), and exit. Sure styling, tones, and
+// the `toast()`/`dismiss()` context API wrap those primitives — feature
+// code keeps calling `useSureToast()` and never touches the queue.
+//
+// Semantics note: React Aria announces every toast assertively (alert
+// content inside an alertdialog). `tone` therefore drives accent styling
+// only — there is no polite/status variant anymore.
 import * as stylex from "@stylexjs/stylex";
 import {
-	createContext,
-	useCallback,
-	useContext,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+	Button as AriaButton,
+	Text as AriaText,
+	UNSTABLE_Toast as AriaToast,
+	UNSTABLE_ToastContent as AriaToastContent,
+	UNSTABLE_ToastQueue as SureToastQueue,
+	UNSTABLE_ToastRegion as AriaToastRegion,
+} from "react-aria-components";
+import type { QueuedToast } from "react-aria-components";
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type * as React from "react";
 import { vars } from "~/styles/sure-tokens.stylex";
 import { sureFocus, sureFont, sureMotion, type SureStyle } from "./sure-styles";
@@ -33,6 +40,15 @@ export interface SureToastOptions {
 export interface SureToast extends Required<Omit<SureToastOptions, "onAction">> {
 	id: number;
 	message: string;
+	onAction: (() => void) | null;
+}
+
+/** Queue content for one toast — everything the region needs to render. */
+interface SureToastContent {
+	title: string;
+	message: string;
+	tone: SureToastTone;
+	actionLabel: string;
 	onAction: (() => void) | null;
 }
 
@@ -89,6 +105,11 @@ const toastStyles = stylex.create({
 			animationDuration: "200ms",
 			animationTimingFunction: "ease-out",
 		},
+	},
+	// The React Aria content wrapper (role="alert") must not disturb the
+	// card flex layout — its children participate directly.
+	content: {
+		display: "contents",
 	},
 	accent: {
 		flexShrink: 0,
@@ -156,57 +177,48 @@ const ACCENT: Record<SureToastTone, SureStyle> = {
 	neutral: toastStyles.accentNeutral,
 };
 
-let nextToastId = 1;
-
 export function SureToastProvider({ children }: { children: React.ReactNode }): React.ReactElement {
-	const [toasts, setToasts] = useState<readonly SureToast[]>([]);
-	const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+	// One queue per provider: ordering, auto-dismiss timers (with
+	// hover/focus pausing), and announcements are React Aria's job. The
+	// numeric Sure ids map onto queue keys so the context API is unchanged.
+	const [queue] = useState(() => new SureToastQueue<SureToastContent>());
+	const keys = useRef(new Map<number, string>());
+	const nextId = useRef(1);
 
-	const dismiss = useCallback((id: number) => {
-		const timer = timers.current.get(id);
-		if (timer !== undefined) {
-			clearTimeout(timer);
-			timers.current.delete(id);
-		}
-		setToasts((current) => current.filter((toast) => toast.id !== id));
-	}, []);
+	const dismiss = useCallback(
+		(id: number) => {
+			const key = keys.current.get(id);
+			if (key === undefined) {
+				return;
+			}
+			keys.current.delete(id);
+			queue.close(key);
+		},
+		[queue],
+	);
 
 	const toast = useCallback(
 		(message: string, options?: SureToastOptions): number => {
-			const id = nextToastId;
-			nextToastId += 1;
+			const id = nextId.current;
+			nextId.current += 1;
 			const duration = options?.duration ?? 5000;
-			setToasts((current) => [
-				...current,
-				{
-					id,
-					message,
-					title: options?.title ?? "",
-					tone: options?.tone ?? "neutral",
-					duration,
-					actionLabel: options?.actionLabel ?? "",
-					onAction: options?.onAction ?? null,
+			const content: SureToastContent = {
+				title: options?.title ?? "",
+				message,
+				tone: options?.tone ?? "neutral",
+				actionLabel: options?.actionLabel ?? "",
+				onAction: options?.onAction ?? null,
+			};
+			const key = queue.add(content, {
+				...(duration > 0 ? { timeout: duration } : {}),
+				onClose: () => {
+					keys.current.delete(id);
 				},
-			]);
-			if (duration > 0) {
-				const timer = setTimeout(() => {
-					dismiss(id);
-				}, duration);
-				timers.current.set(id, timer);
-			}
+			});
+			keys.current.set(id, key);
 			return id;
 		},
-		[dismiss],
-	);
-
-	useEffect(
-		() => () => {
-			for (const timer of timers.current.values()) {
-				clearTimeout(timer);
-			}
-			timers.current.clear();
-		},
-		[],
+		[queue],
 	);
 
 	const value = useMemo(() => ({ toast, dismiss }), [toast, dismiss]);
@@ -214,62 +226,100 @@ export function SureToastProvider({ children }: { children: React.ReactNode }): 
 	return (
 		<ToastContext.Provider value={value}>
 			{children}
-			<SureToastRegion toasts={toasts} onDismiss={dismiss} />
+			<SureToastRegion queue={queue} idKeys={keys} onDismiss={dismiss} />
 		</ToastContext.Provider>
 	);
 }
 
 function SureToastRegion({
-	toasts,
+	queue,
+	idKeys,
 	onDismiss,
 }: {
-	toasts: readonly SureToast[];
+	queue: SureToastQueue<SureToastContent>;
+	idKeys: React.RefObject<Map<number, string>>;
 	onDismiss: (id: number) => void;
-}): React.ReactElement | null {
-	if (toasts.length === 0) {
-		return null;
-	}
+}): React.ReactElement {
 	return (
-		<div aria-label="Notifications" {...stylex.props(toastStyles.region, sureMotion.allowOnly)}>
-			{toasts.map((item) => (
-				<div
-					key={item.id}
-					role={item.tone === "destructive" ? "alert" : "status"}
-					{...stylex.props(sureFont.base, toastStyles.card)}
-				>
-					<span aria-hidden="true" {...stylex.props(toastStyles.accent, ACCENT[item.tone])} />
-					<div {...stylex.props(toastStyles.text)}>
-						{item.title !== "" ? (
-							<div {...stylex.props(toastStyles.title)}>{item.title}</div>
-						) : null}
-						<div>{item.message}</div>
-					</div>
-					<div {...stylex.props(toastStyles.actions)}>
-						{item.actionLabel !== "" && item.onAction !== null ? (
-							<button
-								type="button"
-								onClick={() => {
-									item.onAction?.();
-									onDismiss(item.id);
-								}}
-								{...stylex.props(sureFont.base, toastStyles.miniButton, sureFocus.ring)}
-							>
-								{item.actionLabel}
-							</button>
-						) : null}
-						<button
-							type="button"
-							aria-label={`Dismiss notification: ${item.title !== "" ? item.title : item.message}`}
-							onClick={() => {
-								onDismiss(item.id);
-							}}
-							{...stylex.props(toastStyles.iconButton, sureFocus.ring)}
-						>
-							<span aria-hidden="true">×</span>
-						</button>
-					</div>
+		<AriaToastRegion
+			queue={queue}
+			aria-label="Notifications"
+			className={stylex.props(toastStyles.region, sureMotion.allowOnly).className ?? ""}
+		>
+			{({ toast: item }: { toast: QueuedToast<SureToastContent> }) => (
+				<SureToastCard key={item.key} item={item} idKeys={idKeys} onDismiss={onDismiss} />
+			)}
+		</AriaToastRegion>
+	);
+}
+
+/** Resolve a queue key back to its numeric Sure id (for action handling). */
+function idForKey(idKeys: React.RefObject<Map<number, string>>, key: string): number | null {
+	for (const [id, candidate] of idKeys.current) {
+		if (candidate === key) {
+			return id;
+		}
+	}
+	return null;
+}
+
+function SureToastCard({
+	item,
+	idKeys,
+	onDismiss,
+}: {
+	item: QueuedToast<SureToastContent>;
+	idKeys: React.RefObject<Map<number, string>>;
+	onDismiss: (id: number) => void;
+}): React.ReactElement {
+	const { title, message, tone, actionLabel, onAction } = item.content;
+	const dismissId = idForKey(idKeys, item.key);
+	const dismissLabel = `Dismiss notification: ${title !== "" ? title : message}`;
+	return (
+		<AriaToast
+			toast={item}
+			className={stylex.props(sureFont.base, toastStyles.card).className ?? ""}
+		>
+			<AriaToastContent className={stylex.props(toastStyles.content).className ?? ""}>
+				<span aria-hidden="true" {...stylex.props(toastStyles.accent, ACCENT[tone])} />
+				<div {...stylex.props(toastStyles.text)}>
+					{title !== "" ? (
+						<AriaText slot="title" {...stylex.props(toastStyles.title)}>
+							{title}
+						</AriaText>
+					) : null}
+					<AriaText slot="description">{message}</AriaText>
 				</div>
-			))}
-		</div>
+				<div {...stylex.props(toastStyles.actions)}>
+					{actionLabel !== "" && onAction !== null ? (
+						<AriaButton
+							onPress={() => {
+								onAction();
+								if (dismissId !== null) {
+									onDismiss(dismissId);
+								}
+							}}
+							className={
+								stylex.props(sureFont.base, toastStyles.miniButton, sureFocus.ring).className ?? ""
+							}
+						>
+							{actionLabel}
+						</AriaButton>
+					) : null}
+					<AriaButton
+						slot="close"
+						aria-label={dismissLabel}
+						onPress={() => {
+							if (dismissId !== null) {
+								onDismiss(dismissId);
+							}
+						}}
+						className={stylex.props(toastStyles.iconButton, sureFocus.ring).className ?? ""}
+					>
+						<span aria-hidden="true">×</span>
+					</AriaButton>
+				</div>
+			</AriaToastContent>
+		</AriaToast>
 	);
 }

@@ -14,7 +14,7 @@ import * as stylex from "@stylexjs/stylex";
 
 // The semantic contract: color, typography, radius, shadow, motion, and
 // chart tokens. Raw palette ladders are intentionally absent.
-export type SureTokenName = "bgInverse" | "bgInverseHover" | "bgLoader" | "bgOverlay" | "bgSubdued" | "borderDestructive" | "borderDivider" | "borderInverse" | "borderPrimary" | "borderSecondary" | "borderSolid" | "borderSubdued" | "buttonBgDestructive" | "buttonBgDestructiveHover" | "buttonBgDisabled" | "buttonBgGhostHover" | "buttonBgOutlineHover" | "buttonBgPrimary" | "buttonBgPrimaryHover" | "buttonBgSecondary" | "buttonBgSecondaryHover" | "buttonBgSecondaryStrong" | "buttonBgSecondaryStrongHover" | "chartUnallocatedFill" | "chartUnusedFill" | "container" | "containerHover" | "containerInset" | "containerInsetHover" | "destructive" | "destructiveSubtle" | "focusRing" | "fontMono" | "fontSans" | "fontWeightMedium" | "fontWeightSemibold" | "info" | "link" | "motionStrokeFill" | "navIndicator" | "radiusLg" | "radiusMd" | "shadow" | "shadowBorderLg" | "shadowBorderMd" | "shadowBorderSm" | "shadowBorderXl" | "shadowBorderXs" | "shadowLg" | "shadowMd" | "shadowSm" | "shadowXl" | "shadowXs" | "success" | "surface" | "surfaceHover" | "surfaceInset" | "surfaceInsetHover" | "tabBgGroup" | "tabItemActive" | "tabItemHover" | "tertiary" | "textInverse" | "textPrimary" | "textSecondary" | "textSubdued" | "toggleTrack" | "warning";
+export type SureTokenName = "bgInverse" | "bgInverseHover" | "bgLoader" | "bgOverlay" | "bgSubdued" | "borderDestructive" | "borderDivider" | "borderInverse" | "borderPrimary" | "borderSecondary" | "borderSolid" | "borderSubdued" | "buttonBgDestructive" | "buttonBgDestructiveHover" | "buttonBgDisabled" | "buttonBgGhostHover" | "buttonBgOutlineHover" | "buttonBgPrimary" | "buttonBgPrimaryHover" | "buttonBgSecondary" | "buttonBgSecondaryHover" | "buttonBgSecondaryStrong" | "buttonBgSecondaryStrongHover" | "chartUnallocatedFill" | "chartUnusedFill" | "container" | "containerHover" | "containerInset" | "containerInsetHover" | "destructive" | "destructiveSubtle" | "focusRing" | "fontMono" | "fontSans" | "fontWeightMedium" | "fontWeightSemibold" | "info" | "link" | "motionStrokeFill" | "navIndicator" | "radiusLg" | "radiusMd" | "shadow" | "shadowBorderLg" | "shadowBorderMd" | "shadowBorderSm" | "shadowBorderXl" | "shadowBorderXs" | "shadowLg" | "shadowMd" | "shadowSm" | "shadowXl" | "shadowXs" | "success" | "surface" | "surfaceHover" | "surfaceInset" | "surfaceInsetHover" | "tabBgGroup" | "tabItemActive" | "tabItemHover" | "tertiary" | "textDestructiveStrong" | "textInfoStrong" | "textInverse" | "textPrimary" | "textSecondary" | "textSecondaryStrong" | "textSubdued" | "textSuccessStrong" | "textWarningStrong" | "toggleTrack" | "warning";
 
 // Light defaults.
 export const vars = stylex.defineVars({
@@ -30,8 +30,8 @@ export const vars = stylex.defineVars({
 	borderSecondary: "color-mix(in srgb, #0B0B0B 10%, transparent)",
 	borderSolid: "#0B0B0B",
 	borderSubdued: "color-mix(in srgb, #0B0B0B 5%, transparent)",
-	buttonBgDestructive: "#EC2222",
-	buttonBgDestructiveHover: "#C91313",
+	buttonBgDestructive: "#C91313",
+	buttonBgDestructiveHover: "#A40E0E",
 	buttonBgDisabled: "#F7F7F7",
 	buttonBgGhostHover: "#F7F7F7",
 	buttonBgOutlineHover: "#F0F0F0",
@@ -80,10 +80,15 @@ export const vars = stylex.defineVars({
 	tabItemActive: "#ffffff",
 	tabItemHover: "#E7E7E7",
 	tertiary: "color-mix(in srgb, #0B0B0B 8%, transparent)",
+	textDestructiveStrong: "#C91313",
+	textInfoStrong: "#175CD3",
 	textInverse: "#ffffff",
 	textPrimary: "#171717",
 	textSecondary: "#737373",
+	textSecondaryStrong: "#5C5C5C",
 	textSubdued: "#9E9E9E",
+	textSuccessStrong: "#05603A",
+	textWarningStrong: "#B54708",
 	toggleTrack: "#CFCFCF",
 	warning: "#DC6803",
 });
@@ -102,8 +107,8 @@ export const sureLightTheme = stylex.createTheme(vars, {
 	borderSecondary: "color-mix(in srgb, #0B0B0B 10%, transparent)",
 	borderSolid: "#0B0B0B",
 	borderSubdued: "color-mix(in srgb, #0B0B0B 5%, transparent)",
-	buttonBgDestructive: "#EC2222",
-	buttonBgDestructiveHover: "#C91313",
+	buttonBgDestructive: "#C91313",
+	buttonBgDestructiveHover: "#A40E0E",
 	buttonBgDisabled: "#F7F7F7",
 	buttonBgGhostHover: "#F7F7F7",
 	buttonBgOutlineHover: "#F0F0F0",
@@ -152,10 +157,15 @@ export const sureLightTheme = stylex.createTheme(vars, {
 	tabItemActive: "#ffffff",
 	tabItemHover: "#E7E7E7",
 	tertiary: "color-mix(in srgb, #0B0B0B 8%, transparent)",
+	textDestructiveStrong: "#C91313",
+	textInfoStrong: "#175CD3",
 	textInverse: "#ffffff",
 	textPrimary: "#171717",
 	textSecondary: "#737373",
+	textSecondaryStrong: "#5C5C5C",
 	textSubdued: "#9E9E9E",
+	textSuccessStrong: "#05603A",
+	textWarningStrong: "#B54708",
 	toggleTrack: "#CFCFCF",
 	warning: "#DC6803",
 });
@@ -224,10 +234,15 @@ export const sureDarkTheme = stylex.createTheme(vars, {
 	tabItemActive: "#363636",
 	tabItemHover: "#242424",
 	tertiary: "color-mix(in srgb, #ffffff 10%, transparent)",
+	textDestructiveStrong: "#F88C86",
+	textInfoStrong: "#84CAFF",
 	textInverse: "#171717",
 	textPrimary: "#ffffff",
 	textSecondary: "#CFCFCF",
+	textSecondaryStrong: "#CFCFCF",
 	textSubdued: "#9E9E9E",
+	textSuccessStrong: "#6CE9A6",
+	textWarningStrong: "#FEC84B",
 	toggleTrack: "#363636",
 	warning: "#FDB022",
 });

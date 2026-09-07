@@ -35,7 +35,10 @@ function isAliasEntry(value: unknown): value is { find: string | RegExp; replace
 
 const config: StorybookConfig = {
 	stories: ["../src/components/ui/*.stories.tsx"],
-	addons: ["@storybook/addon-viewport", "@storybook/addon-a11y"],
+	// Viewport switching is built into Storybook 9+ core (no addon
+	// package); @storybook/addon-viewport was removed in v9 and breaks
+	// the preview runtime if listed here.
+	addons: ["@storybook/addon-a11y"],
 	framework: {
 		name: "@storybook/react-vite",
 		options: {},

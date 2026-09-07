@@ -139,22 +139,22 @@ const badgeStyles = stylex.create({
 		textOverflow: "ellipsis",
 		maxWidth: "100%",
 	},
-	neutral: { backgroundColor: vars.surface, color: vars.textSecondary },
+	neutral: { backgroundColor: vars.surface, color: vars.textSecondaryStrong },
 	info: {
 		backgroundColor: `color-mix(in srgb, ${vars.info} 12%, transparent)`,
-		color: vars.info,
+		color: vars.textInfoStrong,
 	},
 	success: {
 		backgroundColor: `color-mix(in srgb, ${vars.success} 12%, transparent)`,
-		color: vars.success,
+		color: vars.textSuccessStrong,
 	},
 	warning: {
 		backgroundColor: `color-mix(in srgb, ${vars.warning} 14%, transparent)`,
-		color: vars.warning,
+		color: vars.textWarningStrong,
 	},
 	destructive: {
-		backgroundColor: vars.destructiveSubtle,
-		color: vars.destructive,
+		backgroundColor: `color-mix(in srgb, ${vars.textDestructiveStrong} 12%, transparent)`,
+		color: vars.textDestructiveStrong,
 	},
 });
 

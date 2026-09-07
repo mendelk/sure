@@ -77,10 +77,10 @@ export const overlayStyles = stylex.create({
 		color: vars.textSecondary,
 	},
 	placeholder: {
-		color: vars.textSubdued,
+		color: vars.textSecondary,
 	},
 	destructiveItem: {
-		color: vars.destructive,
+		color: vars.textDestructiveStrong,
 	},
 });
 

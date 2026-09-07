@@ -54,7 +54,7 @@ const meta: Meta<typeof SureToastProvider> = {
 		docs: {
 			description: {
 				component:
-					"Live-region queue (status; destructive → alert) with auto-dismiss, per-toast dismiss, and optional actions. Wrap the app once; call toast() from context.",
+					"Assertive live-region queue (React Aria ToastRegion/Toast: alert content in an alertdialog) with auto-dismiss, per-toast dismiss, and optional actions. Wrap the app once; call toast() from context.",
 			},
 		},
 	},

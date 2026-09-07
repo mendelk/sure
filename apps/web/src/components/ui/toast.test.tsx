@@ -48,6 +48,20 @@ function FailButton(): React.ReactElement {
 	);
 }
 
+function DismissByIdButton(): React.ReactElement {
+	const { toast, dismiss } = useSureToast();
+	return (
+		<SureButton
+			onPress={() => {
+				const id = toast("Pinned note.", { duration: 0 });
+				dismiss(id);
+			}}
+		>
+			Pin
+		</SureButton>
+	);
+}
+
 describe("SureToast", () => {
 	it("announces queued toasts and dismisses them on request", async () => {
 		const user = userEvent.setup();
@@ -56,14 +70,19 @@ describe("SureToast", () => {
 				<ShowToastButton />
 			</SureToastProvider>,
 		);
-		expect(screen.queryByRole("status")).toBeNull();
+		// The React Aria region only renders once the queue is non-empty.
+		expect(screen.queryByRole("region", { name: "Notifications" })).toBeNull();
 		await user.click(screen.getByRole("button", { name: "Export" }));
-		const toast = await screen.findByRole("status");
-		expect(toast).toHaveTextContent("Report exported.");
-		expect(toast).toHaveTextContent("Done");
+		const region = await screen.findByRole("region", { name: "Notifications" });
+		const toast = await screen.findByRole("alertdialog");
+		expect(region).toContainElement(toast);
+		// React Aria announces toast content assertively (role="alert").
+		const announcement = screen.getByRole("alert");
+		expect(announcement).toHaveTextContent("Report exported.");
+		expect(announcement).toHaveTextContent("Done");
 		await expectNoAxeViolations();
 		await user.click(screen.getByRole("button", { name: /Dismiss notification/ }));
-		expect(screen.queryByRole("status")).toBeNull();
+		expect(screen.queryByRole("alertdialog")).toBeNull();
 	});
 
 	it("runs the toast action before dismissing", async () => {
@@ -75,13 +94,13 @@ describe("SureToast", () => {
 			</SureToastProvider>,
 		);
 		await user.click(screen.getByRole("button", { name: "Delete" }));
-		await screen.findByRole("status");
+		await screen.findByRole("alertdialog");
 		await user.click(screen.getByRole("button", { name: "Undo" }));
 		expect(onAction).toHaveBeenCalledTimes(1);
-		expect(screen.queryByRole("status")).toBeNull();
+		expect(screen.queryByRole("alertdialog")).toBeNull();
 	});
 
-	it("asserts destructive toasts as alerts", async () => {
+	it("announces destructive toasts assertively", async () => {
 		const user = userEvent.setup();
 		renderInMain(
 			<SureToastProvider>
@@ -90,5 +109,17 @@ describe("SureToast", () => {
 		);
 		await user.click(screen.getByRole("button", { name: "Sync" }));
 		expect(await screen.findByRole("alert")).toHaveTextContent("Sync failed.");
+		expect(await screen.findByRole("alertdialog")).toHaveTextContent("Sync failed.");
+	});
+
+	it("dismisses by the id returned from toast()", async () => {
+		const user = userEvent.setup();
+		renderInMain(
+			<SureToastProvider>
+				<DismissByIdButton />
+			</SureToastProvider>,
+		);
+		await user.click(screen.getByRole("button", { name: "Pin" }));
+		expect(screen.queryByRole("alertdialog")).toBeNull();
 	});
 });

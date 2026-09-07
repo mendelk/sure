@@ -1,9 +1,13 @@
 // Shared axe assertion for Sure UI primitive tests (apps/web, vitest only).
 //
 // Runs axe-core against the rendered document and fails on violations.
-// Incomplete (needs-review) results are ignored: jsdom has no layout, so
-// rules like color-contrast cannot complete there — Storybook's a11y addon
-// covers those in a real browser. Product code never imports this module.
+// The `color-contrast` rule is disabled here, not waived: jsdom has no
+// layout, so the rule cannot complete (axe needs canvas measurement) and
+// every run prints "Not implemented: HTMLCanvasElement's getContext()"
+// noise. Contrast is covered instead by the automated browser Storybook
+// check (`pnpm --filter @sure/web test:browser`), which runs the full
+// rule set in real Chromium. Do not claim contrast coverage from jsdom
+// suites. Product code never imports this module.
 import { render } from "@testing-library/react";
 import { createElement } from "react";
 import type * as React from "react";
@@ -11,7 +15,11 @@ import { expect } from "vitest";
 import { axe } from "vitest-axe";
 
 export async function expectNoAxeViolations(): Promise<void> {
-	const results = await axe(document.body);
+	const results = await axe(document.body, {
+		rules: {
+			"color-contrast": { enabled: false },
+		},
+	});
 	const summary = results.violations.map((violation) => ({
 		id: violation.id,
 		impact: violation.impact,
