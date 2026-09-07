@@ -392,6 +392,10 @@ Rails.application.routes.draw do
     resource :dropdown, only: :show
   end
 
+  namespace :merchant do
+    resource :dropdown, only: :show
+  end
+
   resources :categories, except: :show do
     resources :deletions, only: %i[new create], module: :category
 

@@ -147,6 +147,27 @@ en:
       payment_confirmed: Payment is confirmed
       reject_match: Reject match
       transfer_confirmed: Transfer is confirmed
+    inline_tags:
+      add_tag: Tag
+      edit_tags: Edit tags
+      search_placeholder: Search tags
+      no_tags: No tags yet
+      manage_tags: Manage tags
+    column_settings:
+      columns: Columns
+      title: Details
+      tags: Tags
+      merchant: Merchant
+      notes: Notes
+    inline_merchant:
+      add_merchant: Merchant
+      edit_merchant: Edit merchant
+      loading: Loading merchants...
+    inline_notes:
+      add_note: Note
+      edit_note: Edit note
+      placeholder: Add a note...
+      save: Save
     transaction:
       pending: Pending
       pending_tooltip: Pending transaction — may change when posted

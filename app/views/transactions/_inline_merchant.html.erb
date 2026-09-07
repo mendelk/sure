@@ -1,0 +1,39 @@
+<%# locals: (entry:, transaction:, in_split_group: false) %>
+<%# Merchant display + quick edit for the transaction attributes column (desktop). %>
+<%# Non-transfer rows get a popover with a lazily-loaded merchant picker that %>
+<%# PATCHes the existing transaction update endpoint (turbo_stream re-renders the row). %>
+<% merchant = transaction.merchant %>
+
+<% if transaction.transfer.present? %>
+  <span class="block truncate text-sm text-secondary" title="<%= merchant&.name %>">
+    <%= merchant&.name || "—" %>
+  </span>
+<% else %>
+  <%= render DS::Popover.new(variant: "button", placement: "bottom-start", max_width: "280px") do |popover| %>
+    <% popover.with_button(class: "block min-w-0 max-w-full rounded-md focus-ring") do %>
+      <span class="flex min-w-0 items-center gap-1 group/merchant">
+        <% if merchant.present? %>
+          <span class="truncate text-sm text-primary"><%= merchant.name %></span>
+        <% else %>
+          <span class="text-xs text-secondary hover:text-primary transition-colors inline-flex items-center gap-1">
+            <%= icon "plus", size: "xs", color: "current" %>
+            <%= t("transactions.inline_merchant.add_merchant") %>
+          </span>
+        <% end %>
+        <span class="shrink-0 text-secondary opacity-60 group-hover/merchant:opacity-100 transition-opacity" title="<%= t("transactions.inline_merchant.edit_merchant") %>">
+          <%= icon "store", size: "xs", color: "current" %>
+        </span>
+      </span>
+    <% end %>
+
+    <% popover.with_custom_content do %>
+      <%= turbo_frame_tag dom_id(transaction, :merchant_dropdown),
+            src: merchant_dropdown_path(transaction_id: transaction.id, grouped: in_split_group),
+            loading: :lazy do %>
+        <div class="p-6 flex items-center justify-center">
+          <p class="text-sm text-secondary animate-pulse"><%= t("transactions.inline_merchant.loading") %></p>
+        </div>
+      <% end %>
+    <% end %>
+  <% end %>
+<% end %>
