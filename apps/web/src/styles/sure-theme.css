@@ -1,0 +1,65 @@
+/* GENERATED — do not edit by hand.
+ * Source: design/tokens/sure.tokens.json
+ * Build:  npm run tokens:build
+ *
+ * Static theme shell for the StyleX consumer (apps/web). The semantic
+ * variable values live in sure-tokens.stylex.ts (compiled by
+ * @stylexjs/unplugin); this file only carries what must exist as static CSS:
+ * color-scheme defaults, the reduced-motion guard, and forced-colors
+ * fallbacks. Applied by apps/web/src/styles/theme.ts.
+ */
+:root {
+	color-scheme: light dark;
+}
+
+/* An explicit choice wins over the OS default. */
+:root[data-theme="light"] {
+	color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+	color-scheme: dark;
+}
+
+/* No explicit choice (pre-hydration, or no stored preference): follow the OS
+ * for UA chrome (scrollbars, form controls). The app-level theme resolves
+ * on hydration via apps/web/src/styles/theme.ts; there are no inline
+ * scripts (ADR-0001 REQ-TRAN-02). */
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme]) {
+		color-scheme: dark;
+	}
+}
+
+/* Motion tokens (motionStrokeFill and transitions built on semantic vars)
+ * MUST collapse when the user prefers reduced motion. This global guard
+ * covers future animations even if a component forgets the per-component
+ * StyleX pattern documented in apps/web/src/styles/README.md. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+/* Forced-colors (Windows High Contrast): drop decorative shadows so content
+ * stays legible and guarantee a visible focus indicator from system colors.
+ * Components keep using semantic vars; the OS palette wins inside this block. */
+@media (forced-colors: active) {
+	*,
+	*::before,
+	*::after {
+		box-shadow: none !important;
+		text-shadow: none !important;
+	}
+
+	:is(a, button, input, select, textarea, [tabindex]):focus-visible {
+		outline: 2px solid CanvasText;
+		outline-offset: 2px;
+		forced-color-adjust: none;
+	}
+}
