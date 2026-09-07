@@ -73,6 +73,14 @@ export default defineConfig(({ command, mode }) => {
 			stylexVitePlugin({
 				useCSSLayers: true,
 				devMode: process.env["VITEST"] ? "off" : "full",
+				// The StyleX babel plugin statically resolves theme imports
+				// (vars from ~/styles/sure-tokens.stylex) itself, outside
+				// Vite's tsconfig-paths aliasing. Map "~" to the /ROOT/
+				// virtual prefix so the plugin can find the file relative to
+				// its rootDir (apps/web, the pnpm-filter cwd).
+				aliases: {
+					"~/*": ["/ROOT/src/*"],
+				},
 			}),
 			// react's vite plugin must come after start's vite plugin
 			viteReact(),
