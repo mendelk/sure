@@ -14,7 +14,7 @@ const HEX_LITERAL = /#[0-9a-fA-F]{3,8}\b/g;
 
 function sourceFiles(dir: string): string[] {
 	const out: string[] = [];
-	for (const entry of readdirSync(dir).sort()) {
+	for (const entry of readdirSync(dir)) {
 		const full = join(dir, entry);
 		if (statSync(full).isDirectory()) {
 			if (entry === "styles") continue;
@@ -35,6 +35,8 @@ describe("no raw palette literals in product code", () => {
 				offenders.push(`${file.replace(`${SRC}/`, "")}: ${hits.join(", ")}`);
 			}
 		}
-		expect(offenders, "use semantic vars from sure-tokens.stylex.ts instead").toEqual([]);
+		// Non-empty offenders means product code uses raw palette literals
+		// instead of semantic vars from sure-tokens.stylex.ts.
+		expect(offenders).toEqual([]);
 	});
 });

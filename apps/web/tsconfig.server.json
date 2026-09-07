@@ -1,0 +1,11 @@
+{
+	// Server-only boundary: *.server.* modules plus Node tooling config.
+	// No DOM lib on purpose: server code must not depend on browser globals.
+	"$schema": "https://json.schemastore.org/tsconfig.json",
+	"extends": "./tsconfig.base.json",
+	"include": ["src/**/*.server.ts", "src/**/*.server.tsx", "vite.config.ts"],
+	"compilerOptions": {
+		"lib": ["ES2022"],
+		"types": ["node"]
+	}
+}

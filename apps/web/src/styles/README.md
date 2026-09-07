@@ -102,17 +102,17 @@ useEffect(() => {
 Pre-hydration, `data-theme` is absent, so `sure-theme.css` falls through to
 the system default (`color-scheme: light dark` plus the
 `prefers-color-scheme: dark` rule): scrollbars, form controls, and other UA
-chrome already match the OS before React hydrates. The app-level variables
-resolve to the OS-default theme in the hydration effect above.
+chrome already match the OS before React hydrates. App surfaces, meanwhile,
+fall back to the compiled light semantic variables — the conditional above
+applies `sureLightTheme` while `theme` is null, and its values are identical
+to the `defineVars` defaults. The stored/OS choice (including OS dark) takes
+effect in the hydration effect above.
 
 `data-theme` also drives `color-scheme` (sure-theme.css), so scrollbars and
-form controls follow the app theme. A user-facing toggle (persisted via
-`theme.ts` `persistThemeChoice`) lands with `t_alt_fnd_011`.
-
-`data-theme` also drives `color-scheme` (sure-theme.css), so scrollbars and
-form controls follow the app theme. Never toggle theme classes imperatively
-via `classList` — `createTheme` results are opaque `Theme<>` objects that
-only `stylex.props` understands.
+form controls follow the app theme once it resolves. A user-facing toggle
+(persisted via `theme.ts` `persistThemeChoice`) lands with `t_alt_fnd_011`.
+Never toggle theme classes imperatively via `classList` — `createTheme`
+results are opaque `Theme<>` objects that only `stylex.props` understands.
 
 ## Reduced motion
 

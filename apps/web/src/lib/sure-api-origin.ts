@@ -1,8 +1,6 @@
 export const SURE_API_ORIGIN_ENV_VAR = "SURE_API_ORIGIN";
 
-export type SureApiOriginResult =
-	| { ok: true; origin: string }
-	| { ok: false; error: string };
+export type SureApiOriginResult = { ok: true; origin: string } | { ok: false; error: string };
 
 function invalid(message: string): SureApiOriginResult {
 	return {
@@ -18,9 +16,7 @@ function invalid(message: string): SureApiOriginResult {
  * both the Vite serve-time startup check and the server-only runtime
  * accessor. Returns the origin normalized without a trailing slash.
  */
-export function assertSureApiOrigin(
-	rawValue: string | undefined,
-): SureApiOriginResult {
+export function assertSureApiOrigin(rawValue: string | undefined): SureApiOriginResult {
 	const value = (rawValue ?? "").trim();
 
 	if (value === "") {
@@ -35,9 +31,7 @@ export function assertSureApiOrigin(
 	}
 
 	if (url.protocol !== "http:" && url.protocol !== "https:") {
-		return invalid(
-			`protocol must be http or https, got "${url.protocol}".`,
-		);
+		return invalid(`protocol must be http or https, got "${url.protocol}".`);
 	}
 
 	if (url.username !== "" || url.password !== "") {

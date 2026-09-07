@@ -11,14 +11,20 @@ import { describe, expect, it } from "vitest";
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const FORBIDDEN: readonly { pattern: RegExp; reason: string }[] = [
-	{ pattern: /dangerouslySetInnerHTML/, reason: "no dangerouslySetInnerHTML (inline HTML/scripts)" },
-	{ pattern: /sureThemeInlineScript/, reason: "no inline theme script (use hydration in __root.tsx)" },
+	{
+		pattern: /dangerouslySetInnerHTML/,
+		reason: "no dangerouslySetInnerHTML (inline HTML/scripts)",
+	},
+	{
+		pattern: /sureThemeInlineScript/,
+		reason: "no inline theme script (use hydration in __root.tsx)",
+	},
 	{ pattern: /<script[\s>]/, reason: "no <script> elements in TSX" },
 ];
 
 function sourceFiles(dir: string): string[] {
 	const out: string[] = [];
-	for (const entry of readdirSync(dir).sort()) {
+	for (const entry of readdirSync(dir)) {
 		const full = join(dir, entry);
 		if (statSync(full).isDirectory()) {
 			out.push(...sourceFiles(full));

@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fnd_003"
 title: "Configure TypeScript lint formatting and workspace scripts"
 type: "task"
-status: "todo"
+status: "done"
 priority: "high"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["frontend", "tooling"]
 subtaskIds: []

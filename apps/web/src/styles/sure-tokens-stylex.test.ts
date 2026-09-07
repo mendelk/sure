@@ -12,17 +12,30 @@ const STYLEX_SOURCE = readFileSync(resolve(HERE, "sure-tokens.stylex.ts"), "utf8
 
 function blockAfter(marker: string): string {
 	const start = STYLEX_SOURCE.indexOf(marker);
-	expect(start, `missing ${marker}`).toBeGreaterThanOrEqual(0);
+	if (start < 0) {
+		throw new Error(`missing ${marker} in generated StyleX output`);
+	}
 	const open = STYLEX_SOURCE.indexOf("{", start);
 	const end = STYLEX_SOURCE.indexOf("\n});", open);
-	expect(end, `unterminated ${marker}`).toBeGreaterThan(open);
+	if (end <= open) {
+		throw new Error(`unterminated ${marker} in generated StyleX output`);
+	}
 	return STYLEX_SOURCE.slice(open, end);
 }
 
 function entriesOf(block: string): Map<string, string> {
 	const entries = new Map<string, string>();
-	for (const match of block.matchAll(/^\s{2}([A-Za-z_$][A-Za-z0-9_$]*): ("(?:[^"\\]|\\.)*"),$/gm)) {
-		entries.set(match[1], JSON.parse(match[2]) as string);
+	for (const match of block.matchAll(/^\t([A-Za-z_$][A-Za-z0-9_$]*): ("(?:[^"\\]|\\.)*"),$/gm)) {
+		const name = match[1];
+		const raw = match[2];
+		if (name === undefined || raw === undefined) {
+			throw new Error("unreachable: regex groups always participate");
+		}
+		const parsed: unknown = JSON.parse(raw);
+		if (typeof parsed !== "string") {
+			throw new Error(`expected a string value for ${name} in generated StyleX output`);
+		}
+		entries.set(name, parsed);
 	}
 	return entries;
 }
@@ -39,9 +52,17 @@ describe("StyleX theme drift", () => {
 		for (const name of Object.keys(lightValues)) {
 			expect(STYLEX_SOURCE).toContain(`"${name}"`);
 		}
-		for (const match of STYLEX_SOURCE.matchAll(/^\s{2}[A-Za-z_$][A-Za-z0-9_$]*: (".*"),$/gm)) {
-			expect(match[1], "unresolved DTCG reference in StyleX output").not.toContain("{");
-		}
+		const emitted = [...STYLEX_SOURCE.matchAll(/^\t[A-Za-z_$][A-Za-z0-9_$]*: (".*"),$/gm)].map(
+			(match) => {
+				const value = match[1];
+				if (value === undefined) {
+					throw new Error("unreachable: regex group always participates");
+				}
+				return value;
+			},
+		);
+		// No emitted value may still contain an unresolved DTCG reference.
+		expect(emitted.filter((value) => value.includes("{"))).toEqual([]);
 	});
 
 	it("keeps defineVars, light theme, and dark theme in sync with plain values", () => {
@@ -50,16 +71,11 @@ describe("StyleX theme drift", () => {
 		const dark = entriesOf(blockAfter("sureDarkTheme = stylex.createTheme"));
 
 		expect(Object.keys(lightValues).length).toBeGreaterThan(60);
-		for (const [name, value] of Object.entries(lightValues)) {
-			expect(vars.get(name), `vars.${name}`).toBe(value);
-			expect(light.get(name), `light.${name}`).toBe(value);
-		}
-		for (const [name, value] of Object.entries(darkValues)) {
-			expect(dark.get(name), `dark.${name}`).toBe(value);
-		}
-		expect(vars.size).toBe(Object.keys(lightValues).length);
-		expect(light.size).toBe(Object.keys(lightValues).length);
-		expect(dark.size).toBe(Object.keys(darkValues).length);
+		// Whole-object comparison pins keys and values at once; a mismatch
+		// diff names the drifting token (vars/light/dark blocks).
+		expect(Object.fromEntries(vars)).toEqual(lightValues);
+		expect(Object.fromEntries(light)).toEqual(lightValues);
+		expect(Object.fromEntries(dark)).toEqual(darkValues);
 	});
 
 	it("emits no raw palette ladders as variables", () => {

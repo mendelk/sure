@@ -41,9 +41,10 @@ function RootComponent() {
 	// hydration: SSR and the first client render agree on "no theme yet", so
 	// there is no hydration mismatch, and no inline script is needed
 	// (ADR-0001 REQ-TRAN-02 forbids inline scripts under the enforced CSP).
-	// Pre-hydration, sure-theme.css gives UA chrome the correct
-	// light/dark system default via color-scheme; the app-level theme (both
-	// data-theme and the compiled StyleX class) resolves in the effect below.
+	// Pre-hydration, data-theme stays absent so sure-theme.css gives UA chrome
+	// the correct light/dark system default via color-scheme, while app
+	// surfaces fall back to the compiled light semantic variables (see
+	// RootDocument). The stored/OS choice resolves in the effect below.
 	const [theme, setTheme] = useState<SureThemeName | null>(null);
 	useEffect(() => {
 		setTheme(
@@ -77,9 +78,12 @@ function RootDocument({
 }) {
 	return (
 		// The compiled StyleX theme class carries the semantic variables;
-		// data-theme drives color-scheme via sure-theme.css. Both stay absent
-		// until hydration resolves the theme, so SSR output matches the
-		// first client render exactly.
+		// data-theme drives color-scheme via sure-theme.css. While theme is
+		// null (SSR through hydration), data-theme stays absent so SSR output
+		// matches the first client render exactly, and the light theme class
+		// applies as the pre-hydration fallback: its values are identical to
+		// the defineVars defaults, so app surfaces render light semantics
+		// until the stored/OS choice resolves.
 		<html
 			lang="en"
 			data-theme={theme ?? undefined}

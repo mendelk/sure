@@ -41,7 +41,7 @@ Establish the architecture, security, generated API client, design system, appli
 ## Tasks
 - [x] [[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]
 - [x] [[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]
-- [ ] [[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript, lint, formatting, and workspace scripts]]
+- [x] [[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript, lint, formatting, and workspace scripts]]
 - [ ] [[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]
 - [ ] [[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]
 - [x] [[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]

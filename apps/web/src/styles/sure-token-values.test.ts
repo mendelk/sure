@@ -11,15 +11,29 @@ describe("semantic token values", () => {
 		const darkKeys = Object.keys(darkValues);
 		expect(darkKeys).toEqual(lightKeys);
 		expect(lightKeys.length).toBeGreaterThan(60);
-		expect([...lightKeys].sort()).toEqual(lightKeys);
+		// Keys must be emitted in sorted order (deterministic generator output).
+		const inversions = lightKeys.filter(
+			(key, index) => index > 0 && String(lightKeys[index - 1]) >= key,
+		);
+		expect(inversions).toEqual([]);
 	});
 
 	it("leaves no unresolved DTCG references in any value", () => {
 		for (const values of [lightValues, darkValues]) {
-			for (const [name, value] of Object.entries(values)) {
-				expect(value, name).not.toContain("{");
-				expect(value, name).not.toContain("}");
-				expect(value.length, name).toBeGreaterThan(0);
+			const clean = Object.fromEntries(
+				Object.entries(values).map(([name, value]) => [
+					name,
+					{
+						hasOpenBrace: value.includes("{"),
+						hasCloseBrace: value.includes("}"),
+						length: value.length,
+					},
+				]),
+			);
+			for (const flags of Object.values(clean)) {
+				expect(flags.hasOpenBrace).toBe(false);
+				expect(flags.hasCloseBrace).toBe(false);
+				expect(flags.length).toBeGreaterThan(0);
 			}
 		}
 	});
@@ -48,15 +62,9 @@ describe("semantic token values", () => {
 	});
 
 	it("renders alpha refs as standard color-mix()", () => {
-		expect(lightValues.focusRing).toBe(
-			"color-mix(in srgb, #0B0B0B 50%, transparent)",
-		);
-		expect(darkValues.focusRing).toBe(
-			"color-mix(in srgb, #ffffff 50%, transparent)",
-		);
-		expect(lightValues.borderDivider).toBe(
-			"color-mix(in srgb, #0B0B0B 8%, transparent)",
-		);
+		expect(lightValues.focusRing).toBe("color-mix(in srgb, #0B0B0B 50%, transparent)");
+		expect(darkValues.focusRing).toBe("color-mix(in srgb, #ffffff 50%, transparent)");
+		expect(lightValues.borderDivider).toBe("color-mix(in srgb, #0B0B0B 8%, transparent)");
 	});
 
 	it("covers typography tokens", () => {
@@ -73,9 +81,7 @@ describe("semantic token values", () => {
 		expect(lightValues.shadowXs).toBe(
 			"0px 1px 2px 0px color-mix(in srgb, #0B0B0B 6%, transparent)",
 		);
-		expect(darkValues.shadowXs).toBe(
-			"0px 1px 2px 0px color-mix(in srgb, #ffffff 8%, transparent)",
-		);
+		expect(darkValues.shadowXs).toBe("0px 1px 2px 0px color-mix(in srgb, #ffffff 8%, transparent)");
 		expect(lightValues.shadowBorderXs).toContain("0px 0px 0px 1px");
 		expect(lightValues.motionStrokeFill).toBe("stroke-fill 3s 300ms forwards");
 		expect(darkValues.motionStrokeFill).toBe(lightValues.motionStrokeFill);
@@ -89,7 +95,7 @@ describe("semantic token values", () => {
 	});
 
 	it("keeps every token mapped to its canonical source and group", () => {
-		expect(Object.keys(tokenMeta).sort()).toEqual(Object.keys(lightValues).sort());
+		expect(Object.keys(tokenMeta)).toEqual(Object.keys(lightValues));
 		expect(tokenMeta.success).toEqual({ source: "color.success", group: "color" });
 		expect(tokenMeta.textPrimary).toEqual({
 			source: "utility.text-primary",

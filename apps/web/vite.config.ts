@@ -8,14 +8,14 @@ import { assertSureApiOrigin } from "./src/lib/sure-api-origin.ts";
 // Sure API origin is missing or invalid, instead of serving a broken app.
 // Production builds intentionally skip this check so CI can build without
 // deployment secrets; the SSR loader re-validates on every server render.
+// Vitest runs (`vitest run`) also skip it: unit tests must stay hermetic and
+// runnable from a clean checkout without deployment env vars.
 function ensureSureApiOriginForServe(command: string, rawValue: unknown) {
-	if (command !== "serve") {
+	if (command !== "serve" || process.env["VITEST"]) {
 		return;
 	}
 
-	const result = assertSureApiOrigin(
-		typeof rawValue === "string" ? rawValue : undefined,
-	);
+	const result = assertSureApiOrigin(typeof rawValue === "string" ? rawValue : undefined);
 	if (!result.ok) {
 		throw new Error(
 			`[sure-web] ${result.error} ` +
@@ -30,10 +30,7 @@ export default defineConfig(({ command, mode }) => {
 	// explicitly; shell-provided variables still take precedence via loadEnv
 	// ordering below.
 	const env = loadEnv(mode, process.cwd(), "");
-	ensureSureApiOriginForServe(
-		command,
-		process.env.SURE_API_ORIGIN ?? env.SURE_API_ORIGIN,
-	);
+	ensureSureApiOriginForServe(command, process.env["SURE_API_ORIGIN"] ?? env["SURE_API_ORIGIN"]);
 
 	return {
 		server: {
@@ -53,7 +50,7 @@ export default defineConfig(({ command, mode }) => {
 			// under vitest. Production builds (command "build") are unaffected.
 			stylex.vite({
 				useCSSLayers: true,
-				devMode: process.env.VITEST ? "off" : "full",
+				devMode: process.env["VITEST"] ? "off" : "full",
 			}),
 			// react's vite plugin must come after start's vite plugin
 			viteReact(),

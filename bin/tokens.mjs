@@ -295,7 +295,7 @@ function buildStyleXModel(tokens) {
 }
 
 function tsRecord(entries, pick) {
-  return entries.map((e) => `  ${e.name}: ${JSON.stringify(e[pick])},`).join("\n");
+  return entries.map((e) => `\t${e.name}: ${JSON.stringify(e[pick])},`).join("\n");
 }
 
 const STYLEX_TS_PREAMBLE = `// GENERATED — do not edit by hand.
@@ -380,7 +380,7 @@ export interface SureTokenMeta {
 }
 
 export const tokenMeta: Record<SureTokenName, SureTokenMeta> = {
-${entries.map((e) => `  ${e.name}: { source: ${JSON.stringify(e.source)}, group: ${JSON.stringify(e.group)} },`).join("\n")}
+${entries.map((e) => `\t${e.name}: { source: ${JSON.stringify(e.source)}, group: ${JSON.stringify(e.group)} },`).join("\n")}
 };
 `;
   writeFileSync(VALUES_TS, valuesTs);
@@ -396,25 +396,26 @@ ${entries.map((e) => `  ${e.name}: { source: ${JSON.stringify(e.source)}, group:
  * fallbacks. Applied by apps/web/src/styles/theme.ts.
  */
 :root {
-  color-scheme: light dark;
+\tcolor-scheme: light dark;
 }
 
 /* An explicit choice wins over the OS default. */
 :root[data-theme="light"] {
-  color-scheme: light;
+\tcolor-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  color-scheme: dark;
+\tcolor-scheme: dark;
 }
 
-/* No explicit choice: follow the OS for UA chrome (scrollbars, form
- * controls). The app-level dark variables are applied by the inline theme
- * script + theme.ts once they confirm prefers-color-scheme: dark. */
+/* No explicit choice (pre-hydration, or no stored preference): follow the OS
+ * for UA chrome (scrollbars, form controls). The app-level theme resolves
+ * on hydration via apps/web/src/styles/theme.ts; there are no inline
+ * scripts (ADR-0001 REQ-TRAN-02). */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    color-scheme: dark;
-  }
+\t:root:not([data-theme]) {
+\t\tcolor-scheme: dark;
+\t}
 }
 
 /* Motion tokens (motionStrokeFill and transitions built on semantic vars)
@@ -422,32 +423,32 @@ ${entries.map((e) => `  ${e.name}: { source: ${JSON.stringify(e.source)}, group:
  * covers future animations even if a component forgets the per-component
  * StyleX pattern documented in apps/web/src/styles/README.md. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+\t*,
+\t*::before,
+\t*::after {
+\t\tanimation-duration: 0.01ms !important;
+\t\tanimation-iteration-count: 1 !important;
+\t\ttransition-duration: 0.01ms !important;
+\t\tscroll-behavior: auto !important;
+\t}
 }
 
 /* Forced-colors (Windows High Contrast): drop decorative shadows so content
  * stays legible and guarantee a visible focus indicator from system colors.
  * Components keep using semantic vars; the OS palette wins inside this block. */
 @media (forced-colors: active) {
-  *,
-  *::before,
-  *::after {
-    box-shadow: none !important;
-    text-shadow: none !important;
-  }
+\t*,
+\t*::before,
+\t*::after {
+\t\tbox-shadow: none !important;
+\t\ttext-shadow: none !important;
+\t}
 
-  :is(a, button, input, select, textarea, [tabindex]):focus-visible {
-    outline: 2px solid CanvasText;
-    outline-offset: 2px;
-    forced-color-adjust: none;
-  }
+\t:is(a, button, input, select, textarea, [tabindex]):focus-visible {
+\t\toutline: 2px solid CanvasText;
+\t\toutline-offset: 2px;
+\t\tforced-color-adjust: none;
+\t}
 }
 `;
   writeFileSync(THEME_CSS, themeCss);
