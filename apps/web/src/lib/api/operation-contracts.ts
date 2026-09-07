@@ -66,6 +66,8 @@ import {
 import {
 	GetApiV1BalanceSheet200Response,
 	GetApiV1BalanceSheet401Response,
+	GetApiV1BalanceSheet422Response,
+	GetApiV1BalanceSheetQueryParams,
 } from "./zod/endpoints/balance-sheet/balance-sheet.zod";
 import {
 	GetApiV1Balances200Response,
@@ -620,8 +622,13 @@ const CONTRACTS: Record<string, OperationContract> = {
 		operation: "GET /api/v1/balance_sheet",
 		method: "GET",
 		path: "/api/v1/balance_sheet",
+		queryParams: GetApiV1BalanceSheetQueryParams,
 		isBinaryDownload: false,
-		responses: { 200: GetApiV1BalanceSheet200Response, 401: GetApiV1BalanceSheet401Response },
+		responses: {
+			200: GetApiV1BalanceSheet200Response,
+			401: GetApiV1BalanceSheet401Response,
+			422: GetApiV1BalanceSheet422Response,
+		},
 	},
 	"GET /api/v1/balances": {
 		operation: "GET /api/v1/balances",

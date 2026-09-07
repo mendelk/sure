@@ -37,12 +37,25 @@ RSpec.describe 'API V1 Balance Sheet', type: :request do
     get 'Show balance sheet' do
       tags 'Balance Sheet'
       description 'Returns the family balance sheet including net worth, total assets, and total liabilities ' \
-                  'with amounts converted to the family\'s primary currency.'
+                  'with amounts converted to the family\'s primary currency, plus the bounded dashboard payload ' \
+                  '(net-worth trend, grouped account summaries, sync state). See docs/api/dashboard.md for the ' \
+                  'dashboard request plan, currency/date semantics, and empty/stale/syncing states.'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
+      parameter name: :period, in: :query, required: false,
+                description: 'Trend period (default: last_30_days)',
+                schema: { type: :string, enum: %w[last_7_days last_30_days last_90_days last_365_days current_month current_year] }
 
       response '200', 'balance sheet returned' do
         schema '$ref' => '#/components/schemas/BalanceSheet'
+
+        run_test!
+      end
+
+      response '200', 'balance sheet with bounded trend period' do
+        schema '$ref' => '#/components/schemas/BalanceSheet'
+
+        let(:period) { 'last_7_days' }
 
         run_test!
       end
@@ -51,6 +64,14 @@ RSpec.describe 'API V1 Balance Sheet', type: :request do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
         let(:'X-Api-Key') { 'invalid-key' }
+
+        run_test!
+      end
+
+      response '422', 'invalid period' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:period) { 'last_decade' }
 
         run_test!
       end
