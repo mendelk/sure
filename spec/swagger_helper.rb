@@ -725,7 +725,7 @@ RSpec.configure do |config|
           },
           RuleAction: {
             type: :object,
-            required: %w[id action_type created_at updated_at],
+            required: %w[id action_type value created_at updated_at],
             properties: {
               id: { type: :string, format: :uuid },
               action_type: { type: :string },
@@ -736,7 +736,7 @@ RSpec.configure do |config|
           },
           RuleCondition: {
             type: :object,
-            required: %w[id condition_type operator sub_conditions created_at updated_at],
+            required: %w[id condition_type operator value sub_conditions created_at updated_at],
             properties: {
               id: { type: :string, format: :uuid },
               condition_type: { type: :string },

@@ -10,10 +10,24 @@ import type { QueryClient } from "@tanstack/react-query";
 import * as stylex from "@stylexjs/stylex";
 import type * as React from "react";
 import { useEffect, useState } from "react";
-import { sureDarkTheme, sureLightTheme } from "~/styles/sure-tokens.stylex";
+import { sureDarkTheme, sureLightTheme, vars } from "~/styles/sure-tokens.stylex";
 import { getInitialTheme } from "~/styles/theme";
 import type { SureThemeName } from "~/styles/theme";
 import appCss from "~/styles/app.css?url";
+
+// Paint the page surface explicitly from the semantic tokens so the app never
+// depends on the webview's default canvas color. Embedded browsers (Orca's
+// webview, Electron) can leave the root transparent and resolve dark mode,
+// rendering white-on-white or black-on-black; vars.surface/vars.textPrimary
+// on <html> guarantee an opaque, theme-correct page background in every
+// host, including pre-hydration SSR.
+const styles = stylex.create({
+	root: {
+		backgroundColor: vars.surface,
+		color: vars.textPrimary,
+		minHeight: "100vh",
+	},
+});
 // Static theme shell (color-scheme defaults, reduced-motion + forced-colors
 // guards). Side-effect import so the StyleX plugin emits it alongside the
 // compiled theme CSS. The semantic values ship via sure-tokens.stylex.ts.
@@ -87,7 +101,7 @@ function RootDocument({
 		<html
 			lang="en"
 			data-theme={theme ?? undefined}
-			{...stylex.props(theme === "dark" ? sureDarkTheme : sureLightTheme)}
+			{...stylex.props(theme === "dark" ? sureDarkTheme : sureLightTheme, styles.root)}
 		>
 			<head>
 				<HeadContent />
