@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fnd_002"
 title: "Scaffold pnpm and TanStack Start web app"
 type: "task"
-status: "todo"
+status: "done"
 priority: "critical"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["frontend", "foundation"]
 subtaskIds: []
