@@ -5,19 +5,19 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const ImportConfiguration = zod.object({
-  "date_col_label": zod.string().nullish(),
-  "amount_col_label": zod.string().nullish(),
-  "name_col_label": zod.string().nullish(),
-  "category_col_label": zod.string().nullish(),
-  "tags_col_label": zod.string().nullish(),
-  "notes_col_label": zod.string().nullish(),
-  "account_col_label": zod.string().nullish(),
-  "date_format": zod.string().nullish(),
-  "number_format": zod.string().nullish(),
-  "signage_convention": zod.string().nullish()
+export const ImportConfiguration = zod.strictObject({
+	date_col_label: zod.string().nullish(),
+	amount_col_label: zod.string().nullish(),
+	name_col_label: zod.string().nullish(),
+	category_col_label: zod.string().nullish(),
+	tags_col_label: zod.string().nullish(),
+	notes_col_label: zod.string().nullish(),
+	account_col_label: zod.string().nullish(),
+	date_format: zod.string().nullish(),
+	number_format: zod.string().nullish(),
+	signage_convention: zod.string().nullish(),
 });
 
 export type ImportConfiguration = zod.input<typeof ImportConfiguration>;

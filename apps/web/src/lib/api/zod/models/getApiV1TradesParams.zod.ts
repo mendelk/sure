@@ -5,16 +5,16 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1TradesParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "account_id": zod.string().optional(),
-  "account_ids": zod.array(zod.string()).optional(),
-  "start_date": zod.iso.date().optional(),
-  "end_date": zod.iso.date().optional()
-})
+export const GetApiV1TradesParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	account_id: zod.string().exactOptional(),
+	account_ids: zod.array(zod.string()).exactOptional(),
+	start_date: zod.iso.date().exactOptional(),
+	end_date: zod.iso.date().exactOptional(),
+});
 
 export type GetApiV1TradesParams = zod.input<typeof GetApiV1TradesParams>;
 export type GetApiV1TradesParamsOutput = zod.output<typeof GetApiV1TradesParams>;

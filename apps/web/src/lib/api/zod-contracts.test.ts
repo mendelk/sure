@@ -109,6 +109,7 @@ describe("component parsers", () => {
 			id: UUID_A,
 			condition_type: "category",
 			operator: "equals",
+			value: null,
 			sub_conditions: [],
 			created_at: TIMESTAMP,
 			updated_at: TIMESTAMP,
@@ -215,5 +216,8 @@ describe("operation parse helpers", () => {
 			throw new Error("Expected the invalid query to fail validation.");
 		}
 		expect(bad.part).toBe("query");
+		expect(parseOperationRequest(contract, { query: { page: 2, typo: true } }).ok).toBe(false);
+		const undocumentedBody = parseOperationRequest(contract, { body: { page: 2 } });
+		expect(undocumentedBody).toMatchObject({ ok: false, part: "body" });
 	});
 });

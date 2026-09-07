@@ -5,14 +5,16 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PatchApiV1TagsIdBody = zod.object({
-  "tag": zod.object({
-  "name": zod.string().optional(),
-  "color": zod.string().optional()
-}).optional()
-})
+export const PatchApiV1TagsIdBody = zod.strictObject({
+	tag: zod
+		.strictObject({
+			name: zod.string().exactOptional(),
+			color: zod.string().exactOptional(),
+		})
+		.exactOptional(),
+});
 
 export type PatchApiV1TagsIdBody = zod.input<typeof PatchApiV1TagsIdBody>;
 export type PatchApiV1TagsIdBodyOutput = zod.output<typeof PatchApiV1TagsIdBody>;

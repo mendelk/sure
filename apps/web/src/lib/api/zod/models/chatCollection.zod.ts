@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ChatSummary } from './chatSummary.zod.ts';
-import { Pagination } from './pagination.zod.ts';
+import * as zod from "zod";
+import { ChatSummary } from "./chatSummary.zod.ts";
+import { Pagination } from "./pagination.zod.ts";
 
-export const ChatCollection = zod.object({
-  "chats": zod.array(ChatSummary),
-  "pagination": Pagination
+export const ChatCollection = zod.strictObject({
+	chats: zod.array(ChatSummary),
+	pagination: Pagination,
 });
 
 export type ChatCollection = zod.input<typeof ChatCollection>;

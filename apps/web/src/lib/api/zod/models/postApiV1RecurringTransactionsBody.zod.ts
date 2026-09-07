@@ -5,7 +5,7 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 export const postApiV1RecurringTransactionsBodyRecurringTransactionOneExpectedDayOfMonthMax = 31;
 
@@ -19,55 +19,85 @@ export const postApiV1RecurringTransactionsBodyRecurringTransactionThreeExpected
 
 export const postApiV1RecurringTransactionsBodyRecurringTransactionThreeOccurrenceCountMin = 0;
 
+export const PostApiV1RecurringTransactionsBody = zod.strictObject({
+	recurring_transaction: zod
+		.union([
+			zod.strictObject({
+				account_id: zod.uuid().nullish(),
+				merchant_id: zod.uuid().nullish(),
+				name: zod.string().nullable(),
+				amount: zod.number().exactOptional(),
+				currency: zod.string().exactOptional(),
+				expected_day_of_month: zod
+					.int()
+					.min(1)
+					.max(postApiV1RecurringTransactionsBodyRecurringTransactionOneExpectedDayOfMonthMax)
+					.exactOptional(),
+				last_occurrence_date: zod.iso.date().exactOptional(),
+				next_expected_date: zod.iso.date().exactOptional(),
+				status: zod.enum(["active", "inactive"]).exactOptional(),
+				occurrence_count: zod
+					.int()
+					.min(postApiV1RecurringTransactionsBodyRecurringTransactionOneOccurrenceCountMin)
+					.exactOptional(),
+				manual: zod.boolean().exactOptional(),
+				expected_amount_min: zod.number().nullish(),
+				expected_amount_max: zod.number().nullish(),
+				expected_amount_avg: zod.number().nullish(),
+			}),
+			zod.strictObject({
+				account_id: zod.uuid().nullish(),
+				merchant_id: zod.uuid().nullable(),
+				name: zod.string().nullish(),
+				amount: zod.number().exactOptional(),
+				currency: zod.string().exactOptional(),
+				expected_day_of_month: zod
+					.int()
+					.min(1)
+					.max(postApiV1RecurringTransactionsBodyRecurringTransactionTwoExpectedDayOfMonthMax)
+					.exactOptional(),
+				last_occurrence_date: zod.iso.date().exactOptional(),
+				next_expected_date: zod.iso.date().exactOptional(),
+				status: zod.enum(["active", "inactive"]).exactOptional(),
+				occurrence_count: zod
+					.int()
+					.min(postApiV1RecurringTransactionsBodyRecurringTransactionTwoOccurrenceCountMin)
+					.exactOptional(),
+				manual: zod.boolean().exactOptional(),
+				expected_amount_min: zod.number().nullish(),
+				expected_amount_max: zod.number().nullish(),
+				expected_amount_avg: zod.number().nullish(),
+			}),
+		])
+		.and(
+			zod.strictObject({
+				account_id: zod.uuid().nullish(),
+				merchant_id: zod.uuid().nullish(),
+				name: zod.string().nullish(),
+				amount: zod.number(),
+				currency: zod.string(),
+				expected_day_of_month: zod
+					.int()
+					.min(1)
+					.max(postApiV1RecurringTransactionsBodyRecurringTransactionThreeExpectedDayOfMonthMax),
+				last_occurrence_date: zod.iso.date(),
+				next_expected_date: zod.iso.date(),
+				status: zod.enum(["active", "inactive"]).exactOptional(),
+				occurrence_count: zod
+					.int()
+					.min(postApiV1RecurringTransactionsBodyRecurringTransactionThreeOccurrenceCountMin)
+					.exactOptional(),
+				manual: zod.boolean().exactOptional(),
+				expected_amount_min: zod.number().nullish(),
+				expected_amount_max: zod.number().nullish(),
+				expected_amount_avg: zod.number().nullish(),
+			}),
+		),
+});
 
-export const PostApiV1RecurringTransactionsBody = zod.object({
-  "recurring_transaction": zod.union([zod.object({
-  "account_id": zod.uuid().nullish(),
-  "merchant_id": zod.uuid().nullish(),
-  "name": zod.string().nullable(),
-  "amount": zod.number().optional(),
-  "currency": zod.string().optional(),
-  "expected_day_of_month": zod.int().min(1).max(postApiV1RecurringTransactionsBodyRecurringTransactionOneExpectedDayOfMonthMax).optional(),
-  "last_occurrence_date": zod.iso.date().optional(),
-  "next_expected_date": zod.iso.date().optional(),
-  "status": zod.enum(['active', 'inactive']).optional(),
-  "occurrence_count": zod.int().min(postApiV1RecurringTransactionsBodyRecurringTransactionOneOccurrenceCountMin).optional(),
-  "manual": zod.boolean().optional(),
-  "expected_amount_min": zod.number().nullish(),
-  "expected_amount_max": zod.number().nullish(),
-  "expected_amount_avg": zod.number().nullish()
-}),zod.object({
-  "account_id": zod.uuid().nullish(),
-  "merchant_id": zod.uuid().nullable(),
-  "name": zod.string().nullish(),
-  "amount": zod.number().optional(),
-  "currency": zod.string().optional(),
-  "expected_day_of_month": zod.int().min(1).max(postApiV1RecurringTransactionsBodyRecurringTransactionTwoExpectedDayOfMonthMax).optional(),
-  "last_occurrence_date": zod.iso.date().optional(),
-  "next_expected_date": zod.iso.date().optional(),
-  "status": zod.enum(['active', 'inactive']).optional(),
-  "occurrence_count": zod.int().min(postApiV1RecurringTransactionsBodyRecurringTransactionTwoOccurrenceCountMin).optional(),
-  "manual": zod.boolean().optional(),
-  "expected_amount_min": zod.number().nullish(),
-  "expected_amount_max": zod.number().nullish(),
-  "expected_amount_avg": zod.number().nullish()
-})]).and(zod.object({
-  "account_id": zod.uuid().nullish(),
-  "merchant_id": zod.uuid().nullish(),
-  "name": zod.string().nullish(),
-  "amount": zod.number(),
-  "currency": zod.string(),
-  "expected_day_of_month": zod.int().min(1).max(postApiV1RecurringTransactionsBodyRecurringTransactionThreeExpectedDayOfMonthMax),
-  "last_occurrence_date": zod.iso.date(),
-  "next_expected_date": zod.iso.date(),
-  "status": zod.enum(['active', 'inactive']).optional(),
-  "occurrence_count": zod.int().min(postApiV1RecurringTransactionsBodyRecurringTransactionThreeOccurrenceCountMin).optional(),
-  "manual": zod.boolean().optional(),
-  "expected_amount_min": zod.number().nullish(),
-  "expected_amount_max": zod.number().nullish(),
-  "expected_amount_avg": zod.number().nullish()
-}))
-})
-
-export type PostApiV1RecurringTransactionsBody = zod.input<typeof PostApiV1RecurringTransactionsBody>;
-export type PostApiV1RecurringTransactionsBodyOutput = zod.output<typeof PostApiV1RecurringTransactionsBody>;
+export type PostApiV1RecurringTransactionsBody = zod.input<
+	typeof PostApiV1RecurringTransactionsBody
+>;
+export type PostApiV1RecurringTransactionsBodyOutput = zod.output<
+	typeof PostApiV1RecurringTransactionsBody
+>;

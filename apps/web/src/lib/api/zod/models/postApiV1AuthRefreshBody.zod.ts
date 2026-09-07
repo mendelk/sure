@@ -5,14 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1AuthRefreshBody = zod.object({
-  "refresh_token": zod.string().describe('The refresh token from a previous login or refresh'),
-  "device": zod.object({
-  "device_id": zod.string()
-})
-})
+export const PostApiV1AuthRefreshBody = zod.strictObject({
+	refresh_token: zod.string().describe("The refresh token from a previous login or refresh"),
+	device: zod.strictObject({
+		device_id: zod.string(),
+	}),
+});
 
 export type PostApiV1AuthRefreshBody = zod.input<typeof PostApiV1AuthRefreshBody>;
 export type PostApiV1AuthRefreshBodyOutput = zod.output<typeof PostApiV1AuthRefreshBody>;

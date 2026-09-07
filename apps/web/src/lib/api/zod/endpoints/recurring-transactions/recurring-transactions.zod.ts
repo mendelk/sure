@@ -5,31 +5,30 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 import {
-  ErrorResponse,
-  RecurringTransaction,
-  RecurringTransactionCollection,
-  SuccessMessage
-} from '../../models';
-
+	ErrorResponse,
+	RecurringTransaction,
+	RecurringTransactionCollection,
+	SuccessMessage,
+} from "../../models";
 
 /**
  * @summary List recurring transactions
  */
-export const GetApiV1RecurringTransactionsQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "status": zod.enum(['active', 'inactive']).optional().describe('Filter by recurring status'),
-  "account_id": zod.uuid().optional().describe('Filter by account ID')
-})
+export const GetApiV1RecurringTransactionsQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	status: zod.enum(["active", "inactive"]).exactOptional().describe("Filter by recurring status"),
+	account_id: zod.uuid().exactOptional().describe("Filter by account ID"),
+});
 
-export const GetApiV1RecurringTransactions200Response = RecurringTransactionCollection
+export const GetApiV1RecurringTransactions200Response = RecurringTransactionCollection;
 
-export const GetApiV1RecurringTransactions401Response = ErrorResponse
+export const GetApiV1RecurringTransactions401Response = ErrorResponse;
 
-export const GetApiV1RecurringTransactions422Response = ErrorResponse
+export const GetApiV1RecurringTransactions422Response = ErrorResponse;
 
 /**
  * @summary Create recurring transaction
@@ -46,121 +45,149 @@ export const postApiV1RecurringTransactionsBodyRecurringTransactionThreeExpected
 
 export const postApiV1RecurringTransactionsBodyRecurringTransactionThreeOccurrenceCountMin = 0;
 
+export const PostApiV1RecurringTransactionsBody = zod.strictObject({
+	recurring_transaction: zod
+		.union([
+			zod.strictObject({
+				account_id: zod.uuid().nullish(),
+				merchant_id: zod.uuid().nullish(),
+				name: zod.string().nullable(),
+				amount: zod.number().exactOptional(),
+				currency: zod.string().exactOptional(),
+				expected_day_of_month: zod
+					.int()
+					.min(1)
+					.max(postApiV1RecurringTransactionsBodyRecurringTransactionOneExpectedDayOfMonthMax)
+					.exactOptional(),
+				last_occurrence_date: zod.iso.date().exactOptional(),
+				next_expected_date: zod.iso.date().exactOptional(),
+				status: zod.enum(["active", "inactive"]).exactOptional(),
+				occurrence_count: zod
+					.int()
+					.min(postApiV1RecurringTransactionsBodyRecurringTransactionOneOccurrenceCountMin)
+					.exactOptional(),
+				manual: zod.boolean().exactOptional(),
+				expected_amount_min: zod.number().nullish(),
+				expected_amount_max: zod.number().nullish(),
+				expected_amount_avg: zod.number().nullish(),
+			}),
+			zod.strictObject({
+				account_id: zod.uuid().nullish(),
+				merchant_id: zod.uuid().nullable(),
+				name: zod.string().nullish(),
+				amount: zod.number().exactOptional(),
+				currency: zod.string().exactOptional(),
+				expected_day_of_month: zod
+					.int()
+					.min(1)
+					.max(postApiV1RecurringTransactionsBodyRecurringTransactionTwoExpectedDayOfMonthMax)
+					.exactOptional(),
+				last_occurrence_date: zod.iso.date().exactOptional(),
+				next_expected_date: zod.iso.date().exactOptional(),
+				status: zod.enum(["active", "inactive"]).exactOptional(),
+				occurrence_count: zod
+					.int()
+					.min(postApiV1RecurringTransactionsBodyRecurringTransactionTwoOccurrenceCountMin)
+					.exactOptional(),
+				manual: zod.boolean().exactOptional(),
+				expected_amount_min: zod.number().nullish(),
+				expected_amount_max: zod.number().nullish(),
+				expected_amount_avg: zod.number().nullish(),
+			}),
+		])
+		.and(
+			zod.strictObject({
+				account_id: zod.uuid().nullish(),
+				merchant_id: zod.uuid().nullish(),
+				name: zod.string().nullish(),
+				amount: zod.number(),
+				currency: zod.string(),
+				expected_day_of_month: zod
+					.int()
+					.min(1)
+					.max(postApiV1RecurringTransactionsBodyRecurringTransactionThreeExpectedDayOfMonthMax),
+				last_occurrence_date: zod.iso.date(),
+				next_expected_date: zod.iso.date(),
+				status: zod.enum(["active", "inactive"]).exactOptional(),
+				occurrence_count: zod
+					.int()
+					.min(postApiV1RecurringTransactionsBodyRecurringTransactionThreeOccurrenceCountMin)
+					.exactOptional(),
+				manual: zod.boolean().exactOptional(),
+				expected_amount_min: zod.number().nullish(),
+				expected_amount_max: zod.number().nullish(),
+				expected_amount_avg: zod.number().nullish(),
+			}),
+		),
+});
 
+export const PostApiV1RecurringTransactions201Response = RecurringTransaction;
 
-export const PostApiV1RecurringTransactionsBody = zod.object({
-  "recurring_transaction": zod.union([zod.object({
-  "account_id": zod.uuid().nullish(),
-  "merchant_id": zod.uuid().nullish(),
-  "name": zod.string().nullable(),
-  "amount": zod.number().optional(),
-  "currency": zod.string().optional(),
-  "expected_day_of_month": zod.int().min(1).max(postApiV1RecurringTransactionsBodyRecurringTransactionOneExpectedDayOfMonthMax).optional(),
-  "last_occurrence_date": zod.iso.date().optional(),
-  "next_expected_date": zod.iso.date().optional(),
-  "status": zod.enum(['active', 'inactive']).optional(),
-  "occurrence_count": zod.int().min(postApiV1RecurringTransactionsBodyRecurringTransactionOneOccurrenceCountMin).optional(),
-  "manual": zod.boolean().optional(),
-  "expected_amount_min": zod.number().nullish(),
-  "expected_amount_max": zod.number().nullish(),
-  "expected_amount_avg": zod.number().nullish()
-}),zod.object({
-  "account_id": zod.uuid().nullish(),
-  "merchant_id": zod.uuid().nullable(),
-  "name": zod.string().nullish(),
-  "amount": zod.number().optional(),
-  "currency": zod.string().optional(),
-  "expected_day_of_month": zod.int().min(1).max(postApiV1RecurringTransactionsBodyRecurringTransactionTwoExpectedDayOfMonthMax).optional(),
-  "last_occurrence_date": zod.iso.date().optional(),
-  "next_expected_date": zod.iso.date().optional(),
-  "status": zod.enum(['active', 'inactive']).optional(),
-  "occurrence_count": zod.int().min(postApiV1RecurringTransactionsBodyRecurringTransactionTwoOccurrenceCountMin).optional(),
-  "manual": zod.boolean().optional(),
-  "expected_amount_min": zod.number().nullish(),
-  "expected_amount_max": zod.number().nullish(),
-  "expected_amount_avg": zod.number().nullish()
-})]).and(zod.object({
-  "account_id": zod.uuid().nullish(),
-  "merchant_id": zod.uuid().nullish(),
-  "name": zod.string().nullish(),
-  "amount": zod.number(),
-  "currency": zod.string(),
-  "expected_day_of_month": zod.int().min(1).max(postApiV1RecurringTransactionsBodyRecurringTransactionThreeExpectedDayOfMonthMax),
-  "last_occurrence_date": zod.iso.date(),
-  "next_expected_date": zod.iso.date(),
-  "status": zod.enum(['active', 'inactive']).optional(),
-  "occurrence_count": zod.int().min(postApiV1RecurringTransactionsBodyRecurringTransactionThreeOccurrenceCountMin).optional(),
-  "manual": zod.boolean().optional(),
-  "expected_amount_min": zod.number().nullish(),
-  "expected_amount_max": zod.number().nullish(),
-  "expected_amount_avg": zod.number().nullish()
-}))
-})
+export const PostApiV1RecurringTransactions401Response = ErrorResponse;
 
-export const PostApiV1RecurringTransactions201Response = RecurringTransaction
+export const PostApiV1RecurringTransactions403Response = ErrorResponse;
 
-export const PostApiV1RecurringTransactions401Response = ErrorResponse
+export const PostApiV1RecurringTransactions404Response = ErrorResponse;
 
-export const PostApiV1RecurringTransactions403Response = ErrorResponse
-
-export const PostApiV1RecurringTransactions404Response = ErrorResponse
-
-export const PostApiV1RecurringTransactions422Response = ErrorResponse
+export const PostApiV1RecurringTransactions422Response = ErrorResponse;
 
 /**
  * @summary Retrieve recurring transaction
  */
-export const GetApiV1RecurringTransactionsIdParams = zod.object({
-  "id": zod.string().describe('Recurring transaction ID')
-})
+export const GetApiV1RecurringTransactionsIdParams = zod.strictObject({
+	id: zod.string().describe("Recurring transaction ID"),
+});
 
-export const GetApiV1RecurringTransactionsId200Response = RecurringTransaction
+export const GetApiV1RecurringTransactionsId200Response = RecurringTransaction;
 
-export const GetApiV1RecurringTransactionsId401Response = ErrorResponse
+export const GetApiV1RecurringTransactionsId401Response = ErrorResponse;
 
-export const GetApiV1RecurringTransactionsId404Response = ErrorResponse
+export const GetApiV1RecurringTransactionsId404Response = ErrorResponse;
 
 /**
  * @summary Update recurring transaction
  */
-export const PatchApiV1RecurringTransactionsIdParams = zod.object({
-  "id": zod.string().describe('Recurring transaction ID')
-})
+export const PatchApiV1RecurringTransactionsIdParams = zod.strictObject({
+	id: zod.string().describe("Recurring transaction ID"),
+});
 
 export const patchApiV1RecurringTransactionsIdBodyRecurringTransactionExpectedDayOfMonthMax = 31;
 
+export const PatchApiV1RecurringTransactionsIdBody = zod.strictObject({
+	recurring_transaction: zod
+		.strictObject({
+			status: zod.enum(["active", "inactive"]).exactOptional(),
+			expected_day_of_month: zod
+				.int()
+				.min(1)
+				.max(patchApiV1RecurringTransactionsIdBodyRecurringTransactionExpectedDayOfMonthMax)
+				.exactOptional(),
+			next_expected_date: zod.iso.date().exactOptional(),
+		})
+		.exactOptional(),
+});
 
+export const PatchApiV1RecurringTransactionsId200Response = RecurringTransaction;
 
-export const PatchApiV1RecurringTransactionsIdBody = zod.object({
-  "recurring_transaction": zod.object({
-  "status": zod.enum(['active', 'inactive']).optional(),
-  "expected_day_of_month": zod.int().min(1).max(patchApiV1RecurringTransactionsIdBodyRecurringTransactionExpectedDayOfMonthMax).optional(),
-  "next_expected_date": zod.iso.date().optional()
-}).optional()
-})
+export const PatchApiV1RecurringTransactionsId401Response = ErrorResponse;
 
-export const PatchApiV1RecurringTransactionsId200Response = RecurringTransaction
+export const PatchApiV1RecurringTransactionsId403Response = ErrorResponse;
 
-export const PatchApiV1RecurringTransactionsId401Response = ErrorResponse
+export const PatchApiV1RecurringTransactionsId404Response = ErrorResponse;
 
-export const PatchApiV1RecurringTransactionsId403Response = ErrorResponse
-
-export const PatchApiV1RecurringTransactionsId404Response = ErrorResponse
-
-export const PatchApiV1RecurringTransactionsId422Response = ErrorResponse
+export const PatchApiV1RecurringTransactionsId422Response = ErrorResponse;
 
 /**
  * @summary Delete recurring transaction
  */
-export const DeleteApiV1RecurringTransactionsIdParams = zod.object({
-  "id": zod.string().describe('Recurring transaction ID')
-})
+export const DeleteApiV1RecurringTransactionsIdParams = zod.strictObject({
+	id: zod.string().describe("Recurring transaction ID"),
+});
 
-export const DeleteApiV1RecurringTransactionsId200Response = SuccessMessage
+export const DeleteApiV1RecurringTransactionsId200Response = SuccessMessage;
 
-export const DeleteApiV1RecurringTransactionsId401Response = ErrorResponse
+export const DeleteApiV1RecurringTransactionsId401Response = ErrorResponse;
 
-export const DeleteApiV1RecurringTransactionsId403Response = ErrorResponse
+export const DeleteApiV1RecurringTransactionsId403Response = ErrorResponse;
 
-export const DeleteApiV1RecurringTransactionsId404Response = ErrorResponse
-
+export const DeleteApiV1RecurringTransactionsId404Response = ErrorResponse;

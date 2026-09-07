@@ -5,25 +5,25 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const Security = zod.object({
-  "id": zod.uuid(),
-  "ticker": zod.string(),
-  "name": zod.string().nullish(),
-  "kind": zod.enum(['standard', 'cash']),
-  "country_code": zod.string().nullish(),
-  "exchange_mic": zod.string().nullish(),
-  "exchange_acronym": zod.string().nullish(),
-  "exchange_operating_mic": zod.string().nullish(),
-  "exchange_name": zod.string().nullish(),
-  "offline": zod.boolean(),
-  "offline_reason": zod.string().nullish(),
-  "website_url": zod.string().nullish(),
-  "logo_url": zod.string().nullish(),
-  "first_provider_price_on": zod.iso.date().nullish(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const Security = zod.strictObject({
+	id: zod.uuid(),
+	ticker: zod.string(),
+	name: zod.string().nullish(),
+	kind: zod.enum(["standard", "cash"]),
+	country_code: zod.string().nullish(),
+	exchange_mic: zod.string().nullish(),
+	exchange_acronym: zod.string().nullish(),
+	exchange_operating_mic: zod.string().nullish(),
+	exchange_name: zod.string().nullish(),
+	offline: zod.boolean(),
+	offline_reason: zod.string().nullish(),
+	website_url: zod.string().nullish(),
+	logo_url: zod.string().nullish(),
+	first_provider_price_on: zod.iso.date().nullish(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type Security = zod.input<typeof Security>;

@@ -5,19 +5,19 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Account } from './account.zod.ts';
+import * as zod from "zod";
+import { Account } from "./account.zod.ts";
 
-export const Valuation = zod.object({
-  "id": zod.uuid(),
-  "date": zod.iso.date(),
-  "amount": zod.string(),
-  "currency": zod.string(),
-  "notes": zod.string().nullish(),
-  "kind": zod.string(),
-  "account": Account,
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const Valuation = zod.strictObject({
+	id: zod.uuid(),
+	date: zod.iso.date(),
+	amount: zod.string(),
+	currency: zod.string(),
+	notes: zod.string().nullish(),
+	kind: zod.string(),
+	account: Account,
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type Valuation = zod.input<typeof Valuation>;

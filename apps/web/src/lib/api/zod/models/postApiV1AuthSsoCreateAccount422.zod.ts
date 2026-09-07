@@ -5,11 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1AuthSsoCreateAccount422 = zod.object({
-  "errors": zod.array(zod.string()).optional()
-})
+export const PostApiV1AuthSsoCreateAccount422 = zod.strictObject({
+	errors: zod.array(zod.string()).exactOptional(),
+});
 
 export type PostApiV1AuthSsoCreateAccount422 = zod.input<typeof PostApiV1AuthSsoCreateAccount422>;
-export type PostApiV1AuthSsoCreateAccount422Output = zod.output<typeof PostApiV1AuthSsoCreateAccount422>;
+export type PostApiV1AuthSsoCreateAccount422Output = zod.output<
+	typeof PostApiV1AuthSsoCreateAccount422
+>;

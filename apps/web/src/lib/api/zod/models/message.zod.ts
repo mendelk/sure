@@ -5,18 +5,18 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ToolCall } from './toolCall.zod.ts';
+import * as zod from "zod";
+import { ToolCall } from "./toolCall.zod.ts";
 
-export const Message = zod.object({
-  "id": zod.uuid(),
-  "type": zod.enum(['user_message', 'assistant_message']),
-  "role": zod.enum(['user', 'assistant']),
-  "content": zod.string(),
-  "model": zod.string().nullish(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true}),
-  "tool_calls": zod.array(ToolCall).nullish()
+export const Message = zod.strictObject({
+	id: zod.uuid(),
+	type: zod.enum(["user_message", "assistant_message"]),
+	role: zod.enum(["user", "assistant"]),
+	content: zod.string(),
+	model: zod.string().nullish(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
+	tool_calls: zod.array(ToolCall).nullish(),
 });
 
 export type Message = zod.input<typeof Message>;

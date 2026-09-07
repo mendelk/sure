@@ -5,14 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const TagDetail = zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "color": zod.string(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const TagDetail = zod.strictObject({
+	id: zod.uuid(),
+	name: zod.string(),
+	color: zod.string(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type TagDetail = zod.input<typeof TagDetail>;

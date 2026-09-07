@@ -5,19 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import {
-  ErrorResponse,
-  ProviderConnectionCollection
-} from '../../models';
-
+import { ErrorResponse, ProviderConnectionCollection } from "../../models";
 
 /**
  * List safe provider connection status metadata for the authenticated user's family without exposing credentials, raw provider payloads, or raw sync errors.
  * @summary Lists provider connection status summaries
  */
-export const GetApiV1ProviderConnections200Response = ProviderConnectionCollection
+export const GetApiV1ProviderConnections200Response = ProviderConnectionCollection;
 
-export const GetApiV1ProviderConnections401Response = ErrorResponse
+export const GetApiV1ProviderConnections401Response = ErrorResponse;
 
-export const GetApiV1ProviderConnections403Response = ErrorResponse
-
+export const GetApiV1ProviderConnections403Response = ErrorResponse;

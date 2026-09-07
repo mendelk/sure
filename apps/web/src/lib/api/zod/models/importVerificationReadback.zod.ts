@@ -5,22 +5,31 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const ImportVerificationReadback = zod.object({
-  "status": zod.enum(['not_verified', 'matched', 'mismatch', 'failed', 'reverted']).optional(),
-  "checked_at": zod.iso.datetime({"offset":true}).nullish(),
-  "expected_record_counts": zod.record(zod.string(), zod.int()).optional(),
-  "before_counts": zod.record(zod.string(), zod.int()).optional(),
-  "after_counts": zod.record(zod.string(), zod.int()).optional(),
-  "actual_delta_counts": zod.record(zod.string(), zod.int()).optional(),
-  "checked_counts": zod.record(zod.string(), zod.int()).optional(),
-  "mismatches": zod.record(zod.string(), zod.object({
-  "expected": zod.int(),
-  "actual": zod.int()
-})).optional(),
-  "error": zod.string().nullish()
-}).describe('SureImport only. Expected NDJSON counts compared to family-scoped database readback after publish.');
+export const ImportVerificationReadback = zod
+	.strictObject({
+		status: zod.enum(["not_verified", "matched", "mismatch", "failed", "reverted"]).exactOptional(),
+		checked_at: zod.iso.datetime({ offset: true }).nullish(),
+		expected_record_counts: zod.record(zod.string(), zod.int()).exactOptional(),
+		before_counts: zod.record(zod.string(), zod.int()).exactOptional(),
+		after_counts: zod.record(zod.string(), zod.int()).exactOptional(),
+		actual_delta_counts: zod.record(zod.string(), zod.int()).exactOptional(),
+		checked_counts: zod.record(zod.string(), zod.int()).exactOptional(),
+		mismatches: zod
+			.record(
+				zod.string(),
+				zod.strictObject({
+					expected: zod.int(),
+					actual: zod.int(),
+				}),
+			)
+			.exactOptional(),
+		error: zod.string().nullish(),
+	})
+	.describe(
+		"SureImport only. Expected NDJSON counts compared to family-scoped database readback after publish.",
+	);
 
 export type ImportVerificationReadback = zod.input<typeof ImportVerificationReadback>;
 export type ImportVerificationReadbackOutput = zod.output<typeof ImportVerificationReadback>;

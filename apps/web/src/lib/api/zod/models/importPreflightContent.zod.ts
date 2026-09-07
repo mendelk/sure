@@ -5,16 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 export const importPreflightContentByteSizeMin = 0;
 
-
-
-export const ImportPreflightContent = zod.object({
-  "filename": zod.string(),
-  "content_type": zod.string(),
-  "byte_size": zod.int().min(importPreflightContentByteSizeMin)
+export const ImportPreflightContent = zod.strictObject({
+	filename: zod.string(),
+	content_type: zod.string(),
+	byte_size: zod.int().min(importPreflightContentByteSizeMin),
 });
 
 export type ImportPreflightContent = zod.input<typeof ImportPreflightContent>;

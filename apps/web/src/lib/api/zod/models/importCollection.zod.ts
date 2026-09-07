@@ -5,27 +5,23 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ImportSummary } from './importSummary.zod.ts';
-
+import * as zod from "zod";
+import { ImportSummary } from "./importSummary.zod.ts";
 
 export const importCollectionMetaTotalPagesMin = 0;
 
 export const importCollectionMetaTotalCountMin = 0;
 
-
-
-
-export const ImportCollection = zod.object({
-  "data": zod.array(ImportSummary),
-  "meta": zod.object({
-  "current_page": zod.int().min(1),
-  "next_page": zod.int().nullish(),
-  "prev_page": zod.int().nullish(),
-  "total_pages": zod.int().min(importCollectionMetaTotalPagesMin),
-  "total_count": zod.int().min(importCollectionMetaTotalCountMin),
-  "per_page": zod.int().min(1)
-})
+export const ImportCollection = zod.strictObject({
+	data: zod.array(ImportSummary),
+	meta: zod.strictObject({
+		current_page: zod.int().min(1),
+		next_page: zod.int().nullish(),
+		prev_page: zod.int().nullish(),
+		total_pages: zod.int().min(importCollectionMetaTotalPagesMin),
+		total_count: zod.int().min(importCollectionMetaTotalCountMin),
+		per_page: zod.int().min(1),
+	}),
 });
 
 export type ImportCollection = zod.input<typeof ImportCollection>;

@@ -1304,6 +1304,7 @@ components:
       required:
       - id
       - action_type
+      - value
       - created_at
       - updated_at
       properties:
@@ -1327,6 +1328,7 @@ components:
       - id
       - condition_type
       - operator
+      - value
       - sub_conditions
       - created_at
       - updated_at
@@ -4758,6 +4760,10 @@ paths:
           description: chat deleted
         '404':
           description: chat not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/api/v1/chats/{chat_id}/messages":
     parameters:
     - name: chat_id
@@ -6240,6 +6246,10 @@ paths:
           description: merchant deleted
         '404':
           description: merchant not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/api/v1/provider_connections":
     get:
       summary: Lists provider connection status summaries
@@ -7409,6 +7419,10 @@ paths:
           description: tag deleted
         '404':
           description: tag not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/api/v1/trades":
     get:
       summary: List trades
@@ -8304,8 +8318,16 @@ paths:
                 "$ref": "#/components/schemas/SuccessMessage"
         '401':
           description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
         '403':
           description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
         '422':
           description: deactivation failed
           content:

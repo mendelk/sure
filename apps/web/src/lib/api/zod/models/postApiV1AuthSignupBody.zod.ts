@@ -5,24 +5,24 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1AuthSignupBody = zod.object({
-  "user": zod.object({
-  "email": zod.email().describe('User email address'),
-  "password": zod.string().describe('Password (min 8 chars, mixed case, number, special char)'),
-  "first_name": zod.string().optional(),
-  "last_name": zod.string().optional()
-}),
-  "device": zod.object({
-  "device_id": zod.string().describe('Unique device identifier'),
-  "device_name": zod.string().describe('Human-readable device name'),
-  "device_type": zod.string().describe('Device type (e.g. ios, android)'),
-  "os_version": zod.string(),
-  "app_version": zod.string()
-}),
-  "invite_code": zod.string().nullish().describe('Invite code (required when invites are enforced)')
-})
+export const PostApiV1AuthSignupBody = zod.strictObject({
+	user: zod.strictObject({
+		email: zod.email().describe("User email address"),
+		password: zod.string().describe("Password (min 8 chars, mixed case, number, special char)"),
+		first_name: zod.string().exactOptional(),
+		last_name: zod.string().exactOptional(),
+	}),
+	device: zod.strictObject({
+		device_id: zod.string().describe("Unique device identifier"),
+		device_name: zod.string().describe("Human-readable device name"),
+		device_type: zod.string().describe("Device type (e.g. ios, android)"),
+		os_version: zod.string(),
+		app_version: zod.string(),
+	}),
+	invite_code: zod.string().nullish().describe("Invite code (required when invites are enforced)"),
+});
 
 export type PostApiV1AuthSignupBody = zod.input<typeof PostApiV1AuthSignupBody>;
 export type PostApiV1AuthSignupBodyOutput = zod.output<typeof PostApiV1AuthSignupBody>;

@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { RuleRun } from './ruleRun.zod.ts';
+import * as zod from "zod";
+import { RuleRun } from "./ruleRun.zod.ts";
 
-export const RuleRunResponse = zod.object({
-  "data": RuleRun
+export const RuleRunResponse = zod.strictObject({
+	data: RuleRun,
 });
 
 export type RuleRunResponse = zod.input<typeof RuleRunResponse>;

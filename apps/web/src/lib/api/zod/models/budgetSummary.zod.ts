@@ -5,24 +5,24 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const BudgetSummary = zod.object({
-  "id": zod.uuid(),
-  "start_date": zod.iso.date(),
-  "end_date": zod.iso.date(),
-  "name": zod.string(),
-  "currency": zod.string(),
-  "initialized": zod.boolean(),
-  "current": zod.boolean(),
-  "budgeted_spending": zod.string().nullish(),
-  "budgeted_spending_cents": zod.int().nullish(),
-  "expected_income": zod.string().nullish(),
-  "expected_income_cents": zod.int().nullish(),
-  "allocated_spending": zod.string().optional(),
-  "allocated_spending_cents": zod.int().optional(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const BudgetSummary = zod.strictObject({
+	id: zod.uuid(),
+	start_date: zod.iso.date(),
+	end_date: zod.iso.date(),
+	name: zod.string(),
+	currency: zod.string(),
+	initialized: zod.boolean(),
+	current: zod.boolean(),
+	budgeted_spending: zod.string().nullish(),
+	budgeted_spending_cents: zod.int().nullish(),
+	expected_income: zod.string().nullish(),
+	expected_income_cents: zod.int().nullish(),
+	allocated_spending: zod.string().exactOptional(),
+	allocated_spending_cents: zod.int().exactOptional(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type BudgetSummary = zod.input<typeof BudgetSummary>;

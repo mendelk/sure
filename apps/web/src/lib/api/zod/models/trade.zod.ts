@@ -5,31 +5,35 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Account } from './account.zod.ts';
+import * as zod from "zod";
+import { Account } from "./account.zod.ts";
 
-export const Trade = zod.object({
-  "id": zod.uuid(),
-  "date": zod.iso.date(),
-  "amount": zod.string(),
-  "currency": zod.string(),
-  "name": zod.string(),
-  "notes": zod.string().nullish(),
-  "qty": zod.string(),
-  "price": zod.string(),
-  "investment_activity_label": zod.string().nullish(),
-  "account": Account,
-  "security": zod.object({
-  "id": zod.uuid().optional(),
-  "ticker": zod.string().optional(),
-  "name": zod.string().nullish()
-}).nullish(),
-  "category": zod.object({
-  "id": zod.uuid().optional(),
-  "name": zod.string().optional()
-}).nullish(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const Trade = zod.strictObject({
+	id: zod.uuid(),
+	date: zod.iso.date(),
+	amount: zod.string(),
+	currency: zod.string(),
+	name: zod.string(),
+	notes: zod.string().nullish(),
+	qty: zod.string(),
+	price: zod.string(),
+	investment_activity_label: zod.string().nullish(),
+	account: Account,
+	security: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			ticker: zod.string().exactOptional(),
+			name: zod.string().nullish(),
+		})
+		.nullish(),
+	category: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			name: zod.string().exactOptional(),
+		})
+		.nullish(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type Trade = zod.input<typeof Trade>;

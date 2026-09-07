@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { BudgetSummary } from './budgetSummary.zod.ts';
-import { Pagination } from './pagination.zod.ts';
+import * as zod from "zod";
+import { BudgetSummary } from "./budgetSummary.zod.ts";
+import { Pagination } from "./pagination.zod.ts";
 
-export const BudgetCollection = zod.object({
-  "budgets": zod.array(BudgetSummary),
-  "pagination": Pagination
+export const BudgetCollection = zod.strictObject({
+	budgets: zod.array(BudgetSummary),
+	pagination: Pagination,
 });
 
 export type BudgetCollection = zod.input<typeof BudgetCollection>;

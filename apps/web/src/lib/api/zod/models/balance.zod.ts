@@ -5,47 +5,74 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { BalanceAccount } from './balanceAccount.zod.ts';
+import * as zod from "zod";
+import { BalanceAccount } from "./balanceAccount.zod.ts";
 
-export const Balance = zod.object({
-  "id": zod.uuid(),
-  "date": zod.iso.date(),
-  "currency": zod.string(),
-  "flows_factor": zod.number(),
-  "balance": zod.string(),
-  "balance_cents": zod.int().describe('Balance in currency minor units'),
-  "cash_balance": zod.string().nullish(),
-  "cash_balance_cents": zod.int().nullish().describe('Cash balance in currency minor units'),
-  "start_cash_balance": zod.string().optional(),
-  "start_cash_balance_cents": zod.int().optional().describe('Starting cash balance in currency minor units'),
-  "start_non_cash_balance": zod.string().optional(),
-  "start_non_cash_balance_cents": zod.int().optional().describe('Starting non-cash balance in currency minor units'),
-  "start_balance": zod.string(),
-  "start_balance_cents": zod.int().describe('Starting total balance in currency minor units'),
-  "cash_inflows": zod.string().optional(),
-  "cash_inflows_cents": zod.int().optional().describe('Cash inflows in currency minor units'),
-  "cash_outflows": zod.string().optional(),
-  "cash_outflows_cents": zod.int().optional().describe('Cash outflows in currency minor units'),
-  "non_cash_inflows": zod.string().optional(),
-  "non_cash_inflows_cents": zod.int().optional().describe('Non-cash inflows in currency minor units'),
-  "non_cash_outflows": zod.string().optional(),
-  "non_cash_outflows_cents": zod.int().optional().describe('Non-cash outflows in currency minor units'),
-  "net_market_flows": zod.string().optional(),
-  "net_market_flows_cents": zod.int().optional().describe('Net market flows in currency minor units'),
-  "cash_adjustments": zod.string().optional(),
-  "cash_adjustments_cents": zod.int().optional().describe('Cash adjustments in currency minor units'),
-  "non_cash_adjustments": zod.string().optional(),
-  "non_cash_adjustments_cents": zod.int().optional().describe('Non-cash adjustments in currency minor units'),
-  "end_cash_balance": zod.string().optional(),
-  "end_cash_balance_cents": zod.int().optional().describe('Ending cash balance in currency minor units'),
-  "end_non_cash_balance": zod.string().optional(),
-  "end_non_cash_balance_cents": zod.int().optional().describe('Ending non-cash balance in currency minor units'),
-  "end_balance": zod.string(),
-  "end_balance_cents": zod.int().describe('Ending total balance in currency minor units'),
-  "account": BalanceAccount,
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const Balance = zod.strictObject({
+	id: zod.uuid(),
+	date: zod.iso.date(),
+	currency: zod.string(),
+	flows_factor: zod.number(),
+	balance: zod.string(),
+	balance_cents: zod.int().describe("Balance in currency minor units"),
+	cash_balance: zod.string().nullish(),
+	cash_balance_cents: zod.int().nullish().describe("Cash balance in currency minor units"),
+	start_cash_balance: zod.string().exactOptional(),
+	start_cash_balance_cents: zod
+		.int()
+		.exactOptional()
+		.describe("Starting cash balance in currency minor units"),
+	start_non_cash_balance: zod.string().exactOptional(),
+	start_non_cash_balance_cents: zod
+		.int()
+		.exactOptional()
+		.describe("Starting non-cash balance in currency minor units"),
+	start_balance: zod.string(),
+	start_balance_cents: zod.int().describe("Starting total balance in currency minor units"),
+	cash_inflows: zod.string().exactOptional(),
+	cash_inflows_cents: zod.int().exactOptional().describe("Cash inflows in currency minor units"),
+	cash_outflows: zod.string().exactOptional(),
+	cash_outflows_cents: zod.int().exactOptional().describe("Cash outflows in currency minor units"),
+	non_cash_inflows: zod.string().exactOptional(),
+	non_cash_inflows_cents: zod
+		.int()
+		.exactOptional()
+		.describe("Non-cash inflows in currency minor units"),
+	non_cash_outflows: zod.string().exactOptional(),
+	non_cash_outflows_cents: zod
+		.int()
+		.exactOptional()
+		.describe("Non-cash outflows in currency minor units"),
+	net_market_flows: zod.string().exactOptional(),
+	net_market_flows_cents: zod
+		.int()
+		.exactOptional()
+		.describe("Net market flows in currency minor units"),
+	cash_adjustments: zod.string().exactOptional(),
+	cash_adjustments_cents: zod
+		.int()
+		.exactOptional()
+		.describe("Cash adjustments in currency minor units"),
+	non_cash_adjustments: zod.string().exactOptional(),
+	non_cash_adjustments_cents: zod
+		.int()
+		.exactOptional()
+		.describe("Non-cash adjustments in currency minor units"),
+	end_cash_balance: zod.string().exactOptional(),
+	end_cash_balance_cents: zod
+		.int()
+		.exactOptional()
+		.describe("Ending cash balance in currency minor units"),
+	end_non_cash_balance: zod.string().exactOptional(),
+	end_non_cash_balance_cents: zod
+		.int()
+		.exactOptional()
+		.describe("Ending non-cash balance in currency minor units"),
+	end_balance: zod.string(),
+	end_balance_cents: zod.int().describe("Ending total balance in currency minor units"),
+	account: BalanceAccount,
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type Balance = zod.input<typeof Balance>;

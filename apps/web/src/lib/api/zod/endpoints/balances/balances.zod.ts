@@ -5,47 +5,41 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  Balance,
-  BalanceCollection,
-  ErrorResponse
-} from '../../models';
-
+import { Balance, BalanceCollection, ErrorResponse } from "../../models";
 
 /**
  * @summary List balance history records
  */
-export const GetApiV1BalancesQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "account_id": zod.uuid().optional().describe('Filter by account ID'),
-  "currency": zod.string().optional().describe('Filter by currency code'),
-  "start_date": zod.iso.date().optional().describe('Filter balances from this date'),
-  "end_date": zod.iso.date().optional().describe('Filter balances until this date')
-})
+export const GetApiV1BalancesQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	account_id: zod.uuid().exactOptional().describe("Filter by account ID"),
+	currency: zod.string().exactOptional().describe("Filter by currency code"),
+	start_date: zod.iso.date().exactOptional().describe("Filter balances from this date"),
+	end_date: zod.iso.date().exactOptional().describe("Filter balances until this date"),
+});
 
-export const GetApiV1Balances200Response = BalanceCollection
+export const GetApiV1Balances200Response = BalanceCollection;
 
-export const GetApiV1Balances401Response = ErrorResponse
+export const GetApiV1Balances401Response = ErrorResponse;
 
-export const GetApiV1Balances403Response = ErrorResponse
+export const GetApiV1Balances403Response = ErrorResponse;
 
-export const GetApiV1Balances422Response = ErrorResponse
+export const GetApiV1Balances422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a balance history record
  */
-export const GetApiV1BalancesIdParams = zod.object({
-  "id": zod.uuid().describe('Balance ID')
-})
+export const GetApiV1BalancesIdParams = zod.strictObject({
+	id: zod.uuid().describe("Balance ID"),
+});
 
-export const GetApiV1BalancesId200Response = Balance
+export const GetApiV1BalancesId200Response = Balance;
 
-export const GetApiV1BalancesId401Response = ErrorResponse
+export const GetApiV1BalancesId401Response = ErrorResponse;
 
-export const GetApiV1BalancesId403Response = ErrorResponse
+export const GetApiV1BalancesId403Response = ErrorResponse;
 
-export const GetApiV1BalancesId404Response = ErrorResponse
-
+export const GetApiV1BalancesId404Response = ErrorResponse;

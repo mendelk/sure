@@ -227,6 +227,21 @@ describe("operation coverage", () => {
 		expect(offenders).toEqual([]);
 	});
 
+	it("uses zod.unknown() only for the modeled binary redirect", () => {
+		const offenders: string[] = [];
+		for (const file of zodFiles()) {
+			for (const line of readFileSync(file, "utf8").split("\n")) {
+				if (
+					line.includes("Response = zod.unknown()") &&
+					!line.includes("GetApiV1FamilyExportsIdDownload302Response")
+				) {
+					offenders.push(`${file.split("/zod/")[1]}:${line.trim()}`);
+				}
+			}
+		}
+		expect(offenders).toEqual([]);
+	});
+
 	it("never degrades recursion to zod.array(zod.unknown())", () => {
 		const offenders = zodFiles().filter((file) =>
 			readFileSync(file, "utf8").includes("zod.array(zod.unknown())"),
@@ -235,7 +250,7 @@ describe("operation coverage", () => {
 	});
 
 	it("uses empty parsers only for responses documented without content", () => {
-		const emptyConst = /^export const (\w+?)(\d+)Response = zod\.(unknown|void)\(\)$/;
+		const emptyConst = /^export const (\w+?)(\d+)Response = zod\.(unknown|void)\(\);?$/;
 		const found = new Map<string, string>();
 		for (const file of zodFiles()) {
 			for (const line of readFileSync(file, "utf8").split("\n")) {

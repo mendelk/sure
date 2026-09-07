@@ -5,37 +5,43 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const AccountableCreateDetails = zod.object({
-  "tax_treatment": zod.enum(['taxable', 'tax_deferred', 'tax_exempt']).optional(),
-  "year_built": zod.int().optional(),
-  "area_unit": zod.string().optional(),
-  "area_value": zod.int().optional(),
-  "make": zod.string().optional(),
-  "model": zod.string().optional(),
-  "year": zod.int().optional(),
-  "mileage_value": zod.int().optional(),
-  "mileage_unit": zod.string().optional(),
-  "available_credit": zod.number().optional(),
-  "minimum_payment": zod.number().optional(),
-  "apr": zod.number().optional(),
-  "annual_fee": zod.number().optional(),
-  "expiration_date": zod.iso.date().optional(),
-  "rate_type": zod.string().optional(),
-  "interest_rate": zod.number().optional(),
-  "term_months": zod.int().optional(),
-  "initial_balance": zod.number().optional(),
-  "address": zod.object({
-  "line1": zod.string().optional(),
-  "line2": zod.string().optional(),
-  "locality": zod.string().optional(),
-  "region": zod.string().optional(),
-  "country": zod.string().optional(),
-  "postal_code": zod.string().optional(),
-  "county": zod.string().optional()
-}).optional()
-}).describe('Type-specific manual account fields. Fields that do not apply to account_type are ignored.');
+export const AccountableCreateDetails = zod
+	.strictObject({
+		tax_treatment: zod.enum(["taxable", "tax_deferred", "tax_exempt"]).exactOptional(),
+		year_built: zod.int().exactOptional(),
+		area_unit: zod.string().exactOptional(),
+		area_value: zod.int().exactOptional(),
+		make: zod.string().exactOptional(),
+		model: zod.string().exactOptional(),
+		year: zod.int().exactOptional(),
+		mileage_value: zod.int().exactOptional(),
+		mileage_unit: zod.string().exactOptional(),
+		available_credit: zod.number().exactOptional(),
+		minimum_payment: zod.number().exactOptional(),
+		apr: zod.number().exactOptional(),
+		annual_fee: zod.number().exactOptional(),
+		expiration_date: zod.iso.date().exactOptional(),
+		rate_type: zod.string().exactOptional(),
+		interest_rate: zod.number().exactOptional(),
+		term_months: zod.int().exactOptional(),
+		initial_balance: zod.number().exactOptional(),
+		address: zod
+			.strictObject({
+				line1: zod.string().exactOptional(),
+				line2: zod.string().exactOptional(),
+				locality: zod.string().exactOptional(),
+				region: zod.string().exactOptional(),
+				country: zod.string().exactOptional(),
+				postal_code: zod.string().exactOptional(),
+				county: zod.string().exactOptional(),
+			})
+			.exactOptional(),
+	})
+	.describe(
+		"Type-specific manual account fields. Fields that do not apply to account_type are ignored.",
+	);
 
 export type AccountableCreateDetails = zod.input<typeof AccountableCreateDetails>;
 export type AccountableCreateDetailsOutput = zod.output<typeof AccountableCreateDetails>;

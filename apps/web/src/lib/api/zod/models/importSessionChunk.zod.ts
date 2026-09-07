@@ -5,23 +5,20 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-
+import * as zod from "zod";
 
 export const importSessionChunkRowsCountMin = 0;
 
-
-
-export const ImportSessionChunk = zod.object({
-  "id": zod.uuid(),
-  "sequence": zod.int().min(1),
-  "client_chunk_id": zod.string().nullish(),
-  "status": zod.enum(['pending', 'importing', 'complete', 'failed']),
-  "rows_count": zod.int().min(importSessionChunkRowsCountMin),
-  "summary": zod.record(zod.string(), zod.record(zod.string(), zod.int())),
-  "error": zod.record(zod.string(), zod.unknown()).nullish(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const ImportSessionChunk = zod.strictObject({
+	id: zod.uuid(),
+	sequence: zod.int().min(1),
+	client_chunk_id: zod.string().nullish(),
+	status: zod.enum(["pending", "importing", "complete", "failed"]),
+	rows_count: zod.int().min(importSessionChunkRowsCountMin),
+	summary: zod.record(zod.string(), zod.record(zod.string(), zod.int())),
+	error: zod.record(zod.string(), zod.unknown()).nullish(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type ImportSessionChunk = zod.input<typeof ImportSessionChunk>;

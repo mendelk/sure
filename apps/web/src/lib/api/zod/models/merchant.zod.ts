@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const Merchant = zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "website_url": zod.url().nullish(),
-  "logo_url": zod.url().nullish()
+export const Merchant = zod.strictObject({
+	id: zod.uuid(),
+	name: zod.string(),
+	website_url: zod.url().nullish(),
+	logo_url: zod.url().nullish(),
 });
 
 export type Merchant = zod.input<typeof Merchant>;

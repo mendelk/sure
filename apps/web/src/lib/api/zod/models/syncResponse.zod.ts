@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { SyncResource } from './syncResource.zod.ts';
+import * as zod from "zod";
+import { SyncResource } from "./syncResource.zod.ts";
 
-export const SyncResponse = zod.object({
-  "data": zod.union([SyncResource,zod.null()])
+export const SyncResponse = zod.strictObject({
+	data: zod.union([SyncResource, zod.null()]),
 });
 
 export type SyncResponse = zod.input<typeof SyncResponse>;

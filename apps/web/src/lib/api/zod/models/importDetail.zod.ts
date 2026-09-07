@@ -5,24 +5,37 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ImportConfiguration } from './importConfiguration.zod.ts';
-import { ImportStats } from './importStats.zod.ts';
-import { ImportStatusDetail } from './importStatusDetail.zod.ts';
-import { ImportVerification } from './importVerification.zod.ts';
+import * as zod from "zod";
+import { ImportConfiguration } from "./importConfiguration.zod.ts";
+import { ImportStats } from "./importStats.zod.ts";
+import { ImportStatusDetail } from "./importStatusDetail.zod.ts";
+import { ImportVerification } from "./importVerification.zod.ts";
 
-export const ImportDetail = zod.object({
-  "id": zod.uuid(),
-  "type": zod.enum(['TransactionImport', 'TradeImport', 'AccountImport', 'MintImport', 'ActualImport', 'YnabImport', 'CategoryImport', 'RuleImport', 'MerchantImport', 'PdfImport', 'QifImport', 'SureImport']),
-  "status": zod.enum(['pending', 'complete', 'importing', 'reverting', 'revert_failed', 'failed']),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true}),
-  "account_id": zod.uuid().nullish(),
-  "error": zod.string().nullish(),
-  "status_detail": ImportStatusDetail,
-  "configuration": ImportConfiguration,
-  "stats": ImportStats,
-  "verification": ImportVerification.optional()
+export const ImportDetail = zod.strictObject({
+	id: zod.uuid(),
+	type: zod.enum([
+		"TransactionImport",
+		"TradeImport",
+		"AccountImport",
+		"MintImport",
+		"ActualImport",
+		"YnabImport",
+		"CategoryImport",
+		"RuleImport",
+		"MerchantImport",
+		"PdfImport",
+		"QifImport",
+		"SureImport",
+	]),
+	status: zod.enum(["pending", "complete", "importing", "reverting", "revert_failed", "failed"]),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
+	account_id: zod.uuid().nullish(),
+	error: zod.string().nullish(),
+	status_detail: ImportStatusDetail,
+	configuration: ImportConfiguration,
+	stats: ImportStats,
+	verification: ImportVerification.exactOptional(),
 });
 
 export type ImportDetail = zod.input<typeof ImportDetail>;

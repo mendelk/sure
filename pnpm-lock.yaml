@@ -4,11 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  orval@8.30.0:
-    hash: 2c36db8cecf9c747e7a973f9916bd28cd35bdbbbfb0ee61b75adff97e6b0e323
-    path: patches/orval@8.30.0.patch
-
 importers:
 
   .:
@@ -79,7 +74,7 @@ importers:
         version: 7.13.0(typescript@5.9.3)
       orval:
         specifier: 8.30.0
-        version: 8.30.0(patch_hash=2c36db8cecf9c747e7a973f9916bd28cd35bdbbbfb0ee61b75adff97e6b0e323)(prettier@3.9.6)(typescript@5.9.3)
+        version: 8.30.0(prettier@3.9.6)(typescript@5.9.3)
       typescript:
         specifier: ~5.9.0
         version: 5.9.3
@@ -3803,7 +3798,7 @@ snapshots:
       typescript: 5.9.3
       yargs-parser: 21.1.1
 
-  orval@8.30.0(patch_hash=2c36db8cecf9c747e7a973f9916bd28cd35bdbbbfb0ee61b75adff97e6b0e323)(prettier@3.9.6)(typescript@5.9.3):
+  orval@8.30.0(prettier@3.9.6)(typescript@5.9.3):
     dependencies:
       '@commander-js/extra-typings': 15.0.0(commander@15.0.0)
       '@orval/angular': 8.30.0(typescript@5.9.3)

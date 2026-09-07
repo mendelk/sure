@@ -5,34 +5,34 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const BudgetCategory = zod.object({
-  "id": zod.uuid(),
-  "budget_id": zod.uuid(),
-  "currency": zod.string(),
-  "subcategory": zod.boolean(),
-  "inherits_parent_budget": zod.boolean(),
-  "rollover_enabled": zod.boolean(),
-  "budgeted_spending": zod.string().optional(),
-  "budgeted_spending_cents": zod.int().optional(),
-  "display_budgeted_spending": zod.string().optional(),
-  "display_budgeted_spending_cents": zod.int().optional(),
-  "actual_spending": zod.string().optional(),
-  "actual_spending_cents": zod.int().optional(),
-  "rolled_over_amount": zod.string().optional(),
-  "rolled_over_amount_cents": zod.int().optional(),
-  "available_to_spend": zod.string().optional(),
-  "available_to_spend_cents": zod.int().optional(),
-  "category": zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "color": zod.string(),
-  "lucide_icon": zod.string(),
-  "parent_id": zod.uuid().nullish()
-}),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const BudgetCategory = zod.strictObject({
+	id: zod.uuid(),
+	budget_id: zod.uuid(),
+	currency: zod.string(),
+	subcategory: zod.boolean(),
+	inherits_parent_budget: zod.boolean(),
+	rollover_enabled: zod.boolean(),
+	budgeted_spending: zod.string().exactOptional(),
+	budgeted_spending_cents: zod.int().exactOptional(),
+	display_budgeted_spending: zod.string().exactOptional(),
+	display_budgeted_spending_cents: zod.int().exactOptional(),
+	actual_spending: zod.string().exactOptional(),
+	actual_spending_cents: zod.int().exactOptional(),
+	rolled_over_amount: zod.string().exactOptional(),
+	rolled_over_amount_cents: zod.int().exactOptional(),
+	available_to_spend: zod.string().exactOptional(),
+	available_to_spend_cents: zod.int().exactOptional(),
+	category: zod.strictObject({
+		id: zod.uuid(),
+		name: zod.string(),
+		color: zod.string(),
+		lucide_icon: zod.string(),
+		parent_id: zod.uuid().nullish(),
+	}),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type BudgetCategory = zod.input<typeof BudgetCategory>;

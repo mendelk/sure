@@ -5,26 +5,26 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Account } from './account.zod.ts';
+import * as zod from "zod";
+import { Account } from "./account.zod.ts";
 
-export const Holding = zod.object({
-  "id": zod.uuid(),
-  "date": zod.iso.date(),
-  "qty": zod.string().describe('Quantity of shares held'),
-  "price": zod.string().describe('Formatted price per share'),
-  "amount": zod.string(),
-  "currency": zod.string(),
-  "cost_basis_source": zod.string().nullish(),
-  "account": Account,
-  "security": zod.object({
-  "id": zod.uuid(),
-  "ticker": zod.string(),
-  "name": zod.string().nullable()
-}),
-  "avg_cost": zod.string().nullish(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const Holding = zod.strictObject({
+	id: zod.uuid(),
+	date: zod.iso.date(),
+	qty: zod.string().describe("Quantity of shares held"),
+	price: zod.string().describe("Formatted price per share"),
+	amount: zod.string(),
+	currency: zod.string(),
+	cost_basis_source: zod.string().nullish(),
+	account: Account,
+	security: zod.strictObject({
+		id: zod.uuid(),
+		ticker: zod.string(),
+		name: zod.string().nullable(),
+	}),
+	avg_cost: zod.string().nullish(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type Holding = zod.input<typeof Holding>;

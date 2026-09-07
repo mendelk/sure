@@ -5,22 +5,22 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const TransferTransactionSide = zod.object({
-  "id": zod.uuid(),
-  "entry_id": zod.uuid(),
-  "date": zod.iso.date(),
-  "amount": zod.string(),
-  "amount_cents": zod.int().describe('Signed amount in currency minor units'),
-  "currency": zod.string(),
-  "name": zod.string(),
-  "kind": zod.string(),
-  "account": zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "account_type": zod.string().nullable()
-})
+export const TransferTransactionSide = zod.strictObject({
+	id: zod.uuid(),
+	entry_id: zod.uuid(),
+	date: zod.iso.date(),
+	amount: zod.string(),
+	amount_cents: zod.int().describe("Signed amount in currency minor units"),
+	currency: zod.string(),
+	name: zod.string(),
+	kind: zod.string(),
+	account: zod.strictObject({
+		id: zod.uuid(),
+		name: zod.string(),
+		account_type: zod.string().nullable(),
+	}),
 });
 
 export type TransferTransactionSide = zod.input<typeof TransferTransactionSide>;

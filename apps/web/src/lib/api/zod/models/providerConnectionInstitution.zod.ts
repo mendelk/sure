@@ -5,12 +5,12 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const ProviderConnectionInstitution = zod.object({
-  "name": zod.string().nullable(),
-  "domain": zod.string().nullish(),
-  "url": zod.string().nullish()
+export const ProviderConnectionInstitution = zod.strictObject({
+	name: zod.string().nullable(),
+	domain: zod.string().nullish(),
+	url: zod.string().nullish(),
 });
 
 export type ProviderConnectionInstitution = zod.input<typeof ProviderConnectionInstitution>;

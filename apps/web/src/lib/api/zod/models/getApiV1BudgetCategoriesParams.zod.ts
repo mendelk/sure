@@ -5,16 +5,18 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1BudgetCategoriesParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "budget_id": zod.uuid().optional(),
-  "category_id": zod.uuid().optional(),
-  "start_date": zod.iso.date().optional(),
-  "end_date": zod.iso.date().optional()
-})
+export const GetApiV1BudgetCategoriesParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	budget_id: zod.uuid().exactOptional(),
+	category_id: zod.uuid().exactOptional(),
+	start_date: zod.iso.date().exactOptional(),
+	end_date: zod.iso.date().exactOptional(),
+});
 
 export type GetApiV1BudgetCategoriesParams = zod.input<typeof GetApiV1BudgetCategoriesParams>;
-export type GetApiV1BudgetCategoriesParamsOutput = zod.output<typeof GetApiV1BudgetCategoriesParams>;
+export type GetApiV1BudgetCategoriesParamsOutput = zod.output<
+	typeof GetApiV1BudgetCategoriesParams
+>;

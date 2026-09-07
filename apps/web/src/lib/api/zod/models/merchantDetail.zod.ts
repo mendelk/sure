@@ -5,17 +5,17 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const MerchantDetail = zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "type": zod.enum(['FamilyMerchant', 'ProviderMerchant']),
-  "color": zod.string().nullish().describe('Hex color used for the fallback avatar'),
-  "website_url": zod.url().nullish(),
-  "logo_url": zod.url().nullish().describe('Direct merchant logo URL'),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const MerchantDetail = zod.strictObject({
+	id: zod.uuid(),
+	name: zod.string(),
+	type: zod.enum(["FamilyMerchant", "ProviderMerchant"]),
+	color: zod.string().nullish().describe("Hex color used for the fallback avatar"),
+	website_url: zod.url().nullish(),
+	logo_url: zod.url().nullish().describe("Direct merchant logo URL"),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type MerchantDetail = zod.input<typeof MerchantDetail>;

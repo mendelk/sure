@@ -5,50 +5,56 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  ErrorResponse,
-  RuleRunCollection,
-  RuleRunResponse
-} from '../../models';
-
+import { ErrorResponse, RuleRunCollection, RuleRunResponse } from "../../models";
 
 /**
  * List rule run history for the authenticated user family.
  * @summary List rule runs
  */
-export const GetApiV1RuleRunsQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "rule_id": zod.uuid().optional().describe('Filter by rule ID'),
-  "status": zod.enum(['pending', 'success', 'failed']).optional().describe('Filter by run status'),
-  "execution_type": zod.enum(['manual', 'scheduled']).optional().describe('Filter by execution type'),
-  "start_executed_at": zod.iso.datetime({"offset":true}).optional().describe('Filter runs executed at or after this timestamp'),
-  "end_executed_at": zod.iso.datetime({"offset":true}).optional().describe('Filter runs executed at or before this timestamp')
-})
+export const GetApiV1RuleRunsQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	rule_id: zod.uuid().exactOptional().describe("Filter by rule ID"),
+	status: zod
+		.enum(["pending", "success", "failed"])
+		.exactOptional()
+		.describe("Filter by run status"),
+	execution_type: zod
+		.enum(["manual", "scheduled"])
+		.exactOptional()
+		.describe("Filter by execution type"),
+	start_executed_at: zod.iso
+		.datetime({ offset: true })
+		.exactOptional()
+		.describe("Filter runs executed at or after this timestamp"),
+	end_executed_at: zod.iso
+		.datetime({ offset: true })
+		.exactOptional()
+		.describe("Filter runs executed at or before this timestamp"),
+});
 
-export const GetApiV1RuleRuns200Response = RuleRunCollection
+export const GetApiV1RuleRuns200Response = RuleRunCollection;
 
-export const GetApiV1RuleRuns401Response = ErrorResponse
+export const GetApiV1RuleRuns401Response = ErrorResponse;
 
-export const GetApiV1RuleRuns403Response = ErrorResponse
+export const GetApiV1RuleRuns403Response = ErrorResponse;
 
-export const GetApiV1RuleRuns422Response = ErrorResponse
+export const GetApiV1RuleRuns422Response = ErrorResponse;
 
 /**
  * Retrieve one rule run from the authenticated user family.
  * @summary Retrieve a rule run
  */
-export const GetApiV1RuleRunsIdParams = zod.object({
-  "id": zod.uuid().describe('Rule run ID')
-})
+export const GetApiV1RuleRunsIdParams = zod.strictObject({
+	id: zod.uuid().describe("Rule run ID"),
+});
 
-export const GetApiV1RuleRunsId200Response = RuleRunResponse
+export const GetApiV1RuleRunsId200Response = RuleRunResponse;
 
-export const GetApiV1RuleRunsId401Response = ErrorResponse
+export const GetApiV1RuleRunsId401Response = ErrorResponse;
 
-export const GetApiV1RuleRunsId403Response = ErrorResponse
+export const GetApiV1RuleRunsId403Response = ErrorResponse;
 
-export const GetApiV1RuleRunsId404Response = ErrorResponse
-
+export const GetApiV1RuleRunsId404Response = ErrorResponse;

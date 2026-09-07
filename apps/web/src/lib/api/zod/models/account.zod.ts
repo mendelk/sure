@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const Account = zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "account_type": zod.string().nullable(),
-  "status": zod.string().optional()
+export const Account = zod.strictObject({
+	id: zod.uuid(),
+	name: zod.string(),
+	account_type: zod.string().nullable(),
+	status: zod.string().exactOptional(),
 });
 
 export type Account = zod.input<typeof Account>;

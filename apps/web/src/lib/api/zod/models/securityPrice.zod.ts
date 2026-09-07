@@ -5,23 +5,23 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const SecurityPrice = zod.object({
-  "id": zod.uuid(),
-  "date": zod.iso.date(),
-  "price": zod.string().describe('Formatted security price'),
-  "price_amount": zod.string().describe('Exact decimal security price'),
-  "currency": zod.string(),
-  "provisional": zod.boolean(),
-  "security": zod.object({
-  "id": zod.uuid(),
-  "ticker": zod.string(),
-  "name": zod.string().nullish(),
-  "exchange_operating_mic": zod.string().nullish()
-}),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const SecurityPrice = zod.strictObject({
+	id: zod.uuid(),
+	date: zod.iso.date(),
+	price: zod.string().describe("Formatted security price"),
+	price_amount: zod.string().describe("Exact decimal security price"),
+	currency: zod.string(),
+	provisional: zod.boolean(),
+	security: zod.strictObject({
+		id: zod.uuid(),
+		ticker: zod.string(),
+		name: zod.string().nullish(),
+		exchange_operating_mic: zod.string().nullish(),
+	}),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type SecurityPrice = zod.input<typeof SecurityPrice>;

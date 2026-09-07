@@ -5,17 +5,17 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ChatResource } from './chatResource.zod.ts';
+import * as zod from "zod";
+import { ChatResource } from "./chatResource.zod.ts";
 
 export const chatSummaryTwoMessageCountMin = 0;
 
-
-
-export const ChatSummary = ChatResource.and(zod.object({
-  "message_count": zod.int().min(chatSummaryTwoMessageCountMin),
-  "last_message_at": zod.iso.datetime({"offset":true}).nullish()
-}));
+export const ChatSummary = ChatResource.and(
+	zod.strictObject({
+		message_count: zod.int().min(chatSummaryTwoMessageCountMin),
+		last_message_at: zod.iso.datetime({ offset: true }).nullish(),
+	}),
+);
 
 export type ChatSummary = zod.input<typeof ChatSummary>;
 export type ChatSummaryOutput = zod.output<typeof ChatSummary>;

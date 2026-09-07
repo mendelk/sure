@@ -52,14 +52,10 @@ Zod parsers before they reach TanStack Query or application state.
 - Generator: [Orval](https://orval.dev) `8.30.0` (pinned in
   `package.json`), emitting Zod `4.5.4` parsers (pinned runtime
   dependency; `override.zod.version: 4` in `orval.config.ts` so output
-  never depends on the installed Zod). One documented build patch is
-  applied via `pnpm` (`patches/orval@8.30.0.patch`, wired through
-  `patchedDependencies`): Orval's recursive-schema `zod.ZodType<X>` pin
-  spells optional properties as `name?: T`, but the pinned schema
-  admits `undefined`, so the pin fails under this repo's
-  `exactOptionalPropertyTypes`; the patch widens spec-declared optional
-  properties with `| undefined` (names from the schema's own `required`
-  list, non-matching lines untouched so future shapes fail closed).
+  never depends on the installed Zod). Orval's supported
+  `exactOptional: true` mode keeps generated parsers compatible with the
+  repository's `exactOptionalPropertyTypes` setting without patching or
+  forking generator code. Orval delegates output formatting to oxfmt.
   Static and runtime contracts are cross-checked by
   `src/lib/api/contract-compat.test.ts` so they cannot silently diverge.
 - Output (`src/lib/api/zod/`, committed): `models/*.zod.ts` (one reusable

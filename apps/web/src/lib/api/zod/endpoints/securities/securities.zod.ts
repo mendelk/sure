@@ -5,47 +5,44 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  ErrorResponse,
-  Security,
-  SecurityCollection
-} from '../../models';
-
+import { ErrorResponse, Security, SecurityCollection } from "../../models";
 
 /**
  * @summary List securities referenced by family investment data
  */
-export const GetApiV1SecuritiesQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "ticker": zod.string().optional().describe('Filter by ticker symbol'),
-  "exchange_operating_mic": zod.string().optional().describe('Filter by exchange operating MIC'),
-  "kind": zod.enum(['standard', 'cash']).optional().describe('Filter by security kind'),
-  "offline": zod.boolean().optional().describe('Filter by offline status. When supplied, must be true or false.')
-})
+export const GetApiV1SecuritiesQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	ticker: zod.string().exactOptional().describe("Filter by ticker symbol"),
+	exchange_operating_mic: zod.string().exactOptional().describe("Filter by exchange operating MIC"),
+	kind: zod.enum(["standard", "cash"]).exactOptional().describe("Filter by security kind"),
+	offline: zod
+		.boolean()
+		.exactOptional()
+		.describe("Filter by offline status. When supplied, must be true or false."),
+});
 
-export const GetApiV1Securities200Response = SecurityCollection
+export const GetApiV1Securities200Response = SecurityCollection;
 
-export const GetApiV1Securities401Response = ErrorResponse
+export const GetApiV1Securities401Response = ErrorResponse;
 
-export const GetApiV1Securities403Response = ErrorResponse
+export const GetApiV1Securities403Response = ErrorResponse;
 
-export const GetApiV1Securities422Response = ErrorResponse
+export const GetApiV1Securities422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a security referenced by family investment data
  */
-export const GetApiV1SecuritiesIdParams = zod.object({
-  "id": zod.uuid().describe('Security ID')
-})
+export const GetApiV1SecuritiesIdParams = zod.strictObject({
+	id: zod.uuid().describe("Security ID"),
+});
 
-export const GetApiV1SecuritiesId200Response = Security
+export const GetApiV1SecuritiesId200Response = Security;
 
-export const GetApiV1SecuritiesId401Response = ErrorResponse
+export const GetApiV1SecuritiesId401Response = ErrorResponse;
 
-export const GetApiV1SecuritiesId403Response = ErrorResponse
+export const GetApiV1SecuritiesId403Response = ErrorResponse;
 
-export const GetApiV1SecuritiesId404Response = ErrorResponse
-
+export const GetApiV1SecuritiesId404Response = ErrorResponse;

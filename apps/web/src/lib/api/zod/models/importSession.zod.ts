@@ -5,26 +5,23 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ImportSessionChunk } from './importSessionChunk.zod.ts';
-
+import * as zod from "zod";
+import { ImportSessionChunk } from "./importSessionChunk.zod.ts";
 
 export const importSessionChunksCountMin = 0;
 
-
-
-export const ImportSession = zod.object({
-  "id": zod.uuid(),
-  "type": zod.enum(['SureImport']),
-  "status": zod.enum(['pending', 'importing', 'complete', 'failed']),
-  "client_session_id": zod.string().nullish(),
-  "expected_chunks": zod.int().min(1).nullish(),
-  "chunks_count": zod.int().min(importSessionChunksCountMin),
-  "summary": zod.record(zod.string(), zod.record(zod.string(), zod.int())),
-  "error": zod.record(zod.string(), zod.unknown()).nullish(),
-  "chunks": zod.array(ImportSessionChunk),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const ImportSession = zod.strictObject({
+	id: zod.uuid(),
+	type: zod.enum(["SureImport"]),
+	status: zod.enum(["pending", "importing", "complete", "failed"]),
+	client_session_id: zod.string().nullish(),
+	expected_chunks: zod.int().min(1).nullish(),
+	chunks_count: zod.int().min(importSessionChunksCountMin),
+	summary: zod.record(zod.string(), zod.record(zod.string(), zod.int())),
+	error: zod.record(zod.string(), zod.unknown()).nullish(),
+	chunks: zod.array(ImportSessionChunk),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type ImportSession = zod.input<typeof ImportSession>;

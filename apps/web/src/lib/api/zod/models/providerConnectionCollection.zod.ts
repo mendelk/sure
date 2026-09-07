@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ProviderConnection } from './providerConnection.zod.ts';
+import * as zod from "zod";
+import { ProviderConnection } from "./providerConnection.zod.ts";
 
-export const ProviderConnectionCollection = zod.object({
-  "data": zod.array(ProviderConnection)
+export const ProviderConnectionCollection = zod.strictObject({
+	data: zod.array(ProviderConnection),
 });
 
 export type ProviderConnectionCollection = zod.input<typeof ProviderConnectionCollection>;

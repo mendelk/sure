@@ -5,17 +5,15 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Pagination } from './pagination.zod.ts';
-import { SyncResource } from './syncResource.zod.ts';
+import * as zod from "zod";
+import { Pagination } from "./pagination.zod.ts";
+import { SyncResource } from "./syncResource.zod.ts";
 
 export const syncCollectionDataMax = 100;
 
-
-
-export const SyncCollection = zod.object({
-  "data": zod.array(SyncResource).max(syncCollectionDataMax),
-  "meta": Pagination
+export const SyncCollection = zod.strictObject({
+	data: zod.array(SyncResource).max(syncCollectionDataMax),
+	meta: Pagination,
 });
 
 export type SyncCollection = zod.input<typeof SyncCollection>;

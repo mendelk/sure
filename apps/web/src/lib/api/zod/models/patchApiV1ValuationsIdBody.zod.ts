@@ -5,15 +5,23 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PatchApiV1ValuationsIdBody = zod.object({
-  "valuation": zod.object({
-  "amount": zod.number().optional().describe('New valuation amount (must provide with date)'),
-  "date": zod.iso.date().optional().describe('New valuation date (must provide with amount)'),
-  "notes": zod.string().optional().describe('Additional notes')
-}).optional()
-})
+export const PatchApiV1ValuationsIdBody = zod.strictObject({
+	valuation: zod
+		.strictObject({
+			amount: zod
+				.number()
+				.exactOptional()
+				.describe("New valuation amount (must provide with date)"),
+			date: zod.iso
+				.date()
+				.exactOptional()
+				.describe("New valuation date (must provide with amount)"),
+			notes: zod.string().exactOptional().describe("Additional notes"),
+		})
+		.exactOptional(),
+});
 
 export type PatchApiV1ValuationsIdBody = zod.input<typeof PatchApiV1ValuationsIdBody>;
 export type PatchApiV1ValuationsIdBodyOutput = zod.output<typeof PatchApiV1ValuationsIdBody>;

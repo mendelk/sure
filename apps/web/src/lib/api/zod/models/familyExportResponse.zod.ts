@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { FamilyExport } from './familyExport.zod.ts';
+import * as zod from "zod";
+import { FamilyExport } from "./familyExport.zod.ts";
 
-export const FamilyExportResponse = zod.object({
-  "data": FamilyExport
+export const FamilyExportResponse = zod.strictObject({
+	data: FamilyExport,
 });
 
 export type FamilyExportResponse = zod.input<typeof FamilyExportResponse>;

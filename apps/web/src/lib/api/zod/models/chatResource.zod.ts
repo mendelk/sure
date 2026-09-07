@@ -5,14 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const ChatResource = zod.object({
-  "id": zod.uuid(),
-  "title": zod.string(),
-  "error": zod.string().nullish(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const ChatResource = zod.strictObject({
+	id: zod.uuid(),
+	title: zod.string(),
+	error: zod.string().nullish(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type ChatResource = zod.input<typeof ChatResource>;

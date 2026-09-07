@@ -5,22 +5,29 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PatchApiV1TransactionsIdBody = zod.object({
-  "transaction": zod.object({
-  "date": zod.iso.date().optional(),
-  "amount": zod.number().optional(),
-  "name": zod.string().optional(),
-  "description": zod.string().optional().describe('Alternative to name field'),
-  "notes": zod.string().optional(),
-  "currency": zod.string().optional().describe('Currency code'),
-  "category_id": zod.uuid().optional(),
-  "merchant_id": zod.uuid().optional(),
-  "nature": zod.enum(['income', 'expense', 'inflow', 'outflow']).optional(),
-  "tag_ids": zod.array(zod.uuid()).optional().describe('Array of tag IDs to assign. Omit to preserve existing tags; use [] to clear all tags.')
-}).optional()
-})
+export const PatchApiV1TransactionsIdBody = zod.strictObject({
+	transaction: zod
+		.strictObject({
+			date: zod.iso.date().exactOptional(),
+			amount: zod.number().exactOptional(),
+			name: zod.string().exactOptional(),
+			description: zod.string().exactOptional().describe("Alternative to name field"),
+			notes: zod.string().exactOptional(),
+			currency: zod.string().exactOptional().describe("Currency code"),
+			category_id: zod.uuid().exactOptional(),
+			merchant_id: zod.uuid().exactOptional(),
+			nature: zod.enum(["income", "expense", "inflow", "outflow"]).exactOptional(),
+			tag_ids: zod
+				.array(zod.uuid())
+				.exactOptional()
+				.describe(
+					"Array of tag IDs to assign. Omit to preserve existing tags; use [] to clear all tags.",
+				),
+		})
+		.exactOptional(),
+});
 
 export type PatchApiV1TransactionsIdBody = zod.input<typeof PatchApiV1TransactionsIdBody>;
 export type PatchApiV1TransactionsIdBodyOutput = zod.output<typeof PatchApiV1TransactionsIdBody>;

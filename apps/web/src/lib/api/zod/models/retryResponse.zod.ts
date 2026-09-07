@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const RetryResponse = zod.object({
-  "message": zod.string(),
-  "message_id": zod.uuid()
+export const RetryResponse = zod.strictObject({
+	message: zod.string(),
+	message_id: zod.uuid(),
 });
 
 export type RetryResponse = zod.input<typeof RetryResponse>;

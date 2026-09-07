@@ -5,10 +5,10 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const SuccessMessage = zod.object({
-  "message": zod.string()
+export const SuccessMessage = zod.strictObject({
+	message: zod.string(),
 });
 
 export type SuccessMessage = zod.input<typeof SuccessMessage>;

@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PatchApiV1ChatsIdBody = zod.object({
-  "title": zod.string().optional()
-})
+export const PatchApiV1ChatsIdBody = zod.strictObject({
+	title: zod.string().exactOptional(),
+});
 
 export type PatchApiV1ChatsIdBody = zod.input<typeof PatchApiV1ChatsIdBody>;
 export type PatchApiV1ChatsIdBodyOutput = zod.output<typeof PatchApiV1ChatsIdBody>;

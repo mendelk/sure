@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ImportDetail } from './importDetail.zod.ts';
+import * as zod from "zod";
+import { ImportDetail } from "./importDetail.zod.ts";
 
-export const ImportResponse = zod.object({
-  "data": ImportDetail
+export const ImportResponse = zod.strictObject({
+	data: ImportDetail,
 });
 
 export type ImportResponse = zod.input<typeof ImportResponse>;

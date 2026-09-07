@@ -5,219 +5,232 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  ErrorResponse,
-  MfaRequiredResponse
-} from '../../models';
-
+import { ErrorResponse, MfaRequiredResponse } from "../../models";
 
 /**
  * @summary Sign up a new user
  */
-export const PostApiV1AuthSignupBody = zod.object({
-  "user": zod.object({
-  "email": zod.email().describe('User email address'),
-  "password": zod.string().describe('Password (min 8 chars, mixed case, number, special char)'),
-  "first_name": zod.string().optional(),
-  "last_name": zod.string().optional()
-}),
-  "device": zod.object({
-  "device_id": zod.string().describe('Unique device identifier'),
-  "device_name": zod.string().describe('Human-readable device name'),
-  "device_type": zod.string().describe('Device type (e.g. ios, android)'),
-  "os_version": zod.string(),
-  "app_version": zod.string()
-}),
-  "invite_code": zod.string().nullish().describe('Invite code (required when invites are enforced)')
-})
+export const PostApiV1AuthSignupBody = zod.strictObject({
+	user: zod.strictObject({
+		email: zod.email().describe("User email address"),
+		password: zod.string().describe("Password (min 8 chars, mixed case, number, special char)"),
+		first_name: zod.string().exactOptional(),
+		last_name: zod.string().exactOptional(),
+	}),
+	device: zod.strictObject({
+		device_id: zod.string().describe("Unique device identifier"),
+		device_name: zod.string().describe("Human-readable device name"),
+		device_type: zod.string().describe("Device type (e.g. ios, android)"),
+		os_version: zod.string(),
+		app_version: zod.string(),
+	}),
+	invite_code: zod.string().nullish().describe("Invite code (required when invites are enforced)"),
+});
 
-export const PostApiV1AuthSignup201Response = zod.object({
-  "access_token": zod.string().optional(),
-  "refresh_token": zod.string().optional(),
-  "token_type": zod.string().optional(),
-  "expires_in": zod.int().optional(),
-  "created_at": zod.int().optional(),
-  "user": zod.object({
-  "id": zod.uuid().optional(),
-  "email": zod.string().optional(),
-  "first_name": zod.string().optional(),
-  "last_name": zod.string().optional(),
-  "ui_layout": zod.enum(['dashboard', 'intro']).optional(),
-  "ai_enabled": zod.boolean().optional()
-}).optional()
-})
+export const PostApiV1AuthSignup201Response = zod.strictObject({
+	access_token: zod.string().exactOptional(),
+	refresh_token: zod.string().exactOptional(),
+	token_type: zod.string().exactOptional(),
+	expires_in: zod.int().exactOptional(),
+	created_at: zod.int().exactOptional(),
+	user: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			email: zod.string().exactOptional(),
+			first_name: zod.string().exactOptional(),
+			last_name: zod.string().exactOptional(),
+			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
+			ai_enabled: zod.boolean().exactOptional(),
+		})
+		.exactOptional(),
+});
 
-export const PostApiV1AuthSignup403Response = ErrorResponse
+export const PostApiV1AuthSignup403Response = ErrorResponse;
 
-export const PostApiV1AuthSignup422Response = ErrorResponse
+export const PostApiV1AuthSignup422Response = ErrorResponse;
 
 /**
  * @summary Log in with email and password
  */
-export const PostApiV1AuthLoginBody = zod.object({
-  "email": zod.email(),
-  "password": zod.string(),
-  "otp_code": zod.string().nullish().describe('TOTP code if MFA is enabled'),
-  "device": zod.object({
-  "device_id": zod.string(),
-  "device_name": zod.string(),
-  "device_type": zod.string(),
-  "os_version": zod.string(),
-  "app_version": zod.string()
-})
-})
+export const PostApiV1AuthLoginBody = zod.strictObject({
+	email: zod.email(),
+	password: zod.string(),
+	otp_code: zod.string().nullish().describe("TOTP code if MFA is enabled"),
+	device: zod.strictObject({
+		device_id: zod.string(),
+		device_name: zod.string(),
+		device_type: zod.string(),
+		os_version: zod.string(),
+		app_version: zod.string(),
+	}),
+});
 
-export const PostApiV1AuthLogin200Response = zod.object({
-  "access_token": zod.string().optional(),
-  "refresh_token": zod.string().optional(),
-  "token_type": zod.string().optional(),
-  "expires_in": zod.int().optional(),
-  "created_at": zod.int().optional(),
-  "user": zod.object({
-  "id": zod.uuid().optional(),
-  "email": zod.string().optional(),
-  "first_name": zod.string().optional(),
-  "last_name": zod.string().optional(),
-  "ui_layout": zod.enum(['dashboard', 'intro']).optional(),
-  "ai_enabled": zod.boolean().optional()
-}).optional()
-})
+export const PostApiV1AuthLogin200Response = zod.strictObject({
+	access_token: zod.string().exactOptional(),
+	refresh_token: zod.string().exactOptional(),
+	token_type: zod.string().exactOptional(),
+	expires_in: zod.int().exactOptional(),
+	created_at: zod.int().exactOptional(),
+	user: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			email: zod.string().exactOptional(),
+			first_name: zod.string().exactOptional(),
+			last_name: zod.string().exactOptional(),
+			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
+			ai_enabled: zod.boolean().exactOptional(),
+		})
+		.exactOptional(),
+});
 
-export const PostApiV1AuthLogin401Response = ErrorResponse
+export const PostApiV1AuthLogin401Response = ErrorResponse;
 
 /**
  * Exchanges a one-time authorization code (received via deep link after mobile SSO) for OAuth tokens. The code is single-use and expires after 5 minutes.
  * @summary Exchange mobile SSO authorization code for tokens
  */
-export const PostApiV1AuthSsoExchangeBody = zod.object({
-  "code": zod.string().describe('One-time authorization code from mobile SSO callback')
-})
+export const PostApiV1AuthSsoExchangeBody = zod.strictObject({
+	code: zod.string().describe("One-time authorization code from mobile SSO callback"),
+});
 
-export const PostApiV1AuthSsoExchange200Response = zod.object({
-  "access_token": zod.string().optional(),
-  "refresh_token": zod.string().optional(),
-  "token_type": zod.string().optional(),
-  "expires_in": zod.int().optional(),
-  "created_at": zod.int().optional(),
-  "user": zod.object({
-  "id": zod.uuid().optional(),
-  "email": zod.string().optional(),
-  "first_name": zod.string().optional(),
-  "last_name": zod.string().optional(),
-  "ui_layout": zod.enum(['dashboard', 'intro']).optional(),
-  "ai_enabled": zod.boolean().optional()
-}).optional()
-})
+export const PostApiV1AuthSsoExchange200Response = zod.strictObject({
+	access_token: zod.string().exactOptional(),
+	refresh_token: zod.string().exactOptional(),
+	token_type: zod.string().exactOptional(),
+	expires_in: zod.int().exactOptional(),
+	created_at: zod.int().exactOptional(),
+	user: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			email: zod.string().exactOptional(),
+			first_name: zod.string().exactOptional(),
+			last_name: zod.string().exactOptional(),
+			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
+			ai_enabled: zod.boolean().exactOptional(),
+		})
+		.exactOptional(),
+});
 
-export const PostApiV1AuthSsoExchange401Response = ErrorResponse
+export const PostApiV1AuthSsoExchange401Response = ErrorResponse;
 
 /**
  * @summary Refresh an access token
  */
-export const PostApiV1AuthRefreshBody = zod.object({
-  "refresh_token": zod.string().describe('The refresh token from a previous login or refresh'),
-  "device": zod.object({
-  "device_id": zod.string()
-})
-})
+export const PostApiV1AuthRefreshBody = zod.strictObject({
+	refresh_token: zod.string().describe("The refresh token from a previous login or refresh"),
+	device: zod.strictObject({
+		device_id: zod.string(),
+	}),
+});
 
-export const PostApiV1AuthRefresh200Response = zod.object({
-  "access_token": zod.string().optional(),
-  "refresh_token": zod.string().optional(),
-  "token_type": zod.string().optional(),
-  "expires_in": zod.int().optional(),
-  "created_at": zod.int().optional()
-})
+export const PostApiV1AuthRefresh200Response = zod.strictObject({
+	access_token: zod.string().exactOptional(),
+	refresh_token: zod.string().exactOptional(),
+	token_type: zod.string().exactOptional(),
+	expires_in: zod.int().exactOptional(),
+	created_at: zod.int().exactOptional(),
+});
 
-export const PostApiV1AuthRefresh400Response = ErrorResponse
+export const PostApiV1AuthRefresh400Response = ErrorResponse;
 
-export const PostApiV1AuthRefresh401Response = ErrorResponse
+export const PostApiV1AuthRefresh401Response = ErrorResponse;
 
 /**
  * Authenticates with email/password and links the SSO identity from a previously issued linking code. Creates an OidcIdentity, logs the link via SsoAuditLog, and issues mobile OAuth tokens.
  * @summary Link an existing account via SSO
  */
-export const PostApiV1AuthSsoLinkBody = zod.object({
-  "linking_code": zod.string().describe('One-time linking code from mobile SSO onboarding redirect'),
-  "email": zod.email().describe('Email of the existing account to link'),
-  "password": zod.string().describe('Password for the existing account')
-})
+export const PostApiV1AuthSsoLinkBody = zod.strictObject({
+	linking_code: zod.string().describe("One-time linking code from mobile SSO onboarding redirect"),
+	email: zod.email().describe("Email of the existing account to link"),
+	password: zod.string().describe("Password for the existing account"),
+});
 
-export const PostApiV1AuthSsoLink200Response = zod.object({
-  "access_token": zod.string().optional(),
-  "refresh_token": zod.string().optional(),
-  "token_type": zod.string().optional(),
-  "expires_in": zod.int().optional(),
-  "created_at": zod.int().optional(),
-  "user": zod.object({
-  "id": zod.uuid().optional(),
-  "email": zod.string().optional(),
-  "first_name": zod.string().optional(),
-  "last_name": zod.string().optional(),
-  "ui_layout": zod.enum(['dashboard', 'intro']).optional(),
-  "ai_enabled": zod.boolean().optional()
-}).optional()
-})
+export const PostApiV1AuthSsoLink200Response = zod.strictObject({
+	access_token: zod.string().exactOptional(),
+	refresh_token: zod.string().exactOptional(),
+	token_type: zod.string().exactOptional(),
+	expires_in: zod.int().exactOptional(),
+	created_at: zod.int().exactOptional(),
+	user: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			email: zod.string().exactOptional(),
+			first_name: zod.string().exactOptional(),
+			last_name: zod.string().exactOptional(),
+			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
+			ai_enabled: zod.boolean().exactOptional(),
+		})
+		.exactOptional(),
+});
 
-export const PostApiV1AuthSsoLink400Response = ErrorResponse
+export const PostApiV1AuthSsoLink400Response = ErrorResponse;
 
-export const PostApiV1AuthSsoLink401Response = zod.union([ErrorResponse,MfaRequiredResponse])
+export const PostApiV1AuthSsoLink401Response = zod.union([ErrorResponse, MfaRequiredResponse]);
 
-export const PostApiV1AuthSsoLink403Response = ErrorResponse
+export const PostApiV1AuthSsoLink403Response = ErrorResponse;
 
 /**
  * Creates a new user and family from a previously issued linking code. Links the SSO identity via OidcIdentity, logs the JIT account creation via SsoAuditLog, and issues mobile OAuth tokens. The linking code must have allow_account_creation enabled.
  * @summary Create a new account via SSO
  */
-export const PostApiV1AuthSsoCreateAccountBody = zod.object({
-  "linking_code": zod.string().describe('One-time linking code from mobile SSO onboarding redirect'),
-  "first_name": zod.string().optional().describe('First name (overrides value from SSO provider if provided)'),
-  "last_name": zod.string().optional().describe('Last name (overrides value from SSO provider if provided)')
-})
+export const PostApiV1AuthSsoCreateAccountBody = zod.strictObject({
+	linking_code: zod.string().describe("One-time linking code from mobile SSO onboarding redirect"),
+	first_name: zod
+		.string()
+		.exactOptional()
+		.describe("First name (overrides value from SSO provider if provided)"),
+	last_name: zod
+		.string()
+		.exactOptional()
+		.describe("Last name (overrides value from SSO provider if provided)"),
+});
 
-export const PostApiV1AuthSsoCreateAccount200Response = zod.object({
-  "access_token": zod.string().optional(),
-  "refresh_token": zod.string().optional(),
-  "token_type": zod.string().optional(),
-  "expires_in": zod.int().optional(),
-  "created_at": zod.int().optional(),
-  "user": zod.object({
-  "id": zod.uuid().optional(),
-  "email": zod.string().optional(),
-  "first_name": zod.string().optional(),
-  "last_name": zod.string().optional(),
-  "ui_layout": zod.enum(['dashboard', 'intro']).optional(),
-  "ai_enabled": zod.boolean().optional()
-}).optional()
-})
+export const PostApiV1AuthSsoCreateAccount200Response = zod.strictObject({
+	access_token: zod.string().exactOptional(),
+	refresh_token: zod.string().exactOptional(),
+	token_type: zod.string().exactOptional(),
+	expires_in: zod.int().exactOptional(),
+	created_at: zod.int().exactOptional(),
+	user: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			email: zod.string().exactOptional(),
+			first_name: zod.string().exactOptional(),
+			last_name: zod.string().exactOptional(),
+			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
+			ai_enabled: zod.boolean().exactOptional(),
+		})
+		.exactOptional(),
+});
 
-export const PostApiV1AuthSsoCreateAccount400Response = ErrorResponse
+export const PostApiV1AuthSsoCreateAccount400Response = ErrorResponse;
 
-export const PostApiV1AuthSsoCreateAccount401Response = ErrorResponse
+export const PostApiV1AuthSsoCreateAccount401Response = ErrorResponse;
 
-export const PostApiV1AuthSsoCreateAccount403Response = ErrorResponse
+export const PostApiV1AuthSsoCreateAccount403Response = ErrorResponse;
 
-export const PostApiV1AuthSsoCreateAccount422Response = zod.object({
-  "errors": zod.array(zod.string()).optional()
-})
+export const PostApiV1AuthSsoCreateAccount422Response = zod.strictObject({
+	errors: zod.array(zod.string()).exactOptional(),
+});
 
 /**
  * @summary Enable AI features for the authenticated user
  */
-export const PatchApiV1AuthEnableAi200Response = zod.object({
-  "user": zod.object({
-  "id": zod.uuid().optional(),
-  "email": zod.string().optional(),
-  "first_name": zod.string().nullish(),
-  "last_name": zod.string().nullish(),
-  "ui_layout": zod.enum(['dashboard', 'intro']).optional(),
-  "ai_enabled": zod.boolean().optional()
-}).optional()
-})
+export const PatchApiV1AuthEnableAi200Response = zod.strictObject({
+	user: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			email: zod.string().exactOptional(),
+			first_name: zod.string().nullish(),
+			last_name: zod.string().nullish(),
+			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
+			ai_enabled: zod.boolean().exactOptional(),
+		})
+		.exactOptional(),
+});
 
-export const PatchApiV1AuthEnableAi401Response = ErrorResponse
+export const PatchApiV1AuthEnableAi401Response = ErrorResponse;
 
-export const PatchApiV1AuthEnableAi403Response = ErrorResponse
-
+export const PatchApiV1AuthEnableAi403Response = ErrorResponse;

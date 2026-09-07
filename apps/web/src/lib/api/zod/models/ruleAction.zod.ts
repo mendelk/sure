@@ -5,14 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const RuleAction = zod.object({
-  "id": zod.uuid(),
-  "action_type": zod.string(),
-  "value": zod.string().nullish(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const RuleAction = zod.strictObject({
+	id: zod.uuid(),
+	action_type: zod.string(),
+	value: zod.string().nullable(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type RuleAction = zod.input<typeof RuleAction>;

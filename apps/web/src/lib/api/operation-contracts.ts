@@ -16,7 +16,7 @@
  * directly for the smallest bundle; this registry is the full-surface
  * lookup for the typed fetch layer and the BFF transport.
  */
-import type { z } from "zod";
+import { z } from "zod";
 import { redactZodIssues, type OperationParseResult } from "./contract";
 
 import {
@@ -492,6 +492,7 @@ export interface OperationContract {
 	readonly path: string;
 	readonly pathParams?: z.ZodType | undefined;
 	readonly queryParams?: z.ZodType | undefined;
+	readonly headerParams?: z.ZodType | undefined;
 	readonly body?: z.ZodType | undefined;
 	/** True only for the binary redirect download (Blob, not JSON). */
 	readonly isBinaryDownload: boolean;
@@ -1643,6 +1644,13 @@ export function parseOperationResponse(
 			],
 		};
 	}
+	if (parser instanceof z.ZodUnknown) {
+		return {
+			ok: false,
+			part: "response",
+			issues: [{ path: "$", expected: "documented response schema", received: "unknown" }],
+		};
+	}
 	const parsed = parser.safeParse(data === "" ? undefined : data);
 	if (!parsed.success) {
 		return { ok: false, part: "response", issues: redactZodIssues(parsed.error) };
@@ -1654,6 +1662,7 @@ export function parseOperationResponse(
 export interface OperationRequestInput {
 	readonly pathParams?: unknown;
 	readonly query?: unknown;
+	readonly headers?: unknown;
 	readonly body?: unknown;
 }
 
@@ -1666,19 +1675,36 @@ export function parseOperationRequest(
 	contract: OperationContract,
 	input: OperationRequestInput,
 ): OperationParseResult {
+	const validated: Record<string, unknown> = {};
 	const parts = [
-		{ part: "pathParams", parser: contract.pathParams, data: input.pathParams },
-		{ part: "query", parser: contract.queryParams, data: input.query },
-		{ part: "body", parser: contract.body, data: input.body },
+		{ key: "pathParams", part: "pathParams", parser: contract.pathParams, data: input.pathParams },
+		{ key: "query", part: "query", parser: contract.queryParams, data: input.query },
+		{ key: "headers", part: "headers", parser: contract.headerParams, data: input.headers },
+		{ key: "body", part: "body", parser: contract.body, data: input.body },
 	] as const;
-	for (const { part, parser, data } of parts) {
+	for (const { key, part, parser, data } of parts) {
 		if (parser === undefined) {
+			const supplied =
+				data !== undefined &&
+				(data === null ||
+					typeof data !== "object" ||
+					Array.isArray(data) ||
+					Object.keys(data).length > 0);
+			if (supplied) {
+				return {
+					ok: false,
+					part,
+					issues: [{ path: "$", expected: `no documented ${part}`, received: typeof data }],
+				};
+			}
 			continue;
 		}
-		const parsed = parser.safeParse(data);
+		const candidate = data === undefined && part !== "body" ? {} : data;
+		const parsed = parser.safeParse(candidate);
 		if (!parsed.success) {
 			return { ok: false, part, issues: redactZodIssues(parsed.error) };
 		}
+		validated[key] = parsed.data;
 	}
-	return { ok: true, data: input };
+	return { ok: true, data: validated };
 }

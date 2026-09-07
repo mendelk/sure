@@ -5,14 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Account } from './account.zod.ts';
+import * as zod from "zod";
+import { Account } from "./account.zod.ts";
 
-export const Transfer = zod.object({
-  "id": zod.uuid(),
-  "amount": zod.string(),
-  "currency": zod.string(),
-  "other_account": zod.union([Account,zod.null()]).optional()
+export const Transfer = zod.strictObject({
+	id: zod.uuid(),
+	amount: zod.string(),
+	currency: zod.string(),
+	other_account: zod.union([Account, zod.null()]).exactOptional(),
 });
 
 export type Transfer = zod.input<typeof Transfer>;

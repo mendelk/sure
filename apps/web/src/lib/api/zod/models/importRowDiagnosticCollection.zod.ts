@@ -5,27 +5,23 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ImportRowDiagnostic } from './importRowDiagnostic.zod.ts';
-
+import * as zod from "zod";
+import { ImportRowDiagnostic } from "./importRowDiagnostic.zod.ts";
 
 export const importRowDiagnosticCollectionMetaTotalPagesMin = 0;
 
 export const importRowDiagnosticCollectionMetaTotalCountMin = 0;
 
-
-
-
-export const ImportRowDiagnosticCollection = zod.object({
-  "data": zod.array(ImportRowDiagnostic),
-  "meta": zod.object({
-  "current_page": zod.int().min(1),
-  "next_page": zod.int().nullish(),
-  "prev_page": zod.int().nullish(),
-  "total_pages": zod.int().min(importRowDiagnosticCollectionMetaTotalPagesMin),
-  "total_count": zod.int().min(importRowDiagnosticCollectionMetaTotalCountMin),
-  "per_page": zod.int().min(1)
-})
+export const ImportRowDiagnosticCollection = zod.strictObject({
+	data: zod.array(ImportRowDiagnostic),
+	meta: zod.strictObject({
+		current_page: zod.int().min(1),
+		next_page: zod.int().nullish(),
+		prev_page: zod.int().nullish(),
+		total_pages: zod.int().min(importRowDiagnosticCollectionMetaTotalPagesMin),
+		total_count: zod.int().min(importRowDiagnosticCollectionMetaTotalCountMin),
+		per_page: zod.int().min(1),
+	}),
 });
 
 export type ImportRowDiagnosticCollection = zod.input<typeof ImportRowDiagnosticCollection>;

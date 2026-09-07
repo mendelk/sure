@@ -5,47 +5,47 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  BudgetCategory,
-  BudgetCategoryCollection,
-  ErrorResponse
-} from '../../models';
-
+import { BudgetCategory, BudgetCategoryCollection, ErrorResponse } from "../../models";
 
 /**
  * @summary List budget categories
  */
-export const GetApiV1BudgetCategoriesQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "budget_id": zod.uuid().optional().describe('Filter by budget ID'),
-  "category_id": zod.uuid().optional().describe('Filter by category ID'),
-  "start_date": zod.iso.date().optional().describe('Filter budget categories whose budget starts on or after this date'),
-  "end_date": zod.iso.date().optional().describe('Filter budget categories whose budget ends on or before this date')
-})
+export const GetApiV1BudgetCategoriesQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	budget_id: zod.uuid().exactOptional().describe("Filter by budget ID"),
+	category_id: zod.uuid().exactOptional().describe("Filter by category ID"),
+	start_date: zod.iso
+		.date()
+		.exactOptional()
+		.describe("Filter budget categories whose budget starts on or after this date"),
+	end_date: zod.iso
+		.date()
+		.exactOptional()
+		.describe("Filter budget categories whose budget ends on or before this date"),
+});
 
-export const GetApiV1BudgetCategories200Response = BudgetCategoryCollection
+export const GetApiV1BudgetCategories200Response = BudgetCategoryCollection;
 
-export const GetApiV1BudgetCategories401Response = ErrorResponse
+export const GetApiV1BudgetCategories401Response = ErrorResponse;
 
-export const GetApiV1BudgetCategories403Response = ErrorResponse
+export const GetApiV1BudgetCategories403Response = ErrorResponse;
 
-export const GetApiV1BudgetCategories422Response = ErrorResponse
+export const GetApiV1BudgetCategories422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a budget category
  */
-export const GetApiV1BudgetCategoriesIdParams = zod.object({
-  "id": zod.uuid().describe('Budget category ID')
-})
+export const GetApiV1BudgetCategoriesIdParams = zod.strictObject({
+	id: zod.uuid().describe("Budget category ID"),
+});
 
-export const GetApiV1BudgetCategoriesId200Response = BudgetCategory
+export const GetApiV1BudgetCategoriesId200Response = BudgetCategory;
 
-export const GetApiV1BudgetCategoriesId401Response = ErrorResponse
+export const GetApiV1BudgetCategoriesId401Response = ErrorResponse;
 
-export const GetApiV1BudgetCategoriesId403Response = ErrorResponse
+export const GetApiV1BudgetCategoriesId403Response = ErrorResponse;
 
-export const GetApiV1BudgetCategoriesId404Response = ErrorResponse
-
+export const GetApiV1BudgetCategoriesId404Response = ErrorResponse;

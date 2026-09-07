@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PushSubscription = zod.object({
-  "id": zod.uuid(),
-  "environment": zod.enum(['sandbox', 'production']),
-  "platform": zod.enum(['ios']),
-  "last_registered_at": zod.iso.datetime({"offset":true})
+export const PushSubscription = zod.strictObject({
+	id: zod.uuid(),
+	environment: zod.enum(["sandbox", "production"]),
+	platform: zod.enum(["ios"]),
+	last_registered_at: zod.iso.datetime({ offset: true }),
 });
 
 export type PushSubscription = zod.input<typeof PushSubscription>;

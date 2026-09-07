@@ -5,14 +5,16 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Message } from './message.zod.ts';
+import * as zod from "zod";
+import { Message } from "./message.zod.ts";
 
-export const MessageResponse = Message.and(zod.object({
-  "chat_id": zod.uuid(),
-  "ai_response_status": zod.enum(['pending', 'complete', 'failed']).nullish(),
-  "ai_response_message": zod.string().nullish()
-}));
+export const MessageResponse = Message.and(
+	zod.strictObject({
+		chat_id: zod.uuid(),
+		ai_response_status: zod.enum(["pending", "complete", "failed"]).nullish(),
+		ai_response_message: zod.string().nullish(),
+	}),
+);
 
 export type MessageResponse = zod.input<typeof MessageResponse>;
 export type MessageResponseOutput = zod.output<typeof MessageResponse>;

@@ -5,15 +5,18 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const ErrorResponse = zod.object({
-  "error": zod.string(),
-  "message": zod.string().nullish(),
-  "details": zod.union([zod.array(zod.string()),zod.looseObject({
-
-})]).nullish(),
-  "errors": zod.array(zod.string()).nullish().describe('Validation error messages (alternative to details used by trades, valuations, etc.)')
+export const ErrorResponse = zod.strictObject({
+	error: zod.string(),
+	message: zod.string().nullish(),
+	details: zod.union([zod.array(zod.string()), zod.looseObject({})]).nullish(),
+	errors: zod
+		.array(zod.string())
+		.nullish()
+		.describe(
+			"Validation error messages (alternative to details used by trades, valuations, etc.)",
+		),
 });
 
 export type ErrorResponse = zod.input<typeof ErrorResponse>;

@@ -5,19 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import {
-  ErrorResponse,
-  FamilySettings
-} from '../../models';
-
+import { ErrorResponse, FamilySettings } from "../../models";
 
 /**
  * Retrieve a read-only snapshot of non-secret family configuration.
  * @summary Retrieve family settings
  */
-export const GetApiV1FamilySettings200Response = FamilySettings
+export const GetApiV1FamilySettings200Response = FamilySettings;
 
-export const GetApiV1FamilySettings401Response = ErrorResponse
+export const GetApiV1FamilySettings401Response = ErrorResponse;
 
-export const GetApiV1FamilySettings403Response = ErrorResponse
-
+export const GetApiV1FamilySettings403Response = ErrorResponse;

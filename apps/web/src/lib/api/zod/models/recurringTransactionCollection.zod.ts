@@ -5,14 +5,16 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Pagination } from './pagination.zod.ts';
-import { RecurringTransaction } from './recurringTransaction.zod.ts';
+import * as zod from "zod";
+import { Pagination } from "./pagination.zod.ts";
+import { RecurringTransaction } from "./recurringTransaction.zod.ts";
 
-export const RecurringTransactionCollection = zod.object({
-  "recurring_transactions": zod.array(RecurringTransaction),
-  "pagination": Pagination
+export const RecurringTransactionCollection = zod.strictObject({
+	recurring_transactions: zod.array(RecurringTransaction),
+	pagination: Pagination,
 });
 
 export type RecurringTransactionCollection = zod.input<typeof RecurringTransactionCollection>;
-export type RecurringTransactionCollectionOutput = zod.output<typeof RecurringTransactionCollection>;
+export type RecurringTransactionCollectionOutput = zod.output<
+	typeof RecurringTransactionCollection
+>;

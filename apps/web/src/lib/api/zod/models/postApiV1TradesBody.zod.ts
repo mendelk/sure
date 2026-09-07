@@ -5,25 +5,39 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1TradesBody = zod.object({
-  "trade": zod.object({
-  "account_id": zod.uuid().describe('Account ID (required)'),
-  "date": zod.iso.date().describe('Trade date (required)'),
-  "qty": zod.number().optional().describe('Quantity (required for buy/sell)'),
-  "price": zod.number().optional().describe('Price (required for buy/sell)'),
-  "amount": zod.number().optional().describe('Amount (required for dividend, deposit, withdrawal, interest)'),
-  "type": zod.enum(['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'interest']).describe('Trade type (required)'),
-  "security_id": zod.uuid().optional().describe('Security ID (one of security_id, ticker, manual_ticker required)'),
-  "ticker": zod.string().optional().describe('Ticker symbol'),
-  "manual_ticker": zod.string().optional().describe('Manual ticker for offline securities'),
-  "currency": zod.string().optional().describe('Currency (defaults to account currency)'),
-  "investment_activity_label": zod.string().optional().describe('Activity label (e.g. Buy, Sell)'),
-  "category_id": zod.uuid().optional().describe('Category ID'),
-  "transfer_account_id": zod.uuid().optional().describe('Destination/source account ID for linked transfers')
-})
-})
+export const PostApiV1TradesBody = zod.strictObject({
+	trade: zod.strictObject({
+		account_id: zod.uuid().describe("Account ID (required)"),
+		date: zod.iso.date().describe("Trade date (required)"),
+		qty: zod.number().exactOptional().describe("Quantity (required for buy/sell)"),
+		price: zod.number().exactOptional().describe("Price (required for buy/sell)"),
+		amount: zod
+			.number()
+			.exactOptional()
+			.describe("Amount (required for dividend, deposit, withdrawal, interest)"),
+		type: zod
+			.enum(["buy", "sell", "dividend", "deposit", "withdrawal", "interest"])
+			.describe("Trade type (required)"),
+		security_id: zod
+			.uuid()
+			.exactOptional()
+			.describe("Security ID (one of security_id, ticker, manual_ticker required)"),
+		ticker: zod.string().exactOptional().describe("Ticker symbol"),
+		manual_ticker: zod.string().exactOptional().describe("Manual ticker for offline securities"),
+		currency: zod.string().exactOptional().describe("Currency (defaults to account currency)"),
+		investment_activity_label: zod
+			.string()
+			.exactOptional()
+			.describe("Activity label (e.g. Buy, Sell)"),
+		category_id: zod.uuid().exactOptional().describe("Category ID"),
+		transfer_account_id: zod
+			.uuid()
+			.exactOptional()
+			.describe("Destination/source account ID for linked transfers"),
+	}),
+});
 
 export type PostApiV1TradesBody = zod.input<typeof PostApiV1TradesBody>;
 export type PostApiV1TradesBodyOutput = zod.output<typeof PostApiV1TradesBody>;

@@ -5,54 +5,58 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 import {
-  AccountCollection,
-  AccountCreateRequest,
-  AccountDetail,
-  ErrorResponse
-} from '../../models';
-
+	AccountCollection,
+	AccountCreateRequest,
+	AccountDetail,
+	ErrorResponse,
+} from "../../models";
 
 /**
  * @summary List accounts
  */
-export const GetApiV1AccountsQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "include_disabled": zod.boolean().optional().describe('Include disabled accounts in the response. Defaults to false.')
-})
+export const GetApiV1AccountsQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	include_disabled: zod
+		.boolean()
+		.exactOptional()
+		.describe("Include disabled accounts in the response. Defaults to false."),
+});
 
-export const GetApiV1Accounts200Response = AccountCollection
+export const GetApiV1Accounts200Response = AccountCollection;
 
 /**
  * @summary Create a manual account
  */
-export const PostApiV1AccountsBody = AccountCreateRequest
+export const PostApiV1AccountsBody = AccountCreateRequest;
 
-export const PostApiV1Accounts201Response = AccountDetail
+export const PostApiV1Accounts201Response = AccountDetail;
 
-export const PostApiV1Accounts403Response = ErrorResponse
+export const PostApiV1Accounts403Response = ErrorResponse;
 
-export const PostApiV1Accounts422Response = ErrorResponse
+export const PostApiV1Accounts422Response = ErrorResponse;
 
 /**
  * @summary Retrieve an account
  */
-export const GetApiV1AccountsIdParams = zod.object({
-  "id": zod.uuid().describe('Account ID')
-})
+export const GetApiV1AccountsIdParams = zod.strictObject({
+	id: zod.uuid().describe("Account ID"),
+});
 
-export const GetApiV1AccountsIdQueryParams = zod.object({
-  "include_disabled": zod.boolean().optional().describe('Allow retrieving a disabled account. Defaults to false.')
-})
+export const GetApiV1AccountsIdQueryParams = zod.strictObject({
+	include_disabled: zod
+		.boolean()
+		.exactOptional()
+		.describe("Allow retrieving a disabled account. Defaults to false."),
+});
 
-export const GetApiV1AccountsId200Response = AccountDetail
+export const GetApiV1AccountsId200Response = AccountDetail;
 
-export const GetApiV1AccountsId401Response = ErrorResponse
+export const GetApiV1AccountsId401Response = ErrorResponse;
 
-export const GetApiV1AccountsId403Response = ErrorResponse
+export const GetApiV1AccountsId403Response = ErrorResponse;
 
-export const GetApiV1AccountsId404Response = ErrorResponse
-
+export const GetApiV1AccountsId404Response = ErrorResponse;

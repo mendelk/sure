@@ -5,21 +5,31 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-
-
-
-export const TransactionSplitRequest = zod.object({
-  "split": zod.object({
-  "splits": zod.array(zod.object({
-  "name": zod.string(),
-  "amount": zod.number().describe('User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.'),
-  "category_id": zod.uuid().nullish(),
-  "excluded": zod.boolean().optional(),
-  "transfer_account_id": zod.uuid().nullish().describe('Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.')
-})).min(1)
-})
+export const TransactionSplitRequest = zod.strictObject({
+	split: zod.strictObject({
+		splits: zod
+			.array(
+				zod.strictObject({
+					name: zod.string(),
+					amount: zod
+						.number()
+						.describe(
+							"User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.",
+						),
+					category_id: zod.uuid().nullish(),
+					excluded: zod.boolean().exactOptional(),
+					transfer_account_id: zod
+						.uuid()
+						.nullish()
+						.describe(
+							"Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.",
+						),
+				}),
+			)
+			.min(1),
+	}),
 });
 
 export type TransactionSplitRequest = zod.input<typeof TransactionSplitRequest>;

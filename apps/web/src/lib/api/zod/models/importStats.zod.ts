@@ -5,7 +5,7 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 export const importStatsRowsCountMin = 0;
 
@@ -17,14 +17,12 @@ export const importStatsMappingsCountMin = 0;
 
 export const importStatsUnassignedMappingsCountMin = 0;
 
-
-
-export const ImportStats = zod.object({
-  "rows_count": zod.int().min(importStatsRowsCountMin),
-  "valid_rows_count": zod.int().min(importStatsValidRowsCountMin),
-  "invalid_rows_count": zod.int().min(importStatsInvalidRowsCountMin),
-  "mappings_count": zod.int().min(importStatsMappingsCountMin),
-  "unassigned_mappings_count": zod.int().min(importStatsUnassignedMappingsCountMin)
+export const ImportStats = zod.strictObject({
+	rows_count: zod.int().min(importStatsRowsCountMin),
+	valid_rows_count: zod.int().min(importStatsValidRowsCountMin),
+	invalid_rows_count: zod.int().min(importStatsInvalidRowsCountMin),
+	mappings_count: zod.int().min(importStatsMappingsCountMin),
+	unassigned_mappings_count: zod.int().min(importStatsUnassignedMappingsCountMin),
 });
 
 export type ImportStats = zod.input<typeof ImportStats>;

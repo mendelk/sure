@@ -5,46 +5,43 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  ErrorResponse,
-  RejectedTransfer,
-  RejectedTransferCollection
-} from '../../models';
-
+import { ErrorResponse, RejectedTransfer, RejectedTransferCollection } from "../../models";
 
 /**
  * @summary List rejected transfers
  */
-export const GetApiV1RejectedTransfersQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "account_id": zod.uuid().optional().describe('Filter rejected transfers involving this account'),
-  "start_date": zod.iso.date().optional().describe('Filter rejected transfers from this date'),
-  "end_date": zod.iso.date().optional().describe('Filter rejected transfers until this date')
-})
+export const GetApiV1RejectedTransfersQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	account_id: zod
+		.uuid()
+		.exactOptional()
+		.describe("Filter rejected transfers involving this account"),
+	start_date: zod.iso.date().exactOptional().describe("Filter rejected transfers from this date"),
+	end_date: zod.iso.date().exactOptional().describe("Filter rejected transfers until this date"),
+});
 
-export const GetApiV1RejectedTransfers200Response = RejectedTransferCollection
+export const GetApiV1RejectedTransfers200Response = RejectedTransferCollection;
 
-export const GetApiV1RejectedTransfers401Response = ErrorResponse
+export const GetApiV1RejectedTransfers401Response = ErrorResponse;
 
-export const GetApiV1RejectedTransfers403Response = ErrorResponse
+export const GetApiV1RejectedTransfers403Response = ErrorResponse;
 
-export const GetApiV1RejectedTransfers422Response = ErrorResponse
+export const GetApiV1RejectedTransfers422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a rejected transfer
  */
-export const GetApiV1RejectedTransfersIdParams = zod.object({
-  "id": zod.string().describe('Rejected transfer ID')
-})
+export const GetApiV1RejectedTransfersIdParams = zod.strictObject({
+	id: zod.string().describe("Rejected transfer ID"),
+});
 
-export const GetApiV1RejectedTransfersId200Response = RejectedTransfer
+export const GetApiV1RejectedTransfersId200Response = RejectedTransfer;
 
-export const GetApiV1RejectedTransfersId401Response = ErrorResponse
+export const GetApiV1RejectedTransfersId401Response = ErrorResponse;
 
-export const GetApiV1RejectedTransfersId403Response = ErrorResponse
+export const GetApiV1RejectedTransfersId403Response = ErrorResponse;
 
-export const GetApiV1RejectedTransfersId404Response = ErrorResponse
-
+export const GetApiV1RejectedTransfersId404Response = ErrorResponse;

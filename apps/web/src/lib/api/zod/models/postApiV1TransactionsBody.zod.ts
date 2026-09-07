@@ -5,26 +5,40 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1TransactionsBody = zod.object({
-  "transaction": zod.object({
-  "account_id": zod.uuid().describe('Account ID (required)'),
-  "date": zod.iso.date().describe('Transaction date'),
-  "amount": zod.number().describe('Transaction amount'),
-  "name": zod.string().describe('Transaction name/description'),
-  "description": zod.string().optional().describe('Alternative to name field'),
-  "notes": zod.string().optional().describe('Additional notes'),
-  "currency": zod.string().optional().describe('Currency code (defaults to family currency)'),
-  "category_id": zod.uuid().optional().describe('Category ID'),
-  "merchant_id": zod.uuid().optional().describe('Merchant ID'),
-  "nature": zod.enum(['income', 'expense', 'inflow', 'outflow']).optional().describe('Transaction nature (determines sign)'),
-  "external_id": zod.string().optional().describe('Optional external idempotency key scoped to account and source'),
-  "source": zod.string().optional().describe('Optional source namespace for external_id. Requires external_id and defaults to api when external_id is provided'),
-  "user_modified": zod.boolean().optional().describe('Whether provider syncs should preserve user-supplied transaction changes'),
-  "tag_ids": zod.array(zod.uuid()).optional().describe('Array of tag IDs')
-})
-})
+export const PostApiV1TransactionsBody = zod.strictObject({
+	transaction: zod.strictObject({
+		account_id: zod.uuid().describe("Account ID (required)"),
+		date: zod.iso.date().describe("Transaction date"),
+		amount: zod.number().describe("Transaction amount"),
+		name: zod.string().describe("Transaction name/description"),
+		description: zod.string().exactOptional().describe("Alternative to name field"),
+		notes: zod.string().exactOptional().describe("Additional notes"),
+		currency: zod.string().exactOptional().describe("Currency code (defaults to family currency)"),
+		category_id: zod.uuid().exactOptional().describe("Category ID"),
+		merchant_id: zod.uuid().exactOptional().describe("Merchant ID"),
+		nature: zod
+			.enum(["income", "expense", "inflow", "outflow"])
+			.exactOptional()
+			.describe("Transaction nature (determines sign)"),
+		external_id: zod
+			.string()
+			.exactOptional()
+			.describe("Optional external idempotency key scoped to account and source"),
+		source: zod
+			.string()
+			.exactOptional()
+			.describe(
+				"Optional source namespace for external_id. Requires external_id and defaults to api when external_id is provided",
+			),
+		user_modified: zod
+			.boolean()
+			.exactOptional()
+			.describe("Whether provider syncs should preserve user-supplied transaction changes"),
+		tag_ids: zod.array(zod.uuid()).exactOptional().describe("Array of tag IDs"),
+	}),
+});
 
 export type PostApiV1TransactionsBody = zod.input<typeof PostApiV1TransactionsBody>;
 export type PostApiV1TransactionsBodyOutput = zod.output<typeof PostApiV1TransactionsBody>;

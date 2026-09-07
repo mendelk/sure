@@ -5,83 +5,95 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  ErrorResponse,
-  Valuation,
-  ValuationCollection
-} from '../../models';
-
+import { ErrorResponse, Valuation, ValuationCollection } from "../../models";
 
 /**
  * @summary List valuations
  */
-export const GetApiV1ValuationsQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "account_id": zod.uuid().optional().describe('Filter by account ID'),
-  "start_date": zod.iso.date().optional().describe('Filter valuations from this date'),
-  "end_date": zod.iso.date().optional().describe('Filter valuations until this date')
-})
+export const GetApiV1ValuationsQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	account_id: zod.uuid().exactOptional().describe("Filter by account ID"),
+	start_date: zod.iso.date().exactOptional().describe("Filter valuations from this date"),
+	end_date: zod.iso.date().exactOptional().describe("Filter valuations until this date"),
+});
 
-export const GetApiV1Valuations200Response = ValuationCollection
+export const GetApiV1Valuations200Response = ValuationCollection;
 
-export const GetApiV1Valuations401Response = ErrorResponse
+export const GetApiV1Valuations401Response = ErrorResponse;
 
-export const GetApiV1Valuations422Response = ErrorResponse
+export const GetApiV1Valuations422Response = ErrorResponse;
 
 /**
  * @summary Create valuation
  */
-export const PostApiV1ValuationsBody = zod.object({
-  "valuation": zod.object({
-  "account_id": zod.uuid().describe('Account ID (required)'),
-  "amount": zod.number().describe('Valuation amount (required)'),
-  "date": zod.iso.date().describe('Valuation date (required)'),
-  "notes": zod.string().optional().describe('Additional notes'),
-  "upsert": zod.boolean().optional().describe('Nested alternative to the top-level response-status flag. Top-level upsert takes precedence when both are provided.')
-}),
-  "upsert": zod.boolean().optional().describe('Response-status signal only. When true and a same-account same-date valuation exists before the request, the endpoint returns 200 OK instead of 201 Created. The underlying reconciliation write path is unchanged; this flag does not add duplicate-prevention or safe-retry guarantees beyond existing same-date reconciliation behavior.')
-})
+export const PostApiV1ValuationsBody = zod.strictObject({
+	valuation: zod.strictObject({
+		account_id: zod.uuid().describe("Account ID (required)"),
+		amount: zod.number().describe("Valuation amount (required)"),
+		date: zod.iso.date().describe("Valuation date (required)"),
+		notes: zod.string().exactOptional().describe("Additional notes"),
+		upsert: zod
+			.boolean()
+			.exactOptional()
+			.describe(
+				"Nested alternative to the top-level response-status flag. Top-level upsert takes precedence when both are provided.",
+			),
+	}),
+	upsert: zod
+		.boolean()
+		.exactOptional()
+		.describe(
+			"Response-status signal only. When true and a same-account same-date valuation exists before the request, the endpoint returns 200 OK instead of 201 Created. The underlying reconciliation write path is unchanged; this flag does not add duplicate-prevention or safe-retry guarantees beyond existing same-date reconciliation behavior.",
+		),
+});
 
-export const PostApiV1Valuations200Response = Valuation
+export const PostApiV1Valuations200Response = Valuation;
 
-export const PostApiV1Valuations201Response = Valuation
+export const PostApiV1Valuations201Response = Valuation;
 
-export const PostApiV1Valuations404Response = ErrorResponse
+export const PostApiV1Valuations404Response = ErrorResponse;
 
-export const PostApiV1Valuations422Response = ErrorResponse
+export const PostApiV1Valuations422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a valuation
  */
-export const GetApiV1ValuationsIdParams = zod.object({
-  "id": zod.string().describe('Valuation ID (entry ID)')
-})
+export const GetApiV1ValuationsIdParams = zod.strictObject({
+	id: zod.string().describe("Valuation ID (entry ID)"),
+});
 
-export const GetApiV1ValuationsId200Response = Valuation
+export const GetApiV1ValuationsId200Response = Valuation;
 
-export const GetApiV1ValuationsId404Response = ErrorResponse
+export const GetApiV1ValuationsId404Response = ErrorResponse;
 
 /**
  * @summary Update a valuation
  */
-export const PatchApiV1ValuationsIdParams = zod.object({
-  "id": zod.string().describe('Valuation ID (entry ID)')
-})
+export const PatchApiV1ValuationsIdParams = zod.strictObject({
+	id: zod.string().describe("Valuation ID (entry ID)"),
+});
 
-export const PatchApiV1ValuationsIdBody = zod.object({
-  "valuation": zod.object({
-  "amount": zod.number().optional().describe('New valuation amount (must provide with date)'),
-  "date": zod.iso.date().optional().describe('New valuation date (must provide with amount)'),
-  "notes": zod.string().optional().describe('Additional notes')
-}).optional()
-})
+export const PatchApiV1ValuationsIdBody = zod.strictObject({
+	valuation: zod
+		.strictObject({
+			amount: zod
+				.number()
+				.exactOptional()
+				.describe("New valuation amount (must provide with date)"),
+			date: zod.iso
+				.date()
+				.exactOptional()
+				.describe("New valuation date (must provide with amount)"),
+			notes: zod.string().exactOptional().describe("Additional notes"),
+		})
+		.exactOptional(),
+});
 
-export const PatchApiV1ValuationsId200Response = Valuation
+export const PatchApiV1ValuationsId200Response = Valuation;
 
-export const PatchApiV1ValuationsId404Response = ErrorResponse
+export const PatchApiV1ValuationsId404Response = ErrorResponse;
 
-export const PatchApiV1ValuationsId422Response = ErrorResponse
-
+export const PatchApiV1ValuationsId422Response = ErrorResponse;

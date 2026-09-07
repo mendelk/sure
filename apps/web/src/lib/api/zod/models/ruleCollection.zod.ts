@@ -5,19 +5,19 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Rule } from './rule.zod.ts';
+import * as zod from "zod";
+import { Rule } from "./rule.zod.ts";
 
-export const RuleCollection = zod.object({
-  "data": zod.array(Rule),
-  "meta": zod.object({
-  "current_page": zod.int(),
-  "next_page": zod.int().nullish(),
-  "prev_page": zod.int().nullish(),
-  "total_pages": zod.int(),
-  "total_count": zod.int(),
-  "per_page": zod.int()
-})
+export const RuleCollection = zod.strictObject({
+	data: zod.array(Rule),
+	meta: zod.strictObject({
+		current_page: zod.int(),
+		next_page: zod.int().nullish(),
+		prev_page: zod.int().nullish(),
+		total_pages: zod.int(),
+		total_count: zod.int(),
+		per_page: zod.int(),
+	}),
 });
 
 export type RuleCollection = zod.input<typeof RuleCollection>;

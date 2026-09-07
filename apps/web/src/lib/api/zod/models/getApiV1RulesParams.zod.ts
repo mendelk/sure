@@ -5,14 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1RulesParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "resource_type": zod.enum(['transaction']).optional(),
-  "active": zod.boolean().optional()
-})
+export const GetApiV1RulesParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	resource_type: zod.enum(["transaction"]).exactOptional(),
+	active: zod.boolean().exactOptional(),
+});
 
 export type GetApiV1RulesParams = zod.input<typeof GetApiV1RulesParams>;
 export type GetApiV1RulesParamsOutput = zod.output<typeof GetApiV1RulesParams>;

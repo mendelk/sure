@@ -5,14 +5,16 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ImportStatusSummary } from './importStatusSummary.zod.ts';
+import * as zod from "zod";
+import { ImportStatusSummary } from "./importStatusSummary.zod.ts";
 
-export const ImportStatusDetail = ImportStatusSummary.and(zod.object({
-  "cleaned": zod.boolean(),
-  "publishable": zod.boolean(),
-  "revertable": zod.boolean()
-}));
+export const ImportStatusDetail = ImportStatusSummary.and(
+	zod.strictObject({
+		cleaned: zod.boolean(),
+		publishable: zod.boolean(),
+		revertable: zod.boolean(),
+	}),
+);
 
 export type ImportStatusDetail = zod.input<typeof ImportStatusDetail>;
 export type ImportStatusDetailOutput = zod.output<typeof ImportStatusDetail>;

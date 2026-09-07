@@ -5,21 +5,34 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ImportPreflightContent } from './importPreflightContent.zod.ts';
-import { ImportPreflightError } from './importPreflightError.zod.ts';
-import { ImportPreflightStats } from './importPreflightStats.zod.ts';
+import * as zod from "zod";
+import { ImportPreflightContent } from "./importPreflightContent.zod.ts";
+import { ImportPreflightError } from "./importPreflightError.zod.ts";
+import { ImportPreflightStats } from "./importPreflightStats.zod.ts";
 
-export const ImportPreflight = zod.object({
-  "type": zod.enum(['TransactionImport', 'TradeImport', 'AccountImport', 'MintImport', 'ActualImport', 'YnabImport', 'CategoryImport', 'RuleImport', 'MerchantImport', 'PdfImport', 'QifImport', 'SureImport']),
-  "valid": zod.boolean(),
-  "content": ImportPreflightContent,
-  "stats": ImportPreflightStats,
-  "headers": zod.array(zod.string()).nullish(),
-  "required_headers": zod.array(zod.string()).nullish(),
-  "missing_required_headers": zod.array(zod.string()).nullish(),
-  "errors": zod.array(ImportPreflightError),
-  "warnings": zod.array(zod.string())
+export const ImportPreflight = zod.strictObject({
+	type: zod.enum([
+		"TransactionImport",
+		"TradeImport",
+		"AccountImport",
+		"MintImport",
+		"ActualImport",
+		"YnabImport",
+		"CategoryImport",
+		"RuleImport",
+		"MerchantImport",
+		"PdfImport",
+		"QifImport",
+		"SureImport",
+	]),
+	valid: zod.boolean(),
+	content: ImportPreflightContent,
+	stats: ImportPreflightStats,
+	headers: zod.array(zod.string()).nullish(),
+	required_headers: zod.array(zod.string()).nullish(),
+	missing_required_headers: zod.array(zod.string()).nullish(),
+	errors: zod.array(ImportPreflightError),
+	warnings: zod.array(zod.string()),
 });
 
 export type ImportPreflight = zod.input<typeof ImportPreflight>;

@@ -5,12 +5,12 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const ImportStatusSummary = zod.object({
-  "uploaded": zod.boolean(),
-  "configured": zod.boolean(),
-  "terminal": zod.boolean()
+export const ImportStatusSummary = zod.strictObject({
+	uploaded: zod.boolean(),
+	configured: zod.boolean(),
+	terminal: zod.boolean(),
 });
 
 export type ImportStatusSummary = zod.input<typeof ImportStatusSummary>;

@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Pagination } from './pagination.zod.ts';
-import { Security } from './security.zod.ts';
+import * as zod from "zod";
+import { Pagination } from "./pagination.zod.ts";
+import { Security } from "./security.zod.ts";
 
-export const SecurityCollection = zod.object({
-  "securities": zod.array(Security),
-  "pagination": Pagination
+export const SecurityCollection = zod.strictObject({
+	securities: zod.array(Security),
+	pagination: Pagination,
 });
 
 export type SecurityCollection = zod.input<typeof SecurityCollection>;

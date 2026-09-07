@@ -5,15 +5,17 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1RejectedTransfersParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "account_id": zod.uuid().optional(),
-  "start_date": zod.iso.date().optional(),
-  "end_date": zod.iso.date().optional()
-})
+export const GetApiV1RejectedTransfersParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	account_id: zod.uuid().exactOptional(),
+	start_date: zod.iso.date().exactOptional(),
+	end_date: zod.iso.date().exactOptional(),
+});
 
 export type GetApiV1RejectedTransfersParams = zod.input<typeof GetApiV1RejectedTransfersParams>;
-export type GetApiV1RejectedTransfersParamsOutput = zod.output<typeof GetApiV1RejectedTransfersParams>;
+export type GetApiV1RejectedTransfersParamsOutput = zod.output<
+	typeof GetApiV1RejectedTransfersParams
+>;

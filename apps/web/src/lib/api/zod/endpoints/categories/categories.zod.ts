@@ -5,51 +5,49 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 import {
-  CategoryCollection,
-  CategoryCreateRequest,
-  CategoryDetail,
-  ErrorResponse
-} from '../../models';
-
+	CategoryCollection,
+	CategoryCreateRequest,
+	CategoryDetail,
+	ErrorResponse,
+} from "../../models";
 
 /**
  * @summary List categories
  */
-export const GetApiV1CategoriesQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "roots_only": zod.boolean().optional().describe('Return only root categories (no parent)'),
-  "parent_id": zod.uuid().optional().describe('Filter by parent category ID')
-})
+export const GetApiV1CategoriesQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	roots_only: zod.boolean().exactOptional().describe("Return only root categories (no parent)"),
+	parent_id: zod.uuid().exactOptional().describe("Filter by parent category ID"),
+});
 
-export const GetApiV1Categories200Response = CategoryCollection
+export const GetApiV1Categories200Response = CategoryCollection;
 
 /**
  * @summary Create category
  */
-export const PostApiV1CategoriesBody = CategoryCreateRequest
+export const PostApiV1CategoriesBody = CategoryCreateRequest;
 
-export const PostApiV1Categories201Response = CategoryDetail
+export const PostApiV1Categories201Response = CategoryDetail;
 
-export const PostApiV1Categories400Response = ErrorResponse
+export const PostApiV1Categories400Response = ErrorResponse;
 
-export const PostApiV1Categories401Response = ErrorResponse
+export const PostApiV1Categories401Response = ErrorResponse;
 
-export const PostApiV1Categories403Response = ErrorResponse
+export const PostApiV1Categories403Response = ErrorResponse;
 
-export const PostApiV1Categories422Response = ErrorResponse
+export const PostApiV1Categories422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a category
  */
-export const GetApiV1CategoriesIdParams = zod.object({
-  "id": zod.string().describe('Category ID')
-})
+export const GetApiV1CategoriesIdParams = zod.strictObject({
+	id: zod.string().describe("Category ID"),
+});
 
-export const GetApiV1CategoriesId200Response = CategoryDetail
+export const GetApiV1CategoriesId200Response = CategoryDetail;
 
-export const GetApiV1CategoriesId404Response = ErrorResponse
-
+export const GetApiV1CategoriesId404Response = ErrorResponse;

@@ -5,48 +5,45 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  ErrorResponse,
-  SecurityPrice,
-  SecurityPriceCollection
-} from '../../models';
-
+import { ErrorResponse, SecurityPrice, SecurityPriceCollection } from "../../models";
 
 /**
  * @summary List security price history referenced by family investment data
  */
-export const GetApiV1SecurityPricesQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "security_id": zod.uuid().optional().describe('Filter by security ID'),
-  "currency": zod.string().optional().describe('Filter by currency code'),
-  "start_date": zod.iso.date().optional().describe('Filter prices from this date'),
-  "end_date": zod.iso.date().optional().describe('Filter prices until this date'),
-  "provisional": zod.boolean().optional().describe('Filter by provisional price status. When supplied, must be true or false.')
-})
+export const GetApiV1SecurityPricesQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	security_id: zod.uuid().exactOptional().describe("Filter by security ID"),
+	currency: zod.string().exactOptional().describe("Filter by currency code"),
+	start_date: zod.iso.date().exactOptional().describe("Filter prices from this date"),
+	end_date: zod.iso.date().exactOptional().describe("Filter prices until this date"),
+	provisional: zod
+		.boolean()
+		.exactOptional()
+		.describe("Filter by provisional price status. When supplied, must be true or false."),
+});
 
-export const GetApiV1SecurityPrices200Response = SecurityPriceCollection
+export const GetApiV1SecurityPrices200Response = SecurityPriceCollection;
 
-export const GetApiV1SecurityPrices401Response = ErrorResponse
+export const GetApiV1SecurityPrices401Response = ErrorResponse;
 
-export const GetApiV1SecurityPrices403Response = ErrorResponse
+export const GetApiV1SecurityPrices403Response = ErrorResponse;
 
-export const GetApiV1SecurityPrices422Response = ErrorResponse
+export const GetApiV1SecurityPrices422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a security price referenced by family investment data
  */
-export const GetApiV1SecurityPricesIdParams = zod.object({
-  "id": zod.uuid().describe('Security price ID')
-})
+export const GetApiV1SecurityPricesIdParams = zod.strictObject({
+	id: zod.uuid().describe("Security price ID"),
+});
 
-export const GetApiV1SecurityPricesId200Response = SecurityPrice
+export const GetApiV1SecurityPricesId200Response = SecurityPrice;
 
-export const GetApiV1SecurityPricesId401Response = ErrorResponse
+export const GetApiV1SecurityPricesId401Response = ErrorResponse;
 
-export const GetApiV1SecurityPricesId403Response = ErrorResponse
+export const GetApiV1SecurityPricesId403Response = ErrorResponse;
 
-export const GetApiV1SecurityPricesId404Response = ErrorResponse
-
+export const GetApiV1SecurityPricesId404Response = ErrorResponse;

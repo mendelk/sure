@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1AccountsIdParams = zod.object({
-  "include_disabled": zod.boolean().optional()
-})
+export const GetApiV1AccountsIdParams = zod.strictObject({
+	include_disabled: zod.boolean().exactOptional(),
+});
 
 export type GetApiV1AccountsIdParams = zod.input<typeof GetApiV1AccountsIdParams>;
 export type GetApiV1AccountsIdParamsOutput = zod.output<typeof GetApiV1AccountsIdParams>;

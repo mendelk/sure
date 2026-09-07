@@ -8,6 +8,9 @@ import { defineConfig } from "orval";
  * output is pinned to v4 (`override.zod.version: 4`, never `"auto"`) so
  * generation never depends on the installed `zod` version; the runtime
  * dependency is pinned to the same major (`zod` 4.5.4).
+ * Native `exactOptional` output keeps recursive schemas compatible with
+ * strict TypeScript without a project-owned patch or compiler fork, and
+ * Orval delegates generated-file formatting to oxfmt.
  *
  * Output shape (all files committed):
  * - `src/lib/api/zod/endpoints/<tag>/<tag>.zod.ts` — one module per API
@@ -34,6 +37,7 @@ export default defineConfig({
 		output: {
 			mode: "tags-split",
 			client: "zod",
+			formatter: "oxfmt",
 			target: `${outDir}/endpoints`,
 			schemas: {
 				path: `${outDir}/models`,
@@ -44,8 +48,16 @@ export default defineConfig({
 			override: {
 				zod: {
 					version: 4,
+					exactOptional: true,
 					generateEachHttpStatus: true,
 					generateReusableSchemas: true,
+					strict: {
+						param: true,
+						query: true,
+						header: true,
+						body: true,
+						response: true,
+					},
 					generate: {
 						param: true,
 						query: true,

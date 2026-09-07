@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ImportPreflight } from './importPreflight.zod.ts';
+import * as zod from "zod";
+import { ImportPreflight } from "./importPreflight.zod.ts";
 
-export const ImportPreflightResponse = zod.object({
-  "data": ImportPreflight
+export const ImportPreflightResponse = zod.strictObject({
+	data: ImportPreflight,
 });
 
 export type ImportPreflightResponse = zod.input<typeof ImportPreflightResponse>;

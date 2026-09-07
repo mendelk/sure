@@ -5,14 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const ToolCall = zod.object({
-  "id": zod.uuid(),
-  "function_name": zod.string(),
-  "function_arguments": zod.record(zod.string(), zod.unknown()),
-  "function_result": zod.record(zod.string(), zod.unknown()).nullish(),
-  "created_at": zod.iso.datetime({"offset":true})
+export const ToolCall = zod.strictObject({
+	id: zod.uuid(),
+	function_name: zod.string(),
+	function_arguments: zod.record(zod.string(), zod.unknown()),
+	function_result: zod.record(zod.string(), zod.unknown()).nullish(),
+	created_at: zod.iso.datetime({ offset: true }),
 });
 
 export type ToolCall = zod.input<typeof ToolCall>;

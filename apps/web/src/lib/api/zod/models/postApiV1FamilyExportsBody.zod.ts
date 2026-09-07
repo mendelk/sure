@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1FamilyExportsBody = zod.object({
-
-}).describe('Family export creation does not accept request parameters.')
+export const PostApiV1FamilyExportsBody = zod
+	.strictObject({})
+	.describe("Family export creation does not accept request parameters.");
 
 export type PostApiV1FamilyExportsBody = zod.input<typeof PostApiV1FamilyExportsBody>;
 export type PostApiV1FamilyExportsBodyOutput = zod.output<typeof PostApiV1FamilyExportsBody>;

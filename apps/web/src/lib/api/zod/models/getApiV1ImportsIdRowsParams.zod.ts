@@ -5,12 +5,12 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1ImportsIdRowsParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional()
-})
+export const GetApiV1ImportsIdRowsParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+});
 
 export type GetApiV1ImportsIdRowsParams = zod.input<typeof GetApiV1ImportsIdRowsParams>;
 export type GetApiV1ImportsIdRowsParamsOutput = zod.output<typeof GetApiV1ImportsIdRowsParams>;

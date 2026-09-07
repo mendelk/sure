@@ -5,15 +5,15 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1ValuationsParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "account_id": zod.uuid().optional(),
-  "start_date": zod.iso.date().optional(),
-  "end_date": zod.iso.date().optional()
-})
+export const GetApiV1ValuationsParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	account_id: zod.uuid().exactOptional(),
+	start_date: zod.iso.date().exactOptional(),
+	end_date: zod.iso.date().exactOptional(),
+});
 
 export type GetApiV1ValuationsParams = zod.input<typeof GetApiV1ValuationsParams>;
 export type GetApiV1ValuationsParamsOutput = zod.output<typeof GetApiV1ValuationsParams>;

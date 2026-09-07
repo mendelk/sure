@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const MfaRequiredResponse = zod.object({
-  "error": zod.string(),
-  "mfa_required": zod.boolean()
+export const MfaRequiredResponse = zod.strictObject({
+	error: zod.string(),
+	mfa_required: zod.boolean(),
 });
 
 export type MfaRequiredResponse = zod.input<typeof MfaRequiredResponse>;

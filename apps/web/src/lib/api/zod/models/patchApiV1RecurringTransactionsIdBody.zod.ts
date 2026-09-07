@@ -5,18 +5,27 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 export const patchApiV1RecurringTransactionsIdBodyRecurringTransactionExpectedDayOfMonthMax = 31;
 
+export const PatchApiV1RecurringTransactionsIdBody = zod.strictObject({
+	recurring_transaction: zod
+		.strictObject({
+			status: zod.enum(["active", "inactive"]).exactOptional(),
+			expected_day_of_month: zod
+				.int()
+				.min(1)
+				.max(patchApiV1RecurringTransactionsIdBodyRecurringTransactionExpectedDayOfMonthMax)
+				.exactOptional(),
+			next_expected_date: zod.iso.date().exactOptional(),
+		})
+		.exactOptional(),
+});
 
-export const PatchApiV1RecurringTransactionsIdBody = zod.object({
-  "recurring_transaction": zod.object({
-  "status": zod.enum(['active', 'inactive']).optional(),
-  "expected_day_of_month": zod.int().min(1).max(patchApiV1RecurringTransactionsIdBodyRecurringTransactionExpectedDayOfMonthMax).optional(),
-  "next_expected_date": zod.iso.date().optional()
-}).optional()
-})
-
-export type PatchApiV1RecurringTransactionsIdBody = zod.input<typeof PatchApiV1RecurringTransactionsIdBody>;
-export type PatchApiV1RecurringTransactionsIdBodyOutput = zod.output<typeof PatchApiV1RecurringTransactionsIdBody>;
+export type PatchApiV1RecurringTransactionsIdBody = zod.input<
+	typeof PatchApiV1RecurringTransactionsIdBody
+>;
+export type PatchApiV1RecurringTransactionsIdBodyOutput = zod.output<
+	typeof PatchApiV1RecurringTransactionsIdBody
+>;

@@ -5,25 +5,25 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1TransactionsParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "account_id": zod.string().optional(),
-  "category_id": zod.string().optional(),
-  "merchant_id": zod.string().optional(),
-  "start_date": zod.iso.date().optional(),
-  "end_date": zod.iso.date().optional(),
-  "min_amount": zod.number().optional(),
-  "max_amount": zod.number().optional(),
-  "type": zod.enum(['income', 'expense']).optional(),
-  "search": zod.string().optional(),
-  "account_ids": zod.array(zod.string()).optional(),
-  "category_ids": zod.array(zod.string()).optional(),
-  "merchant_ids": zod.array(zod.string()).optional(),
-  "tag_ids": zod.array(zod.string()).optional()
-})
+export const GetApiV1TransactionsParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	account_id: zod.string().exactOptional(),
+	category_id: zod.string().exactOptional(),
+	merchant_id: zod.string().exactOptional(),
+	start_date: zod.iso.date().exactOptional(),
+	end_date: zod.iso.date().exactOptional(),
+	min_amount: zod.number().exactOptional(),
+	max_amount: zod.number().exactOptional(),
+	type: zod.enum(["income", "expense"]).exactOptional(),
+	search: zod.string().exactOptional(),
+	account_ids: zod.array(zod.string()).exactOptional(),
+	category_ids: zod.array(zod.string()).exactOptional(),
+	merchant_ids: zod.array(zod.string()).exactOptional(),
+	tag_ids: zod.array(zod.string()).exactOptional(),
+});
 
 export type GetApiV1TransactionsParams = zod.input<typeof GetApiV1TransactionsParams>;
 export type GetApiV1TransactionsParamsOutput = zod.output<typeof GetApiV1TransactionsParams>;

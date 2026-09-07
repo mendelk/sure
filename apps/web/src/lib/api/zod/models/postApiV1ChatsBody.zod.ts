@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1ChatsBody = zod.object({
-  "title": zod.string(),
-  "message": zod.string().optional().describe('Optional initial message in the chat'),
-  "model": zod.string().optional().describe('Optional OpenAI model identifier')
-})
+export const PostApiV1ChatsBody = zod.strictObject({
+	title: zod.string(),
+	message: zod.string().exactOptional().describe("Optional initial message in the chat"),
+	model: zod.string().exactOptional().describe("Optional OpenAI model identifier"),
+});
 
 export type PostApiV1ChatsBody = zod.input<typeof PostApiV1ChatsBody>;
 export type PostApiV1ChatsBodyOutput = zod.output<typeof PostApiV1ChatsBody>;

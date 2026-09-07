@@ -5,17 +5,15 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { FamilyExport } from './familyExport.zod.ts';
-import { Pagination } from './pagination.zod.ts';
+import * as zod from "zod";
+import { FamilyExport } from "./familyExport.zod.ts";
+import { Pagination } from "./pagination.zod.ts";
 
 export const familyExportCollectionDataMax = 100;
 
-
-
-export const FamilyExportCollection = zod.object({
-  "data": zod.array(FamilyExport).max(familyExportCollectionDataMax),
-  "meta": Pagination
+export const FamilyExportCollection = zod.strictObject({
+	data: zod.array(FamilyExport).max(familyExportCollectionDataMax),
+	meta: Pagination,
 });
 
 export type FamilyExportCollection = zod.input<typeof FamilyExportCollection>;

@@ -5,20 +5,20 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { RuleAction } from './ruleAction.zod.ts';
-import { RuleCondition } from './ruleCondition.zod.ts';
+import * as zod from "zod";
+import { RuleAction } from "./ruleAction.zod.ts";
+import { RuleCondition } from "./ruleCondition.zod.ts";
 
-export const Rule = zod.object({
-  "id": zod.uuid(),
-  "name": zod.string().nullish(),
-  "resource_type": zod.enum(['transaction']),
-  "active": zod.boolean(),
-  "effective_date": zod.iso.date().nullish(),
-  "conditions": zod.array(RuleCondition),
-  "actions": zod.array(RuleAction),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const Rule = zod.strictObject({
+	id: zod.uuid(),
+	name: zod.string().nullish(),
+	resource_type: zod.enum(["transaction"]),
+	active: zod.boolean(),
+	effective_date: zod.iso.date().nullish(),
+	conditions: zod.array(RuleCondition),
+	actions: zod.array(RuleAction),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type Rule = zod.input<typeof Rule>;

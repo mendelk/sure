@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const Category = zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "color": zod.string(),
-  "icon": zod.string()
+export const Category = zod.strictObject({
+	id: zod.uuid(),
+	name: zod.string(),
+	color: zod.string(),
+	icon: zod.string(),
 });
 
 export type Category = zod.input<typeof Category>;

@@ -5,12 +5,12 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Transaction } from './transaction.zod.ts';
+import * as zod from "zod";
+import { Transaction } from "./transaction.zod.ts";
 
-export const TransactionSplit = zod.object({
-  "parent_transaction_id": zod.uuid(),
-  "splits": zod.array(Transaction)
+export const TransactionSplit = zod.strictObject({
+	parent_transaction_id: zod.uuid(),
+	splits: zod.array(Transaction),
 });
 
 export type TransactionSplit = zod.input<typeof TransactionSplit>;

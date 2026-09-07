@@ -5,13 +5,15 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1PushSubscriptionsBody = zod.object({
-  "token": zod.string(),
-  "environment": zod.enum(['sandbox', 'production']),
-  "platform": zod.enum(['ios'])
-})
+export const PostApiV1PushSubscriptionsBody = zod.strictObject({
+	token: zod.string(),
+	environment: zod.enum(["sandbox", "production"]),
+	platform: zod.enum(["ios"]),
+});
 
 export type PostApiV1PushSubscriptionsBody = zod.input<typeof PostApiV1PushSubscriptionsBody>;
-export type PostApiV1PushSubscriptionsBodyOutput = zod.output<typeof PostApiV1PushSubscriptionsBody>;
+export type PostApiV1PushSubscriptionsBodyOutput = zod.output<
+	typeof PostApiV1PushSubscriptionsBody
+>;

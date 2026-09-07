@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1AuthSsoLinkBody = zod.object({
-  "linking_code": zod.string().describe('One-time linking code from mobile SSO onboarding redirect'),
-  "email": zod.email().describe('Email of the existing account to link'),
-  "password": zod.string().describe('Password for the existing account')
-})
+export const PostApiV1AuthSsoLinkBody = zod.strictObject({
+	linking_code: zod.string().describe("One-time linking code from mobile SSO onboarding redirect"),
+	email: zod.email().describe("Email of the existing account to link"),
+	password: zod.string().describe("Password for the existing account"),
+});
 
 export type PostApiV1AuthSsoLinkBody = zod.input<typeof PostApiV1AuthSsoLinkBody>;
 export type PostApiV1AuthSsoLinkBodyOutput = zod.output<typeof PostApiV1AuthSsoLinkBody>;

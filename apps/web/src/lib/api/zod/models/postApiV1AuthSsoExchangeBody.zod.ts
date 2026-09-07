@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1AuthSsoExchangeBody = zod.object({
-  "code": zod.string().describe('One-time authorization code from mobile SSO callback')
-})
+export const PostApiV1AuthSsoExchangeBody = zod.strictObject({
+	code: zod.string().describe("One-time authorization code from mobile SSO callback"),
+});
 
 export type PostApiV1AuthSsoExchangeBody = zod.input<typeof PostApiV1AuthSsoExchangeBody>;
 export type PostApiV1AuthSsoExchangeBodyOutput = zod.output<typeof PostApiV1AuthSsoExchangeBody>;

@@ -5,15 +5,15 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { TransferTransactionSide } from './transferTransactionSide.zod.ts';
+import * as zod from "zod";
+import { TransferTransactionSide } from "./transferTransactionSide.zod.ts";
 
-export const RejectedTransfer = zod.object({
-  "id": zod.uuid(),
-  "inflow_transaction": TransferTransactionSide,
-  "outflow_transaction": TransferTransactionSide,
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const RejectedTransfer = zod.strictObject({
+	id: zod.uuid(),
+	inflow_transaction: TransferTransactionSide,
+	outflow_transaction: TransferTransactionSide,
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type RejectedTransfer = zod.input<typeof RejectedTransfer>;

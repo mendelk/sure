@@ -5,18 +5,20 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PatchApiV1AuthEnableAi200 = zod.object({
-  "user": zod.object({
-  "id": zod.uuid().optional(),
-  "email": zod.string().optional(),
-  "first_name": zod.string().nullish(),
-  "last_name": zod.string().nullish(),
-  "ui_layout": zod.enum(['dashboard', 'intro']).optional(),
-  "ai_enabled": zod.boolean().optional()
-}).optional()
-})
+export const PatchApiV1AuthEnableAi200 = zod.strictObject({
+	user: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			email: zod.string().exactOptional(),
+			first_name: zod.string().nullish(),
+			last_name: zod.string().nullish(),
+			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
+			ai_enabled: zod.boolean().exactOptional(),
+		})
+		.exactOptional(),
+});
 
 export type PatchApiV1AuthEnableAi200 = zod.input<typeof PatchApiV1AuthEnableAi200>;
 export type PatchApiV1AuthEnableAi200Output = zod.output<typeof PatchApiV1AuthEnableAi200>;

@@ -5,43 +5,37 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  ErrorResponse,
-  MessageResponse,
-  RetryResponse
-} from '../../models';
-
+import { ErrorResponse, MessageResponse, RetryResponse } from "../../models";
 
 /**
  * @summary Create a message
  */
-export const PostApiV1ChatsChatIdMessagesParams = zod.object({
-  "chat_id": zod.string().describe('Chat ID')
-})
+export const PostApiV1ChatsChatIdMessagesParams = zod.strictObject({
+	chat_id: zod.string().describe("Chat ID"),
+});
 
-export const PostApiV1ChatsChatIdMessagesBody = zod.object({
-  "content": zod.string(),
-  "model": zod.string().optional()
-})
+export const PostApiV1ChatsChatIdMessagesBody = zod.strictObject({
+	content: zod.string(),
+	model: zod.string().exactOptional(),
+});
 
-export const PostApiV1ChatsChatIdMessages201Response = MessageResponse
+export const PostApiV1ChatsChatIdMessages201Response = MessageResponse;
 
-export const PostApiV1ChatsChatIdMessages404Response = ErrorResponse
+export const PostApiV1ChatsChatIdMessages404Response = ErrorResponse;
 
-export const PostApiV1ChatsChatIdMessages422Response = ErrorResponse
+export const PostApiV1ChatsChatIdMessages422Response = ErrorResponse;
 
 /**
  * @summary Retry the last assistant response
  */
-export const PostApiV1ChatsChatIdMessagesRetryParams = zod.object({
-  "chat_id": zod.string().describe('Chat ID')
-})
+export const PostApiV1ChatsChatIdMessagesRetryParams = zod.strictObject({
+	chat_id: zod.string().describe("Chat ID"),
+});
 
-export const PostApiV1ChatsChatIdMessagesRetry202Response = RetryResponse
+export const PostApiV1ChatsChatIdMessagesRetry202Response = RetryResponse;
 
-export const PostApiV1ChatsChatIdMessagesRetry404Response = ErrorResponse
+export const PostApiV1ChatsChatIdMessagesRetry404Response = ErrorResponse;
 
-export const PostApiV1ChatsChatIdMessagesRetry422Response = ErrorResponse
-
+export const PostApiV1ChatsChatIdMessagesRetry422Response = ErrorResponse;

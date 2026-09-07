@@ -5,18 +5,28 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1ValuationsBody = zod.object({
-  "valuation": zod.object({
-  "account_id": zod.uuid().describe('Account ID (required)'),
-  "amount": zod.number().describe('Valuation amount (required)'),
-  "date": zod.iso.date().describe('Valuation date (required)'),
-  "notes": zod.string().optional().describe('Additional notes'),
-  "upsert": zod.boolean().optional().describe('Nested alternative to the top-level response-status flag. Top-level upsert takes precedence when both are provided.')
-}),
-  "upsert": zod.boolean().optional().describe('Response-status signal only. When true and a same-account same-date valuation exists before the request, the endpoint returns 200 OK instead of 201 Created. The underlying reconciliation write path is unchanged; this flag does not add duplicate-prevention or safe-retry guarantees beyond existing same-date reconciliation behavior.')
-})
+export const PostApiV1ValuationsBody = zod.strictObject({
+	valuation: zod.strictObject({
+		account_id: zod.uuid().describe("Account ID (required)"),
+		amount: zod.number().describe("Valuation amount (required)"),
+		date: zod.iso.date().describe("Valuation date (required)"),
+		notes: zod.string().exactOptional().describe("Additional notes"),
+		upsert: zod
+			.boolean()
+			.exactOptional()
+			.describe(
+				"Nested alternative to the top-level response-status flag. Top-level upsert takes precedence when both are provided.",
+			),
+	}),
+	upsert: zod
+		.boolean()
+		.exactOptional()
+		.describe(
+			"Response-status signal only. When true and a same-account same-date valuation exists before the request, the endpoint returns 200 OK instead of 201 Created. The underlying reconciliation write path is unchanged; this flag does not add duplicate-prevention or safe-retry guarantees beyond existing same-date reconciliation behavior.",
+		),
+});
 
 export type PostApiV1ValuationsBody = zod.input<typeof PostApiV1ValuationsBody>;
 export type PostApiV1ValuationsBodyOutput = zod.output<typeof PostApiV1ValuationsBody>;

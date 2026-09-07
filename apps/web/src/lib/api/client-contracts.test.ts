@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-	type ApiData,
 	ApiError,
 	apiDelete,
 	apiDownload,
@@ -137,15 +136,14 @@ describe("mandatory response validation", () => {
 		await expect(putError).resolves.toMatchObject({ kind: "contract" });
 	});
 
-	it("passes valid payloads through with stripped unknown keys", async () => {
+	it("rejects otherwise valid payloads with undocumented keys", async () => {
 		const client = testClient(async () =>
 			jsonResponse({ ...validCollection(), future_field: "ignored" }),
 		);
 
-		const result: ApiData<"get", "/api/v1/accounts"> = (await apiGet(client, "/api/v1/accounts"))
-			.data;
-		expect(result.pagination.page).toBe(1);
-		expect("future_field" in result).toBe(false);
+		const error = await expectApiError(apiGet(client, "/api/v1/accounts"));
+		expect(error.kind).toBe("contract");
+		expect(JSON.stringify(error.details)).not.toContain("ignored");
 	});
 });
 

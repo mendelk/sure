@@ -5,10 +5,10 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const DeleteResponse = zod.object({
-  "message": zod.string()
+export const DeleteResponse = zod.strictObject({
+	message: zod.string(),
 });
 
 export type DeleteResponse = zod.input<typeof DeleteResponse>;

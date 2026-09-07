@@ -5,12 +5,12 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const SyncableSummary = zod.object({
-  "type": zod.string(),
-  "id": zod.uuid(),
-  "name": zod.string().nullish()
+export const SyncableSummary = zod.strictObject({
+	type: zod.string(),
+	id: zod.uuid(),
+	name: zod.string().nullish(),
 });
 
 export type SyncableSummary = zod.input<typeof SyncableSummary>;

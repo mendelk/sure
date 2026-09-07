@@ -5,45 +5,42 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  Budget,
-  BudgetCollection,
-  ErrorResponse
-} from '../../models';
-
+import { Budget, BudgetCollection, ErrorResponse } from "../../models";
 
 /**
  * @summary List budgets
  */
-export const GetApiV1BudgetsQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "start_date": zod.iso.date().optional().describe('Filter budgets starting on or after this date'),
-  "end_date": zod.iso.date().optional().describe('Filter budgets ending on or before this date')
-})
+export const GetApiV1BudgetsQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	start_date: zod.iso
+		.date()
+		.exactOptional()
+		.describe("Filter budgets starting on or after this date"),
+	end_date: zod.iso.date().exactOptional().describe("Filter budgets ending on or before this date"),
+});
 
-export const GetApiV1Budgets200Response = BudgetCollection
+export const GetApiV1Budgets200Response = BudgetCollection;
 
-export const GetApiV1Budgets401Response = ErrorResponse
+export const GetApiV1Budgets401Response = ErrorResponse;
 
-export const GetApiV1Budgets403Response = ErrorResponse
+export const GetApiV1Budgets403Response = ErrorResponse;
 
-export const GetApiV1Budgets422Response = ErrorResponse
+export const GetApiV1Budgets422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a budget
  */
-export const GetApiV1BudgetsIdParams = zod.object({
-  "id": zod.uuid().describe('Budget ID')
-})
+export const GetApiV1BudgetsIdParams = zod.strictObject({
+	id: zod.uuid().describe("Budget ID"),
+});
 
-export const GetApiV1BudgetsId200Response = Budget
+export const GetApiV1BudgetsId200Response = Budget;
 
-export const GetApiV1BudgetsId401Response = ErrorResponse
+export const GetApiV1BudgetsId401Response = ErrorResponse;
 
-export const GetApiV1BudgetsId403Response = ErrorResponse
+export const GetApiV1BudgetsId403Response = ErrorResponse;
 
-export const GetApiV1BudgetsId404Response = ErrorResponse
-
+export const GetApiV1BudgetsId404Response = ErrorResponse;

@@ -5,14 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1CategoriesParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "roots_only": zod.boolean().optional(),
-  "parent_id": zod.uuid().optional()
-})
+export const GetApiV1CategoriesParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	roots_only: zod.boolean().exactOptional(),
+	parent_id: zod.uuid().exactOptional(),
+});
 
 export type GetApiV1CategoriesParams = zod.input<typeof GetApiV1CategoriesParams>;
 export type GetApiV1CategoriesParamsOutput = zod.output<typeof GetApiV1CategoriesParams>;

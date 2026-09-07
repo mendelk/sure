@@ -5,18 +5,18 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1HoldingsParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "account_id": zod.string().optional(),
-  "account_ids": zod.array(zod.string()).optional(),
-  "date": zod.iso.date().optional(),
-  "start_date": zod.iso.date().optional(),
-  "end_date": zod.iso.date().optional(),
-  "security_id": zod.string().optional()
-})
+export const GetApiV1HoldingsParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	account_id: zod.string().exactOptional(),
+	account_ids: zod.array(zod.string()).exactOptional(),
+	date: zod.iso.date().exactOptional(),
+	start_date: zod.iso.date().exactOptional(),
+	end_date: zod.iso.date().exactOptional(),
+	security_id: zod.string().exactOptional(),
+});
 
 export type GetApiV1HoldingsParams = zod.input<typeof GetApiV1HoldingsParams>;
 export type GetApiV1HoldingsParamsOutput = zod.output<typeof GetApiV1HoldingsParams>;

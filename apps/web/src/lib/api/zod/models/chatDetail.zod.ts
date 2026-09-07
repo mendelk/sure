@@ -5,15 +5,17 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ChatResource } from './chatResource.zod.ts';
-import { Message } from './message.zod.ts';
-import { Pagination } from './pagination.zod.ts';
+import * as zod from "zod";
+import { ChatResource } from "./chatResource.zod.ts";
+import { Message } from "./message.zod.ts";
+import { Pagination } from "./pagination.zod.ts";
 
-export const ChatDetail = ChatResource.and(zod.object({
-  "messages": zod.array(Message),
-  "pagination": zod.union([Pagination,zod.null()]).optional()
-}));
+export const ChatDetail = ChatResource.and(
+	zod.strictObject({
+		messages: zod.array(Message),
+		pagination: zod.union([Pagination, zod.null()]).exactOptional(),
+	}),
+);
 
 export type ChatDetail = zod.input<typeof ChatDetail>;
 export type ChatDetailOutput = zod.output<typeof ChatDetail>;

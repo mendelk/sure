@@ -5,78 +5,71 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  ErrorResponse,
-  MerchantDetail,
-  MerchantImportResult,
-  MerchantRequest
-} from '../../models';
-
+import { ErrorResponse, MerchantDetail, MerchantImportResult, MerchantRequest } from "../../models";
 
 /**
  * @summary List merchants
  */
-export const GetApiV1Merchants200ResponseItem = MerchantDetail
-export const GetApiV1Merchants200Response = zod.array(GetApiV1Merchants200ResponseItem)
+export const GetApiV1Merchants200ResponseItem = MerchantDetail;
+export const GetApiV1Merchants200Response = zod.array(GetApiV1Merchants200ResponseItem);
 
 /**
  * @summary Create a merchant
  */
-export const PostApiV1MerchantsBody = MerchantRequest
+export const PostApiV1MerchantsBody = MerchantRequest;
 
-export const PostApiV1Merchants201Response = MerchantDetail
+export const PostApiV1Merchants201Response = MerchantDetail;
 
-export const PostApiV1Merchants401Response = ErrorResponse
+export const PostApiV1Merchants401Response = ErrorResponse;
 
-export const PostApiV1Merchants422Response = ErrorResponse
+export const PostApiV1Merchants422Response = ErrorResponse;
 
 /**
  * @summary Import merchants from CSV
  */
-export const PostApiV1MerchantsImportBody = zod.object({
-  "file": zod.instanceof(Blob)
-})
+export const PostApiV1MerchantsImportBody = zod.strictObject({
+	file: zod.instanceof(Blob),
+});
 
-export const PostApiV1MerchantsImport201Response = MerchantImportResult
+export const PostApiV1MerchantsImport201Response = MerchantImportResult;
 
-export const PostApiV1MerchantsImport401Response = ErrorResponse
+export const PostApiV1MerchantsImport401Response = ErrorResponse;
 
-export const PostApiV1MerchantsImport422Response = ErrorResponse
+export const PostApiV1MerchantsImport422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a merchant
  */
-export const GetApiV1MerchantsIdParams = zod.object({
-  "id": zod.string().describe('Merchant ID')
-})
+export const GetApiV1MerchantsIdParams = zod.strictObject({
+	id: zod.string().describe("Merchant ID"),
+});
 
-export const GetApiV1MerchantsId200Response = MerchantDetail
+export const GetApiV1MerchantsId200Response = MerchantDetail;
 
-export const GetApiV1MerchantsId404Response = ErrorResponse
+export const GetApiV1MerchantsId404Response = ErrorResponse;
 
 /**
  * @summary Update a merchant
  */
-export const PatchApiV1MerchantsIdParams = zod.object({
-  "id": zod.string().describe('Merchant ID')
-})
+export const PatchApiV1MerchantsIdParams = zod.strictObject({
+	id: zod.string().describe("Merchant ID"),
+});
 
-export const PatchApiV1MerchantsIdBody = MerchantRequest
+export const PatchApiV1MerchantsIdBody = MerchantRequest;
 
-export const PatchApiV1MerchantsId200Response = MerchantDetail
+export const PatchApiV1MerchantsId200Response = MerchantDetail;
 
-export const PatchApiV1MerchantsId404Response = ErrorResponse
+export const PatchApiV1MerchantsId404Response = ErrorResponse;
 
 /**
  * @summary Delete a merchant
  */
-export const DeleteApiV1MerchantsIdParams = zod.object({
-  "id": zod.string().describe('Merchant ID')
-})
+export const DeleteApiV1MerchantsIdParams = zod.strictObject({
+	id: zod.string().describe("Merchant ID"),
+});
 
-export const DeleteApiV1MerchantsId204Response = zod.void()
+export const DeleteApiV1MerchantsId204Response = zod.void();
 
-export const DeleteApiV1MerchantsId404Response = zod.unknown()
-
+export const DeleteApiV1MerchantsId404Response = ErrorResponse;

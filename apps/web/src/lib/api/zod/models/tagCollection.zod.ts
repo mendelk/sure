@@ -5,8 +5,8 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { TagDetail } from './tagDetail.zod.ts';
+import * as zod from "zod";
+import { TagDetail } from "./tagDetail.zod.ts";
 
 export const TagCollection = zod.array(TagDetail);
 

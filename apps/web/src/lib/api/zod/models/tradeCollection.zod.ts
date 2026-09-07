@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Pagination } from './pagination.zod.ts';
-import { Trade } from './trade.zod.ts';
+import * as zod from "zod";
+import { Pagination } from "./pagination.zod.ts";
+import { Trade } from "./trade.zod.ts";
 
-export const TradeCollection = zod.object({
-  "trades": zod.array(Trade),
-  "pagination": Pagination
+export const TradeCollection = zod.strictObject({
+	trades: zod.array(Trade),
+	pagination: Pagination,
 });
 
 export type TradeCollection = zod.input<typeof TradeCollection>;

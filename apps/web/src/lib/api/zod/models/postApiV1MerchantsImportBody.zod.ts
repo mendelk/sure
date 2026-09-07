@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1MerchantsImportBody = zod.object({
-  "file": zod.instanceof(Blob)
-})
+export const PostApiV1MerchantsImportBody = zod.strictObject({
+	file: zod.instanceof(Blob),
+});
 
 export type PostApiV1MerchantsImportBody = zod.input<typeof PostApiV1MerchantsImportBody>;
 export type PostApiV1MerchantsImportBodyOutput = zod.output<typeof PostApiV1MerchantsImportBody>;

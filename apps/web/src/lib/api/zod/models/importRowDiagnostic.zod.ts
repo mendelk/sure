@@ -5,42 +5,39 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ImportRowMapping } from './importRowMapping.zod.ts';
+import * as zod from "zod";
+import { ImportRowMapping } from "./importRowMapping.zod.ts";
 
-
-
-
-export const ImportRowDiagnostic = zod.object({
-  "id": zod.uuid(),
-  "row_number": zod.int().min(1),
-  "valid": zod.boolean(),
-  "errors": zod.array(zod.string()),
-  "fields": zod.object({
-  "account": zod.string().nullish(),
-  "date": zod.string().nullish(),
-  "qty": zod.string().nullish(),
-  "ticker": zod.string().nullish(),
-  "exchange_operating_mic": zod.string().nullish(),
-  "price": zod.string().nullish(),
-  "amount": zod.string().nullish(),
-  "currency": zod.string().nullish(),
-  "name": zod.string().nullish(),
-  "category": zod.string().nullish(),
-  "tags": zod.string().nullish(),
-  "entity_type": zod.string().nullish(),
-  "notes": zod.string().nullish(),
-  "active": zod.boolean().nullish(),
-  "effective_date": zod.string().nullish(),
-  "conditions": zod.string().nullish(),
-  "actions": zod.string().nullish()
-}),
-  "mappings": zod.object({
-  "account": ImportRowMapping.optional(),
-  "category": ImportRowMapping.optional(),
-  "account_type": ImportRowMapping.optional(),
-  "tags": zod.array(ImportRowMapping).optional()
-})
+export const ImportRowDiagnostic = zod.strictObject({
+	id: zod.uuid(),
+	row_number: zod.int().min(1),
+	valid: zod.boolean(),
+	errors: zod.array(zod.string()),
+	fields: zod.strictObject({
+		account: zod.string().nullish(),
+		date: zod.string().nullish(),
+		qty: zod.string().nullish(),
+		ticker: zod.string().nullish(),
+		exchange_operating_mic: zod.string().nullish(),
+		price: zod.string().nullish(),
+		amount: zod.string().nullish(),
+		currency: zod.string().nullish(),
+		name: zod.string().nullish(),
+		category: zod.string().nullish(),
+		tags: zod.string().nullish(),
+		entity_type: zod.string().nullish(),
+		notes: zod.string().nullish(),
+		active: zod.boolean().nullish(),
+		effective_date: zod.string().nullish(),
+		conditions: zod.string().nullish(),
+		actions: zod.string().nullish(),
+	}),
+	mappings: zod.strictObject({
+		account: ImportRowMapping.exactOptional(),
+		category: ImportRowMapping.exactOptional(),
+		account_type: ImportRowMapping.exactOptional(),
+		tags: zod.array(ImportRowMapping).exactOptional(),
+	}),
 });
 
 export type ImportRowDiagnostic = zod.input<typeof ImportRowDiagnostic>;

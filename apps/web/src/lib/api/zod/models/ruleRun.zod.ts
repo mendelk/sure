@@ -5,7 +5,7 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 export const ruleRunTransactionsQueuedMin = 0;
 
@@ -15,28 +15,28 @@ export const ruleRunTransactionsModifiedMin = 0;
 
 export const ruleRunPendingJobsCountMin = 0;
 
-
-
-export const RuleRun = zod.object({
-  "id": zod.uuid(),
-  "rule_id": zod.uuid(),
-  "rule_name": zod.string().nullable(),
-  "execution_type": zod.enum(['manual', 'scheduled']),
-  "status": zod.enum(['pending', 'success', 'failed']),
-  "transactions_queued": zod.int().min(ruleRunTransactionsQueuedMin),
-  "transactions_processed": zod.int().min(ruleRunTransactionsProcessedMin),
-  "transactions_modified": zod.int().min(ruleRunTransactionsModifiedMin),
-  "pending_jobs_count": zod.int().min(ruleRunPendingJobsCountMin),
-  "executed_at": zod.iso.datetime({"offset":true}),
-  "error_message": zod.string().nullish(),
-  "rule": zod.object({
-  "id": zod.uuid(),
-  "name": zod.string().nullish(),
-  "resource_type": zod.string(),
-  "active": zod.boolean()
-}).nullable(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const RuleRun = zod.strictObject({
+	id: zod.uuid(),
+	rule_id: zod.uuid(),
+	rule_name: zod.string().nullable(),
+	execution_type: zod.enum(["manual", "scheduled"]),
+	status: zod.enum(["pending", "success", "failed"]),
+	transactions_queued: zod.int().min(ruleRunTransactionsQueuedMin),
+	transactions_processed: zod.int().min(ruleRunTransactionsProcessedMin),
+	transactions_modified: zod.int().min(ruleRunTransactionsModifiedMin),
+	pending_jobs_count: zod.int().min(ruleRunPendingJobsCountMin),
+	executed_at: zod.iso.datetime({ offset: true }),
+	error_message: zod.string().nullish(),
+	rule: zod
+		.strictObject({
+			id: zod.uuid(),
+			name: zod.string().nullish(),
+			resource_type: zod.string(),
+			active: zod.boolean(),
+		})
+		.nullable(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type RuleRun = zod.input<typeof RuleRun>;

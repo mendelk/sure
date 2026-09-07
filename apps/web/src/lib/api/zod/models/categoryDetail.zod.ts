@@ -5,22 +5,20 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { CategoryParent } from './categoryParent.zod.ts';
+import * as zod from "zod";
+import { CategoryParent } from "./categoryParent.zod.ts";
 
 export const categoryDetailSubcategoriesCountMin = 0;
 
-
-
-export const CategoryDetail = zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "color": zod.string(),
-  "icon": zod.string(),
-  "parent": zod.union([CategoryParent,zod.null()]).optional(),
-  "subcategories_count": zod.int().min(categoryDetailSubcategoriesCountMin),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const CategoryDetail = zod.strictObject({
+	id: zod.uuid(),
+	name: zod.string(),
+	color: zod.string(),
+	icon: zod.string(),
+	parent: zod.union([CategoryParent, zod.null()]).exactOptional(),
+	subcategories_count: zod.int().min(categoryDetailSubcategoriesCountMin),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type CategoryDetail = zod.input<typeof CategoryDetail>;

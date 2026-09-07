@@ -5,12 +5,12 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const Tag = zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "color": zod.string()
+export const Tag = zod.strictObject({
+	id: zod.uuid(),
+	name: zod.string(),
+	color: zod.string(),
 });
 
 export type Tag = zod.input<typeof Tag>;

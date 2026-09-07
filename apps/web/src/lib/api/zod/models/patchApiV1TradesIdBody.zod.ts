@@ -5,22 +5,26 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PatchApiV1TradesIdBody = zod.object({
-  "trade": zod.object({
-  "date": zod.iso.date().optional(),
-  "qty": zod.number().optional(),
-  "price": zod.number().optional(),
-  "type": zod.enum(['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'interest']).optional(),
-  "nature": zod.enum(['inflow', 'outflow']).optional(),
-  "name": zod.string().optional(),
-  "notes": zod.string().optional(),
-  "currency": zod.string().optional(),
-  "investment_activity_label": zod.string().optional(),
-  "category_id": zod.uuid().optional()
-}).optional()
-})
+export const PatchApiV1TradesIdBody = zod.strictObject({
+	trade: zod
+		.strictObject({
+			date: zod.iso.date().exactOptional(),
+			qty: zod.number().exactOptional(),
+			price: zod.number().exactOptional(),
+			type: zod
+				.enum(["buy", "sell", "dividend", "deposit", "withdrawal", "interest"])
+				.exactOptional(),
+			nature: zod.enum(["inflow", "outflow"]).exactOptional(),
+			name: zod.string().exactOptional(),
+			notes: zod.string().exactOptional(),
+			currency: zod.string().exactOptional(),
+			investment_activity_label: zod.string().exactOptional(),
+			category_id: zod.uuid().exactOptional(),
+		})
+		.exactOptional(),
+});
 
 export type PatchApiV1TradesIdBody = zod.input<typeof PatchApiV1TradesIdBody>;
 export type PatchApiV1TradesIdBodyOutput = zod.output<typeof PatchApiV1TradesIdBody>;

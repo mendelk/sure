@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Insight } from './insight.zod.ts';
+import * as zod from "zod";
+import { Insight } from "./insight.zod.ts";
 
-export const InsightCollection = zod.object({
-  "insights": zod.array(Insight)
+export const InsightCollection = zod.strictObject({
+	insights: zod.array(Insight),
 });
 
 export type InsightCollection = zod.input<typeof InsightCollection>;

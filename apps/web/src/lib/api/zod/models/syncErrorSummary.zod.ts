@@ -5,10 +5,10 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const SyncErrorSummary = zod.object({
-  "message": zod.string()
+export const SyncErrorSummary = zod.strictObject({
+	message: zod.string(),
 });
 
 export type SyncErrorSummary = zod.input<typeof SyncErrorSummary>;

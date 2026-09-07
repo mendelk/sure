@@ -5,16 +5,16 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1TransfersParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "status": zod.enum(['pending', 'confirmed']).optional(),
-  "account_id": zod.uuid().optional(),
-  "start_date": zod.iso.date().optional(),
-  "end_date": zod.iso.date().optional()
-})
+export const GetApiV1TransfersParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	status: zod.enum(["pending", "confirmed"]).exactOptional(),
+	account_id: zod.uuid().exactOptional(),
+	start_date: zod.iso.date().exactOptional(),
+	end_date: zod.iso.date().exactOptional(),
+});
 
 export type GetApiV1TransfersParams = zod.input<typeof GetApiV1TransfersParams>;
 export type GetApiV1TransfersParamsOutput = zod.output<typeof GetApiV1TransfersParams>;

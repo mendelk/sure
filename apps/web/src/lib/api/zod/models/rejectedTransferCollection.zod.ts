@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Pagination } from './pagination.zod.ts';
-import { RejectedTransfer } from './rejectedTransfer.zod.ts';
+import * as zod from "zod";
+import { Pagination } from "./pagination.zod.ts";
+import { RejectedTransfer } from "./rejectedTransfer.zod.ts";
 
-export const RejectedTransferCollection = zod.object({
-  "rejected_transfers": zod.array(RejectedTransfer),
-  "pagination": Pagination
+export const RejectedTransferCollection = zod.strictObject({
+	rejected_transfers: zod.array(RejectedTransfer),
+	pagination: Pagination,
 });
 
 export type RejectedTransferCollection = zod.input<typeof RejectedTransferCollection>;

@@ -5,19 +5,21 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const ImportRowMapping = zod.object({
-  "key": zod.string().nullable(),
-  "type": zod.string(),
-  "value": zod.string().nullable(),
-  "create_when_empty": zod.boolean(),
-  "creatable": zod.boolean(),
-  "mappable": zod.object({
-  "id": zod.uuid().optional(),
-  "type": zod.string().optional(),
-  "name": zod.string().nullish()
-}).nullable()
+export const ImportRowMapping = zod.strictObject({
+	key: zod.string().nullable(),
+	type: zod.string(),
+	value: zod.string().nullable(),
+	create_when_empty: zod.boolean(),
+	creatable: zod.boolean(),
+	mappable: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			type: zod.string().exactOptional(),
+			name: zod.string().nullish(),
+		})
+		.nullable(),
 });
 
 export type ImportRowMapping = zod.input<typeof ImportRowMapping>;

@@ -5,17 +5,12 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import {
-  BalanceSheet,
-  ErrorResponse
-} from '../../models';
-
+import { BalanceSheet, ErrorResponse } from "../../models";
 
 /**
  * Returns the family balance sheet including net worth, total assets, and total liabilities with amounts converted to the family's primary currency.
  * @summary Show balance sheet
  */
-export const GetApiV1BalanceSheet200Response = BalanceSheet
+export const GetApiV1BalanceSheet200Response = BalanceSheet;
 
-export const GetApiV1BalanceSheet401Response = ErrorResponse
-
+export const GetApiV1BalanceSheet401Response = ErrorResponse;

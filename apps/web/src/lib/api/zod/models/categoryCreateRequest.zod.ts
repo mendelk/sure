@@ -5,15 +5,28 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const CategoryCreateRequest = zod.object({
-  "category": zod.object({
-  "name": zod.string().describe('Category name (required, unique within family)'),
-  "color": zod.string().optional().describe('Hex color code (e.g. #22c55e). Defaults to #6172F3 if omitted; subcategories inherit parent color.'),
-  "icon": zod.string().optional().describe('Lucide icon name (e.g. "coffee"). Auto-suggested from the name when omitted.'),
-  "parent_id": zod.uuid().nullish().describe('Parent category ID. Must belong to the same family. Categories support up to 2 levels of nesting.')
-})
+export const CategoryCreateRequest = zod.strictObject({
+	category: zod.strictObject({
+		name: zod.string().describe("Category name (required, unique within family)"),
+		color: zod
+			.string()
+			.exactOptional()
+			.describe(
+				"Hex color code (e.g. #22c55e). Defaults to #6172F3 if omitted; subcategories inherit parent color.",
+			),
+		icon: zod
+			.string()
+			.exactOptional()
+			.describe('Lucide icon name (e.g. "coffee"). Auto-suggested from the name when omitted.'),
+		parent_id: zod
+			.uuid()
+			.nullish()
+			.describe(
+				"Parent category ID. Must belong to the same family. Categories support up to 2 levels of nesting.",
+			),
+	}),
 });
 
 export type CategoryCreateRequest = zod.input<typeof CategoryCreateRequest>;

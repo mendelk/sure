@@ -5,121 +5,137 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 import {
-  DeleteResponse,
-  ErrorResponse,
-  Trade,
-  TradeCollection,
-  TransactionResponse
-} from '../../models';
-
+	DeleteResponse,
+	ErrorResponse,
+	Trade,
+	TradeCollection,
+	TransactionResponse,
+} from "../../models";
 
 /**
  * @summary List trades
  */
-export const GetApiV1TradesQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "account_id": zod.string().optional().describe('Filter by account ID'),
-  "account_ids": zod.array(zod.string()).optional().describe('Filter by multiple account IDs'),
-  "start_date": zod.iso.date().optional().describe('Filter trades from this date (inclusive)'),
-  "end_date": zod.iso.date().optional().describe('Filter trades until this date (inclusive)')
-})
+export const GetApiV1TradesQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	account_id: zod.string().exactOptional().describe("Filter by account ID"),
+	account_ids: zod.array(zod.string()).exactOptional().describe("Filter by multiple account IDs"),
+	start_date: zod.iso.date().exactOptional().describe("Filter trades from this date (inclusive)"),
+	end_date: zod.iso.date().exactOptional().describe("Filter trades until this date (inclusive)"),
+});
 
-export const GetApiV1Trades200Response = TradeCollection
+export const GetApiV1Trades200Response = TradeCollection;
 
-export const GetApiV1Trades401Response = ErrorResponse
+export const GetApiV1Trades401Response = ErrorResponse;
 
-export const GetApiV1Trades422Response = ErrorResponse
+export const GetApiV1Trades422Response = ErrorResponse;
 
 /**
  * @summary Create trade
  */
-export const PostApiV1TradesBody = zod.object({
-  "trade": zod.object({
-  "account_id": zod.uuid().describe('Account ID (required)'),
-  "date": zod.iso.date().describe('Trade date (required)'),
-  "qty": zod.number().optional().describe('Quantity (required for buy/sell)'),
-  "price": zod.number().optional().describe('Price (required for buy/sell)'),
-  "amount": zod.number().optional().describe('Amount (required for dividend, deposit, withdrawal, interest)'),
-  "type": zod.enum(['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'interest']).describe('Trade type (required)'),
-  "security_id": zod.uuid().optional().describe('Security ID (one of security_id, ticker, manual_ticker required)'),
-  "ticker": zod.string().optional().describe('Ticker symbol'),
-  "manual_ticker": zod.string().optional().describe('Manual ticker for offline securities'),
-  "currency": zod.string().optional().describe('Currency (defaults to account currency)'),
-  "investment_activity_label": zod.string().optional().describe('Activity label (e.g. Buy, Sell)'),
-  "category_id": zod.uuid().optional().describe('Category ID'),
-  "transfer_account_id": zod.uuid().optional().describe('Destination/source account ID for linked transfers')
-})
-})
+export const PostApiV1TradesBody = zod.strictObject({
+	trade: zod.strictObject({
+		account_id: zod.uuid().describe("Account ID (required)"),
+		date: zod.iso.date().describe("Trade date (required)"),
+		qty: zod.number().exactOptional().describe("Quantity (required for buy/sell)"),
+		price: zod.number().exactOptional().describe("Price (required for buy/sell)"),
+		amount: zod
+			.number()
+			.exactOptional()
+			.describe("Amount (required for dividend, deposit, withdrawal, interest)"),
+		type: zod
+			.enum(["buy", "sell", "dividend", "deposit", "withdrawal", "interest"])
+			.describe("Trade type (required)"),
+		security_id: zod
+			.uuid()
+			.exactOptional()
+			.describe("Security ID (one of security_id, ticker, manual_ticker required)"),
+		ticker: zod.string().exactOptional().describe("Ticker symbol"),
+		manual_ticker: zod.string().exactOptional().describe("Manual ticker for offline securities"),
+		currency: zod.string().exactOptional().describe("Currency (defaults to account currency)"),
+		investment_activity_label: zod
+			.string()
+			.exactOptional()
+			.describe("Activity label (e.g. Buy, Sell)"),
+		category_id: zod.uuid().exactOptional().describe("Category ID"),
+		transfer_account_id: zod
+			.uuid()
+			.exactOptional()
+			.describe("Destination/source account ID for linked transfers"),
+	}),
+});
 
-export const PostApiV1Trades201Response = TransactionResponse
+export const PostApiV1Trades201Response = TransactionResponse;
 
-export const PostApiV1Trades401Response = ErrorResponse
+export const PostApiV1Trades401Response = ErrorResponse;
 
-export const PostApiV1Trades403Response = ErrorResponse
+export const PostApiV1Trades403Response = ErrorResponse;
 
-export const PostApiV1Trades404Response = ErrorResponse
+export const PostApiV1Trades404Response = ErrorResponse;
 
-export const PostApiV1Trades422Response = ErrorResponse
+export const PostApiV1Trades422Response = ErrorResponse;
 
 /**
  * @summary Retrieve trade
  */
-export const GetApiV1TradesIdParams = zod.object({
-  "id": zod.string().describe('Trade ID')
-})
+export const GetApiV1TradesIdParams = zod.strictObject({
+	id: zod.string().describe("Trade ID"),
+});
 
-export const GetApiV1TradesId200Response = Trade
+export const GetApiV1TradesId200Response = Trade;
 
-export const GetApiV1TradesId401Response = ErrorResponse
+export const GetApiV1TradesId401Response = ErrorResponse;
 
-export const GetApiV1TradesId404Response = ErrorResponse
+export const GetApiV1TradesId404Response = ErrorResponse;
 
 /**
  * @summary Update trade
  */
-export const PatchApiV1TradesIdParams = zod.object({
-  "id": zod.string().describe('Trade ID')
-})
+export const PatchApiV1TradesIdParams = zod.strictObject({
+	id: zod.string().describe("Trade ID"),
+});
 
-export const PatchApiV1TradesIdBody = zod.object({
-  "trade": zod.object({
-  "date": zod.iso.date().optional(),
-  "qty": zod.number().optional(),
-  "price": zod.number().optional(),
-  "type": zod.enum(['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'interest']).optional(),
-  "nature": zod.enum(['inflow', 'outflow']).optional(),
-  "name": zod.string().optional(),
-  "notes": zod.string().optional(),
-  "currency": zod.string().optional(),
-  "investment_activity_label": zod.string().optional(),
-  "category_id": zod.uuid().optional()
-}).optional()
-})
+export const PatchApiV1TradesIdBody = zod.strictObject({
+	trade: zod
+		.strictObject({
+			date: zod.iso.date().exactOptional(),
+			qty: zod.number().exactOptional(),
+			price: zod.number().exactOptional(),
+			type: zod
+				.enum(["buy", "sell", "dividend", "deposit", "withdrawal", "interest"])
+				.exactOptional(),
+			nature: zod.enum(["inflow", "outflow"]).exactOptional(),
+			name: zod.string().exactOptional(),
+			notes: zod.string().exactOptional(),
+			currency: zod.string().exactOptional(),
+			investment_activity_label: zod.string().exactOptional(),
+			category_id: zod.uuid().exactOptional(),
+		})
+		.exactOptional(),
+});
 
-export const PatchApiV1TradesId200Response = Trade
+export const PatchApiV1TradesId200Response = Trade;
 
-export const PatchApiV1TradesId401Response = ErrorResponse
+export const PatchApiV1TradesId401Response = ErrorResponse;
 
-export const PatchApiV1TradesId403Response = ErrorResponse
+export const PatchApiV1TradesId403Response = ErrorResponse;
 
-export const PatchApiV1TradesId404Response = ErrorResponse
+export const PatchApiV1TradesId404Response = ErrorResponse;
 
 /**
  * @summary Delete trade
  */
-export const DeleteApiV1TradesIdParams = zod.object({
-  "id": zod.string().describe('Trade ID')
-})
+export const DeleteApiV1TradesIdParams = zod.strictObject({
+	id: zod.string().describe("Trade ID"),
+});
 
-export const DeleteApiV1TradesId200Response = DeleteResponse
+export const DeleteApiV1TradesId200Response = DeleteResponse;
 
-export const DeleteApiV1TradesId401Response = ErrorResponse
+export const DeleteApiV1TradesId401Response = ErrorResponse;
 
-export const DeleteApiV1TradesId403Response = ErrorResponse
+export const DeleteApiV1TradesId403Response = ErrorResponse;
 
-export const DeleteApiV1TradesId404Response = ErrorResponse
-
+export const DeleteApiV1TradesId404Response = ErrorResponse;

@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const CategoryParent = zod.object({
-  "id": zod.uuid(),
-  "name": zod.string()
+export const CategoryParent = zod.strictObject({
+	id: zod.uuid(),
+	name: zod.string(),
 });
 
 export type CategoryParent = zod.input<typeof CategoryParent>;

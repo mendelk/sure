@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Holding } from './holding.zod.ts';
-import { Pagination } from './pagination.zod.ts';
+import * as zod from "zod";
+import { Holding } from "./holding.zod.ts";
+import { Pagination } from "./pagination.zod.ts";
 
-export const HoldingCollection = zod.object({
-  "holdings": zod.array(Holding),
-  "pagination": Pagination
+export const HoldingCollection = zod.strictObject({
+	holdings: zod.array(Holding),
+	pagination: Pagination,
 });
 
 export type HoldingCollection = zod.input<typeof HoldingCollection>;

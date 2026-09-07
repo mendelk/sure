@@ -5,26 +5,29 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { TransferTransactionSide } from './transferTransactionSide.zod.ts';
+import * as zod from "zod";
+import { TransferTransactionSide } from "./transferTransactionSide.zod.ts";
 
-export const TransferDecision = zod.object({
-  "id": zod.uuid(),
-  "status": zod.enum(['pending', 'confirmed']),
-  "date": zod.iso.date(),
-  "amount": zod.string(),
-  "amount_cents": zod.int().describe('Absolute transfer amount in currency minor units'),
-  "currency": zod.string(),
-  "transfer_type": zod.enum(['transfer', 'liability_payment', 'loan_payment']),
-  "notes": zod.string().nullish(),
-  "source_fee_amount": zod.string().nullish().describe('Fee charged to the source account'),
-  "source_fee_currency": zod.string().nullish(),
-  "destination_fee_amount": zod.string().nullish().describe('Fee deducted from the destination account'),
-  "destination_fee_currency": zod.string().nullish(),
-  "inflow_transaction": TransferTransactionSide,
-  "outflow_transaction": TransferTransactionSide,
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const TransferDecision = zod.strictObject({
+	id: zod.uuid(),
+	status: zod.enum(["pending", "confirmed"]),
+	date: zod.iso.date(),
+	amount: zod.string(),
+	amount_cents: zod.int().describe("Absolute transfer amount in currency minor units"),
+	currency: zod.string(),
+	transfer_type: zod.enum(["transfer", "liability_payment", "loan_payment"]),
+	notes: zod.string().nullish(),
+	source_fee_amount: zod.string().nullish().describe("Fee charged to the source account"),
+	source_fee_currency: zod.string().nullish(),
+	destination_fee_amount: zod
+		.string()
+		.nullish()
+		.describe("Fee deducted from the destination account"),
+	destination_fee_currency: zod.string().nullish(),
+	inflow_transaction: TransferTransactionSide,
+	outflow_transaction: TransferTransactionSide,
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type TransferDecision = zod.input<typeof TransferDecision>;

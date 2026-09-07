@@ -5,14 +5,18 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1RecurringTransactionsParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "status": zod.enum(['active', 'inactive']).optional(),
-  "account_id": zod.uuid().optional()
-})
+export const GetApiV1RecurringTransactionsParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	status: zod.enum(["active", "inactive"]).exactOptional(),
+	account_id: zod.uuid().exactOptional(),
+});
 
-export type GetApiV1RecurringTransactionsParams = zod.input<typeof GetApiV1RecurringTransactionsParams>;
-export type GetApiV1RecurringTransactionsParamsOutput = zod.output<typeof GetApiV1RecurringTransactionsParams>;
+export type GetApiV1RecurringTransactionsParams = zod.input<
+	typeof GetApiV1RecurringTransactionsParams
+>;
+export type GetApiV1RecurringTransactionsParamsOutput = zod.output<
+	typeof GetApiV1RecurringTransactionsParams
+>;

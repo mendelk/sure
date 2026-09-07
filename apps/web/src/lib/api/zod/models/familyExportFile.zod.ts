@@ -5,16 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 export const familyExportFileByteSizeMin = 0;
 
-
-
-export const FamilyExportFile = zod.object({
-  "attached": zod.boolean(),
-  "byte_size": zod.int().min(familyExportFileByteSizeMin).nullish(),
-  "content_type": zod.string().nullish()
+export const FamilyExportFile = zod.strictObject({
+	attached: zod.boolean(),
+	byte_size: zod.int().min(familyExportFileByteSizeMin).nullish(),
+	content_type: zod.string().nullish(),
 });
 
 export type FamilyExportFile = zod.input<typeof FamilyExportFile>;

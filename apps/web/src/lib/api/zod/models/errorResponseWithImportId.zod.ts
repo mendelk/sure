@@ -5,12 +5,16 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const ErrorResponseWithImportId = zod.object({
-  "error": zod.string(),
-  "message": zod.string().nullish(),
-  "import_id": zod.uuid().describe('Import ID preserved for retry or inspection after upload succeeds but publish fails')
+export const ErrorResponseWithImportId = zod.strictObject({
+	error: zod.string(),
+	message: zod.string().nullish(),
+	import_id: zod
+		.uuid()
+		.describe(
+			"Import ID preserved for retry or inspection after upload succeeds but publish fails",
+		),
 });
 
 export type ErrorResponseWithImportId = zod.input<typeof ErrorResponseWithImportId>;

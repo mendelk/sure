@@ -5,12 +5,12 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const Money = zod.object({
-  "amount": zod.string().describe('Numeric amount as string'),
-  "currency": zod.string().describe('ISO 4217 currency code'),
-  "formatted": zod.string().describe('Locale-formatted money string')
+export const Money = zod.strictObject({
+	amount: zod.string().describe("Numeric amount as string"),
+	currency: zod.string().describe("ISO 4217 currency code"),
+	formatted: zod.string().describe("Locale-formatted money string"),
 });
 
 export type Money = zod.input<typeof Money>;

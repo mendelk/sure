@@ -5,16 +5,16 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const Insight = zod.object({
-  "id": zod.uuid(),
-  "type": zod.string(),
-  "title": zod.string(),
-  "body": zod.string(),
-  "priority": zod.enum(['high', 'medium', 'low']),
-  "status": zod.enum(['active', 'read']),
-  "generated_at": zod.iso.datetime({"offset":true}).nullish()
+export const Insight = zod.strictObject({
+	id: zod.uuid(),
+	type: zod.string(),
+	title: zod.string(),
+	body: zod.string(),
+	priority: zod.enum(["high", "medium", "low"]),
+	status: zod.enum(["active", "read"]),
+	generated_at: zod.iso.datetime({ offset: true }).nullish(),
 });
 
 export type Insight = zod.input<typeof Insight>;

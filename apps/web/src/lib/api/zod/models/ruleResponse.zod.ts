@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Rule } from './rule.zod.ts';
+import * as zod from "zod";
+import { Rule } from "./rule.zod.ts";
 
-export const RuleResponse = zod.object({
-  "data": Rule
+export const RuleResponse = zod.strictObject({
+	data: Rule,
 });
 
 export type RuleResponse = zod.input<typeof RuleResponse>;

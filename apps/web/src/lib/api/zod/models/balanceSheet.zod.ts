@@ -5,14 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Money } from './money.zod.ts';
+import * as zod from "zod";
+import { Money } from "./money.zod.ts";
 
-export const BalanceSheet = zod.object({
-  "currency": zod.string().describe('Family primary currency'),
-  "net_worth": Money,
-  "assets": Money,
-  "liabilities": Money
+export const BalanceSheet = zod.strictObject({
+	currency: zod.string().describe("Family primary currency"),
+	net_worth: Money,
+	assets: Money,
+	liabilities: Money,
 });
 
 export type BalanceSheet = zod.input<typeof BalanceSheet>;

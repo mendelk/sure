@@ -5,16 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import {
-  ErrorResponse,
-  InsightCollection
-} from '../../models';
-
+import { ErrorResponse, InsightCollection } from "../../models";
 
 /**
  * @summary List proactive insights
  */
-export const GetApiV1Insights200Response = InsightCollection
+export const GetApiV1Insights200Response = InsightCollection;
 
-export const GetApiV1Insights403Response = ErrorResponse
-
+export const GetApiV1Insights403Response = ErrorResponse;

@@ -5,28 +5,28 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const BudgetCategorySummary = zod.object({
-  "id": zod.uuid(),
-  "budget_id": zod.uuid(),
-  "currency": zod.string(),
-  "subcategory": zod.boolean(),
-  "inherits_parent_budget": zod.boolean(),
-  "rollover_enabled": zod.boolean(),
-  "budgeted_spending": zod.string().optional(),
-  "budgeted_spending_cents": zod.int().optional(),
-  "display_budgeted_spending": zod.string().optional(),
-  "display_budgeted_spending_cents": zod.int().optional(),
-  "category": zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "color": zod.string(),
-  "lucide_icon": zod.string(),
-  "parent_id": zod.uuid().nullish()
-}),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const BudgetCategorySummary = zod.strictObject({
+	id: zod.uuid(),
+	budget_id: zod.uuid(),
+	currency: zod.string(),
+	subcategory: zod.boolean(),
+	inherits_parent_budget: zod.boolean(),
+	rollover_enabled: zod.boolean(),
+	budgeted_spending: zod.string().exactOptional(),
+	budgeted_spending_cents: zod.int().exactOptional(),
+	display_budgeted_spending: zod.string().exactOptional(),
+	display_budgeted_spending_cents: zod.int().exactOptional(),
+	category: zod.strictObject({
+		id: zod.uuid(),
+		name: zod.string(),
+		color: zod.string(),
+		lucide_icon: zod.string(),
+		parent_id: zod.uuid().nullish(),
+	}),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type BudgetCategorySummary = zod.input<typeof BudgetCategorySummary>;

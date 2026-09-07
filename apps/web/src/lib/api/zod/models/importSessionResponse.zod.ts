@@ -5,11 +5,11 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ImportSession } from './importSession.zod.ts';
+import * as zod from "zod";
+import { ImportSession } from "./importSession.zod.ts";
 
-export const ImportSessionResponse = zod.object({
-  "data": ImportSession
+export const ImportSessionResponse = zod.strictObject({
+	data: ImportSession,
 });
 
 export type ImportSessionResponse = zod.input<typeof ImportSessionResponse>;

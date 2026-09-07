@@ -5,7 +5,7 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 export const importPreflightStatsRowsCountMin = 0;
 
@@ -13,14 +13,25 @@ export const importPreflightStatsValidRowsCountMin = 0;
 
 export const importPreflightStatsInvalidRowsCountMin = 0;
 
-
-
-export const ImportPreflightStats = zod.object({
-  "rows_count": zod.int().min(importPreflightStatsRowsCountMin).describe('CSV parsed non-header rows, or nonblank Sure NDJSON lines.'),
-  "valid_rows_count": zod.int().min(importPreflightStatsValidRowsCountMin).optional().describe('SureImport only. Valid NDJSON records.'),
-  "invalid_rows_count": zod.int().min(importPreflightStatsInvalidRowsCountMin).optional().describe('SureImport only. Invalid NDJSON records. CSV malformed content returns a 422 instead.'),
-  "entity_counts": zod.record(zod.string(), zod.int()).nullish(),
-  "record_type_counts": zod.record(zod.string(), zod.int()).nullish()
+export const ImportPreflightStats = zod.strictObject({
+	rows_count: zod
+		.int()
+		.min(importPreflightStatsRowsCountMin)
+		.describe("CSV parsed non-header rows, or nonblank Sure NDJSON lines."),
+	valid_rows_count: zod
+		.int()
+		.min(importPreflightStatsValidRowsCountMin)
+		.exactOptional()
+		.describe("SureImport only. Valid NDJSON records."),
+	invalid_rows_count: zod
+		.int()
+		.min(importPreflightStatsInvalidRowsCountMin)
+		.exactOptional()
+		.describe(
+			"SureImport only. Invalid NDJSON records. CSV malformed content returns a 422 instead.",
+		),
+	entity_counts: zod.record(zod.string(), zod.int()).nullish(),
+	record_type_counts: zod.record(zod.string(), zod.int()).nullish(),
 });
 
 export type ImportPreflightStats = zod.input<typeof ImportPreflightStats>;

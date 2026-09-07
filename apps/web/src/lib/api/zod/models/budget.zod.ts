@@ -5,32 +5,32 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const Budget = zod.object({
-  "id": zod.uuid(),
-  "start_date": zod.iso.date(),
-  "end_date": zod.iso.date(),
-  "name": zod.string(),
-  "currency": zod.string(),
-  "initialized": zod.boolean(),
-  "current": zod.boolean(),
-  "budgeted_spending": zod.string().nullish(),
-  "budgeted_spending_cents": zod.int().nullish(),
-  "expected_income": zod.string().nullish(),
-  "expected_income_cents": zod.int().nullish(),
-  "allocated_spending": zod.string().optional(),
-  "allocated_spending_cents": zod.int().optional(),
-  "actual_spending": zod.string().optional(),
-  "actual_spending_cents": zod.int().optional(),
-  "actual_income": zod.string().optional(),
-  "actual_income_cents": zod.int().optional(),
-  "available_to_spend": zod.string().optional(),
-  "available_to_spend_cents": zod.int().optional(),
-  "available_to_allocate": zod.string().optional(),
-  "available_to_allocate_cents": zod.int().optional(),
-  "created_at": zod.iso.datetime({"offset":true}),
-  "updated_at": zod.iso.datetime({"offset":true})
+export const Budget = zod.strictObject({
+	id: zod.uuid(),
+	start_date: zod.iso.date(),
+	end_date: zod.iso.date(),
+	name: zod.string(),
+	currency: zod.string(),
+	initialized: zod.boolean(),
+	current: zod.boolean(),
+	budgeted_spending: zod.string().nullish(),
+	budgeted_spending_cents: zod.int().nullish(),
+	expected_income: zod.string().nullish(),
+	expected_income_cents: zod.int().nullish(),
+	allocated_spending: zod.string().exactOptional(),
+	allocated_spending_cents: zod.int().exactOptional(),
+	actual_spending: zod.string().exactOptional(),
+	actual_spending_cents: zod.int().exactOptional(),
+	actual_income: zod.string().exactOptional(),
+	actual_income_cents: zod.int().exactOptional(),
+	available_to_spend: zod.string().exactOptional(),
+	available_to_spend_cents: zod.int().exactOptional(),
+	available_to_allocate: zod.string().exactOptional(),
+	available_to_allocate_cents: zod.int().exactOptional(),
+	created_at: zod.iso.datetime({ offset: true }),
+	updated_at: zod.iso.datetime({ offset: true }),
 });
 
 export type Budget = zod.input<typeof Budget>;

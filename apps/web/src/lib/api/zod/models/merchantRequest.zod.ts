@@ -5,15 +5,18 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const MerchantRequest = zod.object({
-  "merchant": zod.object({
-  "name": zod.string().optional().describe('Merchant name. Required when creating a merchant.'),
-  "color": zod.string().optional().describe('Hex color used for the fallback avatar'),
-  "website_url": zod.url().nullish(),
-  "logo_url": zod.url().nullish().describe('Direct merchant logo URL')
-})
+export const MerchantRequest = zod.strictObject({
+	merchant: zod.strictObject({
+		name: zod
+			.string()
+			.exactOptional()
+			.describe("Merchant name. Required when creating a merchant."),
+		color: zod.string().exactOptional().describe("Hex color used for the fallback avatar"),
+		website_url: zod.url().nullish(),
+		logo_url: zod.url().nullish().describe("Direct merchant logo URL"),
+	}),
 });
 
 export type MerchantRequest = zod.input<typeof MerchantRequest>;

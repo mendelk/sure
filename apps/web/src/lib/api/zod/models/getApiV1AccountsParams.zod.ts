@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1AccountsParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "include_disabled": zod.boolean().optional()
-})
+export const GetApiV1AccountsParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	include_disabled: zod.boolean().exactOptional(),
+});
 
 export type GetApiV1AccountsParams = zod.input<typeof GetApiV1AccountsParams>;
 export type GetApiV1AccountsParamsOutput = zod.output<typeof GetApiV1AccountsParams>;

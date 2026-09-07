@@ -5,12 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1ChatsChatIdMessagesBody = zod.object({
-  "content": zod.string(),
-  "model": zod.string().optional()
-})
+export const PostApiV1ChatsChatIdMessagesBody = zod.strictObject({
+	content: zod.string(),
+	model: zod.string().exactOptional(),
+});
 
 export type PostApiV1ChatsChatIdMessagesBody = zod.input<typeof PostApiV1ChatsChatIdMessagesBody>;
-export type PostApiV1ChatsChatIdMessagesBodyOutput = zod.output<typeof PostApiV1ChatsChatIdMessagesBody>;
+export type PostApiV1ChatsChatIdMessagesBodyOutput = zod.output<
+	typeof PostApiV1ChatsChatIdMessagesBody
+>;

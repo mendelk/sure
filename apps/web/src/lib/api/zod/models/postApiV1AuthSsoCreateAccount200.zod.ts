@@ -5,23 +5,27 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1AuthSsoCreateAccount200 = zod.object({
-  "access_token": zod.string().optional(),
-  "refresh_token": zod.string().optional(),
-  "token_type": zod.string().optional(),
-  "expires_in": zod.int().optional(),
-  "created_at": zod.int().optional(),
-  "user": zod.object({
-  "id": zod.uuid().optional(),
-  "email": zod.string().optional(),
-  "first_name": zod.string().optional(),
-  "last_name": zod.string().optional(),
-  "ui_layout": zod.enum(['dashboard', 'intro']).optional(),
-  "ai_enabled": zod.boolean().optional()
-}).optional()
-})
+export const PostApiV1AuthSsoCreateAccount200 = zod.strictObject({
+	access_token: zod.string().exactOptional(),
+	refresh_token: zod.string().exactOptional(),
+	token_type: zod.string().exactOptional(),
+	expires_in: zod.int().exactOptional(),
+	created_at: zod.int().exactOptional(),
+	user: zod
+		.strictObject({
+			id: zod.uuid().exactOptional(),
+			email: zod.string().exactOptional(),
+			first_name: zod.string().exactOptional(),
+			last_name: zod.string().exactOptional(),
+			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
+			ai_enabled: zod.boolean().exactOptional(),
+		})
+		.exactOptional(),
+});
 
 export type PostApiV1AuthSsoCreateAccount200 = zod.input<typeof PostApiV1AuthSsoCreateAccount200>;
-export type PostApiV1AuthSsoCreateAccount200Output = zod.output<typeof PostApiV1AuthSsoCreateAccount200>;
+export type PostApiV1AuthSsoCreateAccount200Output = zod.output<
+	typeof PostApiV1AuthSsoCreateAccount200
+>;

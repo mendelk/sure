@@ -5,14 +5,17 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1TagsBody = zod.object({
-  "tag": zod.object({
-  "name": zod.string().describe('Tag name (required)'),
-  "color": zod.string().optional().describe('Hex color code (optional, auto-assigned if not provided)')
-})
-})
+export const PostApiV1TagsBody = zod.strictObject({
+	tag: zod.strictObject({
+		name: zod.string().describe("Tag name (required)"),
+		color: zod
+			.string()
+			.exactOptional()
+			.describe("Hex color code (optional, auto-assigned if not provided)"),
+	}),
+});
 
 export type PostApiV1TagsBody = zod.input<typeof PostApiV1TagsBody>;
 export type PostApiV1TagsBodyOutput = zod.output<typeof PostApiV1TagsBody>;

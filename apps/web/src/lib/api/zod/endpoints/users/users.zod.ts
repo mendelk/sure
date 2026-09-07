@@ -5,47 +5,43 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-
 import {
-  ErrorResponse,
-  ResetInitiatedResponse,
-  ResetStatusResponse,
-  SuccessMessage
-} from '../../models';
-
+	ErrorResponse,
+	ResetInitiatedResponse,
+	ResetStatusResponse,
+	SuccessMessage,
+} from "../../models";
 
 /**
  * Resets all financial data (accounts, categories, merchants, tags, etc.) for the current user's family while keeping the user account intact. The reset runs asynchronously in the background. The returned job_id is informational only; reset status is family-scoped, not job-scoped. Requires admin role.
  * @summary Reset account
  */
-export const DeleteApiV1UsersReset200Response = ResetInitiatedResponse
+export const DeleteApiV1UsersReset200Response = ResetInitiatedResponse;
 
-export const DeleteApiV1UsersReset401Response = ErrorResponse
+export const DeleteApiV1UsersReset401Response = ErrorResponse;
 
-export const DeleteApiV1UsersReset403Response = ErrorResponse
+export const DeleteApiV1UsersReset403Response = ErrorResponse;
 
-export const DeleteApiV1UsersReset500Response = ErrorResponse
+export const DeleteApiV1UsersReset500Response = ErrorResponse;
 
 /**
  * Returns counts of family-owned data targeted by account reset. Use this after DELETE /api/v1/users/reset to decide whether reset materialization has completed. Completion is a counts-based family snapshot and may change if new data is created after reset.
  * @summary Retrieve reset status
  */
-export const GetApiV1UsersResetStatus200Response = ResetStatusResponse
+export const GetApiV1UsersResetStatus200Response = ResetStatusResponse;
 
-export const GetApiV1UsersResetStatus401Response = ErrorResponse
+export const GetApiV1UsersResetStatus401Response = ErrorResponse;
 
-export const GetApiV1UsersResetStatus403Response = ErrorResponse
+export const GetApiV1UsersResetStatus403Response = ErrorResponse;
 
 /**
  * Permanently deactivates the current user account and all associated data. This action cannot be undone.
  * @summary Delete account
  */
-export const DeleteApiV1UsersMe200Response = SuccessMessage
+export const DeleteApiV1UsersMe200Response = SuccessMessage;
 
-export const DeleteApiV1UsersMe401Response = zod.unknown()
+export const DeleteApiV1UsersMe401Response = ErrorResponse;
 
-export const DeleteApiV1UsersMe403Response = zod.unknown()
+export const DeleteApiV1UsersMe403Response = ErrorResponse;
 
-export const DeleteApiV1UsersMe422Response = ErrorResponse
-
+export const DeleteApiV1UsersMe422Response = ErrorResponse;

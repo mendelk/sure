@@ -5,14 +5,14 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { ProviderConnectionSyncLatest } from './providerConnectionSyncLatest.zod.ts';
+import * as zod from "zod";
+import { ProviderConnectionSyncLatest } from "./providerConnectionSyncLatest.zod.ts";
 
-export const ProviderConnectionSync = zod.object({
-  "syncing": zod.boolean(),
-  "status_summary": zod.string().nullish(),
-  "last_synced_at": zod.iso.datetime({"offset":true}).nullish(),
-  "latest": zod.union([ProviderConnectionSyncLatest,zod.null()]).optional()
+export const ProviderConnectionSync = zod.strictObject({
+	syncing: zod.boolean(),
+	status_summary: zod.string().nullish(),
+	last_synced_at: zod.iso.datetime({ offset: true }).nullish(),
+	latest: zod.union([ProviderConnectionSyncLatest, zod.null()]).exactOptional(),
 });
 
 export type ProviderConnectionSync = zod.input<typeof ProviderConnectionSync>;

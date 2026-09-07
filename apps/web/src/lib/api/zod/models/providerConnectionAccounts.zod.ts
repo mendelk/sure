@@ -5,7 +5,7 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 export const providerConnectionAccountsTotalCountMin = 0;
 
@@ -13,12 +13,10 @@ export const providerConnectionAccountsLinkedCountMin = 0;
 
 export const providerConnectionAccountsUnlinkedCountMin = 0;
 
-
-
-export const ProviderConnectionAccounts = zod.object({
-  "total_count": zod.int().min(providerConnectionAccountsTotalCountMin),
-  "linked_count": zod.int().min(providerConnectionAccountsLinkedCountMin),
-  "unlinked_count": zod.int().min(providerConnectionAccountsUnlinkedCountMin)
+export const ProviderConnectionAccounts = zod.strictObject({
+	total_count: zod.int().min(providerConnectionAccountsTotalCountMin),
+	linked_count: zod.int().min(providerConnectionAccountsLinkedCountMin),
+	unlinked_count: zod.int().min(providerConnectionAccountsUnlinkedCountMin),
 });
 
 export type ProviderConnectionAccounts = zod.input<typeof ProviderConnectionAccounts>;

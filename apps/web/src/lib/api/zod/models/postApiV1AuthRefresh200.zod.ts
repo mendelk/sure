@@ -5,15 +5,15 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const PostApiV1AuthRefresh200 = zod.object({
-  "access_token": zod.string().optional(),
-  "refresh_token": zod.string().optional(),
-  "token_type": zod.string().optional(),
-  "expires_in": zod.int().optional(),
-  "created_at": zod.int().optional()
-})
+export const PostApiV1AuthRefresh200 = zod.strictObject({
+	access_token: zod.string().exactOptional(),
+	refresh_token: zod.string().exactOptional(),
+	token_type: zod.string().exactOptional(),
+	expires_in: zod.int().exactOptional(),
+	created_at: zod.int().exactOptional(),
+});
 
 export type PostApiV1AuthRefresh200 = zod.input<typeof PostApiV1AuthRefresh200>;
 export type PostApiV1AuthRefresh200Output = zod.output<typeof PostApiV1AuthRefresh200>;

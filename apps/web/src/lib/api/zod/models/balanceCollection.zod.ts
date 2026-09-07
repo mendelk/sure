@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { Balance } from './balance.zod.ts';
-import { Pagination } from './pagination.zod.ts';
+import * as zod from "zod";
+import { Balance } from "./balance.zod.ts";
+import { Pagination } from "./pagination.zod.ts";
 
-export const BalanceCollection = zod.object({
-  "balances": zod.array(Balance),
-  "pagination": Pagination
+export const BalanceCollection = zod.strictObject({
+	balances: zod.array(Balance),
+	pagination: Pagination,
 });
 
 export type BalanceCollection = zod.input<typeof BalanceCollection>;

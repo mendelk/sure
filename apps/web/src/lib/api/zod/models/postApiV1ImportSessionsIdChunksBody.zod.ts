@@ -5,15 +5,27 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
+export const PostApiV1ImportSessionsIdChunksBody = zod.strictObject({
+	sequence: zod
+		.int()
+		.min(1)
+		.describe(
+			"One-based chunk sequence. Earlier dependency chunks must have lower sequence numbers.",
+		),
+	client_chunk_id: zod
+		.string()
+		.nullish()
+		.describe("Client-provided idempotency key for this chunk."),
+	raw_file_content: zod
+		.string()
+		.describe("Raw Sure NDJSON content. Each chunk is limited to 10MB."),
+});
 
-
-export const PostApiV1ImportSessionsIdChunksBody = zod.object({
-  "sequence": zod.int().min(1).describe('One-based chunk sequence. Earlier dependency chunks must have lower sequence numbers.'),
-  "client_chunk_id": zod.string().nullish().describe('Client-provided idempotency key for this chunk.'),
-  "raw_file_content": zod.string().describe('Raw Sure NDJSON content. Each chunk is limited to 10MB.')
-})
-
-export type PostApiV1ImportSessionsIdChunksBody = zod.input<typeof PostApiV1ImportSessionsIdChunksBody>;
-export type PostApiV1ImportSessionsIdChunksBodyOutput = zod.output<typeof PostApiV1ImportSessionsIdChunksBody>;
+export type PostApiV1ImportSessionsIdChunksBody = zod.input<
+	typeof PostApiV1ImportSessionsIdChunksBody
+>;
+export type PostApiV1ImportSessionsIdChunksBodyOutput = zod.output<
+	typeof PostApiV1ImportSessionsIdChunksBody
+>;

@@ -5,17 +5,17 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1RuleRunsParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "rule_id": zod.uuid().optional(),
-  "status": zod.enum(['pending', 'success', 'failed']).optional(),
-  "execution_type": zod.enum(['manual', 'scheduled']).optional(),
-  "start_executed_at": zod.iso.datetime({"offset":true}).optional(),
-  "end_executed_at": zod.iso.datetime({"offset":true}).optional()
-})
+export const GetApiV1RuleRunsParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	rule_id: zod.uuid().exactOptional(),
+	status: zod.enum(["pending", "success", "failed"]).exactOptional(),
+	execution_type: zod.enum(["manual", "scheduled"]).exactOptional(),
+	start_executed_at: zod.iso.datetime({ offset: true }).exactOptional(),
+	end_executed_at: zod.iso.datetime({ offset: true }).exactOptional(),
+});
 
 export type GetApiV1RuleRunsParams = zod.input<typeof GetApiV1RuleRunsParams>;
 export type GetApiV1RuleRunsParamsOutput = zod.output<typeof GetApiV1RuleRunsParams>;

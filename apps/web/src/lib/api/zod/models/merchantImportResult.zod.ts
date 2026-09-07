@@ -5,13 +5,13 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { MerchantDetail } from './merchantDetail.zod.ts';
+import * as zod from "zod";
+import { MerchantDetail } from "./merchantDetail.zod.ts";
 
-export const MerchantImportResult = zod.object({
-  "imported": zod.int().describe('Number of merchants successfully created'),
-  "skipped": zod.int().describe('Number of rows skipped (duplicates or invalid)'),
-  "merchants": zod.array(MerchantDetail)
+export const MerchantImportResult = zod.strictObject({
+	imported: zod.int().describe("Number of merchants successfully created"),
+	skipped: zod.int().describe("Number of rows skipped (duplicates or invalid)"),
+	merchants: zod.array(MerchantDetail),
 });
 
 export type MerchantImportResult = zod.input<typeof MerchantImportResult>;

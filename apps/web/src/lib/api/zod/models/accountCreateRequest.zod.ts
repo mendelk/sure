@@ -5,24 +5,37 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
-import { AccountableCreateDetails } from './accountableCreateDetails.zod.ts';
+import * as zod from "zod";
+import { AccountableCreateDetails } from "./accountableCreateDetails.zod.ts";
 
-export const AccountCreateRequest = zod.object({
-  "account": zod.object({
-  "name": zod.string(),
-  "balance": zod.number().describe('Current/opening balance in major currency units'),
-  "currency": zod.string().optional().describe('ISO currency code; defaults to the family currency'),
-  "account_type": zod.enum(['depository', 'investment', 'crypto', 'property', 'vehicle', 'other_asset', 'credit_card', 'loan', 'other_liability']),
-  "subtype": zod.string().nullish(),
-  "opening_balance_date": zod.iso.date().nullish(),
-  "institution_name": zod.string().nullish(),
-  "institution_domain": zod.string().nullish(),
-  "notes": zod.string().nullish(),
-  "exclude_from_reports": zod.boolean().optional(),
-  "enable_category_matcher": zod.boolean().optional(),
-  "accountable": AccountableCreateDetails.optional()
-})
+export const AccountCreateRequest = zod.strictObject({
+	account: zod.strictObject({
+		name: zod.string(),
+		balance: zod.number().describe("Current/opening balance in major currency units"),
+		currency: zod
+			.string()
+			.exactOptional()
+			.describe("ISO currency code; defaults to the family currency"),
+		account_type: zod.enum([
+			"depository",
+			"investment",
+			"crypto",
+			"property",
+			"vehicle",
+			"other_asset",
+			"credit_card",
+			"loan",
+			"other_liability",
+		]),
+		subtype: zod.string().nullish(),
+		opening_balance_date: zod.iso.date().nullish(),
+		institution_name: zod.string().nullish(),
+		institution_domain: zod.string().nullish(),
+		notes: zod.string().nullish(),
+		exclude_from_reports: zod.boolean().exactOptional(),
+		enable_category_matcher: zod.boolean().exactOptional(),
+		accountable: AccountableCreateDetails.exactOptional(),
+	}),
 });
 
 export type AccountCreateRequest = zod.input<typeof AccountCreateRequest>;

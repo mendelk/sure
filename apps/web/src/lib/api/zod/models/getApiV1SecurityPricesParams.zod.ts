@@ -5,17 +5,17 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1SecurityPricesParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "security_id": zod.uuid().optional(),
-  "currency": zod.string().optional(),
-  "start_date": zod.iso.date().optional(),
-  "end_date": zod.iso.date().optional(),
-  "provisional": zod.boolean().optional()
-})
+export const GetApiV1SecurityPricesParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	security_id: zod.uuid().exactOptional(),
+	currency: zod.string().exactOptional(),
+	start_date: zod.iso.date().exactOptional(),
+	end_date: zod.iso.date().exactOptional(),
+	provisional: zod.boolean().exactOptional(),
+});
 
 export type GetApiV1SecurityPricesParams = zod.input<typeof GetApiV1SecurityPricesParams>;
 export type GetApiV1SecurityPricesParamsOutput = zod.output<typeof GetApiV1SecurityPricesParams>;

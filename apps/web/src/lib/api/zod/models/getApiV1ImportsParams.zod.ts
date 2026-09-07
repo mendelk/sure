@@ -5,14 +5,31 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-export const GetApiV1ImportsParams = zod.object({
-  "page": zod.int().optional(),
-  "per_page": zod.int().optional(),
-  "status": zod.enum(['pending', 'complete', 'importing', 'reverting', 'revert_failed', 'failed']).optional(),
-  "type": zod.enum(['TransactionImport', 'TradeImport', 'AccountImport', 'MintImport', 'ActualImport', 'YnabImport', 'CategoryImport', 'RuleImport', 'MerchantImport', 'PdfImport', 'QifImport', 'SureImport']).optional()
-})
+export const GetApiV1ImportsParams = zod.strictObject({
+	page: zod.int().exactOptional(),
+	per_page: zod.int().exactOptional(),
+	status: zod
+		.enum(["pending", "complete", "importing", "reverting", "revert_failed", "failed"])
+		.exactOptional(),
+	type: zod
+		.enum([
+			"TransactionImport",
+			"TradeImport",
+			"AccountImport",
+			"MintImport",
+			"ActualImport",
+			"YnabImport",
+			"CategoryImport",
+			"RuleImport",
+			"MerchantImport",
+			"PdfImport",
+			"QifImport",
+			"SureImport",
+		])
+		.exactOptional(),
+});
 
 export type GetApiV1ImportsParams = zod.input<typeof GetApiV1ImportsParams>;
 export type GetApiV1ImportsParamsOutput = zod.output<typeof GetApiV1ImportsParams>;

@@ -5,134 +5,153 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
 import {
-  DeleteResponse,
-  ErrorResponse,
-  Transaction,
-  TransactionCollection,
-  TransactionSplit,
-  TransactionSplitRequest
-} from '../../models';
-
+	DeleteResponse,
+	ErrorResponse,
+	Transaction,
+	TransactionCollection,
+	TransactionSplit,
+	TransactionSplitRequest,
+} from "../../models";
 
 /**
  * @summary Split a transaction
  */
-export const PostApiV1TransactionsTransactionIdSplitParams = zod.object({
-  "transaction_id": zod.uuid().describe('Parent transaction ID')
-})
+export const PostApiV1TransactionsTransactionIdSplitParams = zod.strictObject({
+	transaction_id: zod.uuid().describe("Parent transaction ID"),
+});
 
-export const PostApiV1TransactionsTransactionIdSplitBody = TransactionSplitRequest
+export const PostApiV1TransactionsTransactionIdSplitBody = TransactionSplitRequest;
 
-export const PostApiV1TransactionsTransactionIdSplit201Response = TransactionSplit
+export const PostApiV1TransactionsTransactionIdSplit201Response = TransactionSplit;
 
-export const PostApiV1TransactionsTransactionIdSplit401Response = ErrorResponse
+export const PostApiV1TransactionsTransactionIdSplit401Response = ErrorResponse;
 
-export const PostApiV1TransactionsTransactionIdSplit403Response = ErrorResponse
+export const PostApiV1TransactionsTransactionIdSplit403Response = ErrorResponse;
 
-export const PostApiV1TransactionsTransactionIdSplit404Response = ErrorResponse
+export const PostApiV1TransactionsTransactionIdSplit404Response = ErrorResponse;
 
-export const PostApiV1TransactionsTransactionIdSplit422Response = ErrorResponse
+export const PostApiV1TransactionsTransactionIdSplit422Response = ErrorResponse;
 
 /**
  * Returns global ledger history for accessible accounts, including disabled accounts but excluding accounts pending deletion.
  * @summary List transactions
  */
-export const GetApiV1TransactionsQueryParams = zod.object({
-  "page": zod.int().optional().describe('Page number (default: 1)'),
-  "per_page": zod.int().optional().describe('Items per page (default: 25, max: 100)'),
-  "account_id": zod.string().optional().describe('Filter by account ID'),
-  "category_id": zod.string().optional().describe('Filter by category ID'),
-  "merchant_id": zod.string().optional().describe('Filter by merchant ID'),
-  "start_date": zod.iso.date().optional().describe('Filter transactions from this date'),
-  "end_date": zod.iso.date().optional().describe('Filter transactions until this date'),
-  "min_amount": zod.number().optional().describe('Filter by minimum amount'),
-  "max_amount": zod.number().optional().describe('Filter by maximum amount'),
-  "type": zod.enum(['income', 'expense']).optional().describe('Filter by transaction type'),
-  "search": zod.string().optional().describe('Search by name, notes, or merchant name'),
-  "account_ids": zod.array(zod.string()).optional().describe('Filter by multiple account IDs'),
-  "category_ids": zod.array(zod.string()).optional().describe('Filter by multiple category IDs'),
-  "merchant_ids": zod.array(zod.string()).optional().describe('Filter by multiple merchant IDs'),
-  "tag_ids": zod.array(zod.string()).optional().describe('Filter by tag IDs')
-})
+export const GetApiV1TransactionsQueryParams = zod.strictObject({
+	page: zod.int().exactOptional().describe("Page number (default: 1)"),
+	per_page: zod.int().exactOptional().describe("Items per page (default: 25, max: 100)"),
+	account_id: zod.string().exactOptional().describe("Filter by account ID"),
+	category_id: zod.string().exactOptional().describe("Filter by category ID"),
+	merchant_id: zod.string().exactOptional().describe("Filter by merchant ID"),
+	start_date: zod.iso.date().exactOptional().describe("Filter transactions from this date"),
+	end_date: zod.iso.date().exactOptional().describe("Filter transactions until this date"),
+	min_amount: zod.number().exactOptional().describe("Filter by minimum amount"),
+	max_amount: zod.number().exactOptional().describe("Filter by maximum amount"),
+	type: zod.enum(["income", "expense"]).exactOptional().describe("Filter by transaction type"),
+	search: zod.string().exactOptional().describe("Search by name, notes, or merchant name"),
+	account_ids: zod.array(zod.string()).exactOptional().describe("Filter by multiple account IDs"),
+	category_ids: zod.array(zod.string()).exactOptional().describe("Filter by multiple category IDs"),
+	merchant_ids: zod.array(zod.string()).exactOptional().describe("Filter by multiple merchant IDs"),
+	tag_ids: zod.array(zod.string()).exactOptional().describe("Filter by tag IDs"),
+});
 
-export const GetApiV1Transactions200Response = TransactionCollection
+export const GetApiV1Transactions200Response = TransactionCollection;
 
 /**
  * @summary Create transaction
  */
-export const PostApiV1TransactionsBody = zod.object({
-  "transaction": zod.object({
-  "account_id": zod.uuid().describe('Account ID (required)'),
-  "date": zod.iso.date().describe('Transaction date'),
-  "amount": zod.number().describe('Transaction amount'),
-  "name": zod.string().describe('Transaction name/description'),
-  "description": zod.string().optional().describe('Alternative to name field'),
-  "notes": zod.string().optional().describe('Additional notes'),
-  "currency": zod.string().optional().describe('Currency code (defaults to family currency)'),
-  "category_id": zod.uuid().optional().describe('Category ID'),
-  "merchant_id": zod.uuid().optional().describe('Merchant ID'),
-  "nature": zod.enum(['income', 'expense', 'inflow', 'outflow']).optional().describe('Transaction nature (determines sign)'),
-  "external_id": zod.string().optional().describe('Optional external idempotency key scoped to account and source'),
-  "source": zod.string().optional().describe('Optional source namespace for external_id. Requires external_id and defaults to api when external_id is provided'),
-  "user_modified": zod.boolean().optional().describe('Whether provider syncs should preserve user-supplied transaction changes'),
-  "tag_ids": zod.array(zod.uuid()).optional().describe('Array of tag IDs')
-})
-})
+export const PostApiV1TransactionsBody = zod.strictObject({
+	transaction: zod.strictObject({
+		account_id: zod.uuid().describe("Account ID (required)"),
+		date: zod.iso.date().describe("Transaction date"),
+		amount: zod.number().describe("Transaction amount"),
+		name: zod.string().describe("Transaction name/description"),
+		description: zod.string().exactOptional().describe("Alternative to name field"),
+		notes: zod.string().exactOptional().describe("Additional notes"),
+		currency: zod.string().exactOptional().describe("Currency code (defaults to family currency)"),
+		category_id: zod.uuid().exactOptional().describe("Category ID"),
+		merchant_id: zod.uuid().exactOptional().describe("Merchant ID"),
+		nature: zod
+			.enum(["income", "expense", "inflow", "outflow"])
+			.exactOptional()
+			.describe("Transaction nature (determines sign)"),
+		external_id: zod
+			.string()
+			.exactOptional()
+			.describe("Optional external idempotency key scoped to account and source"),
+		source: zod
+			.string()
+			.exactOptional()
+			.describe(
+				"Optional source namespace for external_id. Requires external_id and defaults to api when external_id is provided",
+			),
+		user_modified: zod
+			.boolean()
+			.exactOptional()
+			.describe("Whether provider syncs should preserve user-supplied transaction changes"),
+		tag_ids: zod.array(zod.uuid()).exactOptional().describe("Array of tag IDs"),
+	}),
+});
 
-export const PostApiV1Transactions200Response = Transaction
+export const PostApiV1Transactions200Response = Transaction;
 
-export const PostApiV1Transactions201Response = Transaction
+export const PostApiV1Transactions201Response = Transaction;
 
-export const PostApiV1Transactions422Response = ErrorResponse
+export const PostApiV1Transactions422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a transaction
  */
-export const GetApiV1TransactionsIdParams = zod.object({
-  "id": zod.uuid().describe('Transaction ID')
-})
+export const GetApiV1TransactionsIdParams = zod.strictObject({
+	id: zod.uuid().describe("Transaction ID"),
+});
 
-export const GetApiV1TransactionsId200Response = Transaction
+export const GetApiV1TransactionsId200Response = Transaction;
 
-export const GetApiV1TransactionsId404Response = ErrorResponse
+export const GetApiV1TransactionsId404Response = ErrorResponse;
 
 /**
  * @summary Update a transaction
  */
-export const PatchApiV1TransactionsIdParams = zod.object({
-  "id": zod.uuid().describe('Transaction ID')
-})
+export const PatchApiV1TransactionsIdParams = zod.strictObject({
+	id: zod.uuid().describe("Transaction ID"),
+});
 
-export const PatchApiV1TransactionsIdBody = zod.object({
-  "transaction": zod.object({
-  "date": zod.iso.date().optional(),
-  "amount": zod.number().optional(),
-  "name": zod.string().optional(),
-  "description": zod.string().optional().describe('Alternative to name field'),
-  "notes": zod.string().optional(),
-  "currency": zod.string().optional().describe('Currency code'),
-  "category_id": zod.uuid().optional(),
-  "merchant_id": zod.uuid().optional(),
-  "nature": zod.enum(['income', 'expense', 'inflow', 'outflow']).optional(),
-  "tag_ids": zod.array(zod.uuid()).optional().describe('Array of tag IDs to assign. Omit to preserve existing tags; use [] to clear all tags.')
-}).optional()
-})
+export const PatchApiV1TransactionsIdBody = zod.strictObject({
+	transaction: zod
+		.strictObject({
+			date: zod.iso.date().exactOptional(),
+			amount: zod.number().exactOptional(),
+			name: zod.string().exactOptional(),
+			description: zod.string().exactOptional().describe("Alternative to name field"),
+			notes: zod.string().exactOptional(),
+			currency: zod.string().exactOptional().describe("Currency code"),
+			category_id: zod.uuid().exactOptional(),
+			merchant_id: zod.uuid().exactOptional(),
+			nature: zod.enum(["income", "expense", "inflow", "outflow"]).exactOptional(),
+			tag_ids: zod
+				.array(zod.uuid())
+				.exactOptional()
+				.describe(
+					"Array of tag IDs to assign. Omit to preserve existing tags; use [] to clear all tags.",
+				),
+		})
+		.exactOptional(),
+});
 
-export const PatchApiV1TransactionsId200Response = Transaction
+export const PatchApiV1TransactionsId200Response = Transaction;
 
-export const PatchApiV1TransactionsId404Response = ErrorResponse
+export const PatchApiV1TransactionsId404Response = ErrorResponse;
 
 /**
  * @summary Delete a transaction
  */
-export const DeleteApiV1TransactionsIdParams = zod.object({
-  "id": zod.uuid().describe('Transaction ID')
-})
+export const DeleteApiV1TransactionsIdParams = zod.strictObject({
+	id: zod.uuid().describe("Transaction ID"),
+});
 
-export const DeleteApiV1TransactionsId200Response = DeleteResponse
+export const DeleteApiV1TransactionsId200Response = DeleteResponse;
 
-export const DeleteApiV1TransactionsId404Response = ErrorResponse
-
+export const DeleteApiV1TransactionsId404Response = ErrorResponse;

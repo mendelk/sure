@@ -5,71 +5,71 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
-import * as zod from 'zod';
+import * as zod from "zod";
 
-import {
-  ErrorResponse,
-  TagDetail
-} from '../../models';
-
+import { ErrorResponse, TagDetail } from "../../models";
 
 /**
  * @summary List tags
  */
-export const GetApiV1Tags200ResponseItem = TagDetail
-export const GetApiV1Tags200Response = zod.array(GetApiV1Tags200ResponseItem)
+export const GetApiV1Tags200ResponseItem = TagDetail;
+export const GetApiV1Tags200Response = zod.array(GetApiV1Tags200ResponseItem);
 
 /**
  * @summary Create tag
  */
-export const PostApiV1TagsBody = zod.object({
-  "tag": zod.object({
-  "name": zod.string().describe('Tag name (required)'),
-  "color": zod.string().optional().describe('Hex color code (optional, auto-assigned if not provided)')
-})
-})
+export const PostApiV1TagsBody = zod.strictObject({
+	tag: zod.strictObject({
+		name: zod.string().describe("Tag name (required)"),
+		color: zod
+			.string()
+			.exactOptional()
+			.describe("Hex color code (optional, auto-assigned if not provided)"),
+	}),
+});
 
-export const PostApiV1Tags201Response = TagDetail
+export const PostApiV1Tags201Response = TagDetail;
 
-export const PostApiV1Tags422Response = ErrorResponse
+export const PostApiV1Tags422Response = ErrorResponse;
 
 /**
  * @summary Retrieve a tag
  */
-export const GetApiV1TagsIdParams = zod.object({
-  "id": zod.string().describe('Tag ID')
-})
+export const GetApiV1TagsIdParams = zod.strictObject({
+	id: zod.string().describe("Tag ID"),
+});
 
-export const GetApiV1TagsId200Response = TagDetail
+export const GetApiV1TagsId200Response = TagDetail;
 
-export const GetApiV1TagsId404Response = ErrorResponse
+export const GetApiV1TagsId404Response = ErrorResponse;
 
 /**
  * @summary Update a tag
  */
-export const PatchApiV1TagsIdParams = zod.object({
-  "id": zod.string().describe('Tag ID')
-})
+export const PatchApiV1TagsIdParams = zod.strictObject({
+	id: zod.string().describe("Tag ID"),
+});
 
-export const PatchApiV1TagsIdBody = zod.object({
-  "tag": zod.object({
-  "name": zod.string().optional(),
-  "color": zod.string().optional()
-}).optional()
-})
+export const PatchApiV1TagsIdBody = zod.strictObject({
+	tag: zod
+		.strictObject({
+			name: zod.string().exactOptional(),
+			color: zod.string().exactOptional(),
+		})
+		.exactOptional(),
+});
 
-export const PatchApiV1TagsId200Response = TagDetail
+export const PatchApiV1TagsId200Response = TagDetail;
 
-export const PatchApiV1TagsId404Response = ErrorResponse
+export const PatchApiV1TagsId404Response = ErrorResponse;
 
 /**
  * @summary Delete a tag
  */
-export const DeleteApiV1TagsIdParams = zod.object({
-  "id": zod.string().describe('Tag ID')
-})
+export const DeleteApiV1TagsIdParams = zod.strictObject({
+	id: zod.string().describe("Tag ID"),
+});
 
-export const DeleteApiV1TagsId204Response = zod.void()
+export const DeleteApiV1TagsId204Response = zod.void();
 
-export const DeleteApiV1TagsId404Response = zod.unknown()
-
+export const DeleteApiV1TagsId404Response = ErrorResponse;
