@@ -1,6 +1,6 @@
 <%# locals: (entries:) %>
 <% if entries.any? %>
-  <div class="divide-y divide-tertiary rounded-xl border border-primary bg-container overflow-hidden">
+  <div class="divide-y divide-tertiary rounded-xl border border-primary bg-container overflow-hidden" data-controller="transaction-columns">
     <% entries.each do |entry| %>
       <%= render entry, view_ctx: "global" %>
     <% end %>

@@ -1,0 +1,17 @@
+<%# locals: (entry:, transaction:, in_split_group: false) %>
+<%# Optional per-row attributes column (desktop only). Lines for tags, merchant %>
+<%# and notes are toggled individually via the transaction-columns controller; %>
+<%# the whole cell hides when all three are off. %>
+<div class="hidden lg:flex min-w-0 col-span-2" data-transaction-columns-target="bodyCol">
+  <div class="flex flex-col justify-center gap-1.5 min-w-0 w-full">
+    <div class="min-w-0" data-transaction-columns-target="attr" data-column="tags">
+      <%= render "transactions/inline_tags", entry: entry, transaction: transaction %>
+    </div>
+    <div class="min-w-0 hidden" data-transaction-columns-target="attr" data-column="merchant">
+      <%= render "transactions/inline_merchant", entry: entry, transaction: transaction, in_split_group: in_split_group %>
+    </div>
+    <div class="min-w-0 hidden" data-transaction-columns-target="attr" data-column="notes">
+      <%= render "transactions/inline_notes", entry: entry, transaction: transaction, in_split_group: in_split_group %>
+    </div>
+  </div>
+</div>
