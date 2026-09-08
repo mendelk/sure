@@ -1064,4 +1064,115 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     assert_equal family.id, invitee.family_id
     assert_equal 0, AccountShare.where(user: invitee).count
   end
+
+  # Explicit revocation for BFF logout (ADR-0001 REQ-API-01, t_alt_fnd_007)
+  test "should revoke the current bearer token on logout" do
+    user = users(:family_admin)
+    device = user.mobile_devices.create!(@device_info)
+    token = Doorkeeper::AccessToken.create!(
+      application: @shared_app,
+      resource_owner_id: user.id,
+      mobile_device_id: device.id,
+      expires_in: 30.days.to_i,
+      scopes: "read_write",
+      use_refresh_token: true
+    )
+    plaintext = token.token
+
+    post "/api/v1/auth/logout", headers: {
+      "Authorization" => "Bearer #{plaintext}",
+      "Content-Type" => "application/json"
+    }
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body)["revoked"]
+    assert token.reload.revoked?
+
+    # The revoked token no longer authenticates: fail closed.
+    get "/api/v1/accounts", headers: {
+      "Authorization" => "Bearer #{plaintext}",
+      "Content-Type" => "application/json"
+    }
+    assert_response :unauthorized
+  end
+
+  test "should revoke by refresh_token param when authenticated with an api key" do
+    user = users(:family_admin)
+    device = user.mobile_devices.create!(@device_info)
+    token = Doorkeeper::AccessToken.create!(
+      application: @shared_app,
+      resource_owner_id: user.id,
+      mobile_device_id: device.id,
+      expires_in: 30.days.to_i,
+      scopes: "read_write",
+      use_refresh_token: true
+    )
+    api_key = ApiKey.create!(
+      user: user,
+      name: "Logout Test Key",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "logout_test_#{SecureRandom.hex(8)}"
+    )
+
+    post "/api/v1/auth/logout",
+      params: { refresh_token: token.refresh_token },
+      headers: {
+        "X-Api-Key" => api_key.plain_key,
+        "Content-Type" => "application/json"
+      }
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body)["revoked"]
+    assert token.reload.revoked?
+  end
+
+  test "should return revoked true for an unknown refresh token (idempotent logout)" do
+    user = users(:family_admin)
+    api_key = ApiKey.create!(
+      user: user,
+      name: "Logout Idempotency Key",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "logout_idem_#{SecureRandom.hex(8)}"
+    )
+
+    assert_no_difference("Doorkeeper::AccessToken.count") do
+      post "/api/v1/auth/logout",
+        params: { refresh_token: "unknown-refresh-secret" },
+        headers: {
+          "X-Api-Key" => api_key.plain_key,
+          "Content-Type" => "application/json"
+        }
+    end
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body)["revoked"]
+  end
+
+  test "should require authentication for logout" do
+    post "/api/v1/auth/logout", headers: { "Content-Type" => "application/json" }
+
+    assert_response :unauthorized
+  end
+
+  test "should reject logout with a revoked bearer token" do
+    user = users(:family_admin)
+    device = user.mobile_devices.create!(@device_info)
+    token = Doorkeeper::AccessToken.create!(
+      application: @shared_app,
+      resource_owner_id: user.id,
+      mobile_device_id: device.id,
+      scopes: "read_write"
+    )
+    plaintext = token.token
+    token.revoke
+
+    post "/api/v1/auth/logout", headers: {
+      "Authorization" => "Bearer #{plaintext}",
+      "Content-Type" => "application/json"
+    }
+
+    assert_response :unauthorized
+  end
 end

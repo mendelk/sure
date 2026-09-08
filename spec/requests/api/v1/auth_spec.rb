@@ -122,7 +122,10 @@ RSpec.describe 'API V1 Auth', type: :request do
       end
 
       response '401', 'invalid credentials or MFA required' do
-        schema '$ref' => '#/components/schemas/ErrorResponse'
+        schema oneOf: [
+          { '$ref' => '#/components/schemas/ErrorResponse' },
+          { '$ref' => '#/components/schemas/MfaRequiredResponse' }
+        ]
         run_test!
       end
     end
@@ -210,6 +213,35 @@ RSpec.describe 'API V1 Auth', type: :request do
       end
 
       response '400', 'missing refresh token' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        run_test!
+      end
+    end
+  end
+
+  path '/api/v1/auth/logout' do
+    post 'Revoke the current OAuth token (BFF logout)' do
+      tags 'Auth'
+      consumes 'application/json'
+      produces 'application/json'
+      description 'Explicit token revocation for BFF logout (ADR-0001 REQ-API-01). Revokes the bearer token that authenticated the request, or the token identified by the refresh_token param. Unknown identifiers return revoked true so logout stays idempotent.'
+      security [ { apiKeyAuth: [] } ]
+      parameter name: :body, in: :body, required: false, schema: {
+        type: :object,
+        properties: {
+          refresh_token: { type: :string, nullable: true, description: 'Refresh token identifying the token pair to revoke when revoking by param instead of bearer token' }
+        }
+      }
+
+      response '200', 'token revoked (or already invalid)' do
+        schema type: :object,
+               properties: {
+                 revoked: { type: :boolean }
+               }
+        run_test!
+      end
+
+      response '401', 'unauthorized' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
         run_test!
       end

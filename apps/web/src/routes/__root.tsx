@@ -74,7 +74,8 @@ function RootComponent() {
 			<header className="sure-nav">
 				<Link to="/" activeOptions={{ exact: true }}>
 					Sure Web
-				</Link>
+				</Link>{" "}
+				<Link to="/login">Log in</Link>
 			</header>
 			<main>
 				<Outlet />

@@ -890,6 +890,36 @@ class UserTest < ActiveSupport::TestCase
     end
   end
 
+  test "deactivate tears down live credentials synchronously (ADR-0001 REQ-API-02)" do
+    target = users(:family_member)
+    target.sessions.create!
+    device = target.mobile_devices.create!(
+      device_id: "deactivate-teardown-device",
+      device_name: "Teardown Phone",
+      device_type: "ios"
+    )
+    token = Doorkeeper::AccessToken.create!(
+      application: MobileDevice.shared_oauth_application,
+      resource_owner_id: target.id,
+      mobile_device_id: device.id,
+      expires_in: 30.days.to_i,
+      scopes: "read_write",
+      use_refresh_token: true
+    )
+    assert target.api_keys.exists?
+    assert target.oidc_identities.exists?
+
+    assert target.deactivate
+
+    target.reload
+    assert_not target.active?
+    assert token.reload.revoked?
+    assert_empty target.sessions
+    assert_empty target.api_keys
+    assert_empty target.mobile_devices
+    assert_empty target.oidc_identities
+  end
+
   test "deactivate refuses the last active super admin" do
     family = Family.create!(name: "Sole admin family", locale: "en", date_format: "%m-%d-%Y", currency: "USD")
     target = User.create!(
