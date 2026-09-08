@@ -17,8 +17,8 @@ export const PostApiV1AuthLogin200 = zod.strictObject({
 		.strictObject({
 			id: zod.uuid().exactOptional(),
 			email: zod.string().exactOptional(),
-			first_name: zod.string().exactOptional(),
-			last_name: zod.string().exactOptional(),
+			first_name: zod.string().nullish(),
+			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
 		})

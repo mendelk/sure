@@ -50,8 +50,8 @@ RSpec.describe 'API V1 Auth', type: :request do
                    properties: {
                      id: { type: :string, format: :uuid },
                      email: { type: :string },
-                     first_name: { type: :string },
-                     last_name: { type: :string },
+                     first_name: { type: :string, nullable: true },
+                     last_name: { type: :string, nullable: true },
                      ui_layout: { type: :string, enum: %w[dashboard intro] },
                      ai_enabled: { type: :boolean }
                    }
@@ -111,8 +111,8 @@ RSpec.describe 'API V1 Auth', type: :request do
                    properties: {
                      id: { type: :string, format: :uuid },
                      email: { type: :string },
-                     first_name: { type: :string },
-                     last_name: { type: :string },
+                     first_name: { type: :string, nullable: true },
+                     last_name: { type: :string, nullable: true },
                      ui_layout: { type: :string, enum: %w[dashboard intro] },
                      ai_enabled: { type: :boolean }
                    }
@@ -158,8 +158,8 @@ RSpec.describe 'API V1 Auth', type: :request do
                    properties: {
                      id: { type: :string, format: :uuid },
                      email: { type: :string },
-                     first_name: { type: :string },
-                     last_name: { type: :string },
+                     first_name: { type: :string, nullable: true },
+                     last_name: { type: :string, nullable: true },
                      ui_layout: { type: :string, enum: %w[dashboard intro] },
                      ai_enabled: { type: :boolean }
                    }
@@ -277,8 +277,8 @@ RSpec.describe 'API V1 Auth', type: :request do
                    properties: {
                      id: { type: :string, format: :uuid },
                      email: { type: :string },
-                     first_name: { type: :string },
-                     last_name: { type: :string },
+                     first_name: { type: :string, nullable: true },
+                     last_name: { type: :string, nullable: true },
                      ui_layout: { type: :string, enum: %w[dashboard intro] },
                      ai_enabled: { type: :boolean }
                    }
@@ -367,8 +367,8 @@ RSpec.describe 'API V1 Auth', type: :request do
                    properties: {
                      id: { type: :string, format: :uuid },
                      email: { type: :string },
-                     first_name: { type: :string },
-                     last_name: { type: :string },
+                     first_name: { type: :string, nullable: true },
+                     last_name: { type: :string, nullable: true },
                      ui_layout: { type: :string, enum: %w[dashboard intro] },
                      ai_enabled: { type: :boolean }
                    }

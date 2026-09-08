@@ -3919,8 +3919,10 @@ paths:
                         type: string
                       first_name:
                         type: string
+                        nullable: true
                       last_name:
                         type: string
+                        nullable: true
                       ui_layout:
                         type: string
                         enum:
@@ -4028,8 +4030,10 @@ paths:
                         type: string
                       first_name:
                         type: string
+                        nullable: true
                       last_name:
                         type: string
+                        nullable: true
                       ui_layout:
                         type: string
                         enum:
@@ -4121,8 +4125,10 @@ paths:
                         type: string
                       first_name:
                         type: string
+                        nullable: true
                       last_name:
                         type: string
+                        nullable: true
                       ui_layout:
                         type: string
                         enum:
@@ -4279,8 +4285,10 @@ paths:
                         type: string
                       first_name:
                         type: string
+                        nullable: true
                       last_name:
                         type: string
+                        nullable: true
                       ui_layout:
                         type: string
                         enum:
@@ -4367,8 +4375,10 @@ paths:
                         type: string
                       first_name:
                         type: string
+                        nullable: true
                       last_name:
                         type: string
+                        nullable: true
                       ui_layout:
                         type: string
                         enum:

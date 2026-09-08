@@ -224,8 +224,8 @@ export interface paths {
                                 /** Format: uuid */
                                 id?: string;
                                 email?: string;
-                                first_name?: string;
-                                last_name?: string;
+                                first_name?: string | null;
+                                last_name?: string | null;
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;
@@ -311,8 +311,8 @@ export interface paths {
                                 /** Format: uuid */
                                 id?: string;
                                 email?: string;
-                                first_name?: string;
-                                last_name?: string;
+                                first_name?: string | null;
+                                last_name?: string | null;
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;
@@ -382,8 +382,8 @@ export interface paths {
                                 /** Format: uuid */
                                 id?: string;
                                 email?: string;
-                                first_name?: string;
-                                last_name?: string;
+                                first_name?: string | null;
+                                last_name?: string | null;
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;
@@ -587,8 +587,8 @@ export interface paths {
                                 /** Format: uuid */
                                 id?: string;
                                 email?: string;
-                                first_name?: string;
-                                last_name?: string;
+                                first_name?: string | null;
+                                last_name?: string | null;
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;
@@ -680,8 +680,8 @@ export interface paths {
                                 /** Format: uuid */
                                 id?: string;
                                 email?: string;
-                                first_name?: string;
-                                last_name?: string;
+                                first_name?: string | null;
+                                last_name?: string | null;
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;

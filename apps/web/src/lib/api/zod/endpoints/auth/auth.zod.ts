@@ -39,8 +39,8 @@ export const PostApiV1AuthSignup201Response = zod.strictObject({
 		.strictObject({
 			id: zod.uuid().exactOptional(),
 			email: zod.string().exactOptional(),
-			first_name: zod.string().exactOptional(),
-			last_name: zod.string().exactOptional(),
+			first_name: zod.string().nullish(),
+			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
 		})
@@ -77,8 +77,8 @@ export const PostApiV1AuthLogin200Response = zod.strictObject({
 		.strictObject({
 			id: zod.uuid().exactOptional(),
 			email: zod.string().exactOptional(),
-			first_name: zod.string().exactOptional(),
-			last_name: zod.string().exactOptional(),
+			first_name: zod.string().nullish(),
+			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
 		})
@@ -105,8 +105,8 @@ export const PostApiV1AuthSsoExchange200Response = zod.strictObject({
 		.strictObject({
 			id: zod.uuid().exactOptional(),
 			email: zod.string().exactOptional(),
-			first_name: zod.string().exactOptional(),
-			last_name: zod.string().exactOptional(),
+			first_name: zod.string().nullish(),
+			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
 		})
@@ -176,8 +176,8 @@ export const PostApiV1AuthSsoLink200Response = zod.strictObject({
 		.strictObject({
 			id: zod.uuid().exactOptional(),
 			email: zod.string().exactOptional(),
-			first_name: zod.string().exactOptional(),
-			last_name: zod.string().exactOptional(),
+			first_name: zod.string().nullish(),
+			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
 		})
@@ -216,8 +216,8 @@ export const PostApiV1AuthSsoCreateAccount200Response = zod.strictObject({
 		.strictObject({
 			id: zod.uuid().exactOptional(),
 			email: zod.string().exactOptional(),
-			first_name: zod.string().exactOptional(),
-			last_name: zod.string().exactOptional(),
+			first_name: zod.string().nullish(),
+			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
 		})

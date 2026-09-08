@@ -111,6 +111,10 @@ services:
       # SSR and server functions call Rails directly; browsers hit the
       # same-origin BFF, which forwards to this origin.
       SURE_API_ORIGIN: ${SURE_API_ORIGIN:-http://web:3000}
+      # BFF session-encryption key (base64, 256-bit). The committed value
+      # is a dev default — generate a real one for any shared deployment:
+      # openssl rand -base64 32
+      SURE_SESSION_SECRET: ${SURE_SESSION_SECRET:-QUe0KF7zk8W9BbzBJ0fS/KXErObJXiuFx2M0qjFHYWY=}
     ports:
       - ${FRONTEND_PORT:-5173}:5173
     restart: unless-stopped

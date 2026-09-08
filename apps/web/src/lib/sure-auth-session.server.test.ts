@@ -83,6 +83,8 @@ interface MockUpstream {
 	tokenCounter: number;
 	/** When true, every bearer is rejected (retry-after-refresh also 401s). */
 	rejectAllAccess: boolean;
+	/** When true, the login response carries null names (Rails omits unset names). */
+	nullUserNames: boolean;
 }
 
 function createMockUpstream(): MockUpstream {
@@ -100,6 +102,7 @@ function createMockUpstream(): MockUpstream {
 		refreshDelayMs: 0,
 		tokenCounter: 0,
 		rejectAllAccess: false,
+		nullUserNames: false,
 	};
 }
 
@@ -183,7 +186,7 @@ function mockFetch(mock: MockUpstream): typeof fetch {
 				token_type: "Bearer",
 				expires_in: 2592000,
 				created_at: Math.floor(Date.now() / 1000),
-				user: USER,
+				user: mock.nullUserNames ? { ...USER, first_name: null, last_name: null } : USER,
 			});
 		}
 
@@ -361,6 +364,35 @@ describe("login (REQ-AUTH-01/07)", () => {
 		expect(result.csrfToken).toBe(csrfCookie?.value);
 		// Fresh ≥128-bit ids: 16 random bytes base64url-encoded.
 		expect(sessionCookie?.value.length).toBeGreaterThanOrEqual(22);
+	});
+
+	it("accepts null names (Rails omits unset names) as empty strings", async () => {
+		const mock = createMockUpstream();
+		mock.nullUserNames = true;
+		const deps = testDeps(mock);
+		const result = await loginToBffSession(
+			{
+				email: "user@example.com",
+				password: "CorrectHorse1!",
+				origin: BFF_ORIGIN,
+				bffOrigin: BFF_ORIGIN,
+				cookieHeader: undefined,
+				clientKey: "127.0.0.1",
+			},
+			deps,
+		);
+		expect(result.ok).toBe(true);
+		if (!result.ok) {
+			return;
+		}
+		expect(result.user).toEqual({
+			id: UUID,
+			email: "user@example.com",
+			firstName: "",
+			lastName: "",
+			uiLayout: "dashboard",
+			aiEnabled: false,
+		});
 	});
 
 	it("rejects invalid credentials without creating a session", async () => {

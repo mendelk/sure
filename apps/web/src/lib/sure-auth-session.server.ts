@@ -399,8 +399,11 @@ function narrowUser(raw: unknown): BffSessionUser | undefined {
 	}
 	const id: unknown = raw["id"];
 	const email: unknown = raw["email"];
-	const firstName: unknown = raw["first_name"];
-	const lastName: unknown = raw["last_name"];
+	// Rails returns null for unset names (mobile_user_payload); the session
+	// user is display data only, so coerce to empty string rather than
+	// rejecting the login.
+	const firstName: unknown = raw["first_name"] ?? "";
+	const lastName: unknown = raw["last_name"] ?? "";
 	const uiLayout: unknown = raw["ui_layout"];
 	const aiEnabled: unknown = raw["ai_enabled"];
 	if (
