@@ -25,7 +25,8 @@ export function devicePayload() {
 	return {
 		device_id: "e2e-playwright-device",
 		device_name: "Playwright smoke runner",
-		device_type: "test",
+		// Rails only accepts ios/android/web (MobileDevice validation).
+		device_type: "web",
 		os_version: "test-os 1.0",
 		app_version: "0.0.0-e2e",
 	};

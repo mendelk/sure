@@ -25,7 +25,8 @@ export function fixtureDevice(): LoginRequestBody["device"] {
 	return {
 		device_id: "test-device-001",
 		device_name: "Vitest runner",
-		device_type: "test",
+		// Rails only accepts ios/android/web (MobileDevice validation).
+		device_type: "web",
 		os_version: "test-os 1.0",
 		app_version: "0.0.0-test",
 	};

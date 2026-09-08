@@ -55,7 +55,9 @@ viewer.save!
 
 account = family.accounts.find_or_initialize_by(name: E2E_ACCOUNT_NAME)
 if account.new_record?
-  family.accounts.create_and_sync!(
+  # NB: non-bang by design — Account.create_and_sync has no bang variant,
+  # but it still raises ActiveRecord::RecordInvalid via save! inside.
+  family.accounts.create_and_sync(
     {
       name: E2E_ACCOUNT_NAME,
       balance: 5000,
