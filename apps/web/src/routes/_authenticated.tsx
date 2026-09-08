@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import * as React from "react";
 import { AppShell } from "~/components/shell/app-shell";
 import { RouteErrorState, RouteNotFound, RoutePending } from "~/components/shell/route-states";
+import { formatMessage } from "~/lib/i18n/messages";
 import { guardAuthenticated, loginSearchFor } from "~/lib/route-guards";
 import { bffSessionStatusFn } from "./login";
 
@@ -29,15 +30,15 @@ export const Route = createFileRoute("/_authenticated")({
 		}
 		return { session: status, capabilities: decision.capabilities };
 	},
-	pendingComponent: () => <RoutePending label="Loading your workspace" />,
+	pendingComponent: () => <RoutePending label={formatMessage("routes.loadingWorkspace")} />,
 	notFoundComponent: () => <RouteNotFound />,
 	errorComponent: ({ error, reset }) => (
 		<RouteErrorState
-			message={error instanceof Error ? error.message : "The page could not be loaded."}
+			message={error instanceof Error ? error.message : formatMessage("routes.workspaceError")}
 			onRetry={reset}
 		/>
 	),
-	head: () => ({ meta: [{ title: "Sure Web" }] }),
+	head: () => ({ meta: [{ title: formatMessage("app.title") }] }),
 	component: AuthenticatedLayout,
 });
 

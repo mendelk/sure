@@ -91,7 +91,7 @@ try {
 					theme,
 				});
 				try {
-					await expectSsrHome(page);
+					await expectSsrHome(page, config);
 					await captureMasked(page, join(config.artifactsDir, `home-${viewportName}-${theme}.png`));
 				} finally {
 					await context.close();

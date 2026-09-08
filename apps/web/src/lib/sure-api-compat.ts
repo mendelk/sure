@@ -16,6 +16,7 @@
  * `missing-capability`. Nothing here carries origins, credentials, or
  * upstream detail — messages are safe for browser delivery.
  */
+import { formatMessage } from "./i18n/messages";
 
 /** Contract major version this frontend release supports. */
 export const SURE_API_SUPPORTED_MAJOR = 1;
@@ -143,42 +144,46 @@ export function describeApiCompatibility(compatibility: ApiCompatibility): ApiCo
 	switch (compatibility.state) {
 		case "ready":
 			return {
-				title: "Connected",
-				detail: "The Sure API contract is supported.",
+				title: formatMessage("compat.readyTitle"),
+				detail: formatMessage("compat.readyDetail"),
 			};
 		case "unreachable":
 			return {
-				title: "Cannot reach the Sure API",
-				detail:
-					"The server could not be reached. Check your connection and try again. If the problem persists, contact your administrator.",
+				title: formatMessage("compat.unreachableTitle"),
+				detail: formatMessage("compat.unreachableDetail"),
 			};
 		case "unauthenticated":
 			return {
-				title: "API credentials rejected",
-				detail:
-					"The server rejected the app's API credentials. An administrator should check the deployment configuration and try again.",
+				title: formatMessage("compat.unauthenticatedTitle"),
+				detail: formatMessage("compat.unauthenticatedDetail"),
 			};
 		case "too-old": {
-			const version =
-				compatibility.serverVersion === undefined ? "" : ` (${compatibility.serverVersion})`;
 			return {
-				title: "Sure server is too old",
-				detail: `The server API version${version} is older than this app supports. Ask your administrator to upgrade the Sure server, then try again.`,
+				title: formatMessage("compat.tooOldTitle"),
+				detail:
+					compatibility.serverVersion === undefined
+						? formatMessage("compat.tooOldDetail")
+						: formatMessage("compat.tooOldVersionDetail", {
+								version: compatibility.serverVersion,
+							}),
 			};
 		}
 		case "too-new": {
-			const version =
-				compatibility.serverVersion === undefined ? "" : ` (${compatibility.serverVersion})`;
 			return {
-				title: "App update required",
-				detail: `The server API version${version} is newer than this app supports. Update the web app to continue.`,
+				title: formatMessage("compat.tooNewTitle"),
+				detail:
+					compatibility.serverVersion === undefined
+						? formatMessage("compat.tooNewDetail")
+						: formatMessage("compat.tooNewVersionDetail", {
+								version: compatibility.serverVersion,
+							}),
 			};
 		}
 		case "missing-capability": {
 			const missing = (compatibility.missingCapabilities ?? []).join(", ");
 			return {
-				title: "Server is missing required features",
-				detail: `The server lacks required features (${missing}). Ask your administrator to upgrade the Sure server, then try again.`,
+				title: formatMessage("compat.missingTitle"),
+				detail: formatMessage("compat.missingDetail", { capabilities: missing }),
 			};
 		}
 		default: {

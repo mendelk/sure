@@ -5,6 +5,7 @@
 // aria-busy; empty states pair a title, description, and one action.
 import * as stylex from "@stylexjs/stylex";
 import type * as React from "react";
+import { formatMessage } from "~/lib/i18n/messages";
 import { vars } from "~/styles/sure-tokens.stylex";
 import { sureFont, sureMotion } from "./sure-styles";
 
@@ -125,7 +126,7 @@ export interface SureSkeletonProps {
 }
 
 export function SureSkeleton({
-	label = "Loading",
+	label = formatMessage("ui.loading"),
 	lines = 3,
 }: SureSkeletonProps): React.ReactElement {
 	const count = Math.max(1, Math.min(8, Math.floor(lines)));

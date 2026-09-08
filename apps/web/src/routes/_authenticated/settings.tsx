@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import * as React from "react";
 import { PageHeader } from "~/components/shell/app-shell";
 import { RouteErrorState, RouteNotFound, RoutePending } from "~/components/shell/route-states";
+import { formatMessage } from "~/lib/i18n/messages";
 import { guardCapability, loginSearchFor, unauthorizedSearchFor } from "~/lib/route-guards";
 import { bffSessionStatusFn } from "../login";
 
@@ -31,12 +32,20 @@ export const Route = createFileRoute("/_authenticated/settings")({
 		}
 		return { settingsSession: status };
 	},
-	head: () => ({ meta: [{ title: "Settings · Sure Web" }] }),
-	pendingComponent: () => <RoutePending label="Loading settings" />,
+	head: () => ({
+		meta: [
+			{
+				title: formatMessage("app.documentTitle", {
+					title: formatMessage("settings.title"),
+				}),
+			},
+		],
+	}),
+	pendingComponent: () => <RoutePending label={formatMessage("routes.loadingSettings")} />,
 	notFoundComponent: () => <RouteNotFound />,
 	errorComponent: ({ error, reset }) => (
 		<RouteErrorState
-			message={error instanceof Error ? error.message : "Settings could not be loaded."}
+			message={error instanceof Error ? error.message : formatMessage("routes.settingsError")}
 			onRetry={reset}
 		/>
 	),
@@ -47,8 +56,11 @@ function SettingsLayout(): React.ReactElement {
 	return (
 		<>
 			<PageHeader
-				title="Settings"
-				breadcrumbs={[{ label: "Home", to: "/" }, { label: "Settings" }]}
+				title={formatMessage("settings.title")}
+				breadcrumbs={[
+					{ label: formatMessage("settings.homeCrumb"), to: "/" },
+					{ label: formatMessage("settings.title") },
+				]}
 			/>
 			<Outlet />
 		</>

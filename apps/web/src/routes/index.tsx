@@ -2,6 +2,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { PublicChrome } from "~/components/shell/public-chrome";
+import { formatMessage } from "~/lib/i18n/messages";
 import { describeApiCompatibility } from "~/lib/sure-api-compat";
 import type { ApiCompatibility } from "~/lib/sure-api-compat";
 import { checkApiCompatibility } from "~/lib/sure-api-compat.server";
@@ -50,11 +51,12 @@ function Home() {
 	return (
 		<PublicChrome>
 			<section className="sure-starter">
-				<h1>Sure Web starter route</h1>
+				<h1>{formatMessage("home.title")}</h1>
 				<p data-testid="ssr-status">
-					Rendered on the server at <time dateTime={data.renderedAt}>{data.renderedAt}</time>.
+					{formatMessage("home.ssrPrefix")} {formatMessage("home.ssrAt")}{" "}
+					<time dateTime={data.renderedAt}>{data.renderedAt}</time>.
 				</p>
-				<p data-testid="hydration-status">Hydrated in the browser with TanStack Query.</p>
+				<p data-testid="hydration-status">{formatMessage("home.hydrated")}</p>
 				<p data-testid="api-compatibility" data-state={data.compatibility.state}>
 					<strong>{message.title}:</strong> {message.detail}
 				</p>

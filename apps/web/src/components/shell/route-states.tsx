@@ -11,25 +11,28 @@ import { SureAlert } from "~/components/ui/alert";
 import { SureButton } from "~/components/ui/button";
 import { SureCard, SureCardContent, SureCardHeader, SureCardTitle } from "~/components/ui/card";
 import { SureEmptyState, SureSkeleton } from "~/components/ui/card";
+import { formatMessage } from "~/lib/i18n/messages";
 
-export function RoutePending({ label = "Loading" }: { label?: string }): React.ReactElement {
-	return <SureSkeleton label={label} lines={3} />;
+export function RoutePending({ label }: { label?: string }): React.ReactElement {
+	return <SureSkeleton label={label ?? formatMessage("routes.loading")} lines={3} />;
 }
 
 export function RouteNotFound({
-	title = "Page not found",
-	description = "The page you are looking for does not exist. Check the address or return to the dashboard.",
+	title,
+	description,
 }: {
 	title?: string;
 	description?: string;
 }): React.ReactElement {
+	const resolvedTitle = title ?? formatMessage("routes.notFoundTitle");
+	const resolvedDescription = description ?? formatMessage("routes.notFoundDescription");
 	return (
 		<SureEmptyState
-			title={title}
-			description={description}
+			title={resolvedTitle}
+			description={resolvedDescription}
 			action={
 				<Link to="/dashboard" search={{ q: "", filter: "all" }}>
-					<SureButton variant="secondary">Back to dashboard</SureButton>
+					<SureButton variant="secondary">{formatMessage("routes.backToDashboard")}</SureButton>
 				</Link>
 			}
 		/>
@@ -37,19 +40,21 @@ export function RouteNotFound({
 }
 
 export function RouteUnauthorized({
-	title = "Not authorized",
-	description = "You are signed in, but this area needs a capability your account does not have. Contact a family admin if you need access.",
+	title,
+	description,
 }: {
 	title?: string;
 	description?: string;
 }): React.ReactElement {
+	const resolvedTitle = title ?? formatMessage("routes.unauthorizedTitle");
+	const resolvedDescription = description ?? formatMessage("routes.unauthorizedDescription");
 	return (
 		<SureEmptyState
-			title={title}
-			description={description}
+			title={resolvedTitle}
+			description={resolvedDescription}
 			action={
 				<Link to="/dashboard" search={{ q: "", filter: "all" }}>
-					<SureButton variant="secondary">Back to dashboard</SureButton>
+					<SureButton variant="secondary">{formatMessage("routes.backToDashboard")}</SureButton>
 				</Link>
 			}
 		/>
@@ -57,27 +62,29 @@ export function RouteUnauthorized({
 }
 
 export function RouteErrorState({
-	title = "Something went wrong",
-	message = "The page could not be loaded. Try again in a moment.",
+	title,
+	message,
 	onRetry,
 }: {
 	title?: string;
 	message?: string;
 	onRetry?: () => void | undefined;
 }): React.ReactElement {
+	const resolvedTitle = title ?? formatMessage("routes.errorTitle");
+	const resolvedMessage = message ?? formatMessage("routes.errorDescription");
 	return (
 		<SureCard>
 			<SureCardHeader>
-				<SureCardTitle>{title}</SureCardTitle>
+				<SureCardTitle>{resolvedTitle}</SureCardTitle>
 			</SureCardHeader>
 			<SureCardContent>
-				<SureAlert tone="destructive" title={title}>
-					{message}
+				<SureAlert tone="destructive" title={resolvedTitle}>
+					{resolvedMessage}
 				</SureAlert>
 				{onRetry !== undefined ? (
 					<p>
 						<SureButton variant="secondary" onPress={onRetry}>
-							Try again
+							{formatMessage("routes.retry")}
 						</SureButton>
 					</p>
 				) : null}

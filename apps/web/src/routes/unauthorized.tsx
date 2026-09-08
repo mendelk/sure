@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import * as React from "react";
 import { PublicChrome } from "~/components/shell/public-chrome";
 import { SureCard, SureCardContent, SureCardHeader, SureCardTitle } from "~/components/ui/card";
+import { formatMessage } from "~/lib/i18n/messages";
 import { RouteUnauthorized } from "~/components/shell/route-states";
 
 /**
@@ -16,7 +17,15 @@ export const Route = createFileRoute("/unauthorized")({
 		const from = search["from"];
 		return typeof from === "string" ? { from } : {};
 	},
-	head: () => ({ meta: [{ title: "Not authorized · Sure Web" }] }),
+	head: () => ({
+		meta: [
+			{
+				title: formatMessage("app.documentTitle", {
+					title: formatMessage("unauthorized.title"),
+				}),
+			},
+		],
+	}),
 	component: UnauthorizedPage,
 });
 
@@ -27,13 +36,13 @@ function UnauthorizedPage(): React.ReactElement {
 		<PublicChrome>
 			<SureCard>
 				<SureCardHeader>
-					<SureCardTitle>Not authorized</SureCardTitle>
+					<SureCardTitle>{formatMessage("unauthorized.title")}</SureCardTitle>
 				</SureCardHeader>
 				<SureCardContent>
 					<RouteUnauthorized />
 					{search.from !== undefined && search.from !== "" ? (
 						<p data-testid="unauthorized-from">
-							Requested page: <code>{search.from}</code>
+							{formatMessage("unauthorized.requestedPage")}: <code>{search.from}</code>
 						</p>
 					) : null}
 				</SureCardContent>

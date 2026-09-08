@@ -54,7 +54,7 @@ Establish the minimum secure platform needed for core accounts and transactions.
 - [x] [[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]
 - [x] [[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]
 - [x] [[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]
-- [ ] [[add-localization-theme-and-privacy-foundations|Add localization, theme, and privacy foundations]]
+- [x] [[add-localization-theme-and-privacy-foundations|Add localization, theme, and privacy foundations]]
 - [x] [[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]
 - [x] [[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]
 - [ ] [[guarantee-upstream-token-revocation-when-bff-access-token-expired|Guarantee upstream token revocation when BFF access token is expired]]

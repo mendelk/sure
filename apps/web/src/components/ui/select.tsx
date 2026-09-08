@@ -22,6 +22,7 @@ import type {
 import * as stylex from "@stylexjs/stylex";
 import { useId, useState } from "react";
 import type * as React from "react";
+import { formatMessage } from "~/lib/i18n/messages";
 import { overlayStyles } from "./overlay-list";
 import { sureFocus, sureFont } from "./sure-styles";
 import { fieldInlineStyles } from "./field-inline";
@@ -78,7 +79,7 @@ export interface SureSelectProps extends Omit<
 export function SureSelect({
 	label,
 	items,
-	placeholder = "Select an option",
+	placeholder = formatMessage("ui.selectPlaceholder"),
 	description,
 	errorMessage,
 	isRequired,
@@ -146,7 +147,7 @@ export interface SureComboboxProps extends Omit<
 export function SureCombobox({
 	label,
 	items,
-	placeholder = "Search or select",
+	placeholder = formatMessage("ui.comboboxPlaceholder"),
 	description,
 	errorMessage,
 	isRequired,
@@ -187,12 +188,15 @@ export function SureCombobox({
 						placeholder={placeholder}
 						{...stylex.props(sureFont.base, fieldInlineStyles.comboInput, sureFocus.ring)}
 					/>
-					<Button aria-label="Show options" {...stylex.props(fieldInlineStyles.comboButton)}>
+					<Button
+						aria-label={formatMessage("ui.showOptions")}
+						{...stylex.props(fieldInlineStyles.comboButton)}
+					>
 						<ChevronDown />
 					</Button>
 				</div>
 				<Popover {...stylex.props(overlayStyles.popover)}>
-					<ListBox items={visible} aria-label={`${label} options`}>
+					<ListBox items={visible} aria-label={formatMessage("ui.options", { label })}>
 						{(option: SureOption) => <OptionRow option={option} />}
 					</ListBox>
 				</Popover>

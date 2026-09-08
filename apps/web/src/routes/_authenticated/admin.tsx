@@ -4,6 +4,7 @@ import { PageHeader } from "~/components/shell/app-shell";
 import { RouteErrorState, RouteNotFound, RoutePending } from "~/components/shell/route-states";
 import { SureAlert } from "~/components/ui/alert";
 import { SureCard, SureCardContent, SureCardHeader, SureCardTitle } from "~/components/ui/card";
+import { formatMessage } from "~/lib/i18n/messages";
 import { guardCapability, loginSearchFor, unauthorizedSearchFor } from "~/lib/route-guards";
 import { bffSessionStatusFn } from "../login";
 
@@ -31,12 +32,20 @@ export const Route = createFileRoute("/_authenticated/admin")({
 		}
 		return { adminSession: status };
 	},
-	head: () => ({ meta: [{ title: "Admin · Sure Web" }] }),
-	pendingComponent: () => <RoutePending label="Loading administration" />,
+	head: () => ({
+		meta: [
+			{
+				title: formatMessage("app.documentTitle", {
+					title: formatMessage("admin.title"),
+				}),
+			},
+		],
+	}),
+	pendingComponent: () => <RoutePending label={formatMessage("routes.loadingAdmin")} />,
 	notFoundComponent: () => <RouteNotFound />,
 	errorComponent: ({ error, reset }) => (
 		<RouteErrorState
-			message={error instanceof Error ? error.message : "Administration could not be loaded."}
+			message={error instanceof Error ? error.message : formatMessage("routes.adminError")}
 			onRetry={reset}
 		/>
 	),
@@ -46,17 +55,22 @@ export const Route = createFileRoute("/_authenticated/admin")({
 function AdminPage(): React.ReactElement {
 	return (
 		<>
-			<PageHeader title="Admin" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Admin" }]} />
+			<PageHeader
+				title={formatMessage("admin.title")}
+				breadcrumbs={[
+					{ label: formatMessage("admin.homeCrumb"), to: "/" },
+					{ label: formatMessage("admin.title") },
+				]}
+			/>
 			<SureCard>
 				<SureCardHeader>
-					<SureCardTitle>Family administration</SureCardTitle>
+					<SureCardTitle>{formatMessage("admin.cardTitle")}</SureCardTitle>
 				</SureCardHeader>
 				<SureCardContent>
-					<SureAlert tone="info" title="Admins only">
-						This area rendered because the server-validated session carries the administer
-						capability. Everyone else sees the unauthorized state.
+					<SureAlert tone="info" title={formatMessage("admin.onlyTitle")}>
+						{formatMessage("admin.onlyBody")}
 					</SureAlert>
-					<p data-testid="admin-marker">Admin workspace content.</p>
+					<p data-testid="admin-marker">{formatMessage("admin.marker")}</p>
 				</SureCardContent>
 			</SureCard>
 		</>

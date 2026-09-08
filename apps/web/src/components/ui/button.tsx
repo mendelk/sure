@@ -10,6 +10,7 @@ import type {
 } from "react-aria-components";
 import * as stylex from "@stylexjs/stylex";
 import type * as React from "react";
+import { formatMessage } from "~/lib/i18n/messages";
 import { vars } from "~/styles/sure-tokens.stylex";
 import { sureA11y, sureFocus, sureFont, type SureStyle } from "./sure-styles";
 
@@ -163,7 +164,7 @@ export function SureButton({
 			{isPending === true ? (
 				<>
 					<span aria-hidden="true" {...stylex.props(buttonStyles.spinner)} />
-					<span {...stylex.props(sureA11y.visuallyHidden)}>Loading</span>
+					<span {...stylex.props(sureA11y.visuallyHidden)}>{formatMessage("ui.loading")}</span>
 				</>
 			) : null}
 			{children}

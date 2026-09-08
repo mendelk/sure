@@ -6,6 +6,7 @@
 import { Link } from "@tanstack/react-router";
 import * as stylex from "@stylexjs/stylex";
 import type * as React from "react";
+import { formatMessage } from "~/lib/i18n/messages";
 import { vars } from "~/styles/sure-tokens.stylex";
 import { sureFocus, sureFont } from "~/components/ui/sure-styles";
 
@@ -39,13 +40,13 @@ export function PublicChrome({ children }: { children: React.ReactNode }): React
 	return (
 		<div {...stylex.props(sureFont.base, publicStyles.wrap)}>
 			<a href="#public-main" {...stylex.props(sureFocus.ring)}>
-				Skip to main content
+				{formatMessage("public.skipToMain")}
 			</a>
 			<header {...stylex.props(publicStyles.nav)}>
 				<Link to="/" activeOptions={{ exact: true }}>
-					Sure Web
+					{formatMessage("public.brand")}
 				</Link>{" "}
-				<Link to="/login">Log in</Link>
+				<Link to="/login">{formatMessage("public.logIn")}</Link>
 			</header>
 			<main id="public-main" tabIndex={-1} {...stylex.props(publicStyles.main)}>
 				{children}

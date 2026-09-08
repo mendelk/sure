@@ -18,9 +18,13 @@ import { useEffect, useRef } from "react";
 import type { BffSessionStatus } from "~/lib/bff-auth-client";
 import type { AppCapabilities } from "~/lib/app-capabilities";
 import { getVisibleNavItems } from "~/lib/app-capabilities";
+import { formatMessage } from "~/lib/i18n/messages";
+import type { AppNavItem } from "~/lib/app-capabilities";
 import { hasClientSideNavigated } from "~/lib/navigation-focus";
 import { vars } from "~/styles/sure-tokens.stylex";
+import { useThemeChoiceContext } from "~/styles/theme-choice-context";
 import { sureFocus, sureFont } from "~/components/ui/sure-styles";
+import { PresentationControls } from "~/components/preferences/presentation-controls";
 
 export interface AppBreadcrumb {
 	readonly label: string;
@@ -189,23 +193,28 @@ function UserIdentity({ session }: { session: BffSessionStatus }): React.ReactEl
 	if (!session.authenticated) {
 		return (
 			<span data-testid="shell-user">
-				Signed out{" "}
+				{formatMessage("shell.signedOut")}{" "}
 				<Link to="/login" {...stylex.props(sureFocus.ring)}>
-					Log in
+					{formatMessage("shell.logIn")}
 				</Link>
 			</span>
 		);
 	}
 	return (
 		<span data-testid="shell-user" data-sensitive={true}>
-			{session.user.email} <Link to="/logout">Log out</Link>
+			{session.user.email} <Link to="/logout">{formatMessage("shell.logOut")}</Link>
 		</span>
 	);
+}
+
+export function navItemLabel(item: AppNavItem): string {
+	return formatMessage(item.labelKey);
 }
 
 export function AppShell({ capabilities, session, children }: AppShellProps): React.ReactElement {
 	const items = getVisibleNavItems(capabilities);
 	const mainRef = useRef<HTMLElement>(null);
+	const { choice: themeChoice, setChoice: setThemeChoice } = useThemeChoiceContext();
 
 	function skipToMain(event: React.SyntheticEvent<HTMLAnchorElement>): void {
 		event.preventDefault();
@@ -219,14 +228,14 @@ export function AppShell({ capabilities, session, children }: AppShellProps): Re
 				onClick={skipToMain}
 				{...stylex.props(shellStyles.skipLink, sureFocus.ring)}
 			>
-				Skip to main content
+				{formatMessage("shell.skipToMain")}
 			</a>
 			<a
 				href="#primary-nav"
 				onClick={skipToPrimaryNav}
 				{...stylex.props(shellStyles.skipLink, sureFocus.ring)}
 			>
-				Skip to navigation
+				{formatMessage("shell.skipToNav")}
 			</a>
 			<header {...stylex.props(shellStyles.header)}>
 				<Link
@@ -234,16 +243,19 @@ export function AppShell({ capabilities, session, children }: AppShellProps): Re
 					search={{ q: "", filter: "all" }}
 					{...stylex.props(shellStyles.brand, sureFocus.ring)}
 				>
-					Sure Web
+					{formatMessage("shell.brand")}
 				</Link>
 				<div {...stylex.props(shellStyles.userRow)}>
 					<UserIdentity session={session} />
+					<div data-testid="presentation-controls">
+						<PresentationControls themeChoice={themeChoice} onThemeChoice={setThemeChoice} />
+					</div>
 				</div>
 			</header>
 			<div {...stylex.props(shellStyles.body)}>
 				<nav
 					id="primary-nav"
-					aria-label="Primary"
+					aria-label={formatMessage("shell.navPrimary")}
 					data-testid="primary-nav"
 					data-layout="adaptive-sidebar-bottom"
 					tabIndex={-1}
@@ -259,7 +271,7 @@ export function AppShell({ capabilities, session, children }: AppShellProps): Re
 										activeProps={{ "data-active": "true" }}
 										{...stylex.props(shellStyles.navLink, sureFocus.ring)}
 									>
-										{item.label}
+										{navItemLabel(item)}
 									</Link>
 								) : item.id === "settings" ? (
 									<Link
@@ -268,7 +280,7 @@ export function AppShell({ capabilities, session, children }: AppShellProps): Re
 										activeProps={{ "data-active": "true" }}
 										{...stylex.props(shellStyles.navLink, sureFocus.ring)}
 									>
-										{item.label}
+										{navItemLabel(item)}
 									</Link>
 								) : (
 									<Link
@@ -276,7 +288,7 @@ export function AppShell({ capabilities, session, children }: AppShellProps): Re
 										activeProps={{ "data-active": "true" }}
 										{...stylex.props(shellStyles.navLink, sureFocus.ring)}
 									>
-										{item.label}
+										{navItemLabel(item)}
 									</Link>
 								)}
 							</li>
@@ -326,7 +338,7 @@ export function PageHeader({ title, breadcrumbs = [] }: PageHeaderProps): React.
 	const previousPathname = useRef(pathname);
 
 	useEffect(() => {
-		document.title = `${title} · Sure Web`;
+		document.title = formatMessage("app.documentTitle", { title });
 	}, [title]);
 
 	useEffect(() => {
@@ -346,7 +358,7 @@ export function PageHeader({ title, breadcrumbs = [] }: PageHeaderProps): React.
 	return (
 		<>
 			{breadcrumbs.length > 0 ? (
-				<nav aria-label="Breadcrumb" {...stylex.props(pageStyles.crumbNav)}>
+				<nav aria-label={formatMessage("shell.breadcrumb")} {...stylex.props(pageStyles.crumbNav)}>
 					<ol {...stylex.props(pageStyles.crumbList)}>
 						{breadcrumbs.map((crumb, index) => {
 							const isLast = index === breadcrumbs.length - 1;

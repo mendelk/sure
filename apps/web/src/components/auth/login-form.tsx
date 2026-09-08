@@ -24,6 +24,7 @@ import {
 	SureCardTitle,
 } from "~/components/ui/card";
 import { SureTextField } from "~/components/ui/text-field";
+import { formatMessage } from "~/lib/i18n/messages";
 import type { BffLoginFormFailure } from "~/lib/bff-auth-client";
 
 export interface LoginFormProps {
@@ -52,53 +53,50 @@ function FailureAlert({ failure }: { failure: BffLoginFormFailure }): React.Reac
 	switch (failure) {
 		case "invalid-credentials":
 			return (
-				<SureAlert tone="destructive" title="Could not sign in">
-					Invalid email or password. Check your credentials and try again.
+				<SureAlert tone="destructive" title={formatMessage("auth.invalidTitle")}>
+					{formatMessage("auth.invalidBody")}
 				</SureAlert>
 			);
 		case "mfa-unsupported":
 			return (
-				<SureAlert tone="warning" title="Two-factor accounts are not supported here">
-					This account uses two-factor authentication, which the web app does not support yet.
-					Please sign in with the mobile app instead.
+				<SureAlert tone="warning" title={formatMessage("auth.mfaTitle")}>
+					{formatMessage("auth.mfaBody")}
 				</SureAlert>
 			);
 		case "throttled":
 			return (
-				<SureAlert tone="warning" title="Too many attempts">
-					Too many sign-in attempts. Wait a few minutes and try again.
+				<SureAlert tone="warning" title={formatMessage("auth.throttledTitle")}>
+					{formatMessage("auth.throttledBody")}
 				</SureAlert>
 			);
 		case "api-mismatch":
 			return (
-				<SureAlert tone="warning" title="Service is being updated">
-					The service is being updated right now. Try signing in again in a moment.
+				<SureAlert tone="warning" title={formatMessage("auth.mismatchTitle")}>
+					{formatMessage("auth.mismatchBody")}
 				</SureAlert>
 			);
 		case "api-too-old":
 			return (
-				<SureAlert tone="warning" title="Sure server is too old">
-					The server version is older than this app supports. Ask your administrator to upgrade the
-					Sure server, then try again.
+				<SureAlert tone="warning" title={formatMessage("compat.tooOldTitle")}>
+					{formatMessage("auth.tooOldBody")}
 				</SureAlert>
 			);
 		case "api-too-new":
 			return (
-				<SureAlert tone="warning" title="App update required">
-					The server version is newer than this app supports. Update the web app to continue.
+				<SureAlert tone="warning" title={formatMessage("compat.tooNewTitle")}>
+					{formatMessage("auth.tooNewBody")}
 				</SureAlert>
 			);
 		case "api-missing-capability":
 			return (
-				<SureAlert tone="warning" title="Server is missing required features">
-					The server lacks features this app needs. Ask your administrator to upgrade the Sure
-					server, then try again.
+				<SureAlert tone="warning" title={formatMessage("compat.missingTitle")}>
+					{formatMessage("auth.missingCapabilityBody")}
 				</SureAlert>
 			);
 		case "unavailable":
 			return (
-				<SureAlert tone="warning" title="Service unavailable">
-					The sign-in service is unavailable. Check your connection and try again.
+				<SureAlert tone="warning" title={formatMessage("auth.unavailableTitle")}>
+					{formatMessage("auth.unavailableBody")}
 				</SureAlert>
 			);
 		default: {
@@ -122,30 +120,30 @@ export function LoginForm({ pending, failure, onSubmit }: LoginFormProps): React
 	return (
 		<SureCard>
 			<SureCardHeader>
-				<SureCardTitle>Log in to Sure</SureCardTitle>
-				<SureCardDescription>Sign in with your Sure account to continue.</SureCardDescription>
+				<SureCardTitle>{formatMessage("auth.loginTitle")}</SureCardTitle>
+				<SureCardDescription>{formatMessage("auth.loginDescription")}</SureCardDescription>
 			</SureCardHeader>
 			<SureCardContent>
 				<form
-					aria-label="Log in to Sure"
+					aria-label={formatMessage("auth.loginTitle")}
 					noValidate={false}
 					onSubmit={handleSubmit}
 					{...stylex.props(formStyles.form)}
 				>
 					{failure !== null ? <FailureAlert failure={failure} /> : null}
 					<SureTextField
-						label="Email"
+						label={formatMessage("auth.email")}
 						name="email"
 						type="email"
 						autoComplete="email"
 						isRequired
 						isDisabled={pending}
-						placeholder="you@example.com"
+						placeholder={formatMessage("auth.emailPlaceholder")}
 						value={email}
 						onChange={setEmail}
 					/>
 					<SureTextField
-						label="Password"
+						label={formatMessage("auth.password")}
 						name="password"
 						type="password"
 						autoComplete="current-password"
@@ -156,7 +154,7 @@ export function LoginForm({ pending, failure, onSubmit }: LoginFormProps): React
 					/>
 					<div {...stylex.props(formStyles.actions)}>
 						<SureButton type="submit" variant="primary" isPending={pending}>
-							{pending ? "Signing in…" : "Log in"}
+							{pending ? formatMessage("auth.submitting") : formatMessage("auth.submit")}
 						</SureButton>
 					</div>
 				</form>
