@@ -13,10 +13,10 @@ progress: 0
 assignees: []
 tags: ["pwa", "frontend"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_010", "t_alt_fnd_011"]
+dependencies: ["t_alt_beta_012", "t_alt_fnd_010", "t_alt_fnd_011"]
 timeEstimate: 28
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Make the web app installable and resilient without pretending financial mutations work offline.

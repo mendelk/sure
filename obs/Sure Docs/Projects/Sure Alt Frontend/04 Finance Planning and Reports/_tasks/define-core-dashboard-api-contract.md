@@ -1,25 +1,25 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
+projectId: "p_alt_finance"
 parentId: null
 id: "t_alt_beta_001"
-title: "Define core dashboard API contract"
+title: "Define dashboard API contract"
 type: "task"
 status: "todo"
-priority: "critical"
+priority: "high"
 start: ""
 due: ""
 progress: 0
 assignees: []
 tags: ["api", "dashboard", "backend"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_004", "t_alt_fnd_018"]
+dependencies: ["t_alt_beta_012", "t_alt_fnd_001", "t_alt_fnd_004", "t_alt_fnd_018"]
 timeEstimate: 32
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
-Provide the API data needed for the core dashboard without reproducing Rails view-model logic in the browser.
+Provide the API data needed for the post-core dashboard without reproducing Rails view-model logic in the browser.
 
 ## Acceptance criteria
 - Specify net worth/balance-sheet totals and trends, grouped account summaries, recent transactions, and current sync state.
@@ -31,4 +31,4 @@ Provide the API data needed for the core dashboard without reproducing Rails vie
 - Minitest covers behavior and authorization; rswag remains documentation-only; `docs/api/openapi.yaml` is regenerated.
 - Contract fixtures cover empty, single-currency, multi-currency, stale, and syncing families.
 
-Project: [[02 Beta Dashboard and Transactions]]
+Project: [[04 Finance Planning and Reports]]

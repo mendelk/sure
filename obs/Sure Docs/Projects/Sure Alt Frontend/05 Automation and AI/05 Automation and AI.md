@@ -2,7 +2,7 @@
 pm-project: true
 id: "p_alt_automation"
 title: "05 Automation and AI"
-description: "Deliver recurring transaction automation, rules, insights, chats, AI settings, and web push after the core finance workflows are stable."
+description: "After the core and advanced finance milestones, deliver recurring transaction automation, rules, insights, chats, AI settings, and web push."
 color: "#a66dd4"
 icon: "lucide-sparkles"
 taskIds:
@@ -18,7 +18,7 @@ customFields: []
 teamMembers: []
 savedViews: []
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 config:
   defaultView: "table"
   autoSchedule: false

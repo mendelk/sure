@@ -13,10 +13,10 @@ progress: 0
 assignees: []
 tags: ["accounts", "uploads", "api"]
 subtaskIds: []
-dependencies: ["t_alt_fin_001", "t_alt_fnd_005", "t_alt_fnd_010", "t_alt_fnd_012"]
+dependencies: ["t_alt_beta_012", "t_alt_fin_001", "t_alt_fnd_005", "t_alt_fnd_010", "t_alt_fnd_012"]
 timeEstimate: 40
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 API-enable and implement account statement list/upload/detail/edit/link/unlink/reject/delete workflows.

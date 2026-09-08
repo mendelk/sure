@@ -13,10 +13,10 @@ progress: 0
 assignees: []
 tags: ["investments", "holdings", "api"]
 subtaskIds: []
-dependencies: ["t_alt_fin_001", "t_alt_fnd_010", "t_alt_fnd_012"]
+dependencies: ["t_alt_beta_012", "t_alt_fin_001", "t_alt_fnd_010", "t_alt_fnd_012"]
 timeEstimate: 40
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Complete holding creation/edit/delete, cost-basis unlock, security remap/reset, price sync, and portfolio browsing through the API.

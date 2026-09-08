@@ -13,10 +13,10 @@ progress: 0
 assignees: []
 tags: ["milestone", "finance", "quality"]
 subtaskIds: []
-dependencies: ["t_alt_fin_002", "t_alt_fin_003", "t_alt_fin_004", "t_alt_fin_005", "t_alt_fin_006", "t_alt_fin_007", "t_alt_fin_008", "t_alt_fin_009", "t_alt_fin_010", "t_alt_fin_011", "t_alt_fin_016", "t_alt_fnd_017"]
+dependencies: ["t_alt_beta_001", "t_alt_beta_003", "t_alt_beta_008", "t_alt_beta_010", "t_alt_fin_003", "t_alt_fin_004", "t_alt_fin_005", "t_alt_fin_006", "t_alt_fin_007", "t_alt_fin_008", "t_alt_fin_009", "t_alt_fin_010", "t_alt_fin_011", "t_alt_fin_016", "t_alt_fin_018", "t_alt_fnd_017"]
 timeEstimate: 40
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Verify accounts, investments, transfers, reports, classification, budgets, goals, and planning satisfy their parity rows and release gates.

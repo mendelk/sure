@@ -5,18 +5,18 @@ parentId: null
 id: "t_alt_fnd_007"
 title: "Implement secure login refresh and logout sessions"
 type: "task"
-status: "todo"
+status: "done"
 priority: "critical"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["auth", "frontend", "api"]
 subtaskIds: []
 dependencies: ["t_alt_fnd_005", "t_alt_fnd_006"]
 timeEstimate: 36
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Allow existing non-MFA users to log in and maintain a secure BFF session for the first release.

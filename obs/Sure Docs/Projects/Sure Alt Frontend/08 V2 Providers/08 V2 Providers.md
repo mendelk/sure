@@ -2,7 +2,7 @@
 pm-project: true
 id: "p_alt_v2_providers"
 title: "08 V2 Providers"
-description: "Deliver all self-hosted provider connection workflows other than SimpleFIN after the V1 product work, reusing the shared provider API contract, catalog, security controls, and test infrastructure."
+description: "Deliver remaining self-hosted provider connections only after the core, ingestion, finance, automation, and administration releases are stable."
 color: "#4f86c6"
 icon: "lucide-cloud-cog"
 taskIds:
@@ -21,7 +21,7 @@ customFields: []
 teamMembers: []
 savedViews: []
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 config:
   defaultView: "table"
   autoSchedule: false

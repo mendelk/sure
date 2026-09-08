@@ -1,22 +1,22 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
+projectId: "p_alt_finance"
 parentId: null
 id: "t_alt_beta_008"
 title: "Implement transaction split workflow"
 type: "task"
 status: "todo"
-priority: "high"
+priority: "medium"
 start: ""
 due: ""
 progress: 0
 assignees: []
 tags: ["frontend", "transactions", "forms"]
 subtaskIds: []
-dependencies: ["t_alt_beta_006", "t_alt_beta_007"]
+dependencies: ["t_alt_beta_012", "t_alt_beta_006", "t_alt_beta_007"]
 timeEstimate: 36
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Implement transaction splitting with exact arithmetic and explicit reconciliation to the parent amount.
@@ -31,4 +31,4 @@ Implement transaction splitting with exact arithmetic and explicit reconciliatio
 ## Verification
 - Tests cover positive/negative amounts, rounding, many rows, validation, keyboard flow, mobile layout, and Rails persistence.
 
-Project: [[02 Beta Dashboard and Transactions]]
+Project: [[04 Finance Planning and Reports]]

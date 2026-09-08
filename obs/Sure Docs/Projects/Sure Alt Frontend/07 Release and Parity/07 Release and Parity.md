@@ -1,8 +1,8 @@
 ---
 pm-project: true
 id: "p_alt_release"
-title: "07 Release and Parity"
-description: "Package the frontend as a separate self-hosted service, publish staged V1 and V2 releases, and prove final parity with workflow evidence and release quality gates."
+title: "07 Staged Releases and Parity"
+description: "Package and publish the core accounts and transactions release first, then layer ingestion, advanced finance, automation/admin, providers, and final parity releases."
 color: "#72788a"
 icon: "lucide-rocket"
 taskIds:
@@ -22,21 +22,21 @@ customFields: []
 teamMembers: []
 savedViews: []
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 config:
   defaultView: "table"
   autoSchedule: false
 ---
 
-# lucide-rocket 07 Release and Parity
+# lucide-rocket 07 Staged Releases and Parity
 
-Package the frontend as a separate self-hosted service, publish staged V1 and V2 releases, and prove final parity with workflow evidence and release quality gates.
+Package the frontend as a separate self-hosted service and publish the smallest useful product first. Every later release adds one coherent layer without expanding the core milestone retroactively.
 
 ## Tasks
 - [ ] [[containerize-the-tanstack-start-frontend|Containerize the TanStack Start frontend]]
 - [ ] [[integrate-the-frontend-service-with-docker-compose|Integrate the frontend service with Docker Compose]]
 - [ ] [[document-self-hosted-configuration-and-operations|Document self-hosted configuration and operations]]
-- [ ] [[publish-dashboard-and-transactions-beta|Publish dashboard and transactions beta]]
+- [ ] [[publish-core-accounts-and-transactions-release|Publish core accounts and transactions release]]
 - [ ] [[publish-ingestion-and-simplefin-release|Publish ingestion and SimpleFIN release]]
 - [ ] [[publish-finance-and-planning-release|Publish finance and planning release]]
 - [ ] [[publish-automation-settings-and-admin-release|Publish automation, settings, and admin release]]

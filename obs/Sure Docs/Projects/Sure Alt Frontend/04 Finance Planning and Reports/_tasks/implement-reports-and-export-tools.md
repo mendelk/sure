@@ -13,10 +13,10 @@ progress: 0
 assignees: []
 tags: ["reports", "api", "charts"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_010", "t_alt_fnd_016"]
+dependencies: ["t_alt_beta_012", "t_alt_fnd_001", "t_alt_fnd_010", "t_alt_fnd_016"]
 timeEstimate: 40
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 API-enable and implement the reports hub, preferences, transaction export, print-friendly output, and Google Sheets guidance.

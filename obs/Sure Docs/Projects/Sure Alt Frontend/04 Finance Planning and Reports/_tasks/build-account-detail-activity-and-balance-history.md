@@ -13,10 +13,10 @@ progress: 0
 assignees: []
 tags: ["accounts", "frontend", "charts"]
 subtaskIds: []
-dependencies: ["t_alt_fin_001", "t_alt_fnd_010", "t_alt_fnd_016"]
+dependencies: ["t_alt_beta_012", "t_alt_fin_001", "t_alt_fnd_010", "t_alt_fnd_016"]
 timeEstimate: 40
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Turn the beta account placeholder into complete account overview, balance history, and activity routes.

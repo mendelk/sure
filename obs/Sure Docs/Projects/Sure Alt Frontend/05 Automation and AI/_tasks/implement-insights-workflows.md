@@ -13,10 +13,10 @@ progress: 0
 assignees: []
 tags: ["insights", "ai", "frontend"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_010", "t_alt_fnd_012"]
+dependencies: ["t_alt_beta_012", "t_alt_fnd_001", "t_alt_fnd_010", "t_alt_fnd_012"]
 timeEstimate: 28
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Complete insight list, refresh, acknowledge, and unacknowledge behavior through typed APIs and an accessible UI.

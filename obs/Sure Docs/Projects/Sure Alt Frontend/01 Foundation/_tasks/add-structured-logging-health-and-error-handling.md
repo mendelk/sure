@@ -6,17 +6,17 @@ id: "t_alt_fnd_014"
 title: "Add structured logging health and error handling"
 type: "task"
 status: "todo"
-priority: "high"
+priority: "medium"
 start: ""
 due: ""
 progress: 0
 assignees: []
 tags: ["observability", "operations", "privacy"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_005", "t_alt_fnd_010"]
+dependencies: ["t_alt_beta_012", "t_alt_fnd_005", "t_alt_fnd_010"]
 timeEstimate: 20
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Add production diagnostics that help self-hosters without logging financial data or credentials.

@@ -5,18 +5,18 @@ parentId: null
 id: "t_alt_fnd_012"
 title: "Build frontend and Rails integration test harness"
 type: "task"
-status: "todo"
+status: "done"
 priority: "critical"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["testing", "frontend", "rails"]
 subtaskIds: []
 dependencies: ["t_alt_fnd_002", "t_alt_fnd_003", "t_alt_fnd_005"]
 timeEstimate: 36
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Provide Vitest, React Testing Library, and Playwright infrastructure, including critical tests against a real Rails test API and database.

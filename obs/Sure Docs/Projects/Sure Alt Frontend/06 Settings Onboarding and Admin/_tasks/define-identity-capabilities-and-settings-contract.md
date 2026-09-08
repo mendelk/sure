@@ -13,10 +13,10 @@ progress: 0
 assignees: []
 tags: ["settings", "api", "authorization"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_004", "t_alt_fnd_018"]
+dependencies: ["t_alt_beta_012", "t_alt_fnd_001", "t_alt_fnd_004", "t_alt_fnd_018"]
 timeEstimate: 36
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Define the authenticated identity, family, role/capability, deployment feature, and settings resources needed to render safe navigation and forms.

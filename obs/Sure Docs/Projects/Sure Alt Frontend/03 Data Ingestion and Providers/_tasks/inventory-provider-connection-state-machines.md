@@ -13,10 +13,10 @@ progress: 0
 assignees: []
 tags: ["providers", "discovery", "api"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_004", "t_alt_fnd_018"]
+dependencies: ["t_alt_beta_012", "t_alt_fnd_001", "t_alt_fnd_004", "t_alt_fnd_018"]
 timeEstimate: 28
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Document every enabled provider's connection, reauthorization, account-selection/linking, sync, review, and disconnection state machine.

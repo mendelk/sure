@@ -2,7 +2,7 @@
 pm-project: true
 id: "p_alt_settings"
 title: "06 Settings Onboarding and Admin"
-description: "Complete user, family, security, onboarding, hosting, and super-admin workflows, including destructive operations, through role-aware API contracts."
+description: "After core financial workflows are stable, complete user, family, security, onboarding, hosting, and super-admin workflows through role-aware API contracts."
 color: "#bf6575"
 icon: "lucide-settings"
 taskIds:
@@ -27,7 +27,7 @@ customFields: []
 teamMembers: []
 savedViews: []
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 config:
   defaultView: "table"
   autoSchedule: false

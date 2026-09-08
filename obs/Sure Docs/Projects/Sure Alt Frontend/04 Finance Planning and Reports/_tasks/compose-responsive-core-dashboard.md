@@ -1,12 +1,12 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
+projectId: "p_alt_finance"
 parentId: null
 id: "t_alt_beta_010"
-title: "Compose responsive core dashboard"
+title: "Compose responsive dashboard"
 type: "task"
 status: "todo"
-priority: "critical"
+priority: "high"
 start: ""
 due: ""
 progress: 0
@@ -16,10 +16,10 @@ subtaskIds: []
 dependencies: ["t_alt_beta_002", "t_alt_beta_003", "t_alt_beta_005", "t_alt_beta_009"]
 timeEstimate: 36
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
-Compose the first Sure-inspired dashboard from the account summary, trends, recent transactions, and sync status.
+Compose the post-core Sure-inspired dashboard from the account summary, trends, recent transactions, and sync status.
 
 ## Acceptance criteria
 - Establish a deliberate visual hierarchy rather than copying the Rails grid screen-for-screen.
@@ -31,4 +31,4 @@ Compose the first Sure-inspired dashboard from the account summary, trends, rece
 ## Verification
 - Visual, accessibility, responsive, and real-API tests cover populated, empty, syncing, error, dark, and privacy states.
 
-Project: [[02 Beta Dashboard and Transactions]]
+Project: [[04 Finance Planning and Reports]]

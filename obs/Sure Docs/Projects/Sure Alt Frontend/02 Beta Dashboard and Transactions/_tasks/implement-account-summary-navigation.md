@@ -6,17 +6,17 @@ id: "t_alt_beta_002"
 title: "Implement account summary navigation"
 type: "task"
 status: "todo"
-priority: "high"
+priority: "critical"
 start: ""
 due: ""
 progress: 0
 assignees: []
 tags: ["frontend", "accounts", "beta"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_004", "t_alt_fnd_010", "t_alt_fnd_012", "t_alt_fnd_018"]
+dependencies: ["t_alt_fin_001", "t_alt_fnd_004", "t_alt_fnd_010", "t_alt_fnd_012", "t_alt_fnd_018"]
 timeEstimate: 28
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Add responsive account-group summaries that give the beta a useful navigation path into existing account data.

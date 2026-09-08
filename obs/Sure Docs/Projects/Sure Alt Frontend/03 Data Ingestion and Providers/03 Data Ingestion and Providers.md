@@ -1,8 +1,8 @@
 ---
 pm-project: true
 id: "p_alt_ingestion"
-title: "03 Data Ingestion and Providers"
-description: "Build shared provider infrastructure, deliver SimpleFIN, and complete import and export workflows without falling back to Rails HTML. Other concrete provider connections are deferred to the V2 Providers workstream."
+title: "03 Imports and Connected Accounts"
+description: "After the core milestone, add import/export workflows, provider management, sync visibility, and SimpleFIN without falling back to Rails HTML. Other providers remain deferred."
 color: "#d18b47"
 icon: "lucide-cloud-download"
 taskIds:
@@ -11,6 +11,7 @@ taskIds:
   - "t_alt_ing_003"
   - "t_alt_ing_004"
   - "t_alt_ing_007"
+  - "t_alt_beta_009"
   - "t_alt_ing_014"
   - "t_alt_ing_015"
   - "t_alt_ing_016"
@@ -21,15 +22,15 @@ customFields: []
 teamMembers: []
 savedViews: []
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 config:
   defaultView: "table"
   autoSchedule: false
 ---
 
-# lucide-cloud-download 03 Data Ingestion and Providers
+# lucide-cloud-download 03 Imports and Connected Accounts
 
-Build shared provider infrastructure, deliver SimpleFIN, and complete import and export workflows without falling back to Rails HTML. Other concrete provider connections are deferred to the V2 Providers workstream.
+Build on the proven manual-account workflow with imports, exports, provider management, sync visibility, and SimpleFIN. This epic starts only after the core accounts and transactions quality gate.
 
 ## Tasks
 - [ ] [[inventory-provider-connection-state-machines|Inventory provider connection state machines]]
@@ -37,6 +38,7 @@ Build shared provider infrastructure, deliver SimpleFIN, and complete import and
 - [ ] [[build-provider-catalog-and-settings-ui|Build provider catalog and settings UI]]
 - [ ] [[define-reusable-provider-connection-api-contract|Define reusable provider connection API contract]]
 - [ ] [[implement-simplefin-connection|Implement SimpleFIN connection]]
+- [ ] [[implement-sync-trigger-and-progress-ui|Implement sync trigger and progress UI]]
 - [ ] [[complete-import-session-api|Complete import session API]]
 - [ ] [[build-resumable-import-wizard|Build resumable import wizard]]
 - [ ] [[complete-family-export-lifecycle-api|Complete family export lifecycle API]]

@@ -6,17 +6,17 @@ id: "t_alt_fnd_016"
 title: "Evaluate TanStack Charts for Sure visualizations"
 type: "task"
 status: "todo"
-priority: "high"
+priority: "medium"
 start: ""
 due: ""
 progress: 0
 assignees: []
 tags: ["charts", "spike", "accessibility"]
 subtaskIds: []
-dependencies: ["t_alt_fnd_008", "t_alt_fnd_009", "t_alt_fnd_012"]
+dependencies: ["t_alt_beta_012", "t_alt_fnd_008", "t_alt_fnd_009", "t_alt_fnd_012"]
 timeEstimate: 20
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 ---
 
 Time-box a decision on the Alpha TanStack Charts library using representative Sure financial charts, with Recharts as the fallback.

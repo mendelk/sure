@@ -1,8 +1,8 @@
 ---
 pm-project: true
 id: "p_alt_foundation"
-title: "01 Foundation"
-description: "Establish the architecture, security, generated API client, design system, application shell, PWA baseline, test harness, observability, and CI required by every feature workstream."
+title: "01 Platform Foundation"
+description: "Establish the minimum secure platform needed for core accounts and transactions, then defer PWA, charts, broad observability, and performance infrastructure until the core milestone is complete."
 color: "#6b8afd"
 icon: "lucide-blocks"
 taskIds:
@@ -24,7 +24,6 @@ taskIds:
   - "t_alt_fnd_015"
   - "t_alt_fnd_016"
   - "t_alt_fnd_017"
-  - "t_alt_fnd_018"
   - "t_alt_fnd_019"
   - "t_alt_fnd_020"
   - "t_alt_fnd_021"
@@ -33,17 +32,17 @@ customFields: []
 teamMembers: []
 savedViews: []
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T04:00:00.000Z"
 config:
   defaultView: "table"
   autoSchedule: false
 ---
 
-# lucide-blocks 01 Foundation
+# lucide-blocks 01 Platform Foundation
 
-Establish the architecture, security, generated API client, design system, application shell, PWA baseline, test harness, observability, and CI required by every feature workstream.
+Establish the minimum secure platform needed for core accounts and transactions. Remaining platform enhancements follow the core milestone rather than delaying usable financial workflows.
 
-## Tasks
+## Essential baseline
 - [x] [[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]
 - [x] [[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]
 - [x] [[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript, lint, formatting, and workspace scripts]]
@@ -57,11 +56,14 @@ Establish the architecture, security, generated API client, design system, appli
 - [x] [[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]
 - [ ] [[add-localization-theme-and-privacy-foundations|Add localization, theme, and privacy foundations]]
 - [x] [[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]
-- [ ] [[add-installable-resilient-pwa-foundation|Add installable resilient PWA foundation]]
-- [ ] [[add-structured-logging-health-and-error-handling|Add structured logging, health, and error handling]]
 - [x] [[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]
-- [ ] [[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]
-- [ ] [[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]
 - [ ] [[guarantee-upstream-token-revocation-when-bff-access-token-expired|Guarantee upstream token revocation when BFF access token is expired]]
 - [ ] [[extend-e2e-harness-to-exercise-login-and-logout-ui|Extend e2e harness to exercise the login and logout UI against real Rails]]
 - [ ] [[clear-browser-local-session-state-on-auth-failures|Clear browser local session state on api-mismatch and auth failures in real pages]]
+
+## Post-core platform enhancements
+
+- [ ] [[add-installable-resilient-pwa-foundation|Add installable resilient PWA foundation]]
+- [ ] [[add-structured-logging-health-and-error-handling|Add structured logging, health, and error handling]]
+- [ ] [[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]
+- [ ] [[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]
