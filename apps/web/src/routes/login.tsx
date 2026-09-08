@@ -11,6 +11,7 @@ import {
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { LoginForm } from "~/components/auth/login-form";
+import { PublicChrome } from "~/components/shell/public-chrome";
 import { BFF_SESSION_QUERY_KEY, mapLoginErrorToFailure } from "~/lib/bff-auth-client";
 import type {
 	BffLoginErrorCode,
@@ -18,7 +19,7 @@ import type {
 	BffSessionStatus,
 	BffSessionUser,
 } from "~/lib/bff-auth-client";
-import { resolveSafeNext } from "~/lib/bff-session";
+import { splitNextTarget } from "~/lib/route-guards";
 import {
 	getBffSessionStatus,
 	loginToBffSession,
@@ -144,7 +145,8 @@ function LoginPage(): React.ReactElement {
 	}, []);
 	useEffect(() => {
 		if (status !== null && status.authenticated) {
-			void navigate({ to: resolveSafeNext(search.next), replace: true });
+			const target = splitNextTarget(search.next);
+			void navigate({ to: target.to, search: target.search, replace: true });
 		}
 	}, [status, search.next, navigate]);
 
@@ -159,7 +161,8 @@ function LoginPage(): React.ReactElement {
 					user: result.user,
 					csrfToken: result.csrfToken,
 				} satisfies BffSessionStatus);
-				await navigate({ to: resolveSafeNext(search.next), replace: true });
+				const target = splitNextTarget(search.next);
+				await navigate({ to: target.to, search: target.search, replace: true });
 			} else {
 				setFailure(mapLoginErrorToFailure(result.error.code));
 			}
@@ -172,10 +175,12 @@ function LoginPage(): React.ReactElement {
 
 	// The card title ("Log in to Sure") is the page heading.
 	return (
-		<LoginForm
-			pending={pending}
-			failure={failure}
-			onSubmit={(email, password) => void handleSubmit(email, password)}
-		/>
+		<PublicChrome>
+			<LoginForm
+				pending={pending}
+				failure={failure}
+				onSubmit={(email, password) => void handleSubmit(email, password)}
+			/>
+		</PublicChrome>
 	);
 }

@@ -18,6 +18,7 @@
 		"build-storybook": "STORYBOOK=1 storybook build -o storybook-static",
 		"test:browser": "node scripts/storybook-browser-check.mjs",
 		"test:e2e": "node scripts/e2e-smoke.mjs",
+		"test:e2e:shell": "node scripts/e2e-app-shell.mjs",
 		"test:e2e:live": "SURE_E2E_LIVE=1 vitest run src/lib/api/bff-live.test.ts",
 		"test:e2e:ci": "node scripts/e2e-services.mjs",
 		"api:generate": "openapi-typescript ../../docs/api/openapi.yaml -o src/lib/api/openapi.d.ts && pnpm api:zod",

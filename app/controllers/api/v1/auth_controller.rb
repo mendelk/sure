@@ -142,7 +142,8 @@ module Api
             first_name: cached[:user_first_name],
             last_name: cached[:user_last_name],
             ui_layout: cached[:user_ui_layout],
-            ai_enabled: cached[:user_ai_enabled]
+            ai_enabled: cached[:user_ai_enabled],
+            role: cached[:user_role]
           }
         }
       end
@@ -422,7 +423,8 @@ module Api
             first_name: user.first_name,
             last_name: user.last_name,
             ui_layout: user.ui_layout,
-            ai_enabled: user.ai_enabled?
+            ai_enabled: user.ai_enabled?,
+            role: user.role
           }
         end
 

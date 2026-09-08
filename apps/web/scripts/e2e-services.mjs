@@ -203,6 +203,9 @@ try {
 	log("running the Playwright smoke suite…");
 	runForeground(["node", "scripts/e2e-smoke.mjs"], { env: {} });
 
+	log("running the Playwright app-shell suite…");
+	runForeground(["node", "scripts/e2e-app-shell.mjs"], { env: {} });
+
 	log("running the live BFF → Rails → database suite…");
 	runForeground(
 		["pnpm", "--filter", "@sure/web", "exec", "vitest", "run", "src/lib/api/bff-live.test.ts"],

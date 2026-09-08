@@ -99,6 +99,16 @@ describe("resolveSafeNext (REQ-TRAN-04)", () => {
 		expect(resolveSafeNext("/settings/profile")).toBe("/settings/profile");
 	});
 
+	it("preserves validated query strings so deep links keep typed search state", () => {
+		expect(resolveSafeNext("/dashboard?q=rent&filter=active")).toBe(
+			"/dashboard?q=rent&filter=active",
+		);
+		expect(resolveSafeNext("/settings?section=account")).toBe("/settings?section=account");
+		expect(resolveSafeNext("/dashboard?q=100%25")).toBe("/dashboard?q=100%25");
+		// An empty query collapses to the pathname.
+		expect(resolveSafeNext("/dashboard?")).toBe("/dashboard");
+	});
+
 	it.each([
 		"//evil.test/x",
 		"https://evil.test/",
@@ -108,8 +118,12 @@ describe("resolveSafeNext (REQ-TRAN-04)", () => {
 		"/./b",
 		"/a//b",
 		"/a/",
-		"/a?x=1",
 		"/a#frag",
+		"/a?x=1#frag",
+		"/a?x=a#b",
+		"/a?x=a\\b",
+		"/a?q=%E0%A4%A",
+		"/a?\t",
 		"/%2Fevil",
 		"/%5cevil",
 		"/a%00b",
@@ -117,6 +131,12 @@ describe("resolveSafeNext (REQ-TRAN-04)", () => {
 		"relative",
 	])("rejects %p to /", (raw) => {
 		expect(resolveSafeNext(raw)).toBe("/");
+	});
+
+	it("rejects overlong targets to /", () => {
+		expect(resolveSafeNext(`/${"a".repeat(2048)}?q=1`)).toBe("/");
+		expect(resolveSafeNext(`/${"a".repeat(2048)}`)).toBe("/");
+		expect(resolveSafeNext(`/${"a".repeat(2046)}`)).toBe(`/${"a".repeat(2046)}`);
 	});
 
 	it.each([undefined, null, 42, {}, ["/x"]])("rejects non-strings %p to /", (raw) => {

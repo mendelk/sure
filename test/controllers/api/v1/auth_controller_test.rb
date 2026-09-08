@@ -61,6 +61,7 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     new_user = User.find(response_data["user"]["id"])
     assert_equal new_user.ui_layout, response_data["user"]["ui_layout"]
     assert_equal new_user.ai_enabled?, response_data["user"]["ai_enabled"]
+    assert_equal new_user.role, response_data["user"]["role"]
 
     # OAuth token assertions
     assert response_data["access_token"].present?
@@ -260,6 +261,8 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     assert_equal user.email, response_data["user"]["email"]
     assert_equal user.ui_layout, response_data["user"]["ui_layout"]
     assert_equal user.ai_enabled?, response_data["user"]["ai_enabled"]
+    assert_equal user.role, response_data["user"]["role"]
+    assert_includes %w[guest member admin super_admin], response_data["user"]["role"]
 
     # OAuth token assertions
     assert response_data["access_token"].present?
@@ -512,6 +515,7 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     response_data = JSON.parse(response.body)
     assert_equal true, response_data.dig("user", "ai_enabled")
     assert_equal user.ui_layout, response_data.dig("user", "ui_layout")
+    assert_equal user.role, response_data.dig("user", "role")
     assert_equal true, user.reload.ai_enabled
   end
 
@@ -568,6 +572,7 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     assert response_data["access_token"].present?
     assert response_data["refresh_token"].present?
     assert_equal user.id.to_s, response_data["user"]["id"]
+    assert_equal user.role, response_data["user"]["role"]
 
     # Linking code should be consumed
     assert_nil Rails.cache.read("mobile_sso_link:#{linking_code}")
@@ -749,6 +754,8 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     assert_equal "newgoogleuser@example.com", response_data["user"]["email"]
     assert_equal "New", response_data["user"]["first_name"]
     assert_equal "GoogleUser", response_data["user"]["last_name"]
+    created_user = User.find_by!(email: "newgoogleuser@example.com")
+    assert_equal created_user.role, response_data["user"]["role"]
 
     # Linking code should be consumed
     assert_nil Rails.cache.read("mobile_sso_link:#{linking_code}")

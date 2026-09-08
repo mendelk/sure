@@ -406,6 +406,7 @@ function narrowUser(raw: unknown): BffSessionUser | undefined {
 	const lastName: unknown = raw["last_name"] ?? "";
 	const uiLayout: unknown = raw["ui_layout"];
 	const aiEnabled: unknown = raw["ai_enabled"];
+	const role: unknown = raw["role"];
 	if (
 		typeof id !== "string" ||
 		typeof email !== "string" ||
@@ -416,6 +417,9 @@ function narrowUser(raw: unknown): BffSessionUser | undefined {
 	) {
 		return undefined;
 	}
+	// Optional upstream role (forward-compatible): kept only when a
+	// non-empty string, otherwise omitted so capabilities fail closed.
+	const adminRole = typeof role === "string" && role !== "" ? role : undefined;
 	return {
 		id,
 		email,
@@ -423,6 +427,7 @@ function narrowUser(raw: unknown): BffSessionUser | undefined {
 		lastName,
 		uiLayout,
 		aiEnabled,
+		...(adminRole === undefined ? {} : { role: adminRole }),
 	};
 }
 
