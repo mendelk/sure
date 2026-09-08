@@ -77,6 +77,7 @@ interface MockUpstream {
 	refreshCalls: number;
 	logoutCalls: number;
 	loginCalls: number;
+	metadataCalls: number;
 	accountCalls: string[];
 	logoutFail: boolean;
 	refreshDelayMs: number;
@@ -85,6 +86,11 @@ interface MockUpstream {
 	rejectAllAccess: boolean;
 	/** When true, the login response carries null names (Rails omits unset names). */
 	nullUserNames: boolean;
+	/** Compatibility probe behaviour for `GET /api/v1/metadata`. */
+	metadataVersion: string;
+	metadataCapabilities: string[];
+	metadataStatus: number;
+	metadataNetworkFailure: boolean;
 }
 
 function createMockUpstream(): MockUpstream {
@@ -97,12 +103,17 @@ function createMockUpstream(): MockUpstream {
 		refreshCalls: 0,
 		logoutCalls: 0,
 		loginCalls: 0,
+		metadataCalls: 0,
 		accountCalls: [],
 		logoutFail: false,
 		refreshDelayMs: 0,
 		tokenCounter: 0,
 		rejectAllAccess: false,
 		nullUserNames: false,
+		metadataVersion: "1.0.0",
+		metadataCapabilities: ["auth.login", "auth.refresh", "auth.logout"],
+		metadataStatus: 200,
+		metadataNetworkFailure: false,
 	};
 }
 
@@ -162,6 +173,20 @@ function mockFetch(mock: MockUpstream): typeof fetch {
 		const method = (init?.method ?? "GET").toUpperCase();
 		const headers = new Headers(init?.headers);
 		const requestInit: RequestInit = { ...init, method };
+
+		if (method === "GET" && path === "/api/v1/metadata") {
+			mock.metadataCalls += 1;
+			if (mock.metadataNetworkFailure) {
+				throw new TypeError("fetch failed");
+			}
+			if (mock.metadataStatus !== 200) {
+				return errorResponse(mock.metadataStatus, "metadata_error");
+			}
+			return jsonResponse(200, {
+				api_version: mock.metadataVersion,
+				capabilities: mock.metadataCapabilities,
+			});
+		}
 
 		if (method === "POST" && path === "/api/v1/auth/login") {
 			mock.loginCalls += 1;
@@ -1036,5 +1061,137 @@ describe("deployment API incompatibility", () => {
 			return;
 		}
 		expect(result.error.code).toBe("api-mismatch");
+	});
+
+	it("blocks login on a too-old server without dispatching credentials", async () => {
+		const mock = createMockUpstream();
+		mock.metadataVersion = "0.9.0";
+		const deps = testDeps(mock);
+		const result = await loginToBffSession(
+			{
+				email: "user@example.com",
+				password: "CorrectHorse1!",
+				origin: BFF_ORIGIN,
+				bffOrigin: BFF_ORIGIN,
+				cookieHeader: undefined,
+				clientKey: "127.0.0.1",
+			},
+			deps,
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) {
+			return;
+		}
+		expect(result.error.code).toBe("api-too-old");
+		expect(result.error.message).toMatch(/upgrade the Sure server/i);
+		expect(result.error.message).not.toContain(UPSTREAM);
+		expect(mock.metadataCalls).toBe(1);
+		expect(mock.loginCalls).toBe(0);
+	});
+
+	it("blocks login on a too-new server without dispatching credentials", async () => {
+		const mock = createMockUpstream();
+		mock.metadataVersion = "2.0.0";
+		const deps = testDeps(mock);
+		const result = await loginToBffSession(
+			{
+				email: "user@example.com",
+				password: "CorrectHorse1!",
+				origin: BFF_ORIGIN,
+				bffOrigin: BFF_ORIGIN,
+				cookieHeader: undefined,
+				clientKey: "127.0.0.1",
+			},
+			deps,
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) {
+			return;
+		}
+		expect(result.error.code).toBe("api-too-new");
+		expect(result.error.message).toMatch(/update the web app/i);
+		expect(mock.loginCalls).toBe(0);
+	});
+
+	it("blocks login when the server predates metadata (404) as too-old", async () => {
+		const mock = createMockUpstream();
+		mock.metadataStatus = 404;
+		const deps = testDeps(mock);
+		const result = await loginToBffSession(
+			{
+				email: "user@example.com",
+				password: "CorrectHorse1!",
+				origin: BFF_ORIGIN,
+				bffOrigin: BFF_ORIGIN,
+				cookieHeader: undefined,
+				clientKey: "127.0.0.1",
+			},
+			deps,
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) {
+			return;
+		}
+		expect(result.error.code).toBe("api-too-old");
+		expect(mock.loginCalls).toBe(0);
+	});
+
+	it("blocks login on missing capabilities with the absent tokens", async () => {
+		const mock = createMockUpstream();
+		mock.metadataCapabilities = ["auth.login"];
+		const deps = testDeps(mock);
+		const result = await loginToBffSession(
+			{
+				email: "user@example.com",
+				password: "CorrectHorse1!",
+				origin: BFF_ORIGIN,
+				bffOrigin: BFF_ORIGIN,
+				cookieHeader: undefined,
+				clientKey: "127.0.0.1",
+			},
+			deps,
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) {
+			return;
+		}
+		expect(result.error.code).toBe("api-missing-capability");
+		expect(result.error.message).toMatch(/auth\.logout/);
+		expect(mock.loginCalls).toBe(0);
+	});
+
+	it("maps unreachable and rejected-credential probes to unavailable", async () => {
+		for (const setup of [
+			(mock: MockUpstream) => {
+				mock.metadataNetworkFailure = true;
+			},
+			(mock: MockUpstream) => {
+				mock.metadataStatus = 500;
+			},
+			(mock: MockUpstream) => {
+				mock.metadataStatus = 401;
+			},
+		]) {
+			const mock = createMockUpstream();
+			setup(mock);
+			const deps = testDeps(mock);
+			const result = await loginToBffSession(
+				{
+					email: "user@example.com",
+					password: "CorrectHorse1!",
+					origin: BFF_ORIGIN,
+					bffOrigin: BFF_ORIGIN,
+					cookieHeader: undefined,
+					clientKey: "127.0.0.1",
+				},
+				deps,
+			);
+			expect(result.ok).toBe(false);
+			if (result.ok) {
+				return;
+			}
+			expect(result.error.code).toBe("unavailable");
+			expect(mock.loginCalls).toBe(0);
+		}
 	});
 });

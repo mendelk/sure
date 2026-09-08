@@ -4,7 +4,8 @@
 // Proves the integrated chain against seeded services (booted by
 // ./e2e-services.mjs in CI, or by hand locally):
 //  1. Browser leg — every viewport × theme combo loads the SSR home route,
-//     asserts the rendered Sure API origin matches the live Rails origin,
+//     asserts the readiness compatibility badge reports `ready` (the page
+//     never renders the Rails origin: t_alt_fnd_015 origin hygiene),
 //     and captures a *masked* screenshot (privacy mode: raw screenshots
 //     are never taken; see captureMasked in ./e2e-helpers.mjs).
 //  2. Rails → database leg — the seeded member and viewer log in through
@@ -90,7 +91,7 @@ try {
 					theme,
 				});
 				try {
-					await expectSsrHome(page, config);
+					await expectSsrHome(page);
 					await captureMasked(page, join(config.artifactsDir, `home-${viewportName}-${theme}.png`));
 				} finally {
 					await context.close();

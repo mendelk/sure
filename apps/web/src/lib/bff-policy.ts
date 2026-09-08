@@ -12,7 +12,7 @@
  * - REQ-OPS-01 — structured, redacted errors only; no credentials in logs.
  *
  * The allow-list below mirrors the operations documented in
- * `docs/api/openapi.yaml` (73 paths). When the contract gains an endpoint,
+ * `docs/api/openapi.yaml` (74 paths). When the contract gains an endpoint,
  * add its path + methods here and in the server executor tests; the typed
  * browser client (`api/client.ts`) stays compile-time checked by
  * `openapi-typescript`, while this list is the runtime SSRF gate.
@@ -228,6 +228,7 @@ const ALLOW_ENTRIES: readonly AllowEntry[] = [
 	entry("/api/v1/merchants", ["GET", "POST"]),
 	entry("/api/v1/merchants/import", ["POST"]),
 	entry("/api/v1/merchants/{id}", ["GET", "PATCH", "DELETE"]),
+	entry("/api/v1/metadata", ["GET"]),
 	entry("/api/v1/provider_connections", ["GET"]),
 	entry("/api/v1/push_subscriptions", ["POST"]),
 	entry("/api/v1/push_subscriptions/{id}", ["DELETE"]),

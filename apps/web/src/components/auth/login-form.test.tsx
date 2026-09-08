@@ -1,9 +1,10 @@
-// LoginForm tests (t_alt_fnd_007).
+// LoginForm tests (t_alt_fnd_007, compatibility states from t_alt_fnd_015).
 //
 // Every required login state renders through DS primitives with screen-
 // reader semantics and zero axe violations: idle, pending, and each
 // server-classified failure (invalid credentials, unsupported MFA,
-// unavailable, throttled, api-mismatch).
+// unavailable, throttled, api-mismatch, api-too-old, api-too-new,
+// api-missing-capability).
 //
 // @vitest-environment jsdom
 import { cleanup, screen } from "@testing-library/react";
@@ -19,6 +20,9 @@ const FAILURES: { readonly state: BffLoginFormFailure; readonly title: string }[
 	{ state: "unavailable", title: "Service unavailable" },
 	{ state: "throttled", title: "Too many attempts" },
 	{ state: "api-mismatch", title: "Service is being updated" },
+	{ state: "api-too-old", title: "Sure server is too old" },
+	{ state: "api-too-new", title: "App update required" },
+	{ state: "api-missing-capability", title: "Server is missing required features" },
 ];
 
 describe("LoginForm", () => {

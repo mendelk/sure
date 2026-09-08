@@ -1985,6 +1985,19 @@ RSpec.configure do |config|
                 properties: reset_count_keys.index_with { { type: :integer, minimum: 0 } }
               }
             }
+          },
+          ApiMetadata: {
+            type: :object,
+            required: %w[api_version capabilities],
+            properties: {
+              api_version: { type: :string, example: '1.0.0', description: 'Semver contract version served by this Rails build. The alternate frontend supports major version 1.' },
+              capabilities: {
+                type: :array,
+                items: { type: :string },
+                example: %w[auth.login auth.refresh auth.logout],
+                description: 'Capability tokens the alternate frontend requires for session establishment. Removing or renaming one is a breaking change.'
+              }
+            }
           }
         }
       }

@@ -3772,6 +3772,27 @@ components:
             plaid_items:
               type: integer
               minimum: 0
+    ApiMetadata:
+      type: object
+      required:
+      - api_version
+      - capabilities
+      properties:
+        api_version:
+          type: string
+          example: 1.0.0
+          description: Semver contract version served by this Rails build. The alternate
+            frontend supports major version 1.
+        capabilities:
+          type: array
+          items:
+            type: string
+          example:
+          - auth.login
+          - auth.refresh
+          - auth.logout
+          description: Capability tokens the alternate frontend requires for session
+            establishment. Removing or renaming one is a breaking change.
 paths:
   "/api/v1/accounts":
     get:
@@ -6581,6 +6602,35 @@ paths:
           description: merchant deleted
         '404':
           description: merchant not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/metadata":
+    get:
+      summary: Retrieve API contract metadata
+      description: Public contract version and capability tokens for the alternate
+        frontend compatibility check (readiness and session establishment). No
+        authentication required.
+      tags:
+      - Metadata
+      parameters:
+      - name: X-Api-Key
+        in: header
+        required: false
+        description: Optional deployment API key. Absence keeps the endpoint public;
+          a presented key that is unknown or inactive returns 401.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: contract metadata
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ApiMetadata"
+        '401':
+          description: presented API key is invalid or inactive
           content:
             application/json:
               schema:

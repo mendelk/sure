@@ -125,6 +125,36 @@ startup with an actionable error when the value is missing or invalid;
 production builds skip the serve-time check (so CI can build without
 secrets) and the SSR loader re-validates on every server render.
 
+## API compatibility (`t_alt_fnd_015`)
+
+The BFF rejects an incompatible Sure API before users encounter arbitrary
+request failures. Rails exposes its contract at the public
+`GET /api/v1/metadata` endpoint (`{ api_version, capabilities }`, see
+`Api::V1::MetadataController`); the BFF supports contract major version
+`1` (from `1.0.0`) and requires the `auth.login`, `auth.refresh`, and
+`auth.logout` capabilities. The endpoint stays public so version checks
+work without credentials, but a presented `X-Api-Key` that is unknown or
+inactive is rejected with 401 — the probe always attaches `SURE_API_KEY`
+when configured, so an invalid deployment key reports `unauthenticated`
+instead of a misleading `ready`. The check runs server-side during readiness
+(the index route SSR status) and before session establishment (login) —
+compatibility decisions and messages never include the upstream origin,
+credentials, or upstream bodies.
+
+| State | Meaning | Action |
+| ----- | ------- | ------ |
+| `ready` | Contract is supported | — |
+| `unreachable` | API could not be reached (network/timeout/5xx) | Check connectivity, then contact your administrator |
+| `unauthenticated` | Server rejected the app's API credentials | An administrator should check the deployment configuration (`SURE_API_KEY`) |
+| `too-old` | Server contract predates the supported range (or has no metadata endpoint) | An administrator should upgrade the Sure server |
+| `too-new` | Server contract is newer than this app supports | Update the web app |
+| `missing-capability` | Version is supported but a required capability is absent | An administrator should upgrade the Sure server |
+
+Removing or renaming a capability token, or bumping the Rails contract
+major version, is a breaking change: update the BFF's supported range in
+`src/lib/sure-api-compat.ts` and the login/readiness handling together,
+then regenerate the OpenAPI artifacts (`pnpm api:generate`).
+
 ## Running Rails and the web app together
 
 1. Start Rails (API) on `http://localhost:3000` per the main repo docs
@@ -136,8 +166,9 @@ secrets) and the SSR loader re-validates on every server render.
    pnpm web:dev
    ```
 
-3. Open `http://localhost:5173`. The index page server-renders the
-   configured API origin as its connection status.
+3. Open `http://localhost:5173`. The index page server-renders the API
+   compatibility status as its connection readout (the configured origin
+   itself is server-only and never rendered).
 
 ## End-to-end test harness (`t_alt_fnd_012`)
 

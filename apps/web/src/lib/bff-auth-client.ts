@@ -10,7 +10,8 @@
  * Clearing rule (t_alt_fnd_007 acceptance): local session state is cleared
  * on logout, revocation, deactivation, invalid refresh, AND deployment API
  * incompatibility — every one of those surfaces as an unauthenticated
- * status or an `api-mismatch` error, both of which route through
+ * status or an `api-*` error (`api-mismatch`, `api-too-old`, `api-too-new`,
+ * `api-missing-capability`), all of which route through
  * `clearLocalSessionState`.
  */
 import type { QueryClient } from "@tanstack/react-query";
@@ -42,7 +43,10 @@ export type BffLoginFormFailure =
 	| "mfa-unsupported"
 	| "unavailable"
 	| "throttled"
-	| "api-mismatch";
+	| "api-mismatch"
+	| "api-too-old"
+	| "api-too-new"
+	| "api-missing-capability";
 
 /** Server auth error codes that can surface from the login server function. */
 export type BffLoginErrorCode =
@@ -50,6 +54,9 @@ export type BffLoginErrorCode =
 	| "mfa-unsupported"
 	| "unavailable"
 	| "api-mismatch"
+	| "api-too-old"
+	| "api-too-new"
+	| "api-missing-capability"
 	| "throttled"
 	| "session-expired"
 	| "logged-out"
@@ -74,6 +81,12 @@ export function mapLoginErrorToFailure(code: BffLoginErrorCode): BffLoginFormFai
 			return "throttled";
 		case "api-mismatch":
 			return "api-mismatch";
+		case "api-too-old":
+			return "api-too-old";
+		case "api-too-new":
+			return "api-too-new";
+		case "api-missing-capability":
+			return "api-missing-capability";
 		case "unavailable":
 		default:
 			return "unavailable";

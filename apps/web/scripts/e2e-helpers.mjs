@@ -59,14 +59,18 @@ export async function newThemedPage(browser, webOrigin, { viewport, theme }) {
 	return { context, page };
 }
 
-/** Assert the SSR starter route rendered against the Rails origin. */
-export async function expectSsrHome(page, config) {
+/** Assert the SSR starter route rendered with a supported API contract. */
+export async function expectSsrHome(page) {
 	const status = page.getByTestId("ssr-status");
 	await status.waitFor({ state: "visible" });
-	const text = (await status.textContent()) ?? "";
-	const railsHost = new URL(config.railsOrigin).hostname;
-	if (!text.includes(railsHost)) {
-		throw new Error(`[e2e] SSR status does not reference the Rails origin host "${railsHost}".`);
+	// Origin hygiene (t_alt_fnd_015): the page never renders the Rails
+	// origin, so readiness is asserted through the compatibility badge
+	// instead — it must report `ready` against the seeded Rails service.
+	const compatibility = page.getByTestId("api-compatibility");
+	await compatibility.waitFor({ state: "visible" });
+	const state = await compatibility.getAttribute("data-state");
+	if (state !== "ready") {
+		throw new Error(`[e2e] API compatibility state is "${state}", expected "ready".`);
 	}
 	await page.getByRole("heading", { name: "Sure Web starter route" }).waitFor({ state: "visible" });
 }

@@ -68,6 +68,10 @@ import { BffError, checkBffMutationGuards } from "./bff-policy";
 import type { BffMethod } from "./bff-policy";
 import { proxyToSureApi } from "./sure-api-bff.server";
 import type { BffBodyInit, BffProxyRequest, BffProxyResult } from "./sure-api-bff.server";
+import { checkApiCompatibility } from "./sure-api-compat.server";
+import type { ApiCompatibility } from "./sure-api-compat.server";
+import { describeApiCompatibility } from "./sure-api-compat";
+import type { ApiCompatibilityState } from "./sure-api-compat";
 import type { BffSessionUser } from "./bff-auth-client";
 
 export type BffAuthErrorCode =
@@ -75,6 +79,9 @@ export type BffAuthErrorCode =
 	| "mfa-unsupported"
 	| "unavailable"
 	| "api-mismatch"
+	| "api-too-old"
+	| "api-too-new"
+	| "api-missing-capability"
 	| "session-expired"
 	| "logged-out"
 	| "deactivated"
@@ -492,6 +499,12 @@ export type BffLoginResult =
  * Server-side login (REQ-AUTH-01): credentials travel only BFF→Rails,
  * never touch the browser beyond this call's arguments, and the Sure
  * token pair lands directly in the encrypted server-side session.
+ *
+ * Compatibility gate (`t_alt_fnd_015`): the deployment contract is checked
+ * first and an incompatible API fails closed before any credential leaves
+ * the BFF — with one distinct error per state (`unreachable` →
+ * `unavailable`, `too-old`/`too-new`/`missing-capability` → the matching
+ * `api-*` code). Messages are origin-free (see `./sure-api-compat`).
  */
 export async function loginToBffSession(
 	input: BffLoginInput,
@@ -513,6 +526,14 @@ export async function loginToBffSession(
 	const email = input.email.trim();
 	if (email === "" || input.password === "") {
 		return fail("invalid-credentials", "Invalid email or password.");
+	}
+
+	const compatibility = await checkApiCompatibility({
+		fetchImpl: resolved.fetchImpl,
+		upstreamOrigin: resolved.upstreamOrigin,
+	});
+	if (compatibility.state !== "ready") {
+		return mapCompatibilityToLoginFailure(compatibility.state, compatibility);
 	}
 
 	// Fixation defense (REQ-SESS-04): a pre-login session id is never
@@ -590,6 +611,35 @@ export async function loginToBffSession(
 	};
 	resolved.store.set(sessionId, sealPayload(payload, secrets));
 	return { ok: true, user, csrfToken, cookies: sessionCookies(sessionId, csrfToken) };
+}
+
+/**
+ * Map a compatibility decision to a login failure without leaking the
+ * upstream origin: the `api-*` codes stay distinct per state while every
+ * message comes from the origin-free `describeApiCompatibility` policy.
+ */
+function mapCompatibilityToLoginFailure(
+	state: ApiCompatibilityState,
+	compatibility: ApiCompatibility,
+): BffAuthFailure {
+	switch (state) {
+		case "ready":
+			throw new Error("mapCompatibilityToLoginFailure called for a ready API.");
+		case "unreachable":
+			return fail("unavailable", describeApiCompatibility(compatibility).detail);
+		case "unauthenticated":
+			return fail("unavailable", describeApiCompatibility(compatibility).detail);
+		case "too-old":
+			return fail("api-too-old", describeApiCompatibility(compatibility).detail);
+		case "too-new":
+			return fail("api-too-new", describeApiCompatibility(compatibility).detail);
+		case "missing-capability":
+			return fail("api-missing-capability", describeApiCompatibility(compatibility).detail);
+		default: {
+			const exhaustive: never = state;
+			throw new Error(`Unhandled compatibility state: ${String(exhaustive)}`);
+		}
+	}
 }
 
 function mapLoginUpstreamError(error: BffError): BffAuthFailure {

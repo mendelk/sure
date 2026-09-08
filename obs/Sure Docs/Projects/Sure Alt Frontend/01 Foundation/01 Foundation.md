@@ -59,7 +59,7 @@ Establish the architecture, security, generated API client, design system, appli
 - [x] [[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]
 - [ ] [[add-installable-resilient-pwa-foundation|Add installable resilient PWA foundation]]
 - [ ] [[add-structured-logging-health-and-error-handling|Add structured logging, health, and error handling]]
-- [ ] [[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]
+- [x] [[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]
 - [ ] [[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]
 - [ ] [[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]
 - [ ] [[guarantee-upstream-token-revocation-when-bff-access-token-expired|Guarantee upstream token revocation when BFF access token is expired]]
