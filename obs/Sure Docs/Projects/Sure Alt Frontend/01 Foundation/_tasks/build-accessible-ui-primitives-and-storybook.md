@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fnd_009"
 title: "Build accessible UI primitives and Storybook"
 type: "task"
-status: "todo"
+status: "done"
 priority: "high"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["design-system", "accessibility", "storybook"]
 subtaskIds: []
