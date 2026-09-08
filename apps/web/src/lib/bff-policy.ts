@@ -102,12 +102,19 @@ export const BFF_MULTIPART_TOTAL_OVERHEAD_BYTES = 1024;
 
 /**
  * Conservatively estimate an upload's wire size without buffering content:
- * encoded field names, string bytes, and Blob/File sizes plus framing
+ * encoded field names, string bytes, Blob/File payload sizes, file
+ * metadata (filenames, MIME types — both serialize into the framing, so a
+ * zero-byte File with a long name is mostly headers), plus framing
  * overhead. Sized `Blob`/`File` parts keep `FormData` forwarding
- * stream-friendly — only sizes are read here, never bytes — which makes
- * bounded multipart Blob/File the supported streaming upload path (raw
- * `ReadableStream` bodies stay fail-closed: they cannot be
+ * stream-friendly — only sizes and metadata strings are read here, never
+ * bytes — which makes bounded multipart Blob/File the supported streaming
+ * upload path (raw `ReadableStream` bodies stay fail-closed: they cannot be
  * contract-validated).
+ *
+ * The estimate must never undershoot the serialized bytes: per-part framing
+ * (generated boundary lines, `Content-Disposition`, `Content-Type`,
+ * CRLFs) is covered by `BFF_MULTIPART_PART_OVERHEAD_BYTES` on top of the
+ * explicitly counted names, filenames, types, and payloads.
  */
 export function estimateFormDataSize(form: FormData): number {
 	const encoder = new TextEncoder();
@@ -118,6 +125,10 @@ export function estimateFormDataSize(form: FormData): number {
 			total += encoder.encode(value).length;
 		} else {
 			total += value.size;
+			total += encoder.encode(value.type).length;
+			if (value instanceof File) {
+				total += encoder.encode(value.name).length;
+			}
 		}
 	});
 	return total;
