@@ -102,6 +102,8 @@ export * from "./patchApiV1TransactionsIdBody.zod.ts";
 export * from "./patchApiV1ValuationsIdBody.zod.ts";
 export * from "./postApiV1AuthLogin200.zod.ts";
 export * from "./postApiV1AuthLoginBody.zod.ts";
+export * from "./postApiV1AuthLogout200.zod.ts";
+export * from "./postApiV1AuthLogoutBody.zod.ts";
 export * from "./postApiV1AuthRefresh200.zod.ts";
 export * from "./postApiV1AuthRefreshBody.zod.ts";
 export * from "./postApiV1AuthSignup201.zod.ts";

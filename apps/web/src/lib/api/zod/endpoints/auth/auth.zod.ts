@@ -138,6 +138,25 @@ export const PostApiV1AuthRefresh400Response = ErrorResponse;
 export const PostApiV1AuthRefresh401Response = ErrorResponse;
 
 /**
+ * Explicit token revocation for BFF logout (ADR-0001 REQ-API-01). Revokes the bearer token that authenticated the request, or the token identified by the refresh_token param. Unknown identifiers return revoked true so logout stays idempotent.
+ * @summary Revoke the current OAuth token (BFF logout)
+ */
+export const PostApiV1AuthLogoutBody = zod.strictObject({
+	refresh_token: zod
+		.string()
+		.nullish()
+		.describe(
+			"Refresh token identifying the token pair to revoke when revoking by param instead of bearer token",
+		),
+});
+
+export const PostApiV1AuthLogout200Response = zod.strictObject({
+	revoked: zod.boolean().exactOptional(),
+});
+
+export const PostApiV1AuthLogout401Response = ErrorResponse;
+
+/**
  * Authenticates with email/password and links the SSO identity from a previously issued linking code. Creates an OidcIdentity, logs the link via SsoAuditLog, and issues mobile OAuth tokens.
  * @summary Link an existing account via SSO
  */

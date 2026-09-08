@@ -3940,6 +3940,44 @@ paths:
               - refresh_token
               - device
         required: true
+  "/api/v1/auth/logout":
+    post:
+      summary: Revoke the current OAuth token (BFF logout)
+      tags:
+      - Auth
+      description: Explicit token revocation for BFF logout (ADR-0001 REQ-API-01).
+        Revokes the bearer token that authenticated the request, or the token
+        identified by the refresh_token param. Unknown identifiers return revoked
+        true so logout stays idempotent.
+      parameters: []
+      responses:
+        '200':
+          description: token revoked (or already invalid)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked:
+                    type: boolean
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+                  nullable: true
+                  description: Refresh token identifying the token pair to revoke
+                    when revoking by param instead of bearer token
+        required: false
   "/api/v1/auth/sso_link":
     post:
       summary: Link an existing account via SSO

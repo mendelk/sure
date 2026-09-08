@@ -478,6 +478,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke the current OAuth token (BFF logout)
+         * @description Explicit token revocation for BFF logout (ADR-0001 REQ-API-01). Revokes the bearer token that authenticated the request, or the token identified by the refresh_token param. Unknown identifiers return revoked true so logout stays idempotent.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description Refresh token identifying the token pair to revoke when revoking by param instead of bearer token */
+                        refresh_token?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description token revoked (or already invalid) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            revoked?: boolean;
+                        };
+                    };
+                };
+                /** @description unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/sso_link": {
         parameters: {
             query?: never;
