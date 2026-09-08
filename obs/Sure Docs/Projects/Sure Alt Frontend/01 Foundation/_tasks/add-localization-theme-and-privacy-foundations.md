@@ -5,18 +5,18 @@ parentId: null
 id: "t_alt_fnd_011"
 title: "Add localization theme and privacy foundations"
 type: "task"
-status: "todo"
+status: "done"
 priority: "high"
-start: ""
+start: "2026-09-08"
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["frontend", "i18n", "privacy"]
 subtaskIds: []
 dependencies: ["t_alt_fnd_008", "t_alt_fnd_009", "t_alt_fnd_010"]
 timeEstimate: 28
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-08T05:35:00.000Z"
 ---
 
 Create cross-cutting presentation foundations for English-first localization, light/dark/system themes, and sensitive-value masking.

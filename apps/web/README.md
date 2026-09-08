@@ -207,6 +207,42 @@ hitting disk. Mark PII/finance regions with `data-sensitive` as new pages
 land. Tokens and passwords never enter logs, summaries, or artifacts —
 only redacted statuses and schema paths.
 
+Application privacy is independent of artifact masking. The root
+`PrivacyProvider` fails closed (`masked=true`) during SSR and the first
+client render, then resolves the non-sensitive local preference after
+hydration. Sensitive components derive display text from source data and
+must mask every output channel together: visible values, accessible names,
+tooltips/previews, and clipboard text. Masked clipboard output is always the
+fixed `•••` token, never pattern-matched digits, so non-Latin numeral scripts
+cannot leak. Chart adapters use `maskChartSeries` to return a masked copy;
+they never mutate query/API source data.
+
+## Localization, theme, and presentation preferences (`t_alt_fnd_011`)
+
+- Static application copy resolves from typed keys in
+  `src/lib/i18n/messages.ts`; missing keys fail TypeScript. Currency, numbers,
+  dates, date-times, and timezones use the explicit `Intl` wrappers in
+  `src/lib/i18n/format.ts` (UTC default for deterministic SSR/hydration).
+- English is the only shipped catalog today. Pseudolocale and long-text
+  fixtures in `src/lib/i18n/fixtures.ts` exercise expansion, wrapping, and
+  placeholder preservation without pretending another translation ships.
+- Theme selection supports `light`, `dark`, and `system`. `RootComponent`
+  owns one `useThemeChoice` state and shares it through
+  `ThemeChoiceProvider`; shell/settings controls therefore repaint the root
+  StyleX theme immediately. Theme remains unresolved through SSR and the
+  first client render, avoiding hydration mismatch without an inline script.
+- Browser persistence is limited to three non-sensitive presentation fields:
+  `sure-theme` (`light`/`dark`; absence means system), `sure-locale`, and
+  `sure-privacy-masked` (`1`; absence means exposed after hydration). No
+  balance, email, transaction, token, credential, tooltip, or copied value is
+  stored.
+- Future settings synchronization is intentionally a documented contract,
+  not an endpoint invented by this frontend task: `GET`/`PUT`
+  `/api/v1/settings/presentation` with `{ theme, locale, privacyMasked,
+  updatedAt }`, last-write-wins by `updatedAt`, local-first while offline, and
+  push on the next authenticated save. The machine-readable plan is
+  `PRESENTATION_SYNC_PLAN` in `src/lib/preferences/presentation.ts`.
+
 ## Typed API client (`src/lib/api/`)
 
 - **Generator:** [`openapi-typescript`] + [`openapi-fetch`] (same

@@ -254,6 +254,38 @@ try {
 		}
 	});
 
+	await check("theme control applies and persists the document theme", async () => {
+		const context = await browser.newContext({
+			viewport: E2E_VIEWPORTS.desktop,
+			colorScheme: "light",
+		});
+		const page = await context.newPage();
+		try {
+			await page.goto(`${config.webOrigin}/login`, { waitUntil: "load" });
+			await loginThroughUi(page, "viewer");
+			const theme = page.getByRole("button", { name: /Theme/ });
+			await theme.click();
+			await page.getByRole("option", { name: "Dark" }).click();
+			await page.waitForFunction(
+				() => document.documentElement.getAttribute("data-theme") === "dark",
+				undefined,
+				{ timeout: 5000 },
+			);
+			const stored = await page.evaluate(() => localStorage.getItem("sure-theme"));
+			if (stored !== "dark") {
+				throw new Error(`expected persisted dark theme, saw "${stored}".`);
+			}
+			await page.reload({ waitUntil: "load" });
+			await page.waitForFunction(
+				() => document.documentElement.getAttribute("data-theme") === "dark",
+				undefined,
+				{ timeout: 5000 },
+			);
+		} finally {
+			await context.close();
+		}
+	});
+
 	await check("skip link and heading focus management (keyboard)", async () => {
 		const context = await browser.newContext({ viewport: E2E_VIEWPORTS.desktop });
 		const page = await context.newPage();

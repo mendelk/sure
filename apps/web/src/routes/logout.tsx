@@ -13,6 +13,7 @@ import {
 } from "~/components/ui/card";
 import { BFF_SESSION_QUERY_KEY, clearLocalSessionState } from "~/lib/bff-auth-client";
 import type { BffSessionStatus } from "~/lib/bff-auth-client";
+import { formatMessage } from "~/lib/i18n/messages";
 import { splitNextTarget } from "~/lib/route-guards";
 import { PublicChrome } from "~/components/shell/public-chrome";
 import { bffLogoutFn } from "./login";
@@ -65,19 +66,17 @@ function LogoutPage(): React.ReactElement {
 		<PublicChrome>
 			<SureCard>
 				<SureCardHeader>
-					<SureCardTitle>Log out of Sure</SureCardTitle>
-					<SureCardDescription>
-						This signs you out on this device and revokes the session.
-					</SureCardDescription>
+					<SureCardTitle>{formatMessage("auth.logoutTitle")}</SureCardTitle>
+					<SureCardDescription>{formatMessage("auth.logoutDescription")}</SureCardDescription>
 				</SureCardHeader>
 				<SureCardContent>
 					{failed ? (
-						<SureAlert tone="warning" title="Could not log out">
-							The sign-out service is unavailable. Try again in a moment.
+						<SureAlert tone="warning" title={formatMessage("auth.logoutFailedTitle")}>
+							{formatMessage("auth.logoutFailedBody")}
 						</SureAlert>
 					) : null}
 					<SureButton variant="primary" isPending={pending} onPress={() => void handleLogout()}>
-						{pending ? "Logging out…" : "Log out"}
+						{pending ? formatMessage("auth.loggingOut") : formatMessage("auth.logoutAction")}
 					</SureButton>
 				</SureCardContent>
 			</SureCard>

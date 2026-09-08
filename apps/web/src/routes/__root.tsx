@@ -9,12 +9,15 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import * as stylex from "@stylexjs/stylex";
 import type * as React from "react";
-import { useEffect, useState } from "react";
 import { PublicChrome } from "~/components/shell/public-chrome";
 import { RouteErrorState, RouteNotFound, RoutePending } from "~/components/shell/route-states";
+import { LocaleProvider } from "~/lib/i18n/i18n-provider";
+import { formatMessage } from "~/lib/i18n/messages";
+import { PrivacyProvider } from "~/lib/privacy/privacy-provider";
 import { useMarkClientSideNavigations } from "~/lib/navigation-focus";
 import { sureDarkTheme, sureLightTheme, vars } from "~/styles/sure-tokens.stylex";
-import { getInitialTheme } from "~/styles/theme";
+import { ThemeChoiceProvider } from "~/styles/theme-choice-context";
+import { useThemeChoice } from "~/styles/use-theme-choice";
 import type { SureThemeName } from "~/styles/theme";
 import appCss from "~/styles/app.css?url";
 
@@ -46,7 +49,7 @@ export const Route = createRootRouteWithContext<{
 				name: "viewport",
 				content: "width=device-width, initial-scale=1",
 			},
-			{ title: "Sure Web" },
+			{ title: formatMessage("app.title") },
 		],
 		links: [
 			{ rel: "stylesheet", href: appCss },
@@ -73,7 +76,7 @@ export const Route = createRootRouteWithContext<{
 	// skeletons, accessible not-found, and unexpected-error cards. Group
 	// layouts and leaf routes override with shell-aware copies where the
 	// authenticated chrome should persist.
-	pendingComponent: () => <RoutePending label="Loading Sure Web" />,
+	pendingComponent: () => <RoutePending label={formatMessage("routes.loadingSure")} />,
 	notFoundComponent: () => (
 		<PublicChrome>
 			<RouteNotFound />
@@ -81,7 +84,7 @@ export const Route = createRootRouteWithContext<{
 	),
 	errorComponent: ({ error, reset }) => (
 		<RouteErrorState
-			message={error instanceof Error ? error.message : "Something went wrong."}
+			message={error instanceof Error ? error.message : formatMessage("routes.errorFallback")}
 			onRetry={reset}
 		/>
 	),
@@ -96,36 +99,47 @@ function RootComponent() {
 	// whether a fresh heading may take focus.
 	const router = useRouter();
 	useMarkClientSideNavigations(router.history);
-	// Stored choice wins, otherwise the OS default. Unresolved (null) until
-	// hydration: SSR and the first client render agree on "no theme yet", so
-	// there is no hydration mismatch, and no inline script is needed
-	// (ADR-0001 REQ-TRAN-02 forbids inline scripts under the enforced CSP).
-	// Pre-hydration, data-theme stays absent so sure-theme.css gives UA chrome
-	// the correct light/dark system default via color-scheme, while app
-	// surfaces fall back to the compiled light semantic variables (see
-	// RootDocument). The stored/OS choice resolves in the effect below.
-	const [theme, setTheme] = useState<SureThemeName | null>(null);
-	useEffect(() => {
-		setTheme(
-			getInitialTheme(
-				localStorage.getItem("sure-theme"),
-				window.matchMedia("(prefers-color-scheme: dark)").matches,
-			),
-		);
-	}, []);
+	// Theme choice (light/dark/system) resolves post-hydration via
+	// `useThemeChoice`: SSR and the first client render agree on "no theme
+	// yet" (null), so there is no hydration mismatch, and no inline script
+	// is needed (ADR-0001 REQ-TRAN-02 forbids inline scripts under the
+	// enforced CSP). Pre-hydration, data-theme stays absent so
+	// sure-theme.css gives UA chrome the correct light/dark system default
+	// via color-scheme, while app surfaces fall back to the compiled light
+	// semantic variables (see RootDocument). The stored/system choice
+	// resolves in the hook's effect (and follows OS changes while the
+	// choice is "system"). Locale and privacy providers follow the same
+	// default-until-hydration pattern (t_alt_fnd_011).
+	const themeState = useThemeChoice();
 
 	return (
-		<RootDocument theme={theme}>
-			<Outlet />
+		<RootDocument theme={themeState.theme}>
+			<ThemeChoiceProvider value={themeState}>
+				<LocaleProvider>
+					<PrivacyProvider>
+						<Outlet />
+					</PrivacyProvider>
+				</LocaleProvider>
+			</ThemeChoiceProvider>
 		</RootDocument>
 	);
 }
 
-function RootDocument({
-	children,
+// Exported for SSR/hydration tests (t_alt_fnd_011): suites render this
+// with `theme={null}` on both server and client and assert the markup
+// agrees exactly (no data-theme, light fallback), then resolve stored or
+// system themes post-hydration without mismatch.
+//
+// `ThemedHtml` is the pure document shell (no router context) so tests
+// can server-render and hydrate it directly; `RootDocument` adds the
+// TanStack head/scripts around the same shell.
+export function ThemedHtml({
+	head,
+	body,
 	theme,
 }: {
-	children: React.ReactNode;
+	head: React.ReactNode;
+	body: React.ReactNode;
 	theme: SureThemeName | null;
 }) {
 	return (
@@ -141,13 +155,29 @@ function RootDocument({
 			data-theme={theme ?? undefined}
 			{...stylex.props(theme === "dark" ? sureDarkTheme : sureLightTheme, styles.root)}
 		>
-			<head>
-				<HeadContent />
-			</head>
-			<body>
-				{children}
-				<Scripts />
-			</body>
+			<head>{head}</head>
+			<body>{body}</body>
 		</html>
+	);
+}
+
+export function RootDocument({
+	children,
+	theme,
+}: {
+	children: React.ReactNode;
+	theme: SureThemeName | null;
+}) {
+	return (
+		<ThemedHtml
+			theme={theme}
+			head={<HeadContent />}
+			body={
+				<>
+					{children}
+					<Scripts />
+				</>
+			}
+		/>
 	);
 }

@@ -5,6 +5,7 @@ import { RouteErrorState, RouteNotFound, RoutePending } from "~/components/shell
 import { SureCard, SureCardContent, SureCardHeader, SureCardTitle } from "~/components/ui/card";
 import { SureSelect } from "~/components/ui/select";
 import { SureTextField } from "~/components/ui/text-field";
+import { formatMessage } from "~/lib/i18n/messages";
 import type { DashboardFilter } from "~/lib/app-search";
 import { parseDashboardSearch } from "~/lib/app-search";
 
@@ -20,12 +21,20 @@ import { parseDashboardSearch } from "~/lib/app-search";
  */
 export const Route = createFileRoute("/_authenticated/dashboard")({
 	validateSearch: (search: Record<string, unknown>) => parseDashboardSearch(search),
-	head: () => ({ meta: [{ title: "Dashboard · Sure Web" }] }),
-	pendingComponent: () => <RoutePending label="Loading dashboard" />,
+	head: () => ({
+		meta: [
+			{
+				title: formatMessage("app.documentTitle", {
+					title: formatMessage("dashboard.title"),
+				}),
+			},
+		],
+	}),
+	pendingComponent: () => <RoutePending label={formatMessage("routes.loadingDashboard")} />,
 	notFoundComponent: () => <RouteNotFound />,
 	errorComponent: ({ error, reset }) => (
 		<RouteErrorState
-			message={error instanceof Error ? error.message : "The dashboard could not be loaded."}
+			message={error instanceof Error ? error.message : formatMessage("routes.dashboardError")}
 			onRetry={reset}
 		/>
 	),
@@ -33,9 +42,9 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 const FILTER_OPTIONS: readonly { id: DashboardFilter; label: string }[] = [
-	{ id: "all", label: "All" },
-	{ id: "active", label: "Active" },
-	{ id: "archived", label: "Archived" },
+	{ id: "all", label: formatMessage("dashboard.filterAll") },
+	{ id: "active", label: formatMessage("dashboard.filterActive") },
+	{ id: "archived", label: formatMessage("dashboard.filterArchived") },
 ];
 
 function DashboardPage(): React.ReactElement {
@@ -51,41 +60,44 @@ function DashboardPage(): React.ReactElement {
 	return (
 		<>
 			<PageHeader
-				title="Dashboard"
-				breadcrumbs={[{ label: "Home", to: "/" }, { label: "Dashboard" }]}
+				title={formatMessage("dashboard.title")}
+				breadcrumbs={[
+					{ label: formatMessage("dashboard.homeCrumb"), to: "/" },
+					{ label: formatMessage("dashboard.title") },
+				]}
 			/>
 			<SureCard>
 				<SureCardHeader>
-					<SureCardTitle>Workspace overview</SureCardTitle>
+					<SureCardTitle>{formatMessage("dashboard.overview")}</SureCardTitle>
 				</SureCardHeader>
 				<SureCardContent>
 					<p data-testid="dashboard-search-state">
-						Showing {search.filter} items
+						{formatMessage("dashboard.showing", { filter: search.filter })}
 						{search.q !== "" ? (
 							<>
 								{" "}
-								matching <q data-sensitive={true}>{search.q}</q>
+								{formatMessage("dashboard.matching")} <q data-sensitive={true}>{search.q}</q>
 							</>
 						) : null}
 						.
 					</p>
 					<form
-						aria-label="Filter workspace items"
+						aria-label={formatMessage("dashboard.filterLabel")}
 						onSubmit={(event) => {
 							event.preventDefault();
 						}}
 					>
 						<SureTextField
-							label="Search"
+							label={formatMessage("dashboard.searchLabel")}
 							name="q"
-							placeholder="Search items"
+							placeholder={formatMessage("dashboard.searchPlaceholder")}
 							value={search.q}
 							onChange={(value) => {
 								commit({ q: value });
 							}}
 						/>
 						<SureSelect
-							label="Status filter"
+							label={formatMessage("dashboard.statusLabel")}
 							items={FILTER_OPTIONS}
 							selectedKey={search.filter}
 							onSelectionChange={(key) => {
@@ -101,14 +113,14 @@ function DashboardPage(): React.ReactElement {
 							search={{ q: search.q, filter: search.filter }}
 							data-testid="dashboard-deep-link"
 						>
-							Deep link to this filtered view
+							{formatMessage("dashboard.deepLink")}
 						</Link>{" "}
 						<Link
 							to="/settings"
 							search={{ section: "profile" }}
 							data-testid="dashboard-to-settings"
 						>
-							Go to settings
+							{formatMessage("dashboard.goToSettings")}
 						</Link>
 					</p>
 				</SureCardContent>

@@ -59,8 +59,8 @@ export async function newThemedPage(browser, webOrigin, { viewport, theme }) {
 	return { context, page };
 }
 
-/** Assert the SSR starter route rendered with a supported API contract. */
-export async function expectSsrHome(page) {
+/** Assert the SSR starter route rendered with a supported, origin-free API contract. */
+export async function expectSsrHome(page, config) {
 	const status = page.getByTestId("ssr-status");
 	await status.waitFor({ state: "visible" });
 	// Origin hygiene (t_alt_fnd_015): the page never renders the Rails
@@ -71,6 +71,15 @@ export async function expectSsrHome(page) {
 	const state = await compatibility.getAttribute("data-state");
 	if (state !== "ready") {
 		throw new Error(`[e2e] API compatibility state is "${state}", expected "ready".`);
+	}
+	// Inspect the complete SSR/hydration document, not only visible text:
+	// a server-function payload can leak through serialized page data even
+	// when no component renders it. Neither the configured origin nor its
+	// internal hostname may enter browser-delivered HTML.
+	const html = await page.content();
+	const internalHost = new URL(config.railsOrigin).hostname;
+	if (html.includes(config.railsOrigin) || html.includes(internalHost)) {
+		throw new Error("[e2e] browser-delivered HTML exposed the configured Sure API origin.");
 	}
 	await page.getByRole("heading", { name: "Sure Web starter route" }).waitFor({ state: "visible" });
 }

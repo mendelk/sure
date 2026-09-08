@@ -19,6 +19,7 @@ import type {
 	BffSessionStatus,
 	BffSessionUser,
 } from "~/lib/bff-auth-client";
+import { formatMessage } from "~/lib/i18n/messages";
 import { splitNextTarget } from "~/lib/route-guards";
 import {
 	getBffSessionStatus,
@@ -76,12 +77,12 @@ type BffLoginFnResult =
 export const bffLoginFn = createServerFn({ method: "POST" })
 	.validator((data: unknown): BffLoginFnInput => {
 		if (typeof data !== "object" || data === null) {
-			throw new Error("Invalid login data.");
+			throw new Error(formatMessage("auth.invalidData"));
 		}
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Narrowing boundary: server-function input is untyped JSON; both fields are re-validated as strings immediately below.
 		const record = data as { email?: unknown; password?: unknown };
 		if (typeof record.email !== "string" || typeof record.password !== "string") {
-			throw new Error("Invalid login data.");
+			throw new Error(formatMessage("auth.invalidData"));
 		}
 		return { email: record.email, password: record.password };
 	})

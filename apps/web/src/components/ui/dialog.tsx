@@ -14,6 +14,7 @@ import {
 import type { PopoverProps as AriaPopoverProps } from "react-aria-components";
 import * as stylex from "@stylexjs/stylex";
 import type * as React from "react";
+import { formatMessage } from "~/lib/i18n/messages";
 import { vars } from "~/styles/sure-tokens.stylex";
 import { sureFocus, sureFont, type SureStyle } from "./sure-styles";
 
@@ -161,7 +162,7 @@ export function SureDialog({
 							<div {...stylex.props(dialogStyles.body)}>{children}</div>
 							{footer != null ? <div {...stylex.props(dialogStyles.footer)}>{footer}</div> : null}
 							<Button
-								aria-label="Close dialog"
+								aria-label={formatMessage("ui.closeDialog")}
 								onPress={() => {
 									close();
 								}}

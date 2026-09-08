@@ -12,7 +12,7 @@ commit every generated file together.
 | `sure-tokens.stylex.ts`    | generated | `vars` (`stylex.defineVars`), `sureLightTheme` / `sureDarkTheme` classes |
 | `sure-token-values.ts`     | generated | Same values as plain data (tests, canvas/SVG charts)                    |
 | `sure-theme.css`           | generated | `color-scheme` defaults, reduced-motion + forced-colors guards           |
-| `theme.ts`                 | handwritten | Theme resolution + DOM application + pre-paint inline script            |
+| `theme.ts`                 | handwritten | Theme choice parsing, resolution, persistence, and OS subscription       |
 | `TokenPreview.tsx`         | handwritten | Representative preview (tests now, Storybook in `t_alt_fnd_009`)       |
 
 ## Rule: semantic tokens only
@@ -109,10 +109,13 @@ to the `defineVars` defaults. The stored/OS choice (including OS dark) takes
 effect in the hydration effect above.
 
 `data-theme` also drives `color-scheme` (sure-theme.css), so scrollbars and
-form controls follow the app theme once it resolves. A user-facing toggle
-(persisted via `theme.ts` `persistThemeChoice`) lands with `t_alt_fnd_011`.
-Never toggle theme classes imperatively via `classList` — `createTheme`
-results are opaque `Theme<>` objects that only `stylex.props` understands.
+form controls follow the app theme once it resolves. The `t_alt_fnd_011`
+controls support light/dark/system and persist only explicit light/dark
+overrides; absence means system. `RootComponent` owns the single
+`useThemeChoice` instance and shares it through `ThemeChoiceProvider`, so
+shell/settings controls update the root immediately. Never toggle theme
+classes imperatively via `classList` — `createTheme` results are opaque
+`Theme<>` objects that only `stylex.props` understands.
 
 ## Reduced motion
 

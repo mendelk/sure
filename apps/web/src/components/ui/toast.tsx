@@ -22,6 +22,7 @@ import {
 import type { QueuedToast } from "react-aria-components";
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type * as React from "react";
+import { formatMessage } from "~/lib/i18n/messages";
 import { vars } from "~/styles/sure-tokens.stylex";
 import { sureFocus, sureFont, sureMotion, type SureStyle } from "./sure-styles";
 
@@ -243,7 +244,7 @@ function SureToastRegion({
 	return (
 		<AriaToastRegion
 			queue={queue}
-			aria-label="Notifications"
+			aria-label={formatMessage("ui.notifications")}
 			className={stylex.props(toastStyles.region, sureMotion.allowOnly).className ?? ""}
 		>
 			{({ toast: item }: { toast: QueuedToast<SureToastContent> }) => (
@@ -274,7 +275,9 @@ function SureToastCard({
 }): React.ReactElement {
 	const { title, message, tone, actionLabel, onAction } = item.content;
 	const dismissId = idForKey(idKeys, item.key);
-	const dismissLabel = `Dismiss notification: ${title !== "" ? title : message}`;
+	const dismissLabel = formatMessage("ui.dismissNotification", {
+		name: title !== "" ? title : message,
+	});
 	return (
 		<AriaToast
 			toast={item}

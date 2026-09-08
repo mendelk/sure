@@ -14,6 +14,7 @@
  * it; absence means non-admin (fail closed, forward-compatible).
  */
 import type { BffSessionStatus } from "./bff-auth-client";
+import type { MessageKey } from "./i18n/messages";
 
 /** Actions the shell can gate navigation and routes on. */
 export type AppCapability = "view-dashboard" | "manage-settings" | "administer";
@@ -57,10 +58,10 @@ export function hasCapability(capabilities: AppCapabilities, capability: AppCapa
 /** Navigation entry owned by the AppShell (label + target + gate). */
 export interface AppNavItem {
 	readonly id: string;
-	readonly label: string;
+	readonly labelKey: MessageKey;
 	readonly to: string;
 	readonly capability: AppCapability;
-	readonly description: string;
+	readonly descriptionKey: MessageKey;
 }
 
 /**
@@ -70,24 +71,24 @@ export interface AppNavItem {
 export const APP_NAV_ITEMS: readonly AppNavItem[] = [
 	{
 		id: "dashboard",
-		label: "Dashboard",
+		labelKey: "shell.navDashboard",
 		to: "/dashboard",
 		capability: "view-dashboard",
-		description: "Authenticated overview.",
+		descriptionKey: "dashboard.overview",
 	},
 	{
 		id: "settings",
-		label: "Settings",
+		labelKey: "shell.navSettings",
 		to: "/settings",
 		capability: "manage-settings",
-		description: "Workspace and account settings.",
+		descriptionKey: "prefs.settingsDescription",
 	},
 	{
 		id: "admin",
-		label: "Admin",
+		labelKey: "shell.navAdmin",
 		to: "/admin",
 		capability: "administer",
-		description: "Family administration (admins only).",
+		descriptionKey: "admin.cardTitle",
 	},
 ];
 

@@ -253,6 +253,67 @@ async function interact(page, storyId) {
 			);
 			break;
 		}
+		case "foundations-presentation--controls": {
+			// Global privacy control: the switch masks, persists, and
+			// unmasks (toggled back off so later stories start clean —
+			// stories share one page localStorage). Pointer users hit the
+			// label text (the decorative track is aria-hidden), mirroring
+			// the forms-toggles--switches interaction above.
+			const toggle = root.getByRole("switch", { name: "Hide sensitive values" });
+			const amount = root.getByTestId("sensitive-amount");
+			assert(
+				((await amount.textContent()) ?? "").includes("$1,234.50"),
+				"unmasked global amount is locale formatted after hydration",
+			);
+			await root.getByText("Hide sensitive values").click();
+			await assertChecked(toggle, true, "privacy switch masks with click");
+			assert(
+				(await amount.textContent()) === "•••",
+				"global privacy switch masks visible amount text",
+			);
+			assert(
+				(await amount.locator('[role="text"]').getAttribute("aria-label")) === "Hidden balance",
+				"global privacy switch masks the accessible name",
+			);
+			assert(
+				(await amount.locator('[role="text"]').getAttribute("title")) === "Hidden balance",
+				"global privacy switch masks the tooltip",
+			);
+			await root.getByText("Hide sensitive values").click();
+			await assertChecked(toggle, false, "privacy switch unmasks with click");
+			assert(
+				((await amount.textContent()) ?? "").includes("$1,234.50"),
+				"global privacy switch restores the derived display without mutating source data",
+			);
+			// Theme choice: system/light/dark options commit through the DS select.
+			const themeButton = root.getByRole("button", { name: /Theme/ });
+			await themeButton.click();
+			const listbox = page.getByRole("listbox");
+			await listbox.waitFor({ state: "visible", timeout: 5000 });
+			await page.getByRole("option", { name: "Dark" }).click();
+			try {
+				await page.getByRole("button", { name: /Dark/ }).waitFor({ timeout: 5000 });
+			} catch {
+				throw new Error("theme select commits the Dark choice");
+			}
+			break;
+		}
+		case "foundations-presentation--masked-amounts": {
+			// Masked rows expose the fixed mask glyph only: no digits in
+			// the masked card's text, accessible name, or tooltip.
+			const masked = await root.getByText("Masked").evaluate((heading) => {
+				const card = heading.closest("div");
+				return card?.parentElement?.textContent ?? "";
+			});
+			assert(masked.includes("•••"), "masked amount renders the mask glyph");
+			assert(!/\d/.test(masked), "masked amount leaks no digits");
+			const exposed = await root.getByText("Exposed").evaluate((heading) => {
+				const card = heading.closest("div");
+				return card?.parentElement?.textContent ?? "";
+			});
+			assert(exposed.includes("$1,234.50"), "exposed amount keeps its locale format");
+			break;
+		}
 		default:
 			break;
 	}
