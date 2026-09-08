@@ -1,15 +1,18 @@
 /// <reference types="vite/client" />
 import {
 	HeadContent,
-	Link,
 	Outlet,
 	Scripts,
 	createRootRouteWithContext,
+	useRouter,
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import * as stylex from "@stylexjs/stylex";
 import type * as React from "react";
 import { useEffect, useState } from "react";
+import { PublicChrome } from "~/components/shell/public-chrome";
+import { RouteErrorState, RouteNotFound, RoutePending } from "~/components/shell/route-states";
+import { useMarkClientSideNavigations } from "~/lib/navigation-focus";
 import { sureDarkTheme, sureLightTheme, vars } from "~/styles/sure-tokens.stylex";
 import { getInitialTheme } from "~/styles/theme";
 import type { SureThemeName } from "~/styles/theme";
@@ -66,10 +69,33 @@ export const Route = createRootRouteWithContext<{
 				[{ type: "module", src: "/@id/virtual:stylex:runtime" }]
 			: [],
 	}),
+	// Route-level states shared by every group (t_alt_fnd_010): pending
+	// skeletons, accessible not-found, and unexpected-error cards. Group
+	// layouts and leaf routes override with shell-aware copies where the
+	// authenticated chrome should persist.
+	pendingComponent: () => <RoutePending label="Loading Sure Web" />,
+	notFoundComponent: () => (
+		<PublicChrome>
+			<RouteNotFound />
+		</PublicChrome>
+	),
+	errorComponent: ({ error, reset }) => (
+		<RouteErrorState
+			message={error instanceof Error ? error.message : "Something went wrong."}
+			onRetry={reset}
+		/>
+	),
 	component: RootComponent,
 });
 
 function RootComponent() {
+	// Navigation tracking for focus management (t_alt_fnd_010): installed
+	// once at the router root so it observes every client-side navigation
+	// (login redirects, in-app moves, back/forward) and resets on full
+	// page loads with the module state. PageHeader consults it to decide
+	// whether a fresh heading may take focus.
+	const router = useRouter();
+	useMarkClientSideNavigations(router.history);
 	// Stored choice wins, otherwise the OS default. Unresolved (null) until
 	// hydration: SSR and the first client render agree on "no theme yet", so
 	// there is no hydration mismatch, and no inline script is needed
@@ -90,15 +116,7 @@ function RootComponent() {
 
 	return (
 		<RootDocument theme={theme}>
-			<header className="sure-nav">
-				<Link to="/" activeOptions={{ exact: true }}>
-					Sure Web
-				</Link>{" "}
-				<Link to="/login">Log in</Link>
-			</header>
-			<main>
-				<Outlet />
-			</main>
+			<Outlet />
 		</RootDocument>
 	);
 }

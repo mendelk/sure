@@ -16,6 +16,7 @@ export const PatchApiV1AuthEnableAi200 = zod.strictObject({
 			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
+			role: zod.enum(["guest", "member", "admin", "super_admin"]).exactOptional(),
 		})
 		.exactOptional(),
 });

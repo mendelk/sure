@@ -1,6 +1,7 @@
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { PublicChrome } from "~/components/shell/public-chrome";
 import { getSureApiOrigin } from "~/lib/sure-api.server";
 
 export interface SureApiStatus {
@@ -34,13 +35,15 @@ function Home() {
 	const { data } = useSuspenseQuery(sureApiStatusQuery);
 
 	return (
-		<section className="sure-starter">
-			<h1>Sure Web starter route</h1>
-			<p data-testid="ssr-status">
-				Rendered on the server against Sure API origin <code>{data.apiOrigin}</code> at{" "}
-				<time dateTime={data.renderedAt}>{data.renderedAt}</time>.
-			</p>
-			<p data-testid="hydration-status">Hydrated in the browser with TanStack Query.</p>
-		</section>
+		<PublicChrome>
+			<section className="sure-starter">
+				<h1>Sure Web starter route</h1>
+				<p data-testid="ssr-status">
+					Rendered on the server against Sure API origin <code>{data.apiOrigin}</code> at{" "}
+					<time dateTime={data.renderedAt}>{data.renderedAt}</time>.
+				</p>
+				<p data-testid="hydration-status">Hydrated in the browser with TanStack Query.</p>
+			</section>
+		</PublicChrome>
 	);
 }

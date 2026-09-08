@@ -3930,6 +3930,13 @@ paths:
                         - intro
                       ai_enabled:
                         type: boolean
+                      role:
+                        type: string
+                        enum:
+                        - guest
+                        - member
+                        - admin
+                        - super_admin
         '422':
           description: validation error
           content:
@@ -4041,6 +4048,13 @@ paths:
                         - intro
                       ai_enabled:
                         type: boolean
+                      role:
+                        type: string
+                        enum:
+                        - guest
+                        - member
+                        - admin
+                        - super_admin
         '401':
           description: invalid credentials or MFA required
           content:
@@ -4136,6 +4150,13 @@ paths:
                         - intro
                       ai_enabled:
                         type: boolean
+                      role:
+                        type: string
+                        enum:
+                        - guest
+                        - member
+                        - admin
+                        - super_admin
         '401':
           description: invalid or expired code
           content:
@@ -4296,6 +4317,13 @@ paths:
                         - intro
                       ai_enabled:
                         type: boolean
+                      role:
+                        type: string
+                        enum:
+                        - guest
+                        - member
+                        - admin
+                        - super_admin
         '400':
           description: missing linking code
           content:
@@ -4386,6 +4414,13 @@ paths:
                         - intro
                       ai_enabled:
                         type: boolean
+                      role:
+                        type: string
+                        enum:
+                        - guest
+                        - member
+                        - admin
+                        - super_admin
         '400':
           description: missing linking code
           content:
@@ -4469,6 +4504,13 @@ paths:
                         - intro
                       ai_enabled:
                         type: boolean
+                      role:
+                        type: string
+                        enum:
+                        - guest
+                        - member
+                        - admin
+                        - super_admin
         '401':
           description: unauthorized
           content:

@@ -43,6 +43,7 @@ export const PostApiV1AuthSignup201Response = zod.strictObject({
 			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
+			role: zod.enum(["guest", "member", "admin", "super_admin"]).exactOptional(),
 		})
 		.exactOptional(),
 });
@@ -81,6 +82,7 @@ export const PostApiV1AuthLogin200Response = zod.strictObject({
 			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
+			role: zod.enum(["guest", "member", "admin", "super_admin"]).exactOptional(),
 		})
 		.exactOptional(),
 });
@@ -109,6 +111,7 @@ export const PostApiV1AuthSsoExchange200Response = zod.strictObject({
 			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
+			role: zod.enum(["guest", "member", "admin", "super_admin"]).exactOptional(),
 		})
 		.exactOptional(),
 });
@@ -180,6 +183,7 @@ export const PostApiV1AuthSsoLink200Response = zod.strictObject({
 			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
+			role: zod.enum(["guest", "member", "admin", "super_admin"]).exactOptional(),
 		})
 		.exactOptional(),
 });
@@ -220,6 +224,7 @@ export const PostApiV1AuthSsoCreateAccount200Response = zod.strictObject({
 			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
+			role: zod.enum(["guest", "member", "admin", "super_admin"]).exactOptional(),
 		})
 		.exactOptional(),
 });
@@ -246,6 +251,7 @@ export const PatchApiV1AuthEnableAi200Response = zod.strictObject({
 			last_name: zod.string().nullish(),
 			ui_layout: zod.enum(["dashboard", "intro"]).exactOptional(),
 			ai_enabled: zod.boolean().exactOptional(),
+			role: zod.enum(["guest", "member", "admin", "super_admin"]).exactOptional(),
 		})
 		.exactOptional(),
 });

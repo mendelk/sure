@@ -13,7 +13,8 @@ import {
 } from "~/components/ui/card";
 import { BFF_SESSION_QUERY_KEY, clearLocalSessionState } from "~/lib/bff-auth-client";
 import type { BffSessionStatus } from "~/lib/bff-auth-client";
-import { resolveSafeNext } from "~/lib/bff-session";
+import { splitNextTarget } from "~/lib/route-guards";
+import { PublicChrome } from "~/components/shell/public-chrome";
 import { bffLogoutFn } from "./login";
 
 export const Route = createFileRoute("/logout")({
@@ -49,7 +50,8 @@ function LogoutPage(): React.ReactElement {
 				authenticated: false,
 				reason: "missing",
 			} satisfies BffSessionStatus);
-			await navigate({ to: resolveSafeNext(search.next), replace: true });
+			const target = splitNextTarget(search.next);
+			await navigate({ to: target.to, search: target.search, replace: true });
 		} catch {
 			// Transport failure only (the server function always resolves
 			// otherwise): stay signed in and say so.
@@ -60,23 +62,25 @@ function LogoutPage(): React.ReactElement {
 	}
 
 	return (
-		<SureCard>
-			<SureCardHeader>
-				<SureCardTitle>Log out of Sure</SureCardTitle>
-				<SureCardDescription>
-					This signs you out on this device and revokes the session.
-				</SureCardDescription>
-			</SureCardHeader>
-			<SureCardContent>
-				{failed ? (
-					<SureAlert tone="warning" title="Could not log out">
-						The sign-out service is unavailable. Try again in a moment.
-					</SureAlert>
-				) : null}
-				<SureButton variant="primary" isPending={pending} onPress={() => void handleLogout()}>
-					{pending ? "Logging out…" : "Log out"}
-				</SureButton>
-			</SureCardContent>
-		</SureCard>
+		<PublicChrome>
+			<SureCard>
+				<SureCardHeader>
+					<SureCardTitle>Log out of Sure</SureCardTitle>
+					<SureCardDescription>
+						This signs you out on this device and revokes the session.
+					</SureCardDescription>
+				</SureCardHeader>
+				<SureCardContent>
+					{failed ? (
+						<SureAlert tone="warning" title="Could not log out">
+							The sign-out service is unavailable. Try again in a moment.
+						</SureAlert>
+					) : null}
+					<SureButton variant="primary" isPending={pending} onPress={() => void handleLogout()}>
+						{pending ? "Logging out…" : "Log out"}
+					</SureButton>
+				</SureCardContent>
+			</SureCard>
+		</PublicChrome>
 	);
 }

@@ -24,6 +24,13 @@ export interface BffSessionUser {
 	readonly lastName: string;
 	readonly uiLayout: string;
 	readonly aiEnabled: boolean;
+	/**
+	 * Server-provided role when Rails includes it in the login payload
+	 * (forward-compatible: absent means non-admin, fail closed). Never
+	 * set from client storage — it travels inside the sealed BFF session
+	 * only, so capability derivation stays server-validated.
+	 */
+	readonly role?: string | undefined;
 }
 
 export type BffSessionInactiveReason = "missing" | "stale" | "expired";

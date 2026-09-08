@@ -158,47 +158,83 @@ export function parseBffCsrfCookie(cookieHeader: string | null | undefined): str
 	return undefined;
 }
 
+/** Maximum after-login target length (pathname + validated query). */
+export const SAFE_NEXT_MAX_LENGTH = 2048;
+
 /**
  * Resolve an after-login `next` target against the same-origin relative
  * allow-list (REQ-TRAN-04 / T-REDIR). Accepts only single-leading-slash
- * relative paths; rejects absolute URLs, protocol-relative URLs (`//evil`),
- * schemes, backslashes, control characters, encoded slashes, dot-segment
- * escapes, and query/fragment smuggling. Falls back to `/`.
+ * relative paths, with an optional query string so deep links preserve
+ * typed search/filter state (`/dashboard?q=rent&filter=active`) through
+ * the login redirect. Rejects absolute URLs, protocol-relative URLs
+ * (`//evil`), schemes, backslashes, control characters, encoded slashes
+ * in the path, dot-segment escapes, and fragments (in either part).
+ * Query values are data only — they are never fetched server-side — but
+ * are still bounded, must percent-decode cleanly, and must not smuggle
+ * fragments, backslashes, or control characters. Falls back to `/`.
  */
 export function resolveSafeNext(rawNext: unknown): string {
-	if (typeof rawNext !== "string" || rawNext === "" || !rawNext.startsWith("/")) {
-		return "/";
-	}
 	if (
-		rawNext.startsWith("//") ||
-		rawNext.includes("\\") ||
-		rawNext.includes("?") ||
-		rawNext.includes("#") ||
-		/%2f|%5c/i.test(rawNext) ||
-		/[ \t]/.test(rawNext) ||
-		hasSessionControlChars(rawNext)
+		typeof rawNext !== "string" ||
+		rawNext === "" ||
+		!rawNext.startsWith("/") ||
+		rawNext.length > SAFE_NEXT_MAX_LENGTH
 	) {
 		return "/";
 	}
-	let decoded: string;
+	if (rawNext.includes("#")) {
+		return "/";
+	}
+	const queryIndex = rawNext.indexOf("?");
+	const rawPath = queryIndex === -1 ? rawNext : rawNext.slice(0, queryIndex);
+	const rawQuery = queryIndex === -1 ? "" : rawNext.slice(queryIndex + 1);
+	if (
+		rawPath.startsWith("//") ||
+		rawPath.includes("\\") ||
+		/%2f|%5c/i.test(rawPath) ||
+		/[ \t]/.test(rawPath) ||
+		hasSessionControlChars(rawPath)
+	) {
+		return "/";
+	}
+	let decodedPath: string;
 	try {
-		decoded = decodeURIComponent(rawNext);
+		decodedPath = decodeURIComponent(rawPath);
 	} catch {
 		return "/";
 	}
 	if (
-		decoded.includes("\\") ||
-		decoded.includes("?") ||
-		decoded.includes("#") ||
-		decoded.startsWith("//") ||
-		hasSessionControlChars(decoded)
+		decodedPath.includes("\\") ||
+		decodedPath.includes("?") ||
+		decodedPath.includes("#") ||
+		decodedPath.startsWith("//") ||
+		hasSessionControlChars(decodedPath)
 	) {
 		return "/";
 	}
-	for (const segment of decoded.split("/").slice(1)) {
+	for (const segment of decodedPath.split("/").slice(1)) {
 		if (segment === "" || segment === "." || segment === "..") {
 			return "/";
 		}
 	}
-	return rawNext;
+	if (rawQuery === "") {
+		return rawPath;
+	}
+	if (rawQuery.includes("\\") || hasSessionControlChars(rawQuery)) {
+		return "/";
+	}
+	let decodedQuery: string;
+	try {
+		decodedQuery = decodeURIComponent(rawQuery);
+	} catch {
+		return "/";
+	}
+	if (
+		decodedQuery.includes("#") ||
+		decodedQuery.includes("\\") ||
+		hasSessionControlChars(decodedQuery)
+	) {
+		return "/";
+	}
+	return `${rawPath}?${rawQuery}`;
 }

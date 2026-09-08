@@ -229,6 +229,8 @@ export interface paths {
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;
+                                /** @enum {string} */
+                                role?: "guest" | "member" | "admin" | "super_admin";
                             };
                         };
                     };
@@ -316,6 +318,8 @@ export interface paths {
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;
+                                /** @enum {string} */
+                                role?: "guest" | "member" | "admin" | "super_admin";
                             };
                         };
                     };
@@ -387,6 +391,8 @@ export interface paths {
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;
+                                /** @enum {string} */
+                                role?: "guest" | "member" | "admin" | "super_admin";
                             };
                         };
                     };
@@ -592,6 +598,8 @@ export interface paths {
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;
+                                /** @enum {string} */
+                                role?: "guest" | "member" | "admin" | "super_admin";
                             };
                         };
                     };
@@ -685,6 +693,8 @@ export interface paths {
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;
+                                /** @enum {string} */
+                                role?: "guest" | "member" | "admin" | "super_admin";
                             };
                         };
                     };
@@ -774,6 +784,8 @@ export interface paths {
                                 /** @enum {string} */
                                 ui_layout?: "dashboard" | "intro";
                                 ai_enabled?: boolean;
+                                /** @enum {string} */
+                                role?: "guest" | "member" | "admin" | "super_admin";
                             };
                         };
                     };

@@ -439,6 +439,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal @user.email, token_data["user"]["email"]
     assert_equal @user.first_name, token_data["user"]["first_name"]
     assert_equal @user.last_name, token_data["user"]["last_name"]
+    assert_equal @user.role, token_data["user"]["role"]
   ensure
     Rails.cache = original_cache
   end
