@@ -5,21 +5,27 @@ parentId: null
 id: "t_alt_fnd_016"
 title: "Evaluate TanStack Charts for Sure visualizations"
 type: "task"
-status: "todo"
+status: "done"
 priority: "medium"
-start: ""
+start: "2026-09-08"
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["charts", "spike", "accessibility"]
 subtaskIds: []
 dependencies: ["t_alt_beta_012", "t_alt_fnd_008", "t_alt_fnd_009", "t_alt_fnd_012"]
 timeEstimate: 20
 createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-08T04:00:00.000Z"
+updatedAt: "2026-09-08T04:30:00.000Z"
 ---
 
 Time-box a decision on the Alpha TanStack Charts library using representative Sure financial charts, with Recharts as the fallback.
+
+## Decision
+
+Selected `@tanstack/charts` pinned `0.16.0` exact — see `docs/adr/0002-tanstack-charts-evaluation.md`.
+Prototypes (`apps/web/src/components/charts/`), stories, suites (29 chart tests incl. SSR), and browser
+evidence (94/94 incl. keyboard selection + full axe) all pass; bundle is ~29% of Recharts equivalents.
 
 ## Acceptance criteria
 - Prototype responsive net-worth line/area, grouped cash-flow bars, and allocation donut charts using shared StyleX tokens.

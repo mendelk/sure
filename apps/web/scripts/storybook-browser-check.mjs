@@ -223,6 +223,36 @@ async function interact(page, storyId) {
 			assert((await email.inputValue()) === "a@example.com", "text field accepts typed input");
 			break;
 		}
+		case "charts-sure--net-worth":
+		case "charts-sure--cash-flow":
+		case "charts-sure--allocation": {
+			// TanStack evaluation prototypes (t_alt_fnd_016): the chart host
+			// is keyboard-focusable (tabindex 0 + aria-label); arrows move
+			// focus between points and Enter selects into the live region.
+			const charts = {
+				"charts-sure--net-worth": { name: "Net worth", testId: "net-worth-selection" },
+				"charts-sure--cash-flow": { name: "Cash flow", testId: "cash-flow-selection" },
+				"charts-sure--allocation": { name: "Allocation", testId: "allocation-selection" },
+			};
+			const spec = charts[storyId];
+			const chart = root.getByRole("img", { name: spec.name });
+			await chart.focus();
+			assert(
+				(await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))) ===
+					spec.name,
+				`${spec.name} chart takes keyboard focus`,
+			);
+			await page.keyboard.press("ArrowRight");
+			await page.keyboard.press("ArrowRight");
+			await page.keyboard.press("Enter");
+			const selection = root.getByTestId(spec.testId);
+			await selection.waitFor({ state: "visible", timeout: 5000 });
+			assert(
+				((await selection.textContent()) ?? "").startsWith("Selected "),
+				`${spec.name} keyboard selection announces the point`,
+			);
+			break;
+		}
 		default:
 			break;
 	}

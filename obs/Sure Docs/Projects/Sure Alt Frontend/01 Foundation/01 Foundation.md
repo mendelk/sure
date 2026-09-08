@@ -65,5 +65,5 @@ Establish the minimum secure platform needed for core accounts and transactions.
 
 - [ ] [[add-installable-resilient-pwa-foundation|Add installable resilient PWA foundation]]
 - [ ] [[add-structured-logging-health-and-error-handling|Add structured logging, health, and error handling]]
-- [ ] [[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]
+- [x] [[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]
 - [ ] [[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]
