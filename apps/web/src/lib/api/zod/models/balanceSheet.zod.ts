@@ -6,13 +6,28 @@
  * OpenAPI spec version: v1
  */
 import * as zod from "zod";
+import { DashboardClassificationGroup } from "./dashboardClassificationGroup.zod.ts";
+import { DashboardSync } from "./dashboardSync.zod.ts";
+import { DashboardTrend } from "./dashboardTrend.zod.ts";
 import { Money } from "./money.zod.ts";
 
+export const balanceSheetAccountsCountMin = 0;
+
 export const BalanceSheet = zod.strictObject({
-	currency: zod.string().describe("Family primary currency"),
+	currency: zod.string().describe("Family primary currency (ISO 4217)"),
+	as_of: zod.iso
+		.date()
+		.describe("Calendar date the totals were computed for (ISO 8601, server timezone)"),
+	accounts_count: zod
+		.int()
+		.min(balanceSheetAccountsCountMin)
+		.describe("Number of visible accounts included in the totals"),
 	net_worth: Money,
 	assets: Money,
 	liabilities: Money,
+	trend: DashboardTrend,
+	groups: zod.array(DashboardClassificationGroup),
+	sync: DashboardSync,
 });
 
 export type BalanceSheet = zod.input<typeof BalanceSheet>;

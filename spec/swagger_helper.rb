@@ -1820,12 +1820,127 @@ RSpec.configure do |config|
           },
           BalanceSheet: {
             type: :object,
-            required: %w[currency net_worth assets liabilities],
+            required: %w[currency as_of accounts_count net_worth assets liabilities trend groups sync],
             properties: {
-              currency: { type: :string, description: 'Family primary currency' },
+              currency: { type: :string, description: 'Family primary currency (ISO 4217)' },
+              as_of: { type: :string, format: :date, description: 'Calendar date the totals were computed for (ISO 8601, server timezone)' },
+              accounts_count: { type: :integer, minimum: 0, description: 'Number of visible accounts included in the totals' },
               net_worth: { '$ref' => '#/components/schemas/Money' },
               assets: { '$ref' => '#/components/schemas/Money' },
-              liabilities: { '$ref' => '#/components/schemas/Money' }
+              liabilities: { '$ref' => '#/components/schemas/Money' },
+              trend: { '$ref' => '#/components/schemas/DashboardTrend' },
+              groups: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/DashboardClassificationGroup' }
+              },
+              sync: { '$ref' => '#/components/schemas/DashboardSync' }
+            }
+          },
+          TrendSummary: {
+            type: :object,
+            required: %w[value percent_formatted current previous direction color icon],
+            properties: {
+              value: { '$ref' => '#/components/schemas/Money' },
+              percent: { type: :number, nullable: true, description: 'Percentage change, null when the base is zero (see percent_formatted)' },
+              percent_formatted: { type: :string, description: 'Display string for the percentage change (carries ±∞ when percent is null)' },
+              current: { '$ref' => '#/components/schemas/Money' },
+              previous: { '$ref' => '#/components/schemas/Money' },
+              direction: { type: :string, enum: %w[up down flat] },
+              color: { type: :string },
+              icon: { type: :string }
+            }
+          },
+          DashboardTrendValue: {
+            type: :object,
+            required: %w[date value],
+            properties: {
+              date: { type: :string, format: :date, description: 'Series point date (ISO 8601)' },
+              value: { '$ref' => '#/components/schemas/Money' },
+              trend: { '$ref' => '#/components/schemas/TrendSummary', nullable: true }
+            }
+          },
+          DashboardTrend: {
+            type: :object,
+            required: %w[period start_date end_date interval values],
+            properties: {
+              period: { type: :string, enum: %w[last_7_days last_30_days last_90_days last_365_days current_month current_year], description: 'Bounded trend period served by the endpoint' },
+              start_date: { type: :string, format: :date },
+              end_date: { type: :string, format: :date },
+              interval: { type: :string, description: 'Series bucket interval (1 day or 1 week)' },
+              trend: { '$ref' => '#/components/schemas/TrendSummary', nullable: true },
+              values: {
+                type: :array,
+                maxItems: 400,
+                items: { '$ref' => '#/components/schemas/DashboardTrendValue' }
+              }
+            }
+          },
+          DashboardAccount: {
+            type: :object,
+            required: %w[id name currency balance converted_balance classification syncing],
+            properties: {
+              id: { type: :string, format: :uuid },
+              name: { type: :string },
+              currency: { type: :string, description: 'Account native currency (ISO 4217)' },
+              balance: { '$ref' => '#/components/schemas/Money', description: 'Native-currency balance' },
+              converted_balance: { '$ref' => '#/components/schemas/Money', description: 'Balance converted to the family primary currency' },
+              classification: { type: :string, enum: %w[asset liability] },
+              account_type: { type: :string, nullable: true, description: 'Accountable type (underscored), e.g. depository, investment' },
+              syncing: { type: :boolean, description: 'True while a visible sync is running for this account' }
+            }
+          },
+          DashboardAccountGroup: {
+            type: :object,
+            required: %w[key name total accounts_count accounts],
+            properties: {
+              key: { type: :string, description: 'Stable group key, e.g. depository' },
+              name: { type: :string, description: 'Display name for the accountable type' },
+              total: { '$ref' => '#/components/schemas/Money' },
+              accounts_count: { type: :integer, minimum: 0 },
+              accounts: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/DashboardAccount' }
+              }
+            }
+          },
+          DashboardClassificationGroup: {
+            type: :object,
+            required: %w[classification name total syncing accounts_count account_groups],
+            properties: {
+              classification: { type: :string, enum: %w[asset liability] },
+              name: { type: :string },
+              total: { '$ref' => '#/components/schemas/Money' },
+              syncing: { type: :boolean },
+              accounts_count: { type: :integer, minimum: 0 },
+              account_groups: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/DashboardAccountGroup' }
+              }
+            }
+          },
+          DashboardSyncLatest: {
+            type: :object,
+            required: %w[id status in_progress syncable_type syncable_id created_at updated_at],
+            properties: {
+              id: { type: :string, format: :uuid },
+              status: { type: :string, enum: %w[pending syncing completed failed stale] },
+              in_progress: { type: :boolean },
+              syncable_type: { type: :string },
+              syncable_id: { type: :string, format: :uuid },
+              created_at: { type: :string, format: :'date-time' },
+              updated_at: { type: :string, format: :'date-time' },
+              completed_at: { type: :string, format: :'date-time', nullable: true }
+            }
+          },
+          DashboardSync: {
+            type: :object,
+            required: %w[syncing stale],
+            properties: {
+              syncing: { type: :boolean, description: 'True while a recent (visible-window) sync is in progress for the family' },
+              stale: { type: :boolean, description: 'True when the last completed sync is older than 24 hours' },
+              last_completed_at: { type: :string, format: :'date-time', nullable: true },
+              last_activity_at: { type: :string, format: :'date-time', nullable: true },
+              latest: { '$ref' => '#/components/schemas/DashboardSyncLatest', nullable: true, description: 'Most recent family-scoped sync, null when the family never synced' }
             }
           },
           SuccessMessage: {

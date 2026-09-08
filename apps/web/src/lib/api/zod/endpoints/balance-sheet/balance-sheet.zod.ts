@@ -5,12 +5,30 @@
  * OpenAPI documentation generated from executable request specs.
  * OpenAPI spec version: v1
  */
+import * as zod from "zod";
+
 import { BalanceSheet, ErrorResponse } from "../../models";
 
 /**
- * Returns the family balance sheet including net worth, total assets, and total liabilities with amounts converted to the family's primary currency.
+ * Returns the family balance sheet including net worth, total assets, and total liabilities with amounts converted to the family's primary currency, plus the bounded dashboard payload (net-worth trend, grouped account summaries, sync state). See docs/api/dashboard.md for the dashboard request plan, currency/date semantics, and empty/stale/syncing states.
  * @summary Show balance sheet
  */
+export const GetApiV1BalanceSheetQueryParams = zod.strictObject({
+	period: zod
+		.enum([
+			"last_7_days",
+			"last_30_days",
+			"last_90_days",
+			"last_365_days",
+			"current_month",
+			"current_year",
+		])
+		.exactOptional()
+		.describe("Trend period (default: last_30_days)"),
+});
+
 export const GetApiV1BalanceSheet200Response = BalanceSheet;
 
 export const GetApiV1BalanceSheet401Response = ErrorResponse;
+
+export const GetApiV1BalanceSheet422Response = ErrorResponse;

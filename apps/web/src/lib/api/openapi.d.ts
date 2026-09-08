@@ -752,18 +752,21 @@ export interface paths {
         };
         /**
          * Show balance sheet
-         * @description Returns the family balance sheet including net worth, total assets, and total liabilities with amounts converted to the family's primary currency.
+         * @description Returns the family balance sheet including net worth, total assets, and total liabilities with amounts converted to the family's primary currency, plus the bounded dashboard payload (net-worth trend, grouped account summaries, sync state). See docs/api/dashboard.md for the dashboard request plan, currency/date semantics, and empty/stale/syncing states.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Trend period (default: last_30_days) */
+                    period?: "last_7_days" | "last_30_days" | "last_90_days" | "last_365_days" | "current_month" | "current_year";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description balance sheet returned */
+                /** @description balance sheet with bounded trend period */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -774,6 +777,15 @@ export interface paths {
                 };
                 /** @description unauthorized */
                 401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description invalid period */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -7646,11 +7658,121 @@ export interface components {
             formatted: string;
         };
         BalanceSheet: {
-            /** @description Family primary currency */
+            /** @description Family primary currency (ISO 4217) */
             currency: string;
+            /**
+             * Format: date
+             * @description Calendar date the totals were computed for (ISO 8601, server timezone)
+             */
+            as_of: string;
+            /** @description Number of visible accounts included in the totals */
+            accounts_count: number;
             net_worth: components["schemas"]["Money"];
             assets: components["schemas"]["Money"];
             liabilities: components["schemas"]["Money"];
+            trend: components["schemas"]["DashboardTrend"];
+            groups: components["schemas"]["DashboardClassificationGroup"][];
+            sync: components["schemas"]["DashboardSync"];
+        };
+        TrendSummary: {
+            value: components["schemas"]["Money"];
+            /** @description Percentage change, null when the base is zero (see percent_formatted) */
+            percent?: number | null;
+            /** @description Display string for the percentage change (carries ±∞ when percent is null) */
+            percent_formatted: string;
+            current: components["schemas"]["Money"];
+            previous: components["schemas"]["Money"];
+            /** @enum {string} */
+            direction: "up" | "down" | "flat";
+            color: string;
+            icon: string;
+        };
+        DashboardTrendValue: {
+            /**
+             * Format: date
+             * @description Series point date (ISO 8601)
+             */
+            date: string;
+            value: components["schemas"]["Money"];
+            trend?: components["schemas"]["TrendSummary"];
+        };
+        DashboardTrend: {
+            /**
+             * @description Bounded trend period served by the endpoint
+             * @enum {string}
+             */
+            period: "last_7_days" | "last_30_days" | "last_90_days" | "last_365_days" | "current_month" | "current_year";
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date: string;
+            /** @description Series bucket interval (1 day or 1 week) */
+            interval: string;
+            trend?: components["schemas"]["TrendSummary"];
+            values: components["schemas"]["DashboardTrendValue"][];
+        };
+        DashboardAccount: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description Account native currency (ISO 4217) */
+            currency: string;
+            /** @description Native-currency balance */
+            balance: components["schemas"]["Money"];
+            /** @description Balance converted to the family primary currency */
+            converted_balance: components["schemas"]["Money"];
+            /** @enum {string} */
+            classification: "asset" | "liability";
+            /** @description Accountable type (underscored), e.g. depository, investment */
+            account_type?: string | null;
+            /** @description True while a visible sync is running for this account */
+            syncing: boolean;
+        };
+        DashboardAccountGroup: {
+            /** @description Stable group key, e.g. depository */
+            key: string;
+            /** @description Display name for the accountable type */
+            name: string;
+            total: components["schemas"]["Money"];
+            accounts_count: number;
+            accounts: components["schemas"]["DashboardAccount"][];
+        };
+        DashboardClassificationGroup: {
+            /** @enum {string} */
+            classification: "asset" | "liability";
+            name: string;
+            total: components["schemas"]["Money"];
+            syncing: boolean;
+            accounts_count: number;
+            account_groups: components["schemas"]["DashboardAccountGroup"][];
+        };
+        DashboardSyncLatest: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "pending" | "syncing" | "completed" | "failed" | "stale";
+            in_progress: boolean;
+            syncable_type: string;
+            /** Format: uuid */
+            syncable_id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            completed_at?: string | null;
+        };
+        DashboardSync: {
+            /** @description True while a recent (visible-window) sync is in progress for the family */
+            syncing: boolean;
+            /** @description True when the last completed sync is older than 24 hours */
+            stale: boolean;
+            /** Format: date-time */
+            last_completed_at?: string | null;
+            /** Format: date-time */
+            last_activity_at?: string | null;
+            /** @description Most recent family-scoped sync, null when the family never synced */
+            latest?: components["schemas"]["DashboardSyncLatest"];
         };
         SuccessMessage: {
             message: string;
