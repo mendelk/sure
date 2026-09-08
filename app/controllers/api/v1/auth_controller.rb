@@ -6,10 +6,10 @@ module Api
       skip_before_action :authenticate_request!
       skip_before_action :check_api_key_rate_limit
       skip_before_action :log_api_access
-      before_action :authenticate_request!, only: :enable_ai
+      before_action :authenticate_request!, only: %i[enable_ai logout]
       before_action :ensure_write_scope, only: :enable_ai
-      before_action :check_api_key_rate_limit, only: :enable_ai
-      before_action :log_api_access, only: :enable_ai
+      before_action :check_api_key_rate_limit, only: %i[enable_ai logout]
+      before_action :log_api_access, only: %i[enable_ai logout]
       rescue_from SsoIdentityBlock::BlockedIdentity, with: :render_removed_identity
 
       def signup
@@ -331,6 +331,37 @@ module Api
           expires_in: new_token.expires_in,
           created_at: new_token.created_at.to_i
         }
+      end
+
+      # Explicit OAuth token revocation for BFF logout (ADR-0001 REQ-API-01).
+      #
+      # The BFF calls this server-side during its three-step logout: it has
+      # already destroyed its own server-side session, and calls here so the
+      # Sure token pair cannot outlive the browser session ("never delete
+      # cookie only"). Revokes the bearer token that authenticated this
+      # request, or — when the access token is already unusable — the token
+      # identified by the `refresh_token` param. Both identifiers are
+      # single-use secrets looked up by hashed value; an unknown identifier
+      # still returns `revoked: true` so logout stays idempotent and does not
+      # oracle token validity.
+      def logout
+        revoked = false
+
+        if @authentication_method == :oauth && doorkeeper_token.present?
+          doorkeeper_token.revoke
+          revoked = true
+        elsif params[:refresh_token].present?
+          access_token = Doorkeeper::AccessToken.by_refresh_token(params[:refresh_token])
+          if access_token.present? && !access_token.revoked?
+            access_token.revoke
+            revoked = true
+          else
+            # Unknown or already-revoked refresh token: idempotent success.
+            revoked = true
+          end
+        end
+
+        render json: { revoked: revoked }
       end
 
       private

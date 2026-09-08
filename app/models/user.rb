@@ -241,8 +241,16 @@ class User < ApplicationRecord
   def deactivate
     return true unless active?
 
+    # ADR-0001 REQ-API-02: plain deactivation tears down live credentials
+    # synchronously so revoked access is immediate — the API OAuth path
+    # already rejects inactive users, but without this the bearer tokens
+    # stayed valid until expiry. Idempotent with permanently_remove!, which
+    # calls revoke_all_credentials! again after deactivate.
     transaction do
-      update(active: false, email: deactivated_email)
+      next false unless update(active: false, email: deactivated_email)
+
+      revoke_all_credentials!
+      true
     end || false
   end
 
