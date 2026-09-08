@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fnd_015"
 title: "Enforce Sure API compatibility checks"
 type: "task"
-status: "todo"
+status: "done"
 priority: "high"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["api", "compatibility", "operations"]
 subtaskIds: []

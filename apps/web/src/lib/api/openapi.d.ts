@@ -3488,6 +3488,57 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve API contract metadata
+         * @description Public contract version and capability tokens for the alternate frontend compatibility check (readiness and session establishment). No authentication required.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    /** @description Optional deployment API key. Absence keeps the endpoint public; a presented key that is unknown or inactive returns 401. */
+                    "X-Api-Key"?: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description contract metadata */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiMetadata"];
+                    };
+                };
+                /** @description presented API key is invalid or inactive */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/provider_connections": {
         parameters: {
             query?: never;
@@ -7909,6 +7960,22 @@ export interface components {
             } & {
                 [key: string]: number;
             };
+        };
+        ApiMetadata: {
+            /**
+             * @description Semver contract version served by this Rails build. The alternate frontend supports major version 1.
+             * @example 1.0.0
+             */
+            api_version: string;
+            /**
+             * @description Capability tokens the alternate frontend requires for session establishment. Removing or renaming one is a breaking change.
+             * @example [
+             *       "auth.login",
+             *       "auth.refresh",
+             *       "auth.logout"
+             *     ]
+             */
+            capabilities: string[];
         };
     };
     responses: never;

@@ -14,6 +14,7 @@ export * from "./import-sessions/import-sessions.zod.ts";
 export * from "./imports/imports.zod.ts";
 export * from "./insights/insights.zod.ts";
 export * from "./merchants/merchants.zod.ts";
+export * from "./metadata/metadata.zod.ts";
 export * from "./provider-connections/provider-connections.zod.ts";
 export * from "./push-subscriptions/push-subscriptions.zod.ts";
 export * from "./recurring-transactions/recurring-transactions.zod.ts";

@@ -265,6 +265,10 @@ import {
 	PostApiV1MerchantsImportBody,
 } from "./zod/endpoints/merchants/merchants.zod";
 import {
+	GetApiV1Metadata200Response,
+	GetApiV1Metadata401Response,
+} from "./zod/endpoints/metadata/metadata.zod";
+import {
 	GetApiV1ProviderConnections200Response,
 	GetApiV1ProviderConnections401Response,
 	GetApiV1ProviderConnections403Response,
@@ -881,6 +885,13 @@ const CONTRACTS: Record<string, OperationContract> = {
 		pathParams: GetApiV1MerchantsIdParams,
 		isBinaryDownload: false,
 		responses: { 200: GetApiV1MerchantsId200Response, 404: GetApiV1MerchantsId404Response },
+	},
+	"GET /api/v1/metadata": {
+		operation: "GET /api/v1/metadata",
+		method: "GET",
+		path: "/api/v1/metadata",
+		isBinaryDownload: false,
+		responses: { 200: GetApiV1Metadata200Response, 401: GetApiV1Metadata401Response },
 	},
 	"GET /api/v1/provider_connections": {
 		operation: "GET /api/v1/provider_connections",

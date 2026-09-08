@@ -5,9 +5,10 @@
 // submit, SureAlert failure states. No hand-rolled form shapes, no raw
 // palette, no raw SVG (per repo design-system hygiene).
 //
-// States (t_alt_fnd_007 acceptance): idle/pending, invalid-credential,
-// unavailable-server, throttled, api-mismatch, and unsupported-MFA. Every
-// failure renders as a SureAlert (destructive → role="alert", others →
+// States (t_alt_fnd_007 acceptance + t_alt_fnd_015 compatibility): idle/pending,
+// invalid-credential, unavailable-server, throttled, api-mismatch,
+// api-too-old, api-too-new, api-missing-capability, and unsupported-MFA.
+// Every failure renders as a SureAlert (destructive → role="alert", others →
 // role="status") so assistive technology announces the outcome; field
 // errors stay on the inputs via `errorMessage`.
 import * as stylex from "@stylexjs/stylex";
@@ -72,6 +73,26 @@ function FailureAlert({ failure }: { failure: BffLoginFormFailure }): React.Reac
 			return (
 				<SureAlert tone="warning" title="Service is being updated">
 					The service is being updated right now. Try signing in again in a moment.
+				</SureAlert>
+			);
+		case "api-too-old":
+			return (
+				<SureAlert tone="warning" title="Sure server is too old">
+					The server version is older than this app supports. Ask your administrator to upgrade the
+					Sure server, then try again.
+				</SureAlert>
+			);
+		case "api-too-new":
+			return (
+				<SureAlert tone="warning" title="App update required">
+					The server version is newer than this app supports. Update the web app to continue.
+				</SureAlert>
+			);
+		case "api-missing-capability":
+			return (
+				<SureAlert tone="warning" title="Server is missing required features">
+					The server lacks features this app needs. Ask your administrator to upgrade the Sure
+					server, then try again.
 				</SureAlert>
 			);
 		case "unavailable":

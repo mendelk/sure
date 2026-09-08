@@ -21,6 +21,9 @@ describe("mapLoginErrorToFailure", () => {
 		expect(mapLoginErrorToFailure("mfa-unsupported")).toBe("mfa-unsupported");
 		expect(mapLoginErrorToFailure("throttled")).toBe("throttled");
 		expect(mapLoginErrorToFailure("api-mismatch")).toBe("api-mismatch");
+		expect(mapLoginErrorToFailure("api-too-old")).toBe("api-too-old");
+		expect(mapLoginErrorToFailure("api-too-new")).toBe("api-too-new");
+		expect(mapLoginErrorToFailure("api-missing-capability")).toBe("api-missing-capability");
 		expect(mapLoginErrorToFailure("unavailable")).toBe("unavailable");
 	});
 
