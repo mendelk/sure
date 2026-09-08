@@ -45,7 +45,26 @@ export const Route = createRootRouteWithContext<{
 			},
 			{ title: "Sure Web" },
 		],
-		links: [{ rel: "stylesheet", href: appCss }],
+		links: [
+			{ rel: "stylesheet", href: appCss },
+			// StyleX dev runtime (vite dev only): @stylexjs/unplugin serves
+			// the compiled theme CSS at /virtual:stylex.css and live-updates
+			// it over HMR, but it injects the reference via Vite's
+			// transformIndexHtml hook — which TanStack Start never calls
+			// (it builds <head> from this function instead). Without this
+			// link the theme classes on <html> resolve to nothing and the
+			// page renders unstyled in dev. Production builds emit real CSS
+			// files instead, so this entry is dev-only by construction.
+			...(import.meta.env.DEV ? [{ rel: "stylesheet", href: "/virtual:stylex.css" }] : []),
+		],
+		scripts: import.meta.env.DEV
+			? // Paired with the link above: fetches /virtual:stylex.css into
+				// a <style> tag and refreshes it on `stylex:css-update` HMR
+				// events. Served through Vite's module pipeline (note the
+				// /@id/ prefix), so import.meta.hot is defined — the plain
+				// middleware path would skip HMR registration. Dev only.
+				[{ type: "module", src: "/@id/virtual:stylex:runtime" }]
+			: [],
 	}),
 	component: RootComponent,
 });

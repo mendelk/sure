@@ -8,6 +8,18 @@ The app container runs `bin/setup` and starts `bin/dev` automatically. Workspace
 Rails to respond before reporting success. Destroying a workspace removes its isolated services and
 volumes but leaves the shared Postgres service and `sure-orca-shared-postgres` volume intact.
 
+The `web` service runs the alternate frontend (`apps/web`, TanStack Start) as a `vite dev` server on
+the same bind-mounted worktree, so code changes hot-reload (HMR) without rebuilding anything. It
+publishes a loopback port (reported as `webPort` by the create hook) and proxies to Rails through the
+`app` service internally (`SURE_API_ORIGIN=http://app:3000`). First boot runs
+`pnpm install --frozen-lockfile` inside the container (a few minutes cold; the shared
+`sure-orca-shared-pnpm-store` volume makes later worktrees fast). The container's `node_modules` is
+isolated in a volume, so the host checkout's `node_modules` is never modified.
+
+File watching works out of the box on OrbStack and Linux. On Docker Desktop for Mac/Windows, host
+file events don't reach the container — set `SURE_WEB_USEPOLLING=1` when running the create hook to
+switch to filesystem polling.
+
 ## First-time setup
 
 1. Start Docker or OrbStack.

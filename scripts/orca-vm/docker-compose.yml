@@ -27,6 +27,51 @@ services:
       - default
       - shared
 
+  # Alternate frontend (apps/web, TanStack Start) dev server with HMR.
+  # Node 24 matches apps/web's engines requirement; the app image ships
+  # Node 20 for the Rails toolchain. Source is the same bind-mounted
+  # worktree, so edits hot-reload instantly. Dependencies live in
+  # per-project volumes so the host's node_modules is never touched, and
+  # a shared pnpm store volume keeps reinstalls fast across worktrees.
+  web:
+    image: node:24-slim
+    working_dir: /workspace
+    environment:
+      # Rails API origin on the internal compose network (app service).
+      SURE_API_ORIGIN: http://app:3000
+      # BFF session-encryption key (base64, 256-bit). Dev default is
+      # committed for local workspaces; override per deployment.
+      SURE_SESSION_SECRET: ${SURE_SESSION_SECRET:-QUe0KF7zk8W9BbzBJ0fS/KXErObJXiuFx2M0qjFHYWY=}
+      # Shared pnpm store (mounted below) instead of the default home dir.
+      npm_config_store_dir: /pnpm/store
+      # OrbStack/Linux propagate inotify events across bind mounts; Docker
+      # Desktop does not — export SURE_WEB_USEPOLLING=1 there to fall back
+      # to filesystem polling.
+      CHOKIDAR_USEPOLLING: "${SURE_WEB_USEPOLLING:-0}"
+    volumes:
+      - ${ORCA_WORKTREE_PATH:?ORCA_WORKTREE_PATH is required}:/workspace
+      - web-node-modules:/workspace/node_modules
+      - web-app-node-modules:/workspace/apps/web/node_modules
+      - pnpm-store:/pnpm/store
+    ports:
+      # Fixed loopback port for the HMR dev server. The HMR websocket shares
+      # this port, so no extra clientPort config is needed. Overridable when
+      # 5173 is taken (e.g. a second concurrent worktree): SURE_WEB_PORT=5174
+      - 127.0.0.1:${SURE_WEB_PORT:-5173}:5173
+    depends_on:
+      - app
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        corepack enable
+        until [[ -f /workspace/package.json && -f /workspace/pnpm-lock.yaml && -f /workspace/apps/web/package.json ]]; do
+          sleep 1
+        done
+        pnpm install --frozen-lockfile
+        exec pnpm --filter @sure/web dev --host 0.0.0.0
+
   redis:
     image: redis:latest
     volumes:
@@ -41,9 +86,14 @@ services:
 
 volumes:
   bundle:
+  web-node-modules:
+  web-app-node-modules:
   npm-cache:
     external: true
     name: sure-orca-shared-npm-cache
+  pnpm-store:
+    external: true
+    name: sure-orca-shared-pnpm-store
   redis:
 
 networks:
