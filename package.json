@@ -30,6 +30,8 @@
 		"web:test": "pnpm --filter @sure/web test",
 		"web:api:generate": "pnpm --filter @sure/web api:generate",
 		"web:api:check": "pnpm --filter @sure/web api:check",
+		"web:api:zod:generate": "pnpm --filter @sure/web api:zod",
+		"web:api:zod:check": "pnpm --filter @sure/web api:zod:check",
 		"web:install:clean": "pnpm install --frozen-lockfile",
 		"install:clean": "pnpm install --frozen-lockfile"
 	},

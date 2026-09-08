@@ -34,13 +34,62 @@ Run from the repo root (`pnpm --filter @sure/web <cmd>`) or from
 | `pnpm storybook`   | Start Storybook (UI primitives catalog) on port 6006 |
 | `pnpm build-storybook` | Static Storybook build (`storybook-static/`) |
 | `pnpm test:browser` | Browser Storybook checks: interactions + full axe (incl. color-contrast) in Chromium |
-| `pnpm api:generate` | Regenerate OpenAPI types from `docs/api/openapi.yaml` |
-| `pnpm api:check`   | Fail when generated types drift from `docs/api/openapi.yaml` |
+| `pnpm api:generate` | Regenerate OpenAPI types AND Zod parsers from `docs/api/openapi.yaml` |
+| `pnpm api:check`   | Fail when generated types or Zod parsers drift from `docs/api/openapi.yaml` |
+| `pnpm api:zod` | Regenerate Zod parsers only (Orval) |
+| `pnpm api:zod:check` | Fail when Zod parsers drift (CI gate) |
 | `pnpm install:clean` | Frozen reinstall from the lockfile |
 
 Root shortcuts: `pnpm web:dev`, `pnpm web:build`, `pnpm web:preview`,
 `pnpm web:typecheck`, `pnpm web:test`, `pnpm web:api:generate`,
-`pnpm web:api:check`.
+`pnpm web:api:check`, `pnpm web:api:zod:generate`,
+`pnpm web:api:zod:check`.
+
+## API contracts (Zod runtime parsers)
+
+Static types (`src/lib/api/openapi.d.ts`, via `openapi-typescript`) are
+not enough: upstream payloads are validated at runtime through generated
+Zod parsers before they reach TanStack Query or application state.
+
+- Source: `docs/api/openapi.yaml` (canonical; Ruby request specs own it).
+- Generator: [Orval](https://orval.dev) `8.30.0` (pinned in
+  `package.json`), emitting Zod `4.5.4` parsers (pinned runtime
+  dependency; `override.zod.version: 4` in `orval.config.ts` so output
+  never depends on the installed Zod). Orval's supported
+  `exactOptional: true` mode keeps generated parsers compatible with the
+  repository's `exactOptionalPropertyTypes` setting without patching or
+  forking generator code. Orval delegates output formatting to oxfmt.
+  Static and runtime contracts are cross-checked by
+  `src/lib/api/contract-compat.test.ts` so they cannot silently diverge.
+- Output (`src/lib/api/zod/`, committed): `models/*.zod.ts` (one reusable
+  parser per `#/components/schemas/*`, recursive cycles closed with
+  `zod.lazy`) and `endpoints/<tag>/<tag>.zod.ts` (one module per API tag
+  with operation-keyed parsers: `<Method><Path>QueryParams`,
+  `<Method><Path>Body`, and `<Method><Path><Status>Response` for every
+  documented status). Generator-provided format validation (`uuid`,
+  `email`, `url`, `date`, `date-time`) is preserved, never weakened.
+- `src/lib/api/operation-contracts.ts` is a hand-written adapter that
+  only indexes those generated exports into a `"METHOD /path"` registry
+  (`getOperationContract`) plus `parseOperationResponse` /
+  `parseOperationRequest` helpers — no schema interpretation of its own.
+  Import operation-scoped `./zod/endpoints/*` modules directly in routes
+  for the smallest bundles; the registry is the full-surface lookup for
+  the typed fetch layer and the BFF transport.
+- Validation is mandatory: every `apiGet`/`apiPost`/`apiPut`/`apiPatch`/
+  `apiDelete` success payload must parse against its documented status
+  parser, and undocumented success statuses fail closed (the binary
+  export download is the explicit `Blob` exception). Error payloads that
+  fail their parser never surface raw — the status-mapped error keeps
+  its kind with redacted diagnostics. Violations throw `{ kind:
+  "contract" }` `ApiError`s carrying correlation (`requestId`) and
+  schema paths/type tokens only — never raw payloads, tokens, or
+  credentials.
+- Server-only BFF code validates via `src/lib/api/bff-contracts.server.ts`
+  (`validateBffRequest` / `validateUpstreamResponse`), which is secret-free
+  and safe to import from `createServerFn` handlers.
+- After any OpenAPI change, run `pnpm api:generate` (types + parsers)
+  and commit the result; CI (`pnpm web:api:check`,
+  `pnpm web:api:zod:check`, coverage + runtime suites) fails otherwise.
 
 Workspace-wide checks run from the repo root (see `CONVENTIONS.md` for the
 rules they enforce): `pnpm typecheck` (all packages, future-proof via

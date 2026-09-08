@@ -1533,7 +1533,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
                 };
             };
         };
@@ -1832,7 +1834,6 @@ export interface paths {
             query?: never;
             header?: never;
             path: {
-                /** Format: uuid */
                 id: string;
             };
             cookie?: never;
@@ -1843,7 +1844,6 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    /** Format: uuid */
                     id: string;
                 };
                 cookie?: never;
@@ -1901,7 +1901,6 @@ export interface paths {
             query?: never;
             header?: never;
             path: {
-                /** Format: uuid */
                 id: string;
             };
             cookie?: never;
@@ -1912,7 +1911,6 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    /** Format: uuid */
                     id: string;
                 };
                 cookie?: never;
@@ -3362,7 +3360,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
                 };
             };
         };
@@ -4736,7 +4736,6 @@ export interface paths {
             query?: never;
             header?: never;
             path: {
-                /** Format: uuid */
                 id: string;
             };
             cookie?: never;
@@ -4750,7 +4749,6 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    /** Format: uuid */
                     id: string;
                 };
                 cookie?: never;
@@ -4949,7 +4947,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
                 };
             };
         };
@@ -6038,14 +6038,18 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
                 };
                 /** @description insufficient scope */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
                 };
                 /** @description deactivation failed */
                 422: {
@@ -6865,7 +6869,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             action_type: string;
-            value?: string | null;
+            value: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -6876,7 +6880,7 @@ export interface components {
             id: string;
             condition_type: string;
             operator: string;
-            value?: string | null;
+            value: string | null;
             sub_conditions: components["schemas"]["RuleCondition"][];
             /** Format: date-time */
             created_at: string;

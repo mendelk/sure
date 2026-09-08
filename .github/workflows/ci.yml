@@ -110,6 +110,10 @@ jobs:
         run: pnpm web:api:check
         shell: bash
 
+      - name: Check Zod contracts are up to date
+        run: pnpm web:api:zod:check
+        shell: bash
+
       - name: Build web app
         run: pnpm web:build
         shell: bash
