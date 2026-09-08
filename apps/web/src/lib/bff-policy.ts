@@ -585,6 +585,13 @@ export interface BffMutationGuardInput {
 	readonly csrfToken: string | null | undefined;
 	/** The BFF's own origin (same-origin comparison target). */
 	readonly bffOrigin: string;
+	/**
+	 * Session-bound CSRF token the presented `csrfToken` must equal
+	 * (t_alt_fnd_007, REQ-TRAN-01). When omitted, only presence + origin
+	 * are enforced (the transport floor for pre-session calls such as
+	 * login); session-authenticated mutations MUST pass the stored token.
+	 */
+	readonly expectedCsrfToken?: string | null | undefined;
 }
 
 export type BffMutationGuardResult =
@@ -592,11 +599,30 @@ export type BffMutationGuardResult =
 	| { readonly ok: false; readonly code: "csrf" | "origin"; readonly message: string };
 
 /**
+ * Constant-time string equality for CSRF token binding. Runs over the
+ * full length of both inputs so comparison time does not leak the shared
+ * prefix (timing side-channel defense for the session-bound token).
+ */
+export function constantTimeEqual(a: string, b: string): boolean {
+	const aLength = a.length;
+	const bLength = b.length;
+	const longest = Math.max(aLength, bLength);
+	let diff = aLength === bLength ? 0 : 1;
+	for (let index = 0; index < longest; index += 1) {
+		const aCode = index < aLength ? a.charCodeAt(index) : 0;
+		const bCode = index < bLength ? b.charCodeAt(index) : 0;
+		diff |= aCode ^ bCode;
+	}
+	return diff === 0;
+}
+
+/**
  * Enforce CSRF + same-origin protection for mutations (REQ-TRAN-01 / T-CSRF).
  * Safe `GET`s pass untouched; every other method requires an `Origin`
  * header exactly matching the BFF origin plus a non-empty anti-CSRF token.
- * (Token-to-session binding lands with the session work in `t_alt_fnd_007`;
- * presence + origin is the transport floor.)
+ * When `expectedCsrfToken` is provided (session-authenticated mutations),
+ * the presented token must constant-time-equal the session's stored token —
+ * a stolen or guessed token for another session is rejected.
  */
 export function checkBffMutationGuards(input: BffMutationGuardInput): BffMutationGuardResult {
 	if (!isMutationMethod(input.method)) {
@@ -611,6 +637,11 @@ export function checkBffMutationGuards(input: BffMutationGuardInput): BffMutatio
 	}
 	if (typeof input.csrfToken !== "string" || input.csrfToken.trim() === "") {
 		return { ok: false, code: "csrf", message: "Missing anti-CSRF token." };
+	}
+	if (input.expectedCsrfToken !== undefined && input.expectedCsrfToken !== null) {
+		if (!constantTimeEqual(input.csrfToken, input.expectedCsrfToken)) {
+			return { ok: false, code: "csrf", message: "Invalid anti-CSRF token." };
+		}
 	}
 	return { ok: true };
 }
