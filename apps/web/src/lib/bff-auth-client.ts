@@ -1,0 +1,129 @@
+/**
+ * Browser-safe BFF session client for the Sure alternate frontend.
+ *
+ * Client-safe (no Node imports, no `process.env`, no `*.server.*` imports):
+ * safe for route components, hooks, and tests. The browser NEVER holds Sure
+ * tokens, API keys, or token-derived values (ADR-0001 D1/REQ-SESS-01) — the
+ * only session artifacts here are display data, the TanStack Query status
+ * entry, and the readable CSRF cookie echoed back as a mutation header.
+ *
+ * Clearing rule (t_alt_fnd_007 acceptance): local session state is cleared
+ * on logout, revocation, deactivation, invalid refresh, AND deployment API
+ * incompatibility — every one of those surfaces as an unauthenticated
+ * status or an `api-mismatch` error, both of which route through
+ * `clearLocalSessionState`.
+ */
+import type { QueryClient } from "@tanstack/react-query";
+import { BFF_CSRF_COOKIE_NAME } from "./bff-session";
+
+/** Display-minimum user snapshot: the only user data the browser may see. */
+export interface BffSessionUser {
+	readonly id: string;
+	readonly email: string;
+	readonly firstName: string;
+	readonly lastName: string;
+	readonly uiLayout: string;
+	readonly aiEnabled: boolean;
+}
+
+export type BffSessionInactiveReason = "missing" | "stale" | "expired";
+
+/** Browser-visible session status (mirrors the status server function). */
+export type BffSessionStatus =
+	| { readonly authenticated: true; readonly user: BffSessionUser; readonly csrfToken: string }
+	| { readonly authenticated: false; readonly reason: BffSessionInactiveReason };
+
+/** TanStack Query key owning the session status (colocated here, shared). */
+export const BFF_SESSION_QUERY_KEY = ["bff-session-status"] as const;
+
+/** Login form failure states (one per upstream outcome class). */
+export type BffLoginFormFailure =
+	| "invalid-credentials"
+	| "mfa-unsupported"
+	| "unavailable"
+	| "throttled"
+	| "api-mismatch";
+
+/** Server auth error codes that can surface from the login server function. */
+export type BffLoginErrorCode =
+	| "invalid-credentials"
+	| "mfa-unsupported"
+	| "unavailable"
+	| "api-mismatch"
+	| "throttled"
+	| "session-expired"
+	| "logged-out"
+	| "deactivated"
+	| "invalid-refresh"
+	| "csrf"
+	| "origin";
+
+/**
+ * Map a login server-function error to the form failure state. Anything
+ * unexpected (stale sessions, guard rejections, transport unknowns) fails
+ * closed to `unavailable` — the form never renders a state it cannot
+ * explain, and never leaks upstream detail.
+ */
+export function mapLoginErrorToFailure(code: BffLoginErrorCode): BffLoginFormFailure {
+	switch (code) {
+		case "invalid-credentials":
+			return "invalid-credentials";
+		case "mfa-unsupported":
+			return "mfa-unsupported";
+		case "throttled":
+			return "throttled";
+		case "api-mismatch":
+			return "api-mismatch";
+		case "unavailable":
+		default:
+			return "unavailable";
+	}
+}
+
+/**
+ * Read the synchronized CSRF token from a cookie string (defaults to the
+ * live `document.cookie` in browsers). Returns `undefined` outside browsers
+ * or when absent — callers treat absence as logged-out, never as anonymous.
+ *
+ * The `globalThis` structural read (instead of a bare `document` global)
+ * keeps this module compiling in the DOM-less server typecheck boundary;
+ * the `typeof` narrowing keeps it safe at runtime.
+ */
+export function readBffCsrfToken(cookieString?: string): string | undefined {
+	let source = cookieString;
+	if (source === undefined) {
+		const holder = globalThis as { readonly document?: { readonly cookie?: unknown } | undefined };
+		const live = holder.document?.cookie;
+		source = typeof live === "string" ? live : undefined;
+	}
+	if (typeof source !== "string" || source === "") {
+		return undefined;
+	}
+	for (const part of source.split(";")) {
+		const separator = part.indexOf("=");
+		if (separator === -1) {
+			continue;
+		}
+		if (part.slice(0, separator).trim() !== BFF_CSRF_COOKIE_NAME) {
+			continue;
+		}
+		const value = part.slice(separator + 1).trim();
+		return value === "" ? undefined : value;
+	}
+	return undefined;
+}
+
+/**
+ * Clear every browser-side session artifact: the status query entry (user
+ * display + CSRF token) and any in-flight session query. Server-side state
+ * is destroyed by the logout server function, never here.
+ */
+export function clearLocalSessionState(queryClient: QueryClient): void {
+	void queryClient.cancelQueries({ queryKey: BFF_SESSION_QUERY_KEY });
+	queryClient.removeQueries({ queryKey: BFF_SESSION_QUERY_KEY });
+}
+
+/** Whether a status/error means the browser must reset to signed-out. */
+export function isSignedOutStatus(status: BffSessionStatus): boolean {
+	return !status.authenticated;
+}
