@@ -38,6 +38,9 @@ Run from the repo root (`pnpm --filter @sure/web <cmd>`) or from
 | `pnpm api:check`   | Fail when generated types or Zod parsers drift from `docs/api/openapi.yaml` |
 | `pnpm api:zod` | Regenerate Zod parsers only (Orval) |
 | `pnpm api:zod:check` | Fail when Zod parsers drift (CI gate) |
+| `pnpm test:e2e` | Playwright smoke suite (expects Rails + web services up) |
+| `pnpm test:e2e:live` | Live BFF → Rails → DB suite (`SURE_E2E_LIVE=1`, seeded services) |
+| `pnpm test:e2e:ci` | Orchestrated e2e: boot + seed + smoke + live suite + cleanup |
 | `pnpm install:clean` | Frozen reinstall from the lockfile |
 
 Root shortcuts: `pnpm web:dev`, `pnpm web:build`, `pnpm web:preview`,
@@ -135,6 +138,43 @@ secrets) and the SSR loader re-validates on every server render.
 
 3. Open `http://localhost:5173`. The index page server-renders the
    configured API origin as its connection status.
+
+## End-to-end test harness (`t_alt_fnd_012`)
+
+Three layers, so mocks are never the only integration evidence:
+
+| Layer | Where | What it proves |
+| ----- | ----- | -------------- |
+| Unit/component | `pnpm test` (vitest + Testing Library) | Accessible queries, deterministic UTC clock (`src/test-utils/time.ts`), OpenAPI-typed fixtures (`src/test-utils/api-fixtures.ts`), contract-validated fetch stubs (`src/test-utils/mock-handlers.ts`) |
+| Live BFF | `pnpm test:e2e:live` (gated by `SURE_E2E_LIVE=1`) | Hardened BFF transport → real Rails test API → PostgreSQL, with generated-contract parsing on both sides (`src/lib/api/bff-live.test.ts`) |
+| Browser smoke | `pnpm test:e2e` (Playwright/Chromium) | Browser → web SSR → configured Rails origin, seeded login/roles, bearer finance read, session-expiry 401, API-failure injection, mobile viewports, light/dark theme (`scripts/e2e-smoke.mjs` + `scripts/e2e-helpers.mjs`) |
+
+### Orchestrated run (CI and local)
+
+`pnpm test:e2e:ci` (`scripts/e2e-services.mjs`) boots isolated services
+on loopback (`127.0.0.1:3101` Rails test env, `127.0.0.1:4173` web
+preview), prepares the database, seeds deterministic data
+(`db/e2e_seed.rb`: "E2E Harness Family" with `member@`/`viewer@e2e.sure.invalid`
+and one "E2E Checking" account), runs the smoke suite and the live BFF
+suite, then **always** stops every spawned process and deletes the seeded
+rows — even on failure or Ctrl-C.
+
+Local prerequisites (same as the Rails suite): Ruby/bundler toolchain,
+PostgreSQL and Redis reachable (`DATABASE_URL`/`REDIS_URL` or
+`DB_HOST`/`DB_PORT`/`POSTGRES_*`), plus Chromium
+(`pnpm --filter @sure/web exec playwright install chromium`).
+Repeat runs are safe: the seed is idempotent and namespaced, and cleanup
+removes only the harness family. Useful overrides: `SURE_E2E_RAILS_PORT`,
+`SURE_E2E_WEB_PORT`, `SURE_E2E_EMAIL` / `SURE_E2E_VIEWER_EMAIL` /
+`SURE_E2E_PASSWORD`, `E2E_ARTIFACTS_DIR`.
+
+### Privacy mode
+
+Screenshots go through `captureMasked` only: every artifact masks
+`SENSITIVE_MASK_SELECTORS` (`[data-sensitive]`, password inputs) before
+hitting disk. Mark PII/finance regions with `data-sensitive` as new pages
+land. Tokens and passwords never enter logs, summaries, or artifacts —
+only redacted statuses and schema paths.
 
 ## Typed API client (`src/lib/api/`)
 
