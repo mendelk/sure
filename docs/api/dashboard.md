@@ -35,15 +35,17 @@ Representative sizes (measured shape, JSON before compression):
 | --- | --- | --- |
 | `balance_sheet` totals + meta | ~1 KB | ~1 KB |
 | `trend` (31 daily points) | ~8 KB | — |
-| `trend` (53 weekly points, `last_365_days`) | — | ~14 KB |
+| `trend` (366 daily points, `last_365_days`) | — | ~95 KB |
 | `groups` | ~2 KB | ~25 KB |
 | `sync` | < 1 KB | < 1 KB |
-| **Total** | **~12 KB** | **~40 KB** |
+| **Total** | **~12 KB** | **~120 KB** |
 | Recent transactions (`per_page=5`) | ~6 KB | ~6 KB |
 
-The trend series is capped by construction: the served periods allow at most
-`last_365_days` (weekly interval, ~53 points) and the schema caps `values` at
-400 items. Per-account balance history stays paginated (`max 100/page`) and is
+The trend series is capped by construction: every served enum period is
+daily — `Period#interval` aggregates to `1 week` only past one calendar year
+(and to `1 month` past five), and no served period is that long — so the
+longest series (`last_365_days`, `current_year`) carry at most ~366 daily
+points, within the schema cap of 400 `values` items. Per-account balance history stays paginated (`max 100/page`) and is
 never embedded in the dashboard payload.
 
 ## Currency semantics
@@ -66,11 +68,16 @@ never embedded in the dashboard payload.
   dates in the server timezone.
 - `period` accepts only `last_7_days`, `last_30_days`, `last_90_days`,
   `last_365_days`, `current_month`, `current_year`; anything else returns
-  `422 validation_failed`. The interval is `1 day`, except periods longer than
-  a year which aggregate to `1 week`.
-- Sync timestamps (`last_completed_at`, `last_activity_at`, `created_at`,
-  `updated_at`, `completed_at`) are ISO 8601 datetimes and may be `null` when
-  the family never synced.
+  `422 validation_failed`. The interval is `1 day` for every served enum
+  period — only spans longer than a calendar year aggregate to `1 week`,
+  and none of the served periods qualify (`last_365_days` and
+  `current_year` are daily, up to ~366 points).
+- Sync timestamps (`last_activity_at`, `created_at`, `updated_at`,
+  `completed_at`) are ISO 8601 datetimes and may be `null` when the family
+  never synced. `last_completed_at` is the exception: it mirrors the
+  `families.latest_sync_completed_at` column, which defaults to
+  `CURRENT_TIMESTAMP`, so it is never `null` for a persisted family — for a
+  never-synced family it reports the family creation time.
 
 ## Authorization and family scoping
 
@@ -86,12 +93,12 @@ never embedded in the dashboard payload.
 
 | State | Representation |
 | --- | --- |
-| Empty family | `accounts_count: 0`, zeroed totals, empty `account_groups`, zeroed trend values, `sync.latest: null`, `syncing: false`, `stale: false`. No errors. |
+| Empty family | `accounts_count: 0`, zeroed totals, empty `account_groups`, zeroed trend values, `sync.latest: null`, `syncing: false`, `stale: false` for a just-created family (the 24h rule below applies to the defaulted timestamp). No errors. |
 | Single-currency family | Native and converted balances agree; totals in family currency. |
 | Multi-currency family | Native balances keep account currency; converted balances and totals use the family currency. |
 | Syncing | `sync.syncing: true`, per-account `syncing: true` on syncing accounts, `sync.latest.status: "syncing"`. Totals reflect the last synced balances. |
 | Stale | `sync.stale: true` when the last completed sync is older than 24 hours. Clients should surface a refresh affordance (`POST /api/v1/sync`) but still render cached totals. |
-| Never synced | `last_completed_at: null`, `latest: null`, `stale: false`. |
+| Never synced | `latest: null`; `last_completed_at` reports the family creation time (column default, never `null`); `stale` follows the 24h rule, so families older than 24 hours report `stale: true`. |
 
 ## Query plan and N+1 prevention
 

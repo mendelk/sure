@@ -19,8 +19,9 @@ class Api::V1::BalanceSheetController < Api::V1::BaseController
   before_action :ensure_read_scope
 
   # Bounded set of trend periods served by this endpoint. Kept small so the
-  # generated series stays within a few hundred points (daily intervals up to
-  # last_365_days are aggregated weekly by Period#interval).
+  # generated series stays within a few hundred points: every served period
+  # is daily (Period#interval aggregates weekly only past one calendar
+  # year), and the 400-item values cap bounds the ~366-point maximum.
   DASHBOARD_PERIODS = %w[
     last_7_days
     last_30_days
@@ -52,16 +53,19 @@ class Api::V1::BalanceSheetController < Api::V1::BaseController
     series = balance_sheet.net_worth_series(period: period)
     latest_sync = latest_family_sync(family)
     family_currency = family.currency
+    groups = groups_payload(balance_sheet, family_currency)
 
     render json: {
       currency: family.currency,
       as_of: Time.zone.today.iso8601,
-      accounts_count: account_rows(balance_sheet).size,
+      accounts_count: groups.sum do |group|
+        group[:account_groups].sum { |ag| ag[:accounts_count] }
+      end,
       net_worth: balance_sheet.net_worth_money.as_json,
       assets: balance_sheet.assets.total_money.as_json,
       liabilities: balance_sheet.liabilities.total_money.as_json,
       trend: trend_payload(series, period_key),
-      groups: groups_payload(balance_sheet, family_currency),
+      groups: groups,
       sync: sync_payload(family, latest_sync)
     }
   end
@@ -70,10 +74,6 @@ class Api::V1::BalanceSheetController < Api::V1::BaseController
 
     def ensure_read_scope
       authorize_scope!(:read)
-    end
-
-    def account_rows(balance_sheet)
-      balance_sheet.account_groups.flat_map(&:accounts)
     end
 
     def trend_payload(series, period_key)
