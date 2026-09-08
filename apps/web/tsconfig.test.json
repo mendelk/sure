@@ -8,6 +8,8 @@
 		"src/**/*.test.tsx",
 		"src/**/__tests__/**/*.ts",
 		"src/**/__tests__/**/*.tsx",
+		"src/test-utils/**/*.ts",
+		"src/test-utils/**/*.tsx",
 		"src/test-setup.ts"
 	],
 	"compilerOptions": {

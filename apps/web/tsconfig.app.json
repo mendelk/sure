@@ -17,6 +17,7 @@
 		"src/**/*.server.tsx",
 		"src/**/*.test.ts",
 		"src/**/*.test.tsx",
+		"src/test-utils",
 		"src/__fixtures__"
 	],
 	"compilerOptions": {

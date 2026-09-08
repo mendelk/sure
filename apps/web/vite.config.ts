@@ -143,6 +143,20 @@ export default defineConfig(({ command, mode }) => {
 		],
 		test: {
 			setupFiles: ["./src/test-setup.ts"],
+			// Deterministic timezone for every suite: date/time assertions
+			// run in UTC regardless of the developer's locale (see
+			// src/test-utils/time.ts). The e2e Playwright harness
+			// (scripts/e2e-*.mjs) drives real browsers instead and never
+			// runs under vitest, so exclude it explicitly.
+			env: { TZ: "UTC" },
+			exclude: [
+				"**/node_modules/**",
+				"**/dist/**",
+				"**/cypress/**",
+				"**/.{idea,git,cache,output,temp}/**",
+				"**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*",
+				"**/e2e/**",
+			],
 			alias: [
 				// Unit/interaction tests assert ARIA behavior, never compiled
 				// CSS — and the StyleX compiler stays off under vitest (see
