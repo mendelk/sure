@@ -172,5 +172,69 @@ secrets) and the SSR loader re-validates on every server render.
   credentials) — all model shapes are referenced from the generated types,
   never hand-copied.
 
+## Hardened BFF transport (`src/lib/bff-policy.ts`, `src/lib/sure-api-bff.server.ts`)
+
+The browser's only path to the Sure Rails API is the TanStack Start
+server-side transport (ADR-0001 `t_alt_fnd_005`; threat model in
+`docs/adr/0001-browser-auth-bff-threat-model.md`):
+
+- **Server-only origin and credentials (B2/REQ-TRAN-03, D1/REQ-SESS-01):**
+  the upstream origin resolves from `SURE_API_ORIGIN` via the server-only
+  `getSureApiOrigin()` accessor, and server credentials (per-session bearer
+  token, optional deployment `SURE_API_KEY` via `getSureApiKey()`) attach
+  inside the executor. Neither ever enters browser bundles or responses.
+- **SSRF allow-list (REQ-TRAN-03):** `validateBffPath` accepts only relative
+  `/api/v1/*` paths on the documented allow-list (mirrors
+  `docs/api/openapi.yaml` operations). Absolute URLs, protocol-relative
+  URLs, schemes, backslashes, query/fragment smuggling, control characters,
+  encoded slashes, dot-segment escapes, and off-list paths are rejected
+  before any fetch. Only documented methods per route, only
+  `application/json` / `multipart/form-data` bodies, and only an opaque,
+  length-capped query string pass.
+- **Header hygiene (REQ-TRAN-03):** inbound `Cookie`, `Authorization`,
+  `X-Forwarded-*`, and hop-by-hop headers are stripped; only `accept`,
+  `accept-language`, `content-type`, and `X-Request-Id` forward. Upstream
+  `Set-Cookie` and server internals never propagate back.
+- **Mutations (REQ-TRAN-01):** `POST`/`PUT`/`PATCH`/`DELETE` require an
+  `Origin` header exactly matching the BFF origin plus a non-empty
+  anti-CSRF token. There are no state-changing GETs.
+- **Robustness:** 15s default timeout, caller-abort propagation, one retry
+  for idempotent methods on network failure/timeout/502/503/504 only
+  (never `POST`/`PATCH`, never 4xx/429), 10 MiB request / 25 MiB response
+  caps with bounded buffered or streamed downloads, status + `Retry-After`
+  + `X-Request-Id` propagation, and redacted `BffError`s safe for browser
+  delivery (`toSafeBody()` carrying `retryAfterMs` where present, plus the
+  `bffErrorResponseHeaders` adapter so `Retry-After` reaches the browser on
+  error outcomes; 5xx bodies replaced, 4xx hints scrubbed).
+- **Generated contracts (`t_alt_fnd_018`):** every allow-listed operation
+  validates outgoing path/query/body data and upstream success/error data
+  through the Orval-generated Zod parsers (`src/lib/api/bff-contracts.server.ts`)
+  before dispatch or forwarding — gates, never transforms — with wire
+  decoding (query/multipart strings, JSON bodies) plus a coerced fallback
+  pass, the generated parser authoritative in both. Violations fail closed
+  as redacted `contract` errors; binary downloads bypass JSON validation
+  per the generated `isBinaryDownload` rule. No hand-written schemas: the
+  route/method allow-list is covered by a test pinning it to the registry.
+- **Upload bounds:** multipart bodies are pre-flight sized (field names,
+  string bytes, Blob/File sizes, framing overhead) and rejected with 413
+  before any upstream call; only sizes are read, so `FormData` forwarding
+  stays stream-friendly and bounded multipart Blob/File is the supported
+  streaming upload path (raw streams stay fail-closed).
+- **Bounded error reads:** upstream error bodies stream through the same
+  byte cap (64 KiB) with reader cancellation on overflow — never buffered
+  unbounded — and overflow maps to a generic redacted error.
+- **Binary redirects:** the documented family-export 302 is a successful
+  transport result with its `Location` validated as a credential-free
+  http(s) URL (relative values resolved against the upstream origin,
+  absolute URL forwarded) plus an empty bounded body; `redirect: manual`
+  is kept and every other 3xx fails closed.
+- **Caching (REQ-TRAN-05):** every BFF response carries
+  `Cache-Control: private, no-store` and `Vary: Cookie, Authorization`.
+- **Tests:** `bff-policy.test.ts` (SSRF matrix, method/path/header
+  validation, CSRF/origin, cache headers, redaction) and
+  `sure-api-bff.server.test.ts` (timeout, abort, retry semantics, size
+  limits, binary streaming, upstream error mapping, credential
+  non-disclosure) satisfy the ticket verification list.
+
 [`openapi-typescript`]: https://github.com/openapi-ts/openapi-typescript
 [`openapi-fetch`]: https://github.com/openapi-ts/openapi-fetch
