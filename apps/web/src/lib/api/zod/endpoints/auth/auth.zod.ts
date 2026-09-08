@@ -85,7 +85,7 @@ export const PostApiV1AuthLogin200Response = zod.strictObject({
 		.exactOptional(),
 });
 
-export const PostApiV1AuthLogin401Response = ErrorResponse;
+export const PostApiV1AuthLogin401Response = zod.union([ErrorResponse, MfaRequiredResponse]);
 
 /**
  * Exchanges a one-time authorization code (received via deep link after mobile SSO) for OAuth tokens. The code is single-use and expires after 5 minutes.
