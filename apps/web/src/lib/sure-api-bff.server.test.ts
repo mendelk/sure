@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { BFF_MAX_REQUEST_BYTES, BFF_MAX_RESPONSE_BYTES, BffError } from "./bff-policy";
+import {
+	BFF_MAX_REQUEST_BYTES,
+	BFF_MAX_RESPONSE_BYTES,
+	BffError,
+	bffErrorResponseHeaders,
+} from "./bff-policy";
 import { getOperationContract } from "./api/bff-contracts.server";
 import { listBffAllowList } from "./bff-policy";
 import { getSureApiKey, proxyToSureApi } from "./sure-api-bff.server";
@@ -168,6 +173,28 @@ async function readAll(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> 
 		offset += chunk.byteLength;
 	}
 	return merged;
+}
+
+/** Chunked stream that counts downstream pulls (proves bounded reads). */
+function countingStream(
+	totalChunks: number,
+	chunkSize: number,
+): { stream: ReadableStream<Uint8Array>; pulls: () => number } {
+	let pulls = 0;
+	const chunk = new Uint8Array(chunkSize);
+	return {
+		stream: new ReadableStream<Uint8Array>({
+			pull(controller): void {
+				pulls += 1;
+				if (pulls > totalChunks) {
+					controller.close();
+					return;
+				}
+				controller.enqueue(chunk);
+			},
+		}),
+		pulls: () => pulls,
+	};
 }
 
 /** Upstream that hangs until aborted (rejects like a timed-out fetch). */
@@ -443,6 +470,12 @@ describe("correlation, rate-limit, and cache propagation", () => {
 		expect(error.status).toBe(429);
 		expect(error.retryAfterMs).toBe(120_000);
 		expect(calls).toHaveLength(1);
+		// Retry metadata reaches the browser via the safe body and headers.
+		expect(error.toSafeBody().retryAfterMs).toBe(120_000);
+		const headers = bffErrorResponseHeaders(error);
+		expect(headers.get("Retry-After")).toBe("120");
+		expect(headers.get("X-Request-Id")).toBe(error.requestId);
+		expect(headers.get("Cache-Control")).toBe("private, no-store");
 	});
 });
 
@@ -498,6 +531,96 @@ describe("upstream error mapping (REQ-OPS-01)", () => {
 		);
 		const error = await expectBffError(
 			proxyToSureApi(mutationRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
+		);
+		expect(error.code).toBe("contract");
+		expect(error.status).toBe(502);
+	});
+
+	it("bounds oversized chunked error bodies with cancellation", async () => {
+		const over = countingStream(3000, 1024);
+		const { fetchImpl } = mockUpstream(
+			() =>
+				new Response(over.stream, {
+					status: 422,
+					headers: { "Content-Type": "application/json" },
+				}),
+		);
+		const error = await expectBffError(
+			proxyToSureApi(mutationRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
+		);
+		expect(error.code).toBe("contract");
+		expect(error.status).toBe(502);
+		expect(error.message).toBe("Upstream error failed contract validation.");
+		// 3MB offered, 64KiB cap: the reader must stop early, never buffer all.
+		expect(over.pulls()).toBeLessThan(3000);
+		expect(over.pulls()).toBeLessThan(200);
+	});
+});
+
+describe("binary download redirects (documented 302 only)", () => {
+	const downloadPath = `/api/v1/family_exports/${UUID}/download`;
+
+	function redirectUpstream(location: string | null, status = 302): typeof fetch {
+		const { fetchImpl } = mockUpstream(() => {
+			const headers: Record<string, string> = { "Content-Type": "application/json" };
+			if (location !== null) {
+				headers["Location"] = location;
+			}
+			return new Response("{}", { status, headers });
+		});
+		return fetchImpl;
+	}
+
+	async function expectRedirectFailure(fetchImpl: typeof fetch): Promise<BffError> {
+		return expectBffError(
+			proxyToSureApi(baseRequest({ path: downloadPath }), {
+				fetchImpl,
+				upstreamOrigin: UPSTREAM,
+			}),
+		);
+	}
+
+	it("forwards a valid absolute Location with an empty bounded body", async () => {
+		const result = await proxyToSureApi(baseRequest({ path: downloadPath }), {
+			fetchImpl: redirectUpstream("https://cdn.example.com/signed?token=abc"),
+			upstreamOrigin: UPSTREAM,
+		});
+		expect(result.status).toBe(302);
+		expect(result.headers.get("Location")).toBe("https://cdn.example.com/signed?token=abc");
+		expect(requireBufferBody(result.body).byteLength).toBe(0);
+		expect(result.headers.get("Cache-Control")).toBe("private, no-store");
+		expect(result.headers.get("X-Request-Id")).toBe(result.requestId);
+	});
+
+	it("resolves relative Locations against the upstream origin, never the BFF", async () => {
+		const result = await proxyToSureApi(baseRequest({ path: downloadPath }), {
+			fetchImpl: redirectUpstream("/rails/active_storage/file"),
+			upstreamOrigin: UPSTREAM,
+		});
+		expect(result.status).toBe(302);
+		expect(result.headers.get("Location")).toBe(`${UPSTREAM}/rails/active_storage/file`);
+	});
+
+	it.each([
+		{ name: "missing", location: null, status: 302 },
+		{ name: "unparseable host", location: "https://exa mple.com/x", status: 302 },
+		{ name: "credentialed", location: "https://user:secret@cdn.example.com/f", status: 302 },
+		{ name: "non-http scheme", location: "javascript:alert(1)", status: 302 },
+		{ name: "ftp scheme", location: "ftp://cdn.example.com/f", status: 302 },
+		{ name: "undocumented 301", location: "https://cdn.example.com/f", status: 301 },
+	])("fails closed on $name redirects", async ({ location, status }) => {
+		const error = await expectRedirectFailure(redirectUpstream(location, status));
+		expect(error.code).toBe("contract");
+		expect(error.status).toBe(502);
+		expect(JSON.stringify(error.toSafeBody())).not.toContain("secret");
+	});
+
+	it("fails closed on 3xx for non-binary operations", async () => {
+		const { fetchImpl } = mockUpstream(
+			() => new Response("{}", { status: 302, headers: { Location: "https://x.example/" } }),
+		);
+		const error = await expectBffError(
+			proxyToSureApi(baseRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
 		);
 		expect(error.code).toBe("contract");
 		expect(error.status).toBe(502);
@@ -680,6 +803,44 @@ describe("body limits and bounded streaming", () => {
 		expect(calls).toHaveLength(0);
 	});
 
+	function merchantsUpload(body: FormData): BffProxyRequest {
+		return {
+			method: "POST",
+			path: "/api/v1/merchants/import",
+			origin: BFF_ORIGIN,
+			csrfToken: "csrf-size-1",
+			headers: { "Content-Type": "multipart/form-data; boundary=size-1" },
+			body,
+			bffOrigin: BFF_ORIGIN,
+		};
+	}
+
+	it("rejects an oversized single-file multipart upload with 413", async () => {
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}, 201));
+		const form = new FormData();
+		form.append("file", new File([new Uint8Array(BFF_MAX_REQUEST_BYTES + 1)], "big.csv"));
+		const error = await expectBffError(
+			proxyToSureApi(merchantsUpload(form), { fetchImpl, upstreamOrigin: UPSTREAM }),
+		);
+		expect(error.code).toBe("payload_too_large");
+		expect(error.status).toBe(413);
+		expect(calls).toHaveLength(0);
+	});
+
+	it("rejects multipart aggregates over the cap with no single large part", async () => {
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}, 201));
+		const form = new FormData();
+		for (let index = 0; index < 6; index += 1) {
+			form.append(`file-${index}`, new File([new Uint8Array(2 * 1024 * 1024)], `${index}.csv`));
+		}
+		const error = await expectBffError(
+			proxyToSureApi(merchantsUpload(form), { fetchImpl, upstreamOrigin: UPSTREAM }),
+		);
+		expect(error.code).toBe("payload_too_large");
+		expect(error.status).toBe(413);
+		expect(calls).toHaveLength(0);
+	});
+
 	it("rejects oversized upstream responses without reading them", async () => {
 		const { fetchImpl } = mockUpstream(
 			() =>
@@ -693,6 +854,17 @@ describe("body limits and bounded streaming", () => {
 		);
 		expect(error.code).toBe("payload_too_large");
 		expect(error.status).toBe(502);
+	});
+
+	it("cancels chunked success bodies at the cap instead of accumulating", async () => {
+		const over = countingStream(30, 1024 * 1024);
+		const { fetchImpl } = mockUpstream(() => new Response(over.stream, { status: 200 }));
+		const error = await expectBffError(
+			proxyToSureApi(baseRequest(), { fetchImpl, upstreamOrigin: UPSTREAM }),
+		);
+		expect(error.code).toBe("payload_too_large");
+		expect(error.status).toBe(502);
+		expect(over.pulls()).toBeLessThan(30);
 	});
 
 	it("buffers binary downloads with filename and content type", async () => {

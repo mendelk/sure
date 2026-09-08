@@ -49,6 +49,7 @@ import {
 	checkBffMutationGuards,
 	coerceBffPrimitiveStrings,
 	decodeBffQueryObject,
+	estimateFormDataSize,
 	filterBffRequestHeaders,
 	filterBffResponseHeaders,
 	isIdempotentMethod,
@@ -182,6 +183,10 @@ async function readWithCap(response: Response, cap: number): Promise<ArrayBuffer
 			}
 			total += value.byteLength;
 			if (total > cap) {
+				// Cancel before releasing: frees the connection and proves
+				// bounded reads — unbounded bodies never accumulate past cap.
+				chunks.length = 0;
+				await reader.cancel().catch(() => undefined);
 				throw new Error("response_too_large");
 			}
 			chunks.push(value);
@@ -511,8 +516,16 @@ export async function proxyToSureApi(
 		});
 	}
 
+	// Size gate before any upstream call: sized bodies compare directly;
+	// FormData compares a conservative aggregate (field names, string
+	// bytes, Blob/File sizes, framing overhead) without buffering content,
+	// so multipart uploads stay stream-friendly. Raw streams fail closed
+	// later at contract validation.
 	const knownSize = bodyByteLength(request.body);
-	if (knownSize !== undefined && knownSize > BFF_MAX_REQUEST_BYTES) {
+	const outboundSize =
+		knownSize ??
+		(request.body instanceof FormData ? estimateFormDataSize(request.body) : undefined);
+	if (outboundSize !== undefined && outboundSize > BFF_MAX_REQUEST_BYTES) {
 		throw new BffError({
 			code: "payload_too_large",
 			status: 413,
@@ -615,6 +628,43 @@ export async function proxyToSureApi(
 			});
 		}
 
+		// Binary-download redirects (the family-export 302): `Response.ok`
+		// excludes 3xx and the generated 302 parser is intentionally
+		// `unknown`, so the generic contract path would fail closed here.
+		// Treat only a *documented* binary redirect as a successful
+		// transport result: validate `Location` as a credential-free
+		// http(s) URL resolved from the trusted upstream response, forward
+		// the absolute URL — a relative value must never resolve against the
+		// BFF origin in the browser — and return an empty bounded body.
+		// `redirect: "manual"` stays set: arbitrary redirects are never
+		// followed server-side. Every other 3xx fails closed below.
+		if (isBinaryDownload && upstream.status >= 300 && upstream.status < 400) {
+			const documented =
+				getOperationContract(method, pathResult.template)?.responses[String(upstream.status)] !==
+				undefined;
+			const rawLocation = upstream.headers.get("Location");
+			void upstream.body?.cancel().catch(() => undefined);
+			if (!documented || rawLocation === null || rawLocation.trim() === "") {
+				throw toContractError(requestId, 502, "Upstream redirect failed contract validation.");
+			}
+			let target: URL;
+			try {
+				target = new URL(rawLocation.trim(), upstreamOrigin);
+			} catch {
+				throw toContractError(requestId, 502, "Upstream redirect failed contract validation.");
+			}
+			if (
+				(target.protocol !== "http:" && target.protocol !== "https:") ||
+				target.username !== "" ||
+				target.password !== ""
+			) {
+				throw toContractError(requestId, 502, "Upstream redirect failed contract validation.");
+			}
+			const headers = buildBrowserHeaders(upstream.headers, requestId);
+			headers.set("Location", target.href);
+			return { status: upstream.status, headers, requestId, attempts, body: new ArrayBuffer(0) };
+		}
+
 		if (upstream.ok) {
 			const headers = buildBrowserHeaders(upstream.headers, requestId);
 			if (responseMode === "stream" && isBinaryDownload) {
@@ -710,9 +760,12 @@ export async function proxyToSureApi(
 }
 
 async function readUpstreamErrorText(upstream: Response): Promise<string> {
+	// Bounded like every other read: `response.text()` would buffer an
+	// unbounded error body before slicing. Overflow yields "" and the
+	// caller maps it to a generic redacted error.
 	try {
-		const text = await upstream.text();
-		return text.slice(0, ERROR_BODY_CAP);
+		const bytes = await readWithCap(upstream, ERROR_BODY_CAP);
+		return new TextDecoder().decode(bytes);
 	} catch {
 		return "";
 	}

@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+	BFF_MAX_REQUEST_BYTES,
 	BFF_REQUEST_ID_HEADER,
 	BffError,
+	bffErrorResponseHeaders,
 	bffNoStoreHeaders,
 	checkBffMutationGuards,
 	coerceBffPrimitiveStrings,
 	decodeBffQueryObject,
+	estimateFormDataSize,
 	extractUpstreamMessage,
 	filterBffRequestHeaders,
 	filterBffResponseHeaders,
@@ -206,6 +209,50 @@ describe("contract wire decoding", () => {
 		expect(coerceBffPrimitiveStrings("007")).toBe(7);
 		expect(coerceBffPrimitiveStrings("abc")).toBe("abc");
 		expect(coerceBffPrimitiveStrings(new Blob(["b"]))).toBeInstanceOf(Blob);
+	});
+});
+
+describe("multipart aggregate sizing", () => {
+	it("accounts field names, string bytes, Blob sizes, and overhead", () => {
+		const form = new FormData();
+		form.append("sequence", "1");
+		form.append("file", new Blob(["abc"]));
+		// 1024 total + ("sequence"=8 + 512 + "1"=1) + ("file"=4 + 512 + 3).
+		expect(estimateFormDataSize(form)).toBe(1024 + 8 + 512 + 1 + 4 + 512 + 3);
+	});
+
+	it("flags aggregates over the request cap", () => {
+		const form = new FormData();
+		form.append("file", new Blob([new Uint8Array(BFF_MAX_REQUEST_BYTES + 1)]));
+		expect(estimateFormDataSize(form)).toBeGreaterThan(BFF_MAX_REQUEST_BYTES);
+	});
+});
+
+describe("error retry metadata", () => {
+	it("carries retryAfterMs in the safe body and header adapter", () => {
+		const error = new BffError({
+			code: "rate_limited",
+			status: 429,
+			message: "Rate limit exceeded. Retry later.",
+			requestId: "req-retry-1",
+			retryAfterMs: 120_000,
+		});
+		expect(error.toSafeBody()).toEqual({
+			error: "rate_limited",
+			message: "Rate limit exceeded. Retry later.",
+			requestId: "req-retry-1",
+			retryAfterMs: 120_000,
+		});
+		const headers = bffErrorResponseHeaders(error);
+		expect(headers.get("Retry-After")).toBe("120");
+		expect(headers.get(BFF_REQUEST_ID_HEADER)).toBe("req-retry-1");
+		expect(headers.get("Cache-Control")).toBe("private, no-store");
+	});
+
+	it("omits Retry-After when the error carries none", () => {
+		const error = new BffError({ code: "timeout", status: 504, message: "Upstream timed out." });
+		expect(error.toSafeBody()).toEqual({ error: "timeout", message: "Upstream timed out." });
+		expect(bffErrorResponseHeaders(error).has("Retry-After")).toBe(false);
 	});
 });
 

@@ -91,6 +91,38 @@ export const BFF_MAX_RESPONSE_BYTES = 25 * 1024 * 1024;
 export const BFF_MAX_QUERY_CHARS = 4096;
 export const BFF_MAX_PATH_CHARS = 2048;
 
+/**
+ * Conservative multipart framing allowances for pre-flight sizing: per-part
+ * headers (`Content-Disposition`, filenames, `Content-Type` lines, CRLFs)
+ * plus a boundary share. Deliberately overestimates — the estimate is a
+ * fail-closed gate, never a wire format.
+ */
+export const BFF_MULTIPART_PART_OVERHEAD_BYTES = 512;
+export const BFF_MULTIPART_TOTAL_OVERHEAD_BYTES = 1024;
+
+/**
+ * Conservatively estimate an upload's wire size without buffering content:
+ * encoded field names, string bytes, and Blob/File sizes plus framing
+ * overhead. Sized `Blob`/`File` parts keep `FormData` forwarding
+ * stream-friendly — only sizes are read here, never bytes — which makes
+ * bounded multipart Blob/File the supported streaming upload path (raw
+ * `ReadableStream` bodies stay fail-closed: they cannot be
+ * contract-validated).
+ */
+export function estimateFormDataSize(form: FormData): number {
+	const encoder = new TextEncoder();
+	let total = BFF_MULTIPART_TOTAL_OVERHEAD_BYTES;
+	form.forEach((value, key) => {
+		total += encoder.encode(key).length + BFF_MULTIPART_PART_OVERHEAD_BYTES;
+		if (typeof value === "string") {
+			total += encoder.encode(value).length;
+		} else {
+			total += value.size;
+		}
+	});
+	return total;
+}
+
 /** Idempotent methods eligible for one safe retry (never POST/PATCH). */
 export function isIdempotentMethod(method: BffMethod): boolean {
 	return method === "GET" || method === "PUT" || method === "DELETE";
@@ -704,16 +736,47 @@ export class BffError extends Error {
 		this.retryAfterMs = init.retryAfterMs;
 	}
 
-	toSafeBody(): { error: BffErrorCode; message: string; requestId?: string | undefined } {
-		const body: { error: BffErrorCode; message: string; requestId?: string | undefined } = {
+	toSafeBody(): {
+		error: BffErrorCode;
+		message: string;
+		requestId?: string | undefined;
+		retryAfterMs?: number | undefined;
+	} {
+		const body: {
+			error: BffErrorCode;
+			message: string;
+			requestId?: string | undefined;
+			retryAfterMs?: number | undefined;
+		} = {
 			error: this.code,
 			message: this.message,
 		};
 		if (this.requestId !== undefined) {
 			body.requestId = this.requestId;
 		}
+		if (this.retryAfterMs !== undefined) {
+			body.retryAfterMs = this.retryAfterMs;
+		}
 		return body;
 	}
+}
+
+/**
+ * Response-header adapter for `BffError`s so retry metadata reaches the
+ * browser even when the outcome is an error, not an upstream response:
+ * `Retry-After` (whole seconds) only when the error carries it,
+ * correlation id when present, and the same `private, no-store` cache
+ * posture as every BFF response (REQ-TRAN-05).
+ */
+export function bffErrorResponseHeaders(error: BffError): Headers {
+	const headers = new Headers(bffNoStoreHeaders());
+	if (error.requestId !== undefined) {
+		headers.set(BFF_REQUEST_ID_HEADER, error.requestId);
+	}
+	if (error.retryAfterMs !== undefined) {
+		headers.set("Retry-After", String(Math.max(0, Math.ceil(error.retryAfterMs / 1000))));
+	}
+	return headers;
 }
 
 /**

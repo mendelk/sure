@@ -203,7 +203,9 @@ server-side transport (ADR-0001 `t_alt_fnd_005`; threat model in
   (never `POST`/`PATCH`, never 4xx/429), 10 MiB request / 25 MiB response
   caps with bounded buffered or streamed downloads, status + `Retry-After`
   + `X-Request-Id` propagation, and redacted `BffError`s safe for browser
-  delivery (`toSafeBody()`; 5xx bodies replaced, 4xx hints scrubbed).
+  delivery (`toSafeBody()` carrying `retryAfterMs` where present, plus the
+  `bffErrorResponseHeaders` adapter so `Retry-After` reaches the browser on
+  error outcomes; 5xx bodies replaced, 4xx hints scrubbed).
 - **Generated contracts (`t_alt_fnd_018`):** every allow-listed operation
   validates outgoing path/query/body data and upstream success/error data
   through the Orval-generated Zod parsers (`src/lib/api/bff-contracts.server.ts`)
@@ -213,6 +215,19 @@ server-side transport (ADR-0001 `t_alt_fnd_005`; threat model in
   as redacted `contract` errors; binary downloads bypass JSON validation
   per the generated `isBinaryDownload` rule. No hand-written schemas: the
   route/method allow-list is covered by a test pinning it to the registry.
+- **Upload bounds:** multipart bodies are pre-flight sized (field names,
+  string bytes, Blob/File sizes, framing overhead) and rejected with 413
+  before any upstream call; only sizes are read, so `FormData` forwarding
+  stays stream-friendly and bounded multipart Blob/File is the supported
+  streaming upload path (raw streams stay fail-closed).
+- **Bounded error reads:** upstream error bodies stream through the same
+  byte cap (64 KiB) with reader cancellation on overflow — never buffered
+  unbounded — and overflow maps to a generic redacted error.
+- **Binary redirects:** the documented family-export 302 is a successful
+  transport result with its `Location` validated as a credential-free
+  http(s) URL (relative values resolved against the upstream origin,
+  absolute URL forwarded) plus an empty bounded body; `redirect: manual`
+  is kept and every other 3xx fails closed.
 - **Caching (REQ-TRAN-05):** every BFF response carries
   `Cache-Control: private, no-store` and `Vary: Cookie, Authorization`.
 - **Tests:** `bff-policy.test.ts` (SSRF matrix, method/path/header
