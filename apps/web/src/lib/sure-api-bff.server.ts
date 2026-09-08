@@ -518,8 +518,8 @@ export async function proxyToSureApi(
 
 	// Size gate before any upstream call: sized bodies compare directly;
 	// FormData compares a conservative aggregate (field names, string
-	// bytes, Blob/File sizes, framing overhead) without buffering content,
-	// so multipart uploads stay stream-friendly. Raw streams fail closed
+	// bytes, Blob/File sizes, filenames, MIME types, framing overhead)
+	// without buffering content, so multipart uploads stay stream-friendly. Raw streams fail closed
 	// later at contract validation.
 	const knownSize = bodyByteLength(request.body);
 	const outboundSize =
@@ -551,6 +551,16 @@ export async function proxyToSureApi(
 
 	const upstreamHeaders = filterBffRequestHeaders(inboundHeaders);
 	upstreamHeaders.set(BFF_REQUEST_ID_HEADER, requestId);
+	// A forwarded FormData body must serialize with a fetch-generated
+	// boundary: keeping the inbound Content-Type would pin its stale
+	// boundary while undici writes a fresh one, producing an upload Rails
+	// cannot parse. The inbound media type stays authoritative for the
+	// policy + contract gates above; only the wire header is regenerated.
+	const forwardsFormData =
+		request.body instanceof FormData && method !== "GET" && method !== "DELETE";
+	if (forwardsFormData) {
+		upstreamHeaders.delete("Content-Type");
+	}
 	if (request.auth?.bearerToken !== undefined && request.auth.bearerToken !== "") {
 		upstreamHeaders.set("Authorization", `Bearer ${request.auth.bearerToken}`);
 	} else if (request.auth?.apiKey !== undefined && request.auth.apiKey !== "") {

@@ -841,6 +841,27 @@ describe("body limits and bounded streaming", () => {
 		expect(calls).toHaveLength(0);
 	});
 
+	it("rejects multipart aggregates whose filenames alone exceed the cap", async () => {
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({}, 201));
+		const form = new FormData();
+		// Zero payload bytes, but each filename serializes into the
+		// framing: metadata alone must trip the 413 gate pre-fetch.
+		for (let index = 0; index < 40; index += 1) {
+			form.append(
+				"file",
+				new File([new Uint8Array(0)], `${"n".repeat(300_000)}-${index}.csv`, {
+					type: "text/csv",
+				}),
+			);
+		}
+		const error = await expectBffError(
+			proxyToSureApi(merchantsUpload(form), { fetchImpl, upstreamOrigin: UPSTREAM }),
+		);
+		expect(error.code).toBe("payload_too_large");
+		expect(error.status).toBe(413);
+		expect(calls).toHaveLength(0);
+	});
+
 	it("rejects oversized upstream responses without reading them", async () => {
 		const { fetchImpl } = mockUpstream(
 			() =>
@@ -924,7 +945,7 @@ describe("body limits and bounded streaming", () => {
 		expect(new TextDecoder().decode(streamed)).toBe(payload);
 	});
 
-	it("forwards multipart chunk uploads with contract-valid fields", async () => {
+	it("regenerates the multipart boundary so the wire header matches the body", async () => {
 		const { fetchImpl, calls } = mockUpstream(() => jsonResponse({ data: SESSION }, 201));
 		const form = new FormData();
 		form.append("sequence", "1");
@@ -935,16 +956,98 @@ describe("body limits and bounded streaming", () => {
 				path: "/api/v1/import_sessions/session-1/chunks",
 				origin: BFF_ORIGIN,
 				csrfToken: "csrf-2",
-				headers: { "Content-Type": "multipart/form-data; boundary=test-123" },
+				headers: { "Content-Type": "multipart/form-data; boundary=stale-inbound-boundary" },
 				body: form,
 				bffOrigin: BFF_ORIGIN,
 			},
 			{ fetchImpl, upstreamOrigin: UPSTREAM },
 		);
 		expect(result.status).toBe(201);
-		expect(new Headers(firstCall(calls).init.headers).get("Content-Type")).toBe(
-			"multipart/form-data; boundary=test-123",
+		const call = firstCall(calls);
+		// The stale inbound boundary must not reach the wire: fetch
+		// generates Content-Type when serializing FormData.
+		const outboundHeaders = new Headers(call.init.headers);
+		expect(outboundHeaders.get("Content-Type")).toBeNull();
+		const outboundBody = call.init.body;
+		expect(outboundBody).toBeInstanceOf(FormData);
+		if (!(outboundBody instanceof FormData)) {
+			throw new Error("Expected the upstream body to stay FormData.");
+		}
+		// Re-serialize exactly as the upstream fetch would and prove the
+		// declared boundary delimits the body and every field parses.
+		const wire = new Request(call.url, {
+			method: "POST",
+			headers: outboundHeaders,
+			body: outboundBody,
+		});
+		const declared = wire.headers.get("Content-Type") ?? "";
+		expect(declared).toMatch(/^multipart\/form-data; boundary=.+/);
+		expect(declared).not.toContain("stale-inbound-boundary");
+		const boundary = declared.split("boundary=")[1] ?? "";
+		const text = await wire.text();
+		expect(text).toContain(`--${boundary}\r\n`);
+		expect(text).toContain('name="sequence"');
+		expect(text).toContain("1");
+		expect(text).toContain('name="raw_file_content"');
+		expect(text).toContain('{"rows":[]}');
+		expect(text).toContain(`--${boundary}--`);
+	});
+
+	it("regenerates the boundary for file uploads with filename framing", async () => {
+		const merchantResult = {
+			imported: 1,
+			skipped: 0,
+			merchants: [
+				{
+					id: UUID,
+					name: "Acme",
+					type: "FamilyMerchant",
+					created_at: STAMP,
+					updated_at: STAMP,
+				},
+			],
+		};
+		const { fetchImpl, calls } = mockUpstream(() => jsonResponse(merchantResult, 201));
+		const form = new FormData();
+		form.append(
+			"file",
+			new File(["name,slug\nacme,acme\n"], "merchants.csv", { type: "text/csv" }),
 		);
+		const result = await proxyToSureApi(
+			{
+				method: "POST",
+				path: "/api/v1/merchants/import",
+				origin: BFF_ORIGIN,
+				csrfToken: "csrf-file-1",
+				headers: { "Content-Type": "multipart/form-data; boundary=stale-inbound-boundary" },
+				body: form,
+				bffOrigin: BFF_ORIGIN,
+			},
+			{ fetchImpl, upstreamOrigin: UPSTREAM },
+		);
+		expect(result.status).toBe(201);
+		const call = firstCall(calls);
+		const outboundHeaders = new Headers(call.init.headers);
+		expect(outboundHeaders.get("Content-Type")).toBeNull();
+		const outboundBody = call.init.body;
+		expect(outboundBody).toBeInstanceOf(FormData);
+		if (!(outboundBody instanceof FormData)) {
+			throw new Error("Expected the upstream body to stay FormData.");
+		}
+		const wire = new Request(call.url, {
+			method: "POST",
+			headers: outboundHeaders,
+			body: outboundBody,
+		});
+		const declared = wire.headers.get("Content-Type") ?? "";
+		const boundary = declared.split("boundary=")[1] ?? "";
+		expect(boundary).not.toBe("");
+		expect(declared).not.toContain("stale-inbound-boundary");
+		const text = await wire.text();
+		expect(text).toContain(`--${boundary}\r\n`);
+		expect(text).toContain('filename="merchants.csv"');
+		expect(text).toContain("name,slug");
+		expect(text).toContain(`--${boundary}--`);
 	});
 
 	it("rejects multipart uploads that break the generated body contract", async () => {

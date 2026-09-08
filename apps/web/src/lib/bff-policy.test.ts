@@ -217,8 +217,47 @@ describe("multipart aggregate sizing", () => {
 		const form = new FormData();
 		form.append("sequence", "1");
 		form.append("file", new Blob(["abc"]));
-		// 1024 total + ("sequence"=8 + 512 + "1"=1) + ("file"=4 + 512 + 3).
-		expect(estimateFormDataSize(form)).toBe(1024 + 8 + 512 + 1 + 4 + 512 + 3);
+		// 1024 total + ("sequence"=8 + 512 + "1"=1) + ("file"=4 + 512 + 3
+		// + File name "blob"=4 + MIME ""=0: FormData normalizes Blob parts
+		// to Files named "blob").
+		expect(estimateFormDataSize(form)).toBe(1024 + 8 + 512 + 1 + 4 + 512 + 3 + 4);
+	});
+
+	it("counts filenames and MIME types alongside payload sizes", () => {
+		const form = new FormData();
+		form.append("file", new File(["abc"], "a.csv", { type: "text/csv" }));
+		// 1024 total + ("file"=4 + 512 + payload 3 + filename "a.csv"=5 +
+		// MIME "text/csv"=8).
+		expect(estimateFormDataSize(form)).toBe(1024 + 4 + 512 + 3 + 5 + 8);
+	});
+
+	it("never undershoots wire bytes for filename-heavy parts", async () => {
+		const form = new FormData();
+		form.append(
+			"file",
+			new File([new Uint8Array(0)], `${"n".repeat(100_000)}.csv`, { type: "text/csv" }),
+		);
+		const wire = new Request("https://bff.test/api/v1/merchants/import", {
+			method: "POST",
+			body: form,
+		});
+		const actual = (await wire.arrayBuffer()).byteLength;
+		// Zero payload bytes, yet the filename alone serializes ~100KiB of framing.
+		expect(actual).toBeGreaterThan(100_000);
+		expect(estimateFormDataSize(form)).toBeGreaterThanOrEqual(actual);
+	});
+
+	it("never undershoots wire bytes for MIME metadata", async () => {
+		const mime = "application/x-custom-type".repeat(10);
+		const form = new FormData();
+		form.append("file", new File([new Uint8Array([1, 2, 3])], "data.bin", { type: mime }));
+		const wire = new Request("https://bff.test/api/v1/merchants/import", {
+			method: "POST",
+			body: form,
+		});
+		const actual = (await wire.arrayBuffer()).byteLength;
+		expect(actual).toBeGreaterThan(mime.length);
+		expect(estimateFormDataSize(form)).toBeGreaterThanOrEqual(actual);
 	});
 
 	it("flags aggregates over the request cap", () => {

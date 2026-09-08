@@ -49,7 +49,7 @@ Establish the architecture, security, generated API client, design system, appli
 - [x] [[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript, lint, formatting, and workspace scripts]]
 - [x] [[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]
 - [x] [[generate-openapi-zod-runtime-parsers|Generate OpenAPI Zod runtime parsers]]
-- [ ] [[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]
+- [x] [[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]
 - [x] [[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]
 - [x] [[implement-secure-login-refresh-and-logout-sessions|Implement secure login, refresh, and logout sessions]]
 - [x] [[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]
