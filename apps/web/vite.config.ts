@@ -1,6 +1,7 @@
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import stylex from "@stylexjs/unplugin";
 import type { UserOptions as StylexUserOptions } from "@stylexjs/unplugin";
+import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import type { PluginOption } from "vite";
 import viteReact from "@vitejs/plugin-react";
@@ -13,7 +14,10 @@ import { assertSureApiOrigin } from "./src/lib/sure-api-origin.ts";
 // Vitest runs (`vitest run`) also skip it: unit tests must stay hermetic and
 // runnable from a clean checkout without deployment env vars.
 function ensureSureApiOriginForServe(command: string, rawValue: unknown) {
-	if (command !== "serve" || process.env["VITEST"]) {
+	// Storybook (STORYBOOK env, set to "true" by the Storybook CLI itself)
+	// renders primitives in isolation and never touches the Sure API —
+	// exempt it like vitest below.
+	if (command !== "serve" || process.env["VITEST"] || process.env["STORYBOOK"] != null) {
 		return;
 	}
 
@@ -47,6 +51,35 @@ function stylexVitePlugin(options: Partial<StylexUserOptions>): PluginOption {
 	return plugin;
 }
 
+/**
+ * Test-only plugin (active under `VITEST`): force the dependency optimizer
+ * off after every other plugin's `config` hook has run.
+ *
+ * Why: vitest serves transformed test sources through Vite's web pipeline,
+ * whose pre-bundler rewrites bare `react` imports to `deps/react.js` — a
+ * second React copy next to the natively externalized one used by
+ * react-dom/react-aria. Two copies means every hook call throws "Invalid
+ * hook call". Neither static `optimizeDeps` config nor
+ * `test.deps.optimizer` survives the Start plugin's later `config` hook
+ * (verified: the merged `optimizeDeps.include` still lists React), so this
+ * `configResolved` mutation — which runs after all `config` hooks but
+ * before the optimizer starts — is the single effective switch. Scoped to
+ * vitest: dev/build behavior is untouched.
+ *
+ * NB: `optimizeDeps.disabled` is deprecated (Vite warns and ignores it);
+ * the supported off switch is `noDiscovery` with an empty `include`.
+ */
+function disableOptimizerUnderVitest(): PluginOption {
+	return {
+		name: "sure-web:disable-optimizer-under-vitest",
+		configResolved(config) {
+			config.optimizeDeps.noDiscovery = true;
+			config.optimizeDeps.entries = [];
+			config.optimizeDeps.include = [];
+		},
+	};
+}
+
 export default defineConfig(({ command, mode }) => {
 	// NB: vite loads `.env` files after the config module, so read them here
 	// explicitly; shell-provided variables still take precedence via loadEnv
@@ -54,18 +87,48 @@ export default defineConfig(({ command, mode }) => {
 	const env = loadEnv(mode, process.cwd(), "");
 	ensureSureApiOriginForServe(command, process.env["SURE_API_ORIGIN"] ?? env["SURE_API_ORIGIN"]);
 
+	// Storybook loads this config through @storybook/builder-vite and only
+	// needs module resolution: the TanStack Start plugin (router, server
+	// functions, multi-environment builder) breaks the Storybook build
+	// ("multiple entries detected"), and the StyleX plugin is added by
+	// .storybook/main.ts instead. Active whenever STORYBOOK is set — the
+	// Storybook CLI sets STORYBOOK=true on startup, so the package.json
+	// scripts set it too for local `vite` invocations outside Storybook.
+	if (process.env["STORYBOOK"] != null) {
+		return {
+			resolve: {
+				tsconfigPaths: true,
+				alias: { "~": fileURLToPath(new URL("./src", import.meta.url)) },
+			},
+		};
+	}
+
 	return {
 		server: {
 			port: 5173,
 		},
 		resolve: {
 			tsconfigPaths: true,
+			// Explicit `~/* → src/*` alias (CONVENTIONS.md). The TanStack
+			// Start plugin resolves it in dev/build, but vitest needs it
+			// spelled out so unit tests can import product modules.
+			alias: { "~": fileURLToPath(new URL("./src", import.meta.url)) },
+			// Single React instance across symlinked pnpm copies (helps
+			// dev/build too; the test pipeline additionally disables the
+			// optimizer via disableOptimizerUnderVitest below).
+			dedupe: ["react", "react-dom"],
 		},
 		plugins: [
+			...(process.env["VITEST"] ? [disableOptimizerUnderVitest()] : []),
 			tanstackStart(),
 			// Compile the generated semantic theme (src/styles/sure-tokens.stylex.ts)
 			// and any stylex.create() call sites. Keep before viteReact to preserve
 			// Fast Refresh; useCSSLayers keeps StyleX output ordered in @layers.
+			// `aliases` teaches the StyleX babel resolver the `~/* → src/*`
+			// path alias (CONVENTIONS.md) — without it, any stylex.create()
+			// file importing the theme via `~` fails the build once routes
+			// start importing the UI primitives. Shape follows the plugin
+			// contract: glob key with an array of replacement globs.
 			// Unit tests assert on generated source text and plain values, never
 			// on compiled CSS — and the plugin's serve-mode watchers keep the
 			// vitest worker's Vite server from closing cleanly — so stay off
@@ -73,17 +136,25 @@ export default defineConfig(({ command, mode }) => {
 			stylexVitePlugin({
 				useCSSLayers: true,
 				devMode: process.env["VITEST"] ? "off" : "full",
-				// The StyleX babel plugin statically resolves theme imports
-				// (vars from ~/styles/sure-tokens.stylex) itself, outside
-				// Vite's tsconfig-paths aliasing. Map "~" to the /ROOT/
-				// virtual prefix so the plugin can find the file relative to
-				// its rootDir (apps/web, the pnpm-filter cwd).
-				aliases: {
-					"~/*": ["/ROOT/src/*"],
-				},
+				aliases: { "~/*": [`${fileURLToPath(new URL("./src", import.meta.url))}/*`] },
 			}),
 			// react's vite plugin must come after start's vite plugin
 			viteReact(),
 		],
+		test: {
+			setupFiles: ["./src/test-setup.ts"],
+			alias: [
+				// Unit/interaction tests assert ARIA behavior, never compiled
+				// CSS — and the StyleX compiler stays off under vitest (see
+				// above). Route the runtime to the test shim so components
+				// importing the generated theme render without the compiler.
+				{
+					find: /^@stylexjs\/stylex$/,
+					replacement: fileURLToPath(
+						new URL("./src/components/ui/stylex-test-shim.ts", import.meta.url),
+					),
+				},
+			],
+		},
 	};
 });

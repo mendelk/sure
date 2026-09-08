@@ -47,7 +47,26 @@ describe("semantic token values", () => {
 		expect(lightValues.container).toBe("#ffffff");
 		expect(lightValues.textPrimary).toBe("#171717"); // color.gray.900
 		expect(lightValues.buttonBgPrimary).toBe("#171717");
-		expect(lightValues.buttonBgDestructive).toBe("#EC2222"); // color.red.600
+		// Destructive button: red.700 so white text reaches 5.9:1 (red.600
+		// was 4.4:1 and failed axe color-contrast in the browser gate).
+		expect(lightValues.buttonBgDestructive).toBe("#C91313"); // color.red.700
+		expect(lightValues.buttonBgDestructiveHover).toBe("#A40E0E"); // color.red.800
+	});
+
+	it("resolves strong text variants for tinted surfaces", () => {
+		// Muted/base tones fail contrast on surface/tint backgrounds
+		// (gray.500 is 4.4:1 on gray.50); the *-strong scale passes ≥4.5:1
+		// in both themes (verified by the browser Storybook gate).
+		expect(lightValues.textSecondaryStrong).toBe("#5C5C5C"); // color.gray.600
+		expect(lightValues.textInfoStrong).toBe("#175CD3"); // color.blue.700
+		expect(lightValues.textSuccessStrong).toBe("#05603A"); // color.green.800
+		expect(lightValues.textWarningStrong).toBe("#B54708"); // color.yellow.700
+		expect(lightValues.textDestructiveStrong).toBe("#C91313"); // color.red.700
+		expect(darkValues.textSecondaryStrong).toBe("#CFCFCF"); // color.gray.300
+		expect(darkValues.textInfoStrong).toBe("#84CAFF"); // color.blue.300
+		expect(darkValues.textSuccessStrong).toBe("#6CE9A6"); // color.green.300
+		expect(darkValues.textWarningStrong).toBe("#FEC84B"); // color.yellow.300
+		expect(darkValues.textDestructiveStrong).toBe("#F88C86"); // color.red.300
 	});
 
 	it("resolves representative dark colors from sure.dark extensions", () => {

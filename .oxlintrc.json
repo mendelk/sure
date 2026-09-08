@@ -118,11 +118,14 @@
 			}
 		},
 		{
-			// Node generator scripts run in Node outside every tsconfig
-			// program, so the type-aware no-unsafe-* rules (warn-level
+			// Node scripts (apps/web/scripts/*: Orval/Zod generator checks,
+			// the Storybook browser harness) run in Node outside every
+			// tsconfig program and are never bundled: Node imports/globals
+			// are fine, and the type-aware no-unsafe-* rules (warn-level
 			// signal elsewhere) resolve their imports to `error` and spam.
 			// The scripts stay covered by the correctness/suspicious
-			// categories and by `contracts:check` drift tests instead.
+			// categories, by `contracts:check`/drift tests, and — for the
+			// browser harness — by execution (test:browser runs green in CI).
 			"files": ["apps/web/scripts/**"],
 			"rules": {
 				"no-restricted-imports": "off",
@@ -136,13 +139,18 @@
 		},
 		{
 			// Tests and Node tooling configs run in Node: no browser limits.
-			// (orval.config.* is Node-only generator config, same class.)
+			// This covers vitest suites, vite/vitest configs, the Storybook
+			// Node config (apps/web/.storybook/main.ts), and the Orval
+			// generator config (orval.config.*, same class). Story files
+			// (*.stories.*) and preview run in the browser and stay under
+			// the client-safe boundaries above.
 			"files": [
 				"**/*.test.*",
 				"**/__tests__/**",
 				"**/vite.config.*",
 				"**/vitest.config.*",
 				"**/vitest.workspace.*",
+				"**/.storybook/main.*",
 				"**/orval.config.*"
 			],
 			"rules": {

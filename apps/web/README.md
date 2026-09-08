@@ -31,6 +31,9 @@ Run from the repo root (`pnpm --filter @sure/web <cmd>`) or from
 | `pnpm preview`     | Preview the production build (:5173)|
 | `pnpm typecheck`   | `tsc` over the browser/server/test boundaries (regenerates `routeTree.gen.ts` first) |
 | `pnpm test`        | `vitest run`                        |
+| `pnpm storybook`   | Start Storybook (UI primitives catalog) on port 6006 |
+| `pnpm build-storybook` | Static Storybook build (`storybook-static/`) |
+| `pnpm test:browser` | Browser Storybook checks: interactions + full axe (incl. color-contrast) in Chromium |
 | `pnpm api:generate` | Regenerate OpenAPI types AND Zod parsers from `docs/api/openapi.yaml` |
 | `pnpm api:check`   | Fail when generated types or Zod parsers drift from `docs/api/openapi.yaml` |
 | `pnpm api:zod` | Regenerate Zod parsers only (Orval) |
@@ -238,3 +241,23 @@ server-side transport (ADR-0001 `t_alt_fnd_005`; threat model in
 
 [`openapi-typescript`]: https://github.com/openapi-ts/openapi-typescript
 [`openapi-fetch`]: https://github.com/openapi-ts/openapi-fetch
+
+## UI primitives (`src/components/ui/`) and Storybook
+
+The accessible component system lives in `src/components/ui/` (React Aria
+behavior + Sure semantic tokens). Composition rules for feature teams are
+in [`COMPOSITION.md`](./src/components/ui/COMPOSITION.md).
+
+- `pnpm storybook` — catalog with light/dark theme toolbar and viewports.
+- `pnpm build-storybook && pnpm test:browser` — automated browser
+  validation: every story renders in real Chromium (light + dark), targeted
+  keyboard/pointer interactions run, then the full axe-core rule set runs.
+  First time only, install the browser:
+  `pnpm exec playwright install --only-shell chromium`
+  (CI uses `... --with-deps` for system libraries).
+
+Coverage split: jsdom suites (`*.test.tsx`) assert ARIA behavior and run
+axe with `color-contrast` disabled (jsdom has no layout, so the rule cannot
+complete there — and without the opt-out every run prints canvas
+`getContext()` noise). Contrast is covered by `test:browser` instead; do
+not claim contrast coverage from jsdom suites.

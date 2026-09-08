@@ -7,7 +7,8 @@
 		"src/**/*.test.ts",
 		"src/**/*.test.tsx",
 		"src/**/__tests__/**/*.ts",
-		"src/**/__tests__/**/*.tsx"
+		"src/**/__tests__/**/*.tsx",
+		"src/test-setup.ts"
 	],
 	"compilerOptions": {
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
