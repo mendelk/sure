@@ -15,6 +15,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+import { resolveStaticPath } from "./static-path.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const webRoot = resolve(here, "..");
@@ -62,15 +63,15 @@ const axeSource = readFileSync(join(webRoot, "node_modules", "axe-core", "axe.mi
 
 function serveStatic(dir) {
 	const handle = async (req, res) => {
+		// Containment is enforced by resolveStaticPath (relative-based, so
+		// `..`, decoded traversals, and sibling-prefix paths resolve null).
+		const url = new URL(req.url ?? "/", "http://localhost");
+		const file = resolveStaticPath(dir, url.pathname);
+		if (file === null) {
+			res.writeHead(404).end("not found");
+			return;
+		}
 		try {
-			const url = new URL(req.url ?? "/", "http://localhost");
-			let pathname = decodeURIComponent(url.pathname);
-			if (pathname === "/") pathname = "/index.html";
-			const file = resolve(dir, `.${pathname}`);
-			if (!file.startsWith(dir)) {
-				res.writeHead(403).end("forbidden");
-				return;
-			}
 			const body = await readFile(file);
 			res
 				.writeHead(200, { "content-type": MIME[extname(file)] ?? "application/octet-stream" })
