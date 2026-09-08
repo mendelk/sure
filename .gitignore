@@ -152,3 +152,6 @@ logs/security/
 # Ignore Playwright artifacts
 playwright-report/
 .playwright-mcp
+
+# E2E harness artifacts (masked screenshots, summaries, server logs)
+apps/web/test-results/

@@ -138,14 +138,16 @@
 			}
 		},
 		{
-			// Tests and Node tooling configs run in Node: no browser limits.
-			// This covers vitest suites, vite/vitest configs, the Storybook
-			// Node config (apps/web/.storybook/main.ts), and the Orval
-			// generator config (orval.config.*, same class). Story files
-			// (*.stories.*) and preview run in the browser and stay under
-			// the client-safe boundaries above.
+			// Tests, shared test utilities, and Node tooling configs run in
+			// Node: no browser limits. This covers vitest suites, the
+			// test-utils helpers they share, vite/vitest configs, the
+			// Storybook Node config (apps/web/.storybook/main.ts), and the
+			// Orval generator config (orval.config.*, same class). Story
+			// files (*.stories.*) and preview run in the browser and stay
+			// under the client-safe boundaries above.
 			"files": [
 				"**/*.test.*",
+				"**/src/test-utils/**",
 				"**/__tests__/**",
 				"**/vite.config.*",
 				"**/vitest.config.*",
@@ -156,7 +158,20 @@
 			"rules": {
 				"no-restricted-imports": "off",
 				"no-restricted-globals": "off",
-				"vitest/no-focused-tests": "error"
+				"vitest/no-focused-tests": "error",
+				// Shared assertion helpers (a11y-assert, test-utils) carry
+				// the expects for the suites that call them.
+				"vitest/expect-expect": [
+					"error",
+					{
+						"assertFunctionNames": [
+							"expect*",
+							"assertUtcTimezone",
+							"expectNoAxeViolations",
+							"expectResponseOk"
+						]
+					}
+				]
 			}
 		}
 	]

@@ -92,7 +92,15 @@ the suite stays green while proving the boundaries bite.
   import from `vitest` explicitly (`describe`/`it`/`expect`).
 - Tests run in Node and may use Node APIs; they must stay hermetic — no
   deployment env required (`vite.config.ts` skips the serve-time
-  `SURE_API_ORIGIN` check under `VITEST`), no network.
+  `SURE_API_ORIGIN` check under `VITEST`), no network. Timezone is pinned
+  to UTC via `test.env` (`src/test-utils/time.ts` asserts it).
+- Shared unit-test helpers live in `src/test-utils/` (same Node exemption
+  as tests; excluded from the browser bundle): deterministic time, typed
+  OpenAPI fixtures, and contract-validated mock fetch handlers.
+- The live integration suite (`src/lib/api/bff-live.test.ts`) is gated by
+  `SURE_E2E_LIVE=1` and skipped otherwise, so `pnpm test` never needs
+  Rails. Playwright harnesses live in `scripts/e2e-*.mjs` (Node, same
+  exemption as the Storybook browser check) — see the README e2e section.
 - `vitest/no-focused-tests` is an error: never commit `.only`/`.skip`.
 - Boundary behavior is covered by `boundary-enforcement.test.ts`; add
   fixture-driven cases there when a new boundary rule lands.
