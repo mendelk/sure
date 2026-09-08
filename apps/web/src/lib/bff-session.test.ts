@@ -67,8 +67,8 @@ describe("parseBffSessionId (REQ-SESS-04 fail closed)", () => {
 
 	it.each([null, undefined, "", "other=1", `${BFF_SESSION_COOKIE_NAME}=`])(
 		"rejects missing/empty cookies (%p)",
-		(header) => {
-			expect(parseBffSessionId(header as string | null)).toBeUndefined();
+		(header: string | null | undefined) => {
+			expect(parseBffSessionId(header)).toBeUndefined();
 		},
 	);
 

@@ -107,9 +107,7 @@ function hasSessionControlChars(value: string): boolean {
  * never trusted beyond this gate (REQ-SESS-04), and stale ids never reach
  * upstream.
  */
-export function parseBffSessionId(
-	cookieHeader: string | null | undefined,
-): string | undefined {
+export function parseBffSessionId(cookieHeader: string | null | undefined): string | undefined {
 	if (typeof cookieHeader !== "string" || cookieHeader === "") {
 		return undefined;
 	}
@@ -142,9 +140,7 @@ export function parseBffSessionId(
  * Returns `undefined` when absent; binding is enforced server-side
  * against the stored session token, so absence fails closed there.
  */
-export function parseBffCsrfCookie(
-	cookieHeader: string | null | undefined,
-): string | undefined {
+export function parseBffCsrfCookie(cookieHeader: string | null | undefined): string | undefined {
 	if (typeof cookieHeader !== "string" || cookieHeader === "") {
 		return undefined;
 	}

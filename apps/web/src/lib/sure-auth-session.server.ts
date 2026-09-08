@@ -64,29 +64,11 @@ import {
 	parseBffSessionId,
 } from "./bff-session";
 import type { BffSetCookie } from "./bff-session-cookie";
-import {
-	BffError,
-	checkBffMutationGuards,
-} from "./bff-policy";
+import { BffError, checkBffMutationGuards } from "./bff-policy";
 import type { BffMethod } from "./bff-policy";
 import { proxyToSureApi } from "./sure-api-bff.server";
 import type { BffBodyInit, BffProxyRequest, BffProxyResult } from "./sure-api-bff.server";
-import type { paths } from "./api/openapi";
-
-type LoginSuccessBody =
-	paths["/api/v1/auth/login"]["post"]["responses"]["200"]["content"]["application/json"];
-type RefreshSuccessBody =
-	paths["/api/v1/auth/refresh"]["post"]["responses"]["200"]["content"]["application/json"];
-
-/** Display-minimum user snapshot: the only user data the browser may see. */
-export interface BffSessionUser {
-	readonly id: string;
-	readonly email: string;
-	readonly firstName: string;
-	readonly lastName: string;
-	readonly uiLayout: string;
-	readonly aiEnabled: boolean;
-}
+import type { BffSessionUser } from "./bff-auth-client";
 
 export type BffAuthErrorCode =
 	| "invalid-credentials"
@@ -159,7 +141,11 @@ export function getBffSessionSecrets(env: NodeJS.ProcessEnv = process.env): BffS
 	}
 	return {
 		current,
-		previous: parseSessionKey(previousRaw, `${current.kid}-previous`, "SURE_SESSION_PREVIOUS_SECRET"),
+		previous: parseSessionKey(
+			previousRaw,
+			`${current.kid}-previous`,
+			"SURE_SESSION_PREVIOUS_SECRET",
+		),
 	};
 }
 
@@ -247,6 +233,7 @@ function isSealEnvelope(value: unknown): value is SealEnvelope {
 	if (typeof value !== "object" || value === null) {
 		return false;
 	}
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Narrowing boundary: typeof/value-null checks above establish a plain object; field types are validated literally below.
 	const record = value as Record<string, unknown>;
 	return (
 		record["v"] === 1 &&
@@ -257,7 +244,10 @@ function isSealEnvelope(value: unknown): value is SealEnvelope {
 	);
 }
 
-function unsealPayload(blob: BffStoredBlob, secrets: BffSessionSecrets): BffSessionPayload | undefined {
+function unsealPayload(
+	blob: BffStoredBlob,
+	secrets: BffSessionSecrets,
+): BffSessionPayload | undefined {
 	let envelope: unknown;
 	try {
 		envelope = JSON.parse(Buffer.from(blob, "base64").toString("utf8"));
@@ -283,6 +273,7 @@ function unsealPayload(blob: BffStoredBlob, secrets: BffSessionSecrets): BffSess
 			decipher.update(Buffer.from(envelope.data, "base64")),
 			decipher.final(),
 		]).toString("utf8");
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Narrowing boundary: JSON.parse returns any; every consumed field is validated literally below before the payload escapes.
 		const payload = JSON.parse(plaintext) as Partial<BffSessionPayload>;
 		if (
 			typeof payload.csrfToken !== "string" ||
@@ -294,6 +285,7 @@ function unsealPayload(blob: BffStoredBlob, secrets: BffSessionSecrets): BffSess
 		) {
 			return undefined;
 		}
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Narrowing boundary: required string/object fields validated above; BffSessionPayload carries no methods or prototypes to confuse.
 		return payload as BffSessionPayload;
 	} catch {
 		return undefined;
@@ -379,29 +371,69 @@ function clearSessionCookies(): BffSetCookie[] {
 	];
 }
 
-function narrowUser(raw: LoginSuccessBody["user"]): BffSessionUser | undefined {
+/**
+ * Decode a buffered proxy body as JSON. Streams never occur here (the
+ * session layer always proxies in `"buffer"` mode); anything else fails
+ * closed to `undefined` and the caller maps it to `api-mismatch`.
+ */
+function decodeProxyJsonBody(result: BffProxyResult): unknown {
+	if (!(result.body instanceof ArrayBuffer)) {
+		return undefined;
+	}
+	const text = new TextDecoder().decode(result.body);
+	try {
+		return JSON.parse(text) as unknown;
+	} catch {
+		return undefined;
+	}
+}
+
+/** Type predicate for JSON-object narrowing without assertions. */
+function isStringRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function narrowUser(raw: unknown): BffSessionUser | undefined {
+	if (!isStringRecord(raw)) {
+		return undefined;
+	}
+	const id: unknown = raw["id"];
+	const email: unknown = raw["email"];
+	const firstName: unknown = raw["first_name"];
+	const lastName: unknown = raw["last_name"];
+	const uiLayout: unknown = raw["ui_layout"];
+	const aiEnabled: unknown = raw["ai_enabled"];
 	if (
-		raw?.id === undefined ||
-		raw.email === undefined ||
-		raw.first_name === undefined ||
-		raw.last_name === undefined ||
-		raw.ui_layout === undefined ||
-		raw.ai_enabled === undefined
+		typeof id !== "string" ||
+		typeof email !== "string" ||
+		typeof firstName !== "string" ||
+		typeof lastName !== "string" ||
+		typeof uiLayout !== "string" ||
+		typeof aiEnabled !== "boolean"
 	) {
 		return undefined;
 	}
 	return {
-		id: raw.id,
-		email: raw.email,
-		firstName: raw.first_name,
-		lastName: raw.last_name,
-		uiLayout: raw.ui_layout,
-		aiEnabled: raw.ai_enabled,
+		id,
+		email,
+		firstName,
+		lastName,
+		uiLayout,
+		aiEnabled,
 	};
 }
 
 function isMfaFailure(message: string): boolean {
 	return /mfa|two-factor|otp/i.test(message);
+}
+
+/** `expires_in` (seconds) narrowed to milliseconds; 0 = absent/invalid. */
+function narrowExpiresInMs(record: Record<string, unknown>): number {
+	const expiresIn: unknown = record["expires_in"];
+	if (typeof expiresIn !== "number" || !Number.isFinite(expiresIn) || expiresIn <= 0) {
+		return 0;
+	}
+	return Math.floor(expiresIn * 1000);
 }
 
 function isDeactivatedFailure(message: string): boolean {
@@ -520,34 +552,32 @@ export async function loginToBffSession(
 		throw error;
 	}
 
-	let body: LoginSuccessBody;
-	try {
-		body = JSON.parse(new TextDecoder().decode(upstream.body as ArrayBuffer)) as LoginSuccessBody;
-	} catch {
+	const decodedLogin = decodeProxyJsonBody(upstream);
+	if (!isStringRecord(decodedLogin)) {
 		return fail("api-mismatch", "Login response was unreadable. Try again later.");
 	}
+	const loginAccessToken: unknown = decodedLogin["access_token"];
+	const loginRefreshToken: unknown = decodedLogin["refresh_token"];
 	if (
-		typeof body.access_token !== "string" ||
-		body.access_token === "" ||
-		typeof body.refresh_token !== "string" ||
-		body.refresh_token === ""
+		typeof loginAccessToken !== "string" ||
+		loginAccessToken === "" ||
+		typeof loginRefreshToken !== "string" ||
+		loginRefreshToken === ""
 	) {
 		return fail("api-mismatch", "Login response was unreadable. Try again later.");
 	}
-	const user = narrowUser(body.user);
+	const user = narrowUser(decodedLogin["user"]);
 	if (user === undefined) {
 		return fail("api-mismatch", "Login response was unreadable. Try again later.");
 	}
+	const loginExpiresInMs = narrowExpiresInMs(decodedLogin);
 
 	const secrets = resolveSecrets(resolved);
-	const expiresInMs =
-		typeof body.expires_in === "number" && Number.isFinite(body.expires_in) && body.expires_in > 0
-			? Math.floor(body.expires_in * 1000)
-			: 0;
+	const expiresInMs = loginExpiresInMs;
 	const payload: BffSessionPayload = {
 		csrfToken,
-		accessToken: body.access_token,
-		refreshToken: body.refresh_token,
+		accessToken: loginAccessToken,
+		refreshToken: loginRefreshToken,
 		accessExpiresAt: expiresInMs === 0 ? 0 : now + expiresInMs,
 		refreshExpiresAt: expiresInMs === 0 ? 0 : now + expiresInMs,
 		idleExpiresAt: now + BFF_SESSION_IDLE_TIMEOUT_MS,
@@ -626,21 +656,34 @@ export function readBffSession(
 	}
 	if (
 		now > payload.absoluteExpiresAt + BFF_SESSION_CLOCK_SKEW_MS ||
-		(payload.refreshExpiresAt !== 0 && now > payload.refreshExpiresAt + BFF_SESSION_CLOCK_SKEW_MS) ||
+		(payload.refreshExpiresAt !== 0 &&
+			now > payload.refreshExpiresAt + BFF_SESSION_CLOCK_SKEW_MS) ||
 		now > payload.idleExpiresAt + BFF_SESSION_CLOCK_SKEW_MS
 	) {
 		resolved.store.delete(sessionId);
 		return { ok: false, reason: "expired" };
 	}
 	// Sliding idle renewal (absolute lifetime untouched).
-	const renewed: BffSessionPayload = { ...payload, idleExpiresAt: now + BFF_SESSION_IDLE_TIMEOUT_MS };
+	const renewed: BffSessionPayload = {
+		...payload,
+		idleExpiresAt: now + BFF_SESSION_IDLE_TIMEOUT_MS,
+	};
 	resolved.store.set(sessionId, sealPayload(renewed, resolveSecrets(resolved)));
 	return { ok: true, sessionId, payload: renewed };
 }
 
 export type BffSessionStatusResult =
-	| { readonly ok: true; readonly authenticated: true; readonly user: BffSessionUser; readonly csrfToken: string }
-	| { readonly ok: true; readonly authenticated: false; readonly reason: "missing" | "stale" | "expired" };
+	| {
+			readonly ok: true;
+			readonly authenticated: true;
+			readonly user: BffSessionUser;
+			readonly csrfToken: string;
+	  }
+	| {
+			readonly ok: true;
+			readonly authenticated: false;
+			readonly reason: "missing" | "stale" | "expired";
+	  };
 
 /** Browser-visible session status: display data only, never tokens. */
 export function getBffSessionStatus(
@@ -665,7 +708,15 @@ export interface BffRefreshDeps extends BffAuthDeps {
 
 export type BffRefreshOutcome =
 	| { readonly ok: true; readonly sessionId: string; readonly payload: BffSessionPayload }
-	| { readonly ok: false; readonly reason: "invalid-refresh" | "deactivated" | "unavailable" | "throttled" | "api-mismatch"; readonly retryAfterMs?: number | undefined };
+	| { readonly ok: false; readonly reason: "invalid-refresh" }
+	| { readonly ok: false; readonly reason: "deactivated" }
+	| { readonly ok: false; readonly reason: "unavailable" }
+	| { readonly ok: false; readonly reason: "api-mismatch" }
+	| {
+			readonly ok: false;
+			readonly reason: "throttled";
+			readonly retryAfterMs?: number | undefined;
+	  };
 
 /**
  * Single-flight refresh (REQ-AUTH-04): concurrent callers for one session
@@ -684,7 +735,7 @@ export function refreshBffSession(
 	}
 	const outcome = runBffRefresh(sessionId, sessionDeps, resolved);
 	resolved.pendingRefreshes.set(sessionId, outcome);
-	outcome.finally(() => {
+	void outcome.finally(() => {
 		if (resolved.pendingRefreshes.get(sessionId) === outcome) {
 			resolved.pendingRefreshes.delete(sessionId);
 		}
@@ -742,32 +793,28 @@ async function runBffRefresh(
 		throw error;
 	}
 
-	let body: RefreshSuccessBody;
-	try {
-		body = JSON.parse(new TextDecoder().decode(upstream.body as ArrayBuffer)) as RefreshSuccessBody;
-	} catch {
+	const decodedRefresh = decodeProxyJsonBody(upstream);
+	if (!isStringRecord(decodedRefresh)) {
 		return { ok: false, reason: "api-mismatch" };
 	}
+	const refreshAccessToken: unknown = decodedRefresh["access_token"];
+	const refreshRefreshToken: unknown = decodedRefresh["refresh_token"];
 	if (
-		typeof body.access_token !== "string" ||
-		body.access_token === "" ||
-		typeof body.refresh_token !== "string" ||
-		body.refresh_token === ""
+		typeof refreshAccessToken !== "string" ||
+		refreshAccessToken === "" ||
+		typeof refreshRefreshToken !== "string" ||
+		refreshRefreshToken === ""
 	) {
 		return { ok: false, reason: "api-mismatch" };
 	}
+	const refreshExpiresInMs = narrowExpiresInMs(decodedRefresh);
 	const rotated: BffSessionPayload = {
 		...payload,
-		accessToken: body.access_token,
-		refreshToken: body.refresh_token,
-		accessExpiresAt:
-			typeof body.expires_in === "number" && Number.isFinite(body.expires_in) && body.expires_in > 0
-				? now + Math.floor(body.expires_in * 1000)
-				: payload.accessExpiresAt,
+		accessToken: refreshAccessToken,
+		refreshToken: refreshRefreshToken,
+		accessExpiresAt: refreshExpiresInMs === 0 ? payload.accessExpiresAt : now + refreshExpiresInMs,
 		refreshExpiresAt:
-			typeof body.expires_in === "number" && Number.isFinite(body.expires_in) && body.expires_in > 0
-				? now + Math.floor(body.expires_in * 1000)
-				: payload.refreshExpiresAt,
+			refreshExpiresInMs === 0 ? payload.refreshExpiresAt : now + refreshExpiresInMs,
 		idleExpiresAt: now + BFF_SESSION_IDLE_TIMEOUT_MS,
 	};
 	resolved.store.set(sessionId, sealPayload(rotated, secrets));
@@ -872,7 +919,23 @@ export interface BffAuthedProxyInput {
 	readonly signal?: AbortSignal | undefined;
 }
 
-export type BffAuthedProxyResult = { readonly ok: true; readonly result: BffProxyResult } | BffAuthFailure;
+/** Narrow caller-supplied method strings without type assertions. */
+function asBffMethod(value: string): BffMethod | undefined {
+	switch (value) {
+		case "GET":
+		case "POST":
+		case "PUT":
+		case "PATCH":
+		case "DELETE":
+			return value;
+		default:
+			return undefined;
+	}
+}
+
+export type BffAuthedProxyResult =
+	| { readonly ok: true; readonly result: BffProxyResult }
+	| BffAuthFailure;
 
 /**
  * Session-authenticated proxy with the refresh retry-once rule
@@ -893,8 +956,13 @@ export async function proxyBffWithSession(
 	const { sessionId } = read;
 	let payload = read.payload;
 
+	const method = asBffMethod(input.method);
+	if (method === undefined) {
+		return fail("unavailable", "The service is unavailable. Try again later.");
+	}
+
 	const guard = checkBffMutationGuards({
-		method: (input.method as BffMethod) ?? "GET",
+		method,
 		origin: input.origin,
 		csrfToken: input.csrfToken,
 		bffOrigin: input.bffOrigin,
@@ -905,7 +973,10 @@ export async function proxyBffWithSession(
 	}
 
 	// Preemptive refresh when the access token is known-expired.
-	if (payload.accessExpiresAt !== 0 && resolved.now() >= payload.accessExpiresAt - BFF_SESSION_CLOCK_SKEW_MS) {
+	if (
+		payload.accessExpiresAt !== 0 &&
+		resolved.now() >= payload.accessExpiresAt - BFF_SESSION_CLOCK_SKEW_MS
+	) {
 		const refreshed = await refreshBffSession(sessionId, {
 			...resolved,
 			bffOrigin: input.bffOrigin,
@@ -987,7 +1058,11 @@ export async function proxyBffWithSession(
 		try {
 			return { ok: true, result: await attempt(refreshed.payload.accessToken) };
 		} catch (retryError) {
-			if (retryError instanceof BffError && retryError.code === "upstream" && retryError.status === 401) {
+			if (
+				retryError instanceof BffError &&
+				retryError.code === "upstream" &&
+				retryError.status === 401
+			) {
 				resolved.store.delete(sessionId);
 				return fail("logged-out", "Your session has expired. Sign in again.");
 			}
@@ -996,7 +1071,9 @@ export async function proxyBffWithSession(
 	}
 }
 
-function mapRefreshFailureToProxyError(outcome: Extract<BffRefreshOutcome, { ok: false }>): BffAuthFailure {
+function mapRefreshFailureToProxyError(
+	outcome: Extract<BffRefreshOutcome, { ok: false }>,
+): BffAuthFailure {
 	switch (outcome.reason) {
 		case "invalid-refresh":
 			return fail("logged-out", "Your session has expired. Sign in again.");
@@ -1008,6 +1085,10 @@ function mapRefreshFailureToProxyError(outcome: Extract<BffRefreshOutcome, { ok:
 			return fail("api-mismatch", "The service is being updated. Try again later.");
 		case "unavailable":
 			return fail("unavailable", "The service is unavailable. Try again later.");
+		default: {
+			const exhaustive: never = outcome;
+			throw new Error(`Unhandled refresh failure: ${JSON.stringify(exhaustive)}`);
+		}
 	}
 }
 
@@ -1025,4 +1106,3 @@ export function isUpstreamDeactivatedMessage(message: string): boolean {
 export function isUpstreamMfaMessage(message: string): boolean {
 	return isMfaFailure(message);
 }
-

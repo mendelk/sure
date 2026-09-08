@@ -10,10 +10,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-	BFF_CSRF_COOKIE_NAME,
-	BFF_SESSION_COOKIE_NAME,
-} from "./bff-session";
+import { BFF_CSRF_COOKIE_NAME, BFF_SESSION_COOKIE_NAME } from "./bff-session";
 import type { BffSetCookie } from "./bff-session-cookie";
 import {
 	createBffSessionStore,
@@ -90,7 +87,9 @@ interface MockUpstream {
 
 function createMockUpstream(): MockUpstream {
 	return {
-		users: new Map([["user@example.com", { password: "CorrectHorse1!", mfa: false, active: true }]]),
+		users: new Map([
+			["user@example.com", { password: "CorrectHorse1!", mfa: false, active: true }],
+		]),
 		families: new Map(),
 		accessIndex: new Map(),
 		refreshCalls: 0,
@@ -128,32 +127,54 @@ function errorResponse(status: number, error: string, message?: string): Respons
 	return jsonResponse(status, message === undefined ? { error } : { error, message });
 }
 
-function readJsonBody(init: RequestInit): Record<string, unknown> {
+function readJsonBody(init: RequestInit): unknown {
 	const raw = init.body;
-	const text = typeof raw === "string" ? raw : "";
-	return JSON.parse(text) as Record<string, unknown>;
+	if (typeof raw !== "string") {
+		return {};
+	}
+	try {
+		return JSON.parse(raw);
+	} catch {
+		return {};
+	}
+}
+
+/** String field reader for mock JSON bodies (never Object-stringifies). */
+function stringField(body: unknown, key: string): string {
+	if (typeof body !== "object" || body === null) {
+		return "";
+	}
+	for (const [entryKey, entryValue] of Object.entries(body)) {
+		if (entryKey === key) {
+			return typeof entryValue === "string" ? entryValue : "";
+		}
+	}
+	return "";
 }
 
 function mockFetch(mock: MockUpstream): typeof fetch {
-	return (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+	return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
 		const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 		const path = new URL(url).pathname;
 		const method = (init?.method ?? "GET").toUpperCase();
 		const headers = new Headers(init?.headers);
-		const requestInit: RequestInit = { ...(init ?? {}), method };
+		const requestInit: RequestInit = { ...init, method };
 
 		if (method === "POST" && path === "/api/v1/auth/login") {
 			mock.loginCalls += 1;
 			const body = readJsonBody(requestInit);
-			const account = mock.users.get(String(body["email"] ?? ""));
-			if (account === undefined || body["password"] !== account.password) {
+			const account = mock.users.get(stringField(body, "email"));
+			if (account === undefined || stringField(body, "password") !== account.password) {
 				return errorResponse(401, "Invalid email or password");
 			}
 			if (!account.active) {
 				return errorResponse(401, "Invalid email or password");
 			}
 			if (account.mfa) {
-				return jsonResponse(401, { error: "Two-factor authentication required", mfa_required: true });
+				return jsonResponse(401, {
+					error: "Two-factor authentication required",
+					mfa_required: true,
+				});
 			}
 			const family = mintFamily(mock);
 			return jsonResponse(200, {
@@ -172,7 +193,7 @@ function mockFetch(mock: MockUpstream): typeof fetch {
 				await new Promise((resolve) => setTimeout(resolve, mock.refreshDelayMs));
 			}
 			const body = readJsonBody(requestInit);
-			const family = mock.families.get(String(body["refresh_token"] ?? ""));
+			const family = mock.families.get(stringField(body, "refresh_token"));
 			if (family === undefined || family.refreshUsed) {
 				return errorResponse(401, "Invalid refresh token");
 			}
@@ -237,7 +258,7 @@ function mockFetch(mock: MockUpstream): typeof fetch {
 		}
 
 		return errorResponse(404, "record_not_found");
-	}) as typeof fetch;
+	};
 }
 
 function testSecrets(): BffSessionSecrets {
@@ -271,7 +292,10 @@ function cookieHeaderFor(cookies: readonly BffSetCookie[]): string {
 	return cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
 }
 
-async function loginOk(_mock: MockUpstream, deps: BffAuthDeps): Promise<{
+async function loginOk(
+	_mock: MockUpstream,
+	deps: BffAuthDeps,
+): Promise<{
 	cookies: readonly BffSetCookie[];
 	csrfToken: string;
 	cookieHeader: string;
@@ -290,7 +314,11 @@ async function loginOk(_mock: MockUpstream, deps: BffAuthDeps): Promise<{
 	if (!result.ok) {
 		throw new Error(`expected login to succeed, got ${result.error.code}`);
 	}
-	return { cookies: result.cookies, csrfToken: result.csrfToken, cookieHeader: cookieHeaderFor(result.cookies) };
+	return {
+		cookies: result.cookies,
+		csrfToken: result.csrfToken,
+		cookieHeader: cookieHeaderFor(result.cookies),
+	};
 }
 
 beforeEach(() => {
@@ -351,7 +379,11 @@ describe("login (REQ-AUTH-01/07)", () => {
 		);
 		expect(result).toEqual({
 			ok: false,
-			error: { code: "invalid-credentials", message: "Invalid email or password.", retryAfterMs: undefined },
+			error: {
+				code: "invalid-credentials",
+				message: "Invalid email or password.",
+				retryAfterMs: undefined,
+			},
 		});
 		expect(getBffSessionStatus(undefined, deps)).toEqual({
 			ok: true,
@@ -386,9 +418,9 @@ describe("login (REQ-AUTH-01/07)", () => {
 		const mock = createMockUpstream();
 		const deps: BffAuthDeps = {
 			...testDeps(mock),
-			fetchImpl: (async () => {
+			fetchImpl: () => {
 				throw new TypeError("connection refused");
-			}) as typeof fetch,
+			},
 		};
 		const result = await loginToBffSession(
 			{
@@ -412,7 +444,9 @@ describe("login (REQ-AUTH-01/07)", () => {
 		const mock = createMockUpstream();
 		const deps = testDeps(mock);
 		const first = await loginOk(mock, deps);
-		const firstSessionId = first.cookies.find((cookie) => cookie.name === BFF_SESSION_COOKIE_NAME)?.value;
+		const firstSessionId = first.cookies.find(
+			(cookie) => cookie.name === BFF_SESSION_COOKIE_NAME,
+		)?.value;
 		expect(firstSessionId).toBeDefined();
 
 		const second = await loginToBffSession(
@@ -448,10 +482,7 @@ describe("refresh rotation + single-flight (REQ-AUTH-03/04)", () => {
 		const mock = createMockUpstream();
 		const deps = testDeps(mock);
 		const { cookieHeader } = await loginOk(mock, deps);
-		const sessionId = cookieHeader
-			.split(";")[0]
-			?.split("=")[1]
-			?.trim();
+		const sessionId = cookieHeader.split(";")[0]?.split("=")[1]?.trim();
 		expect(sessionId).toBeDefined();
 		if (sessionId === undefined) {
 			return;
@@ -712,12 +743,12 @@ describe("stale cookies + expiry (REQ-SESS-02)", () => {
 			secrets: { current: { kid: "test-v2", key: randomBytes(32) }, previous: oldSecrets.current },
 		};
 		const status = getBffSessionStatus(cookieHeader, rotated);
-		expect(status).toEqual({
-			ok: true,
-			authenticated: true,
-			user: expect.objectContaining({ email: "user@example.com" }),
-			csrfToken: expect.any(String),
-		});
+		expect(status.authenticated).toBe(true);
+		if (!status.authenticated) {
+			throw new Error("expected the dual-accept session to stay valid");
+		}
+		expect(status.user.email).toBe("user@example.com");
+		expect(typeof status.csrfToken).toBe("string");
 	});
 
 	it("expires idle sessions and destroys them", async () => {
@@ -844,10 +875,14 @@ describe("mutation guards + throttles (REQ-TRAN-01/06)", () => {
 				},
 				deps,
 			);
-			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.code).toBe("invalid-credentials");
-			}
+			expect(result).toEqual({
+				ok: false,
+				error: {
+					code: "invalid-credentials",
+					message: "Invalid email or password.",
+					retryAfterMs: undefined,
+				},
+			});
 		}
 		const limited = await loginToBffSession(
 			{
@@ -878,10 +913,14 @@ describe("mutation guards + throttles (REQ-TRAN-01/06)", () => {
 			},
 			deps,
 		);
-		expect(other.ok).toBe(false);
-		if (!other.ok) {
-			expect(other.error.code).toBe("invalid-credentials");
-		}
+		expect(other).toEqual({
+			ok: false,
+			error: {
+				code: "invalid-credentials",
+				message: "Invalid email or password.",
+				retryAfterMs: undefined,
+			},
+		});
 	});
 });
 
@@ -937,20 +976,17 @@ describe("token non-disclosure (REQ-SESS-01 / CTL-SEC-01)", () => {
 describe("deployment API incompatibility", () => {
 	it("maps contract violations to api-mismatch without killing the session", async () => {
 		const mock = createMockUpstream();
-		const brokenFetch = (async (
-			input: string | URL | Request,
-			init?: RequestInit,
-		): Promise<Response> => {
+		const brokenFetch = (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 			if (new URL(url).pathname === "/api/v1/auth/login") {
 				// Passes transport validation (all fields optional) but
 				// carries no usable token pair: the browser must clear local
 				// state, the server session is never created.
-				return jsonResponse(200, { user: USER });
+				return Promise.resolve(jsonResponse(200, { user: USER }));
 			}
 			const impl = mockFetch(mock);
 			return impl(url, init);
-		}) as typeof fetch;
+		};
 		const deps: BffAuthDeps = { ...testDeps(mock), fetchImpl: brokenFetch };
 		const result = await loginToBffSession(
 			{
