@@ -275,7 +275,9 @@ RSpec.configure do |config|
           },
           AccountDetail: {
             type: :object,
-            required: %w[id name balance balance_cents cash_balance cash_balance_cents currency classification account_type status created_at updated_at],
+            required: %w[id name balance balance_cents cash_balance cash_balance_cents
+                         currency classification account_type status manual linked
+                         capabilities created_at updated_at],
             properties: {
               id: { type: :string, format: :uuid },
               name: { type: :string },
@@ -354,8 +356,7 @@ RSpec.configure do |config|
                   currency: { type: :string, description: 'ISO currency code' },
                   subtype: { type: :string, nullable: true, description: 'Account subtype for the existing account type' },
                   institution_name: { type: :string, nullable: true },
-                  notes: { type: :string, nullable: true },
-                  confirm: { type: :boolean, description: 'Alternative to the confirm query param for archive/delete confirmation' }
+                  notes: { type: :string, nullable: true }
                 }
               }
             }

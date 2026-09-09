@@ -430,10 +430,78 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_equal account_names.sort, account_names
   end
 
-  test "should expose manual status and capabilities on show" do
+  test "should advertise read-only capabilities to owner read-only credentials" do
     account = accounts(:depository)
 
     get "/api/v1/accounts/#{account.id}", headers: api_headers(@api_key)
+
+    assert_response :success
+    response_body = JSON.parse(response.body)
+    assert_equal true, response_body["manual"]
+    assert_equal [ "read" ], response_body["capabilities"]
+  end
+
+  test "should advertise read-only capabilities for read-only shares" do
+    member = @user.family.users.create!(
+      email: "cap-ro-#{SecureRandom.hex(4)}@example.com",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "member"
+    )
+    account = accounts(:credit_card)
+    account.share_with!(member, permission: "read_only")
+    member_key = ApiKey.create!(
+      user: member,
+      name: "Caps Read Key",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "caps_ro_#{SecureRandom.hex(8)}"
+    )
+
+    get "/api/v1/accounts/#{account.id}", headers: api_headers(member_key)
+
+    assert_response :success
+    assert_equal [ "read" ], JSON.parse(response.body)["capabilities"]
+  end
+
+  test "should advertise full capabilities for full-control write credentials" do
+    member = @user.family.users.create!(
+      email: "cap-rw-#{SecureRandom.hex(4)}@example.com",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "member"
+    )
+    account = accounts(:depository)
+    account.share_with!(member, permission: "full_control")
+    member_key = ApiKey.create!(
+      user: member,
+      name: "Caps Write Key",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "caps_rw_#{SecureRandom.hex(8)}"
+    )
+
+    get "/api/v1/accounts/#{account.id}", headers: api_headers(member_key)
+
+    assert_response :success
+    assert_equal %w[read update archive delete], JSON.parse(response.body)["capabilities"]
+  end
+
+  test "should advertise read-only capabilities across index for read-only credentials" do
+    get "/api/v1/accounts", headers: api_headers(@api_key)
+
+    assert_response :success
+    response_body = JSON.parse(response.body)
+    assert response_body["accounts"].any?
+    response_body["accounts"].each do |item|
+      assert_equal [ "read" ], item["capabilities"]
+    end
+  end
+
+  test "should expose manual status and capabilities on show" do
+    account = accounts(:depository)
+
+    get "/api/v1/accounts/#{account.id}", headers: api_headers(@read_write_api_key)
 
     assert_response :success
     response_body = JSON.parse(response.body)
@@ -633,11 +701,57 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
     account.disable!
 
     post "/api/v1/accounts/#{account.id}/archive",
-      params: { confirm: true, include_disabled: true },
+      params: { confirm: true },
       headers: api_headers(@read_write_api_key)
 
     assert_response :unprocessable_entity
     assert_equal "validation_failed", JSON.parse(response.body)["error"]
+  end
+
+  test "should archive then delete without extra params" do
+    account = accounts(:depository)
+
+    post "/api/v1/accounts/#{account.id}/archive",
+      params: { confirm: true },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :success
+    assert_equal "disabled", JSON.parse(response.body)["status"]
+    assert_equal "disabled", account.reload.status
+
+    delete "/api/v1/accounts/#{account.id}",
+      params: { confirm: true },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :success
+    assert_equal "Account deleted successfully", JSON.parse(response.body)["message"]
+    assert_equal "pending_deletion", account.reload.status
+  end
+
+  test "should roll back balance changes when metadata update fails" do
+    account = accounts(:depository)
+    original_balance = account.balance
+    original_valuations = account.entries.valuations.count
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { name: "", balance: original_balance + 1000 } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :unprocessable_entity
+    assert_equal "validation_failed", JSON.parse(response.body)["error"]
+    assert_equal original_balance, account.reload.balance
+    assert_equal original_valuations, account.entries.valuations.count
+  end
+
+  test "should return bad request when the account body is missing" do
+    account = accounts(:depository)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: {},
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :bad_request
+    assert_equal "bad_request", JSON.parse(response.body)["error"]
   end
 
   test "should require write scope to archive" do

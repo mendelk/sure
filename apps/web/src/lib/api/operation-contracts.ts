@@ -40,6 +40,7 @@ import {
 	DeleteApiV1AccountsIdParams,
 	DeleteApiV1AccountsIdQueryParams,
 	PatchApiV1AccountsId200Response,
+	PatchApiV1AccountsId400Response,
 	PatchApiV1AccountsId401Response,
 	PatchApiV1AccountsId403Response,
 	PatchApiV1AccountsId404Response,
@@ -1251,6 +1252,7 @@ const CONTRACTS: Record<string, OperationContract> = {
 		isBinaryDownload: false,
 		responses: {
 			200: PatchApiV1AccountsId200Response,
+			400: PatchApiV1AccountsId400Response,
 			401: PatchApiV1AccountsId401Response,
 			403: PatchApiV1AccountsId403Response,
 			404: PatchApiV1AccountsId404Response,

@@ -22,6 +22,8 @@ class Api::V1::AccountsController < Api::V1::BaseController
   before_action :ensure_manageable_account, only: %i[update archive destroy]
   before_action :ensure_manual_account, only: %i[update archive destroy]
 
+  helper_method :account_capabilities
+
   def index
     @per_page = safe_per_page_param
 
@@ -108,29 +110,44 @@ class Api::V1::AccountsController < Api::V1::BaseController
   end
 
   def update
-    if update_params[:balance].present? && update_params[:balance].to_d != @account.balance
-      result = @account.set_current_balance(update_params[:balance].to_d)
-      unless result.success?
-        render json: {
+    update_success = false
+    error_payload = nil
+
+    ActiveRecord::Base.transaction do
+      if update_params[:balance].present? && update_params[:balance].to_d != @account.balance
+        result = @account.set_current_balance(update_params[:balance].to_d)
+        unless result.success?
+          error_payload = {
+            error: "validation_failed",
+            message: "Account could not be updated",
+            errors: [ result.error ]
+          }
+          raise ActiveRecord::Rollback
+        end
+      end
+
+      unless @account.update(update_params.except(:balance))
+        error_payload = {
           error: "validation_failed",
           message: "Account could not be updated",
-          errors: [ result.error ]
-        }, status: :unprocessable_entity
-        return
+          errors: @account.errors.full_messages
+        }
+        raise ActiveRecord::Rollback
       end
+
+      @account.lock_saved_attributes!
+      update_success = true
     end
 
-    unless @account.update(update_params.except(:balance))
-      render json: {
-        error: "validation_failed",
-        message: "Account could not be updated",
-        errors: @account.errors.full_messages
-      }, status: :unprocessable_entity
+    unless update_success
+      render json: error_payload, status: :unprocessable_entity
       return
     end
 
-    @account.lock_saved_attributes!
     render :show
+  rescue ActionController::ParameterMissing
+    # Preserve the base controller's deterministic 400 for missing params.
+    raise
   rescue => e
     Rails.logger.error "AccountsController#update error: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
@@ -207,7 +224,7 @@ class Api::V1::AccountsController < Api::V1::BaseController
         return
       end
 
-      @account = accounts_scope.find(params[:id])
+      @account = manageable_accounts_scope.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       render json: {
         error: "not_found",
@@ -220,8 +237,7 @@ class Api::V1::AccountsController < Api::V1::BaseController
     # guarantees the account belongs to the caller's family.
     def ensure_manageable_account
       return if performed?
-      permission = @account.permission_for(current_resource_owner)
-      return if permission.in?([ :owner, :full_control ])
+      return if manageable_account?(@account)
 
       render json: {
         error: "forbidden",
@@ -243,8 +259,31 @@ class Api::V1::AccountsController < Api::V1::BaseController
     end
 
     def confirmation_provided?
-      raw = params[:confirm].nil? ? params.dig(:account, :confirm) : params[:confirm]
-      ActiveModel::Type::Boolean.new.cast(raw)
+      ActiveModel::Type::Boolean.new.cast(params[:confirm])
+    end
+
+    # Core actions the current caller may attempt on this account, advertised
+    # so navigation and forms can gate themselves truthfully. Update/archive/
+    # delete require a read_write credential plus ownership or a full-control
+    # share; read-only credentials and shares only ever see "read".
+    def account_capabilities(account)
+      capabilities = [ "read" ]
+      return capabilities unless account.manual?
+      return capabilities unless writable_credential?
+      return capabilities unless manageable_account?(account)
+      return capabilities if account.pending_deletion?
+
+      capabilities += [ "update", "delete" ]
+      capabilities << "archive" if account.active?
+      capabilities
+    end
+
+    def manageable_account?(account)
+      account.permission_for(current_resource_owner).in?([ :owner, :full_control ])
+    end
+
+    def writable_credential?
+      Array(current_scopes).map(&:to_s).include?("read_write")
     end
 
     def ensure_read_scope
@@ -292,9 +331,19 @@ class Api::V1::AccountsController < Api::V1::BaseController
 
     def accounts_scope
       scope = current_resource_owner.family.accounts
-                                    .accessible_by(current_resource_owner)
-                                    .includes(:accountable, account_providers: :provider)
+                                     .accessible_by(current_resource_owner)
+                                     .includes(:accountable, account_providers: :provider)
       include_disabled_accounts? ? scope : scope.visible
+    end
+
+    # Write lookup spans draft/active/disabled so supported actions on
+    # disabled accounts (update/delete) actually work without undocumented
+    # params. Pending-deletion accounts stay out and remain non-manageable.
+    def manageable_accounts_scope
+      current_resource_owner.family.accounts
+                             .accessible_by(current_resource_owner)
+                             .historical
+                             .includes(:accountable, account_providers: :provider)
     end
 
     def include_disabled_accounts?

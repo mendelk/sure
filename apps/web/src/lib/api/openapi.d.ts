@@ -246,6 +246,15 @@ export interface paths {
                         "application/json": components["schemas"]["AccountDetail"];
                     };
                 };
+                /** @description missing account payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
                 /** @description unauthorized */
                 401: {
                     headers: {
@@ -6821,11 +6830,11 @@ export interface components {
             institution_name?: string | null;
             institution_domain?: string | null;
             /** @description True when the account has no live sync provider attached */
-            manual?: boolean;
+            manual: boolean;
             /** @description True when the account is linked to a sync provider */
-            linked?: boolean;
+            linked: boolean;
             /** @description Core actions the caller may attempt on this account */
-            capabilities?: ("read" | "update" | "archive" | "delete")[];
+            capabilities: ("read" | "update" | "archive" | "delete")[];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -6868,8 +6877,6 @@ export interface components {
                 subtype?: string | null;
                 institution_name?: string | null;
                 notes?: string | null;
-                /** @description Alternative to the confirm query param for archive/delete confirmation */
-                confirm?: boolean;
             };
         };
         /** @description Type-specific manual account fields. Fields that do not apply to account_type are ignored. */

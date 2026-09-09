@@ -21,17 +21,10 @@ export const AccountDetail = zod.strictObject({
 	status: zod.enum(["active", "draft", "disabled", "pending_deletion"]),
 	institution_name: zod.string().nullish(),
 	institution_domain: zod.string().nullish(),
-	manual: zod
-		.boolean()
-		.exactOptional()
-		.describe("True when the account has no live sync provider attached"),
-	linked: zod
-		.boolean()
-		.exactOptional()
-		.describe("True when the account is linked to a sync provider"),
+	manual: zod.boolean().describe("True when the account has no live sync provider attached"),
+	linked: zod.boolean().describe("True when the account is linked to a sync provider"),
 	capabilities: zod
 		.array(zod.enum(["read", "update", "archive", "delete"]))
-		.exactOptional()
 		.describe("Core actions the caller may attempt on this account"),
 	created_at: zod.iso.datetime({ offset: true }),
 	updated_at: zod.iso.datetime({ offset: true }),

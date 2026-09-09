@@ -19,10 +19,6 @@ export const AccountUpdateRequest = zod.strictObject({
 			subtype: zod.string().nullish().describe("Account subtype for the existing account type"),
 			institution_name: zod.string().nullish(),
 			notes: zod.string().nullish(),
-			confirm: zod
-				.boolean()
-				.exactOptional()
-				.describe("Alternative to the confirm query param for archive/delete confirmation"),
 		})
 		.describe(
 			"Core manual account fields. Provider unlinking, sharing/ownership, report/default settings, and advanced subtype metadata are not part of the core milestone.",

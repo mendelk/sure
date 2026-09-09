@@ -74,6 +74,8 @@ export const PatchApiV1AccountsIdBody = AccountUpdateRequest;
 
 export const PatchApiV1AccountsId200Response = AccountDetail;
 
+export const PatchApiV1AccountsId400Response = ErrorResponse;
+
 export const PatchApiV1AccountsId401Response = ErrorResponse;
 
 export const PatchApiV1AccountsId403Response = ErrorResponse;

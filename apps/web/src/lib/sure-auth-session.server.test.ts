@@ -51,6 +51,9 @@ const ACCOUNT = {
 	classification: "asset",
 	account_type: "depository",
 	status: "active",
+	manual: true,
+	linked: false,
+	capabilities: ["read", "update", "archive", "delete"],
 	created_at: "2026-01-01T00:00:00Z",
 	updated_at: "2026-01-01T00:00:00Z",
 };

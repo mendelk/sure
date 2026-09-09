@@ -268,6 +268,14 @@ RSpec.describe 'API V1 Accounts', type: :request do
         run_test!
       end
 
+      response '400', 'missing account payload' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:body) { {} }
+
+        run_test!
+      end
+
       response '403', 'insufficient scope' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 

@@ -408,6 +408,9 @@ components:
       - classification
       - account_type
       - status
+      - manual
+      - linked
+      - capabilities
       - created_at
       - updated_at
       properties:
@@ -568,10 +571,6 @@ components:
             notes:
               type: string
               nullable: true
-            confirm:
-              type: boolean
-              description: Alternative to the confirm query param for archive/delete
-                confirmation
     AccountableCreateDetails:
       type: object
       description: Type-specific manual account fields. Fields that do not apply to
@@ -3971,6 +3970,12 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/AccountDetail"
+        '400':
+          description: missing account payload
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
         '401':
           description: unauthorized
           content:
