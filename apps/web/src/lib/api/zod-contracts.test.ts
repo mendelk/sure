@@ -76,12 +76,12 @@ describe("component parsers", () => {
 	});
 
 	it("parses manual account capabilities and rejects unknown capabilities", () => {
-		expect(
-			AccountDetail.safeParse(validAccountDetail({ capabilities: ["read"] })).success,
-		).toBe(true);
-		expect(
-			AccountDetail.safeParse(validAccountDetail({ capabilities: ["launch"] })).success,
-		).toBe(false);
+		expect(AccountDetail.safeParse(validAccountDetail({ capabilities: ["read"] })).success).toBe(
+			true,
+		);
+		expect(AccountDetail.safeParse(validAccountDetail({ capabilities: ["launch"] })).success).toBe(
+			false,
+		);
 	});
 
 	it("parses union error details (array or object) and rejects the rest", () => {
