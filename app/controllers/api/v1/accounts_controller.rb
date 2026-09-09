@@ -17,7 +17,10 @@ class Api::V1::AccountsController < Api::V1::BaseController
   }.freeze
 
   before_action :ensure_read_scope, only: %i[index show]
-  before_action :ensure_write_scope, only: :create
+  before_action :ensure_write_scope, only: %i[create update archive destroy]
+  before_action :set_account, only: %i[update archive destroy]
+  before_action :ensure_manageable_account, only: %i[update archive destroy]
+  before_action :ensure_manual_account, only: %i[update archive destroy]
 
   def index
     @per_page = safe_per_page_param
@@ -104,7 +107,145 @@ class Api::V1::AccountsController < Api::V1::BaseController
     }, status: :unprocessable_entity
   end
 
+  def update
+    if update_params[:balance].present? && update_params[:balance].to_d != @account.balance
+      result = @account.set_current_balance(update_params[:balance].to_d)
+      unless result.success?
+        render json: {
+          error: "validation_failed",
+          message: "Account could not be updated",
+          errors: [ result.error ]
+        }, status: :unprocessable_entity
+        return
+      end
+    end
+
+    unless @account.update(update_params.except(:balance))
+      render json: {
+        error: "validation_failed",
+        message: "Account could not be updated",
+        errors: @account.errors.full_messages
+      }, status: :unprocessable_entity
+      return
+    end
+
+    @account.lock_saved_attributes!
+    render :show
+  rescue => e
+    Rails.logger.error "AccountsController#update error: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+
+    render json: {
+      error: "internal_server_error",
+      message: "An unexpected error occurred"
+    }, status: :internal_server_error
+  end
+
+  def archive
+    unless confirmation_provided?
+      render json: {
+        error: "validation_failed",
+        message: "Archive confirmation is required",
+        errors: [ "Confirm must be true to archive this account" ]
+      }, status: :unprocessable_entity
+      return
+    end
+
+    unless @account.active?
+      render json: {
+        error: "validation_failed",
+        message: "Only active accounts can be archived",
+        errors: [ "Account is not active" ]
+      }, status: :unprocessable_entity
+      return
+    end
+
+    @account.disable!
+    render :show
+  rescue => e
+    Rails.logger.error "AccountsController#archive error: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+
+    render json: {
+      error: "internal_server_error",
+      message: "An unexpected error occurred"
+    }, status: :internal_server_error
+  end
+
+  def destroy
+    unless confirmation_provided?
+      render json: {
+        error: "validation_failed",
+        message: "Delete confirmation is required",
+        errors: [ "Confirm must be true to delete this account" ]
+      }, status: :unprocessable_entity
+      return
+    end
+
+    @account.destroy_later
+    render json: {
+      message: "Account deleted successfully"
+    }, status: :ok
+  rescue => e
+    Rails.logger.error "AccountsController#destroy error: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+
+    render json: {
+      error: "internal_server_error",
+      message: "An unexpected error occurred"
+    }, status: :internal_server_error
+  end
+
   private
+
+    def set_account
+      unless valid_uuid?(params[:id])
+        render json: {
+          error: "not_found",
+          message: "Account not found"
+        }, status: :not_found
+        return
+      end
+
+      @account = accounts_scope.find(params[:id])
+    rescue ActiveRecord::RecordNotFound
+      render json: {
+        error: "not_found",
+        message: "Account not found"
+      }, status: :not_found
+    end
+
+    # Write access to an account requires ownership or a full-control share,
+    # mirroring the web account management guards. Scoping (404) already
+    # guarantees the account belongs to the caller's family.
+    def ensure_manageable_account
+      return if performed?
+      permission = @account.permission_for(current_resource_owner)
+      return if permission.in?([ :owner, :full_control ])
+
+      render json: {
+        error: "forbidden",
+        message: "You do not have permission to manage this account"
+      }, status: :forbidden
+    end
+
+    # Core milestone covers manual accounts only. Linked accounts keep their
+    # provider-managed lifecycle (unlinking defers to t_alt_fin_018).
+    def ensure_manual_account
+      return if performed?
+      return if @account.manual?
+
+      render json: {
+        error: "validation_failed",
+        message: "Only manual accounts can be managed with this endpoint",
+        errors: [ "Account is linked to a provider. Unlink it before managing it as a manual account." ]
+      }, status: :unprocessable_entity
+    end
+
+    def confirmation_provided?
+      raw = params[:confirm].nil? ? params.dig(:account, :confirm) : params[:confirm]
+      ActiveModel::Type::Boolean.new.cast(raw)
+    end
 
     def ensure_read_scope
       authorize_scope!(:read)
@@ -112,6 +253,12 @@ class Api::V1::AccountsController < Api::V1::BaseController
 
     def ensure_write_scope
       authorize_scope!(:write)
+    end
+
+    def update_params
+      params.require(:account).permit(
+        :name, :balance, :currency, :subtype, :institution_name, :notes
+      )
     end
 
     def account_params

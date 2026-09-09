@@ -11,6 +11,8 @@ import {
 	AccountCollection,
 	AccountCreateRequest,
 	AccountDetail,
+	AccountUpdateRequest,
+	DeleteResponse,
 	ErrorResponse,
 } from "../../models";
 
@@ -60,3 +62,68 @@ export const GetApiV1AccountsId401Response = ErrorResponse;
 export const GetApiV1AccountsId403Response = ErrorResponse;
 
 export const GetApiV1AccountsId404Response = ErrorResponse;
+
+/**
+ * @summary Update a manual account
+ */
+export const PatchApiV1AccountsIdParams = zod.strictObject({
+	id: zod.uuid().describe("Account ID"),
+});
+
+export const PatchApiV1AccountsIdBody = AccountUpdateRequest;
+
+export const PatchApiV1AccountsId200Response = AccountDetail;
+
+export const PatchApiV1AccountsId401Response = ErrorResponse;
+
+export const PatchApiV1AccountsId403Response = ErrorResponse;
+
+export const PatchApiV1AccountsId404Response = ErrorResponse;
+
+export const PatchApiV1AccountsId422Response = ErrorResponse;
+
+/**
+ * @summary Delete a manual account
+ */
+export const DeleteApiV1AccountsIdParams = zod.strictObject({
+	id: zod.uuid().describe("Account ID"),
+});
+
+export const DeleteApiV1AccountsIdQueryParams = zod.strictObject({
+	confirm: zod
+		.boolean()
+		.describe("Must be true to confirm deletion. Deleted accounts are marked for deletion."),
+});
+
+export const DeleteApiV1AccountsId200Response = DeleteResponse;
+
+export const DeleteApiV1AccountsId401Response = ErrorResponse;
+
+export const DeleteApiV1AccountsId403Response = ErrorResponse;
+
+export const DeleteApiV1AccountsId404Response = ErrorResponse;
+
+export const DeleteApiV1AccountsId422Response = ErrorResponse;
+
+/**
+ * @summary Archive a manual account
+ */
+export const PostApiV1AccountsIdArchiveParams = zod.strictObject({
+	id: zod.uuid().describe("Account ID"),
+});
+
+export const PostApiV1AccountsIdArchiveQueryParams = zod.strictObject({
+	confirm: zod
+		.boolean()
+		.describe("Must be true to confirm archiving. Archived accounts are disabled."),
+});
+
+export const PostApiV1AccountsIdArchive200Response = AccountDetail;
+
+export const PostApiV1AccountsIdArchive401Response = ErrorResponse;
+
+export const PostApiV1AccountsIdArchive403Response = ErrorResponse;
+
+export const PostApiV1AccountsIdArchive404Response = ErrorResponse;
+
+export const PostApiV1AccountsIdArchive422Response = ErrorResponse;

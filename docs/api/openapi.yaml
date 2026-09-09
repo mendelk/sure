@@ -449,6 +449,22 @@ components:
         institution_domain:
           type: string
           nullable: true
+        manual:
+          type: boolean
+          description: True when the account has no live sync provider attached
+        linked:
+          type: boolean
+          description: True when the account is linked to a sync provider
+        capabilities:
+          type: array
+          description: Core actions the caller may attempt on this account
+          items:
+            type: string
+            enum:
+            - read
+            - update
+            - archive
+            - delete
         created_at:
           type: string
           format: date-time
@@ -521,6 +537,41 @@ components:
               type: boolean
             accountable:
               "$ref": "#/components/schemas/AccountableCreateDetails"
+    AccountUpdateRequest:
+      type: object
+      required:
+      - account
+      properties:
+        account:
+          type: object
+          description: Core manual account fields. Provider unlinking, sharing/ownership,
+            report/default settings, and advanced subtype metadata are not part of
+            the core milestone.
+          properties:
+            name:
+              type: string
+              description: Account display name
+            balance:
+              type: number
+              description: Current balance in major currency units; writes a manual
+                valuation entry
+            currency:
+              type: string
+              description: ISO currency code
+            subtype:
+              type: string
+              nullable: true
+              description: Account subtype for the existing account type
+            institution_name:
+              type: string
+              nullable: true
+            notes:
+              type: string
+              nullable: true
+            confirm:
+              type: boolean
+              description: Alternative to the confirm query param for archive/delete
+                confirmation
     AccountableCreateDetails:
       type: object
       description: Type-specific manual account fields. Fields that do not apply to
@@ -3902,6 +3953,148 @@ paths:
                 "$ref": "#/components/schemas/ErrorResponse"
         '404':
           description: account not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+    patch:
+      summary: Update a manual account
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: account updated
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AccountDetail"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: account not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: invalid account
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AccountUpdateRequest"
+        required: true
+    delete:
+      summary: Delete a manual account
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters:
+      - name: confirm
+        in: query
+        required: true
+        description: Must be true to confirm deletion. Deleted accounts are marked
+          for deletion.
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: account deleted
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DeleteResponse"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: account not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: confirmation required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/accounts/{id}/archive":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      description: Account ID
+      schema:
+        type: string
+        format: uuid
+    post:
+      summary: Archive a manual account
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters:
+      - name: confirm
+        in: query
+        required: true
+        description: Must be true to confirm archiving. Archived accounts are disabled.
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: account archived
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AccountDetail"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: account not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: confirmation required
           content:
             application/json:
               schema:

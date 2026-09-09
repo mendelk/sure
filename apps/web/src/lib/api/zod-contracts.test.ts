@@ -36,6 +36,9 @@ function validAccountDetail(overrides: Record<string, unknown> = {}): Record<str
 		classification: "asset",
 		account_type: "depository",
 		status: "active",
+		manual: true,
+		linked: false,
+		capabilities: ["read", "update", "archive", "delete"],
 		created_at: TIMESTAMP,
 		updated_at: TIMESTAMP,
 		...overrides,
@@ -70,6 +73,15 @@ describe("component parsers", () => {
 
 	it("rejects unknown enum values", () => {
 		expect(AccountDetail.safeParse(validAccountDetail({ status: "frozen" })).success).toBe(false);
+	});
+
+	it("parses manual account capabilities and rejects unknown capabilities", () => {
+		expect(
+			AccountDetail.safeParse(validAccountDetail({ capabilities: ["read"] })).success,
+		).toBe(true);
+		expect(
+			AccountDetail.safeParse(validAccountDetail({ capabilities: ["launch"] })).success,
+		).toBe(false);
 	});
 
 	it("parses union error details (array or object) and rejects the rest", () => {

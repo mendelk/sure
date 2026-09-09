@@ -290,6 +290,13 @@ RSpec.configure do |config|
               status: { type: :string, enum: %w[active draft disabled pending_deletion] },
               institution_name: { type: :string, nullable: true },
               institution_domain: { type: :string, nullable: true },
+              manual: { type: :boolean, description: 'True when the account has no live sync provider attached' },
+              linked: { type: :boolean, description: 'True when the account is linked to a sync provider' },
+              capabilities: {
+                type: :array,
+                items: { type: :string, enum: %w[read update archive delete] },
+                description: 'Core actions the caller may attempt on this account'
+              },
               created_at: { type: :string, format: :'date-time' },
               updated_at: { type: :string, format: :'date-time' }
             }
@@ -330,6 +337,25 @@ RSpec.configure do |config|
                   accountable: {
                     '$ref' => '#/components/schemas/AccountableCreateDetails'
                   }
+                }
+              }
+            }
+          },
+          AccountUpdateRequest: {
+            type: :object,
+            required: %w[account],
+            properties: {
+              account: {
+                type: :object,
+                description: 'Core manual account fields. Provider unlinking, sharing/ownership, report/default settings, and advanced subtype metadata are not part of the core milestone.',
+                properties: {
+                  name: { type: :string, description: 'Account display name' },
+                  balance: { type: :number, description: 'Current balance in major currency units; writes a manual valuation entry' },
+                  currency: { type: :string, description: 'ISO currency code' },
+                  subtype: { type: :string, nullable: true, description: 'Account subtype for the existing account type' },
+                  institution_name: { type: :string, nullable: true },
+                  notes: { type: :string, nullable: true },
+                  confirm: { type: :boolean, description: 'Alternative to the confirm query param for archive/delete confirmation' }
                 }
               }
             }

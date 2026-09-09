@@ -80,6 +80,39 @@ RSpec.describe 'API V1 Accounts', type: :request do
     )
   end
 
+  let!(:updatable_account) do
+    Account.create!(
+      family: family,
+      owner: user,
+      name: 'Updatable Account',
+      balance: 2500.00,
+      currency: 'USD',
+      accountable: Depository.create!
+    )
+  end
+
+  let!(:archivable_account) do
+    Account.create!(
+      family: family,
+      owner: user,
+      name: 'Archivable Account',
+      balance: 750.00,
+      currency: 'USD',
+      accountable: Depository.create!
+    )
+  end
+
+  let!(:deletable_account) do
+    Account.create!(
+      family: family,
+      owner: user,
+      name: 'Deletable Account',
+      balance: 100.00,
+      currency: 'USD',
+      accountable: Depository.create!
+    )
+  end
+
   path '/api/v1/accounts' do
     get 'List accounts' do
       tags 'Accounts'
@@ -197,6 +230,169 @@ RSpec.describe 'API V1 Accounts', type: :request do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
         let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+    end
+
+    patch 'Update a manual account' do
+      tags 'Accounts'
+      security [ { apiKeyAuth: [] } ]
+      consumes 'application/json'
+      produces 'application/json'
+      parameter name: :body, in: :body, required: true,
+                schema: { '$ref' => '#/components/schemas/AccountUpdateRequest' }
+
+      let(:id) { updatable_account.id }
+      let(:body) do
+        {
+          account: {
+            name: 'Updated Account',
+            balance: 3000.00,
+            currency: 'USD'
+          }
+        }
+      end
+
+      response '200', 'account updated' do
+        schema '$ref' => '#/components/schemas/AccountDetail'
+
+        run_test!
+      end
+
+      response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { nil }
+
+        run_test!
+      end
+
+      response '403', 'insufficient scope' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { api_key_without_read_scope.plain_key }
+
+        run_test!
+      end
+
+      response '404', 'account not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+
+      response '422', 'invalid account' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:body) { { account: { name: '' } } }
+
+        run_test!
+      end
+    end
+
+    delete 'Delete a manual account' do
+      tags 'Accounts'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      parameter name: :confirm, in: :query, type: :boolean, required: true,
+                description: 'Must be true to confirm deletion. Deleted accounts are marked for deletion.'
+
+      let(:id) { deletable_account.id }
+      let(:confirm) { true }
+
+      response '200', 'account deleted' do
+        schema '$ref' => '#/components/schemas/DeleteResponse'
+
+        run_test!
+      end
+
+      response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { nil }
+
+        run_test!
+      end
+
+      response '403', 'insufficient scope' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { api_key_without_read_scope.plain_key }
+
+        run_test!
+      end
+
+      response '404', 'account not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+        let(:confirm) { true }
+
+        run_test!
+      end
+
+      response '422', 'confirmation required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:confirm) { false }
+
+        run_test!
+      end
+    end
+  end
+
+  path '/api/v1/accounts/{id}/archive' do
+    parameter name: :id, in: :path, required: true, description: 'Account ID',
+              schema: { type: :string, format: :uuid }
+
+    post 'Archive a manual account' do
+      tags 'Accounts'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      parameter name: :confirm, in: :query, type: :boolean, required: true,
+                description: 'Must be true to confirm archiving. Archived accounts are disabled.'
+
+      let(:id) { archivable_account.id }
+      let(:confirm) { true }
+
+      response '200', 'account archived' do
+        schema '$ref' => '#/components/schemas/AccountDetail'
+
+        run_test!
+      end
+
+      response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { nil }
+
+        run_test!
+      end
+
+      response '403', 'insufficient scope' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { api_key_without_read_scope.plain_key }
+
+        run_test!
+      end
+
+      response '404', 'account not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+        let(:confirm) { true }
+
+        run_test!
+      end
+
+      response '422', 'confirmation required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:confirm) { false }
 
         run_test!
       end

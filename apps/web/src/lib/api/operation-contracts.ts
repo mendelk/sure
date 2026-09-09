@@ -32,6 +32,27 @@ import {
 	PostApiV1Accounts403Response,
 	PostApiV1Accounts422Response,
 	PostApiV1AccountsBody,
+	DeleteApiV1AccountsId200Response,
+	DeleteApiV1AccountsId401Response,
+	DeleteApiV1AccountsId403Response,
+	DeleteApiV1AccountsId404Response,
+	DeleteApiV1AccountsId422Response,
+	DeleteApiV1AccountsIdParams,
+	DeleteApiV1AccountsIdQueryParams,
+	PatchApiV1AccountsId200Response,
+	PatchApiV1AccountsId401Response,
+	PatchApiV1AccountsId403Response,
+	PatchApiV1AccountsId404Response,
+	PatchApiV1AccountsId422Response,
+	PatchApiV1AccountsIdBody,
+	PatchApiV1AccountsIdParams,
+	PostApiV1AccountsIdArchive200Response,
+	PostApiV1AccountsIdArchive401Response,
+	PostApiV1AccountsIdArchive403Response,
+	PostApiV1AccountsIdArchive404Response,
+	PostApiV1AccountsIdArchive422Response,
+	PostApiV1AccountsIdArchiveParams,
+	PostApiV1AccountsIdArchiveQueryParams,
 } from "./zod/endpoints/accounts/accounts.zod";
 import {
 	PatchApiV1AuthEnableAi200Response,
@@ -510,6 +531,21 @@ export interface OperationContract {
 }
 
 const CONTRACTS: Record<string, OperationContract> = {
+	"DELETE /api/v1/accounts/{id}": {
+		operation: "DELETE /api/v1/accounts/{id}",
+		method: "DELETE",
+		path: "/api/v1/accounts/{id}",
+		pathParams: DeleteApiV1AccountsIdParams,
+		queryParams: DeleteApiV1AccountsIdQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: DeleteApiV1AccountsId200Response,
+			401: DeleteApiV1AccountsId401Response,
+			403: DeleteApiV1AccountsId403Response,
+			404: DeleteApiV1AccountsId404Response,
+			422: DeleteApiV1AccountsId422Response,
+		},
+	},
 	"DELETE /api/v1/chats/{id}": {
 		operation: "DELETE /api/v1/chats/{id}",
 		method: "DELETE",
@@ -1206,6 +1242,21 @@ const CONTRACTS: Record<string, OperationContract> = {
 		isBinaryDownload: false,
 		responses: { 200: GetApiV1ValuationsId200Response, 404: GetApiV1ValuationsId404Response },
 	},
+	"PATCH /api/v1/accounts/{id}": {
+		operation: "PATCH /api/v1/accounts/{id}",
+		method: "PATCH",
+		path: "/api/v1/accounts/{id}",
+		pathParams: PatchApiV1AccountsIdParams,
+		body: PatchApiV1AccountsIdBody,
+		isBinaryDownload: false,
+		responses: {
+			200: PatchApiV1AccountsId200Response,
+			401: PatchApiV1AccountsId401Response,
+			403: PatchApiV1AccountsId403Response,
+			404: PatchApiV1AccountsId404Response,
+			422: PatchApiV1AccountsId422Response,
+		},
+	},
 	"PATCH /api/v1/auth/enable_ai": {
 		operation: "PATCH /api/v1/auth/enable_ai",
 		method: "PATCH",
@@ -1312,6 +1363,21 @@ const CONTRACTS: Record<string, OperationContract> = {
 			201: PostApiV1Accounts201Response,
 			403: PostApiV1Accounts403Response,
 			422: PostApiV1Accounts422Response,
+		},
+	},
+	"POST /api/v1/accounts/{id}/archive": {
+		operation: "POST /api/v1/accounts/{id}/archive",
+		method: "POST",
+		path: "/api/v1/accounts/{id}/archive",
+		pathParams: PostApiV1AccountsIdArchiveParams,
+		queryParams: PostApiV1AccountsIdArchiveQueryParams,
+		isBinaryDownload: false,
+		responses: {
+			200: PostApiV1AccountsIdArchive200Response,
+			401: PostApiV1AccountsIdArchive401Response,
+			403: PostApiV1AccountsIdArchive403Response,
+			404: PostApiV1AccountsIdArchive404Response,
+			422: PostApiV1AccountsIdArchive422Response,
 		},
 	},
 	"POST /api/v1/auth/login": {

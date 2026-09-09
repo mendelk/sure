@@ -430,6 +430,288 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_equal account_names.sort, account_names
   end
 
+  test "should expose manual status and capabilities on show" do
+    account = accounts(:depository)
+
+    get "/api/v1/accounts/#{account.id}", headers: api_headers(@api_key)
+
+    assert_response :success
+    response_body = JSON.parse(response.body)
+    assert_equal true, response_body["manual"]
+    assert_equal false, response_body["linked"]
+    assert_equal %w[read update archive delete], response_body["capabilities"]
+  end
+
+  test "should expose read-only capabilities for linked accounts" do
+    account = accounts(:connected)
+
+    get "/api/v1/accounts/#{account.id}", headers: api_headers(@api_key)
+
+    assert_response :success
+    response_body = JSON.parse(response.body)
+    assert_equal false, response_body["manual"]
+    assert_equal true, response_body["linked"]
+    assert_equal [ "read" ], response_body["capabilities"]
+  end
+
+  test "should update a manual account name and balance" do
+    account = accounts(:depository)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { name: "Renamed Checking", balance: 6000 } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :success
+    response_body = JSON.parse(response.body)
+    assert_equal "Renamed Checking", response_body["name"]
+    assert_equal 6000, account.reload.balance
+    assert_equal money_cents(account.balance_money), response_body["balance_cents"]
+  end
+
+  test "should update currency subtype and notes" do
+    account = accounts(:depository)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { currency: "EUR", subtype: "savings", notes: "Updated via API" } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :success
+    account.reload
+    assert_equal "EUR", account.currency
+    assert_equal "savings", account.subtype
+    assert_equal "Updated via API", account.notes
+  end
+
+  test "should allow full-control shared users to update" do
+    member = @user.family.users.create!(
+      email: "shared-#{SecureRandom.hex(4)}@example.com",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "member"
+    )
+    account = accounts(:depository)
+    account.share_with!(member, permission: "full_control")
+    member_key = ApiKey.create!(
+      user: member,
+      name: "Shared Write Key",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "shared_rw_#{SecureRandom.hex(8)}"
+    )
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { name: "Shared Rename" } },
+      headers: api_headers(member_key)
+
+    assert_response :success
+    assert_equal "Shared Rename", account.reload.name
+  end
+
+  test "should forbid read-only shared users from updating" do
+    member = @user.family.users.create!(
+      email: "readonly-#{SecureRandom.hex(4)}@example.com",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "member"
+    )
+    account = accounts(:credit_card)
+    account.share_with!(member, permission: "read_only")
+    member_key = ApiKey.create!(
+      user: member,
+      name: "Shared Read Key",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "shared_ro_#{SecureRandom.hex(8)}"
+    )
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { name: "Nope" } },
+      headers: api_headers(member_key)
+
+    assert_response :forbidden
+    assert_equal "forbidden", JSON.parse(response.body)["error"]
+  end
+
+  test "should require write scope to update an account" do
+    account = accounts(:depository)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { name: "Nope" } },
+      headers: api_headers(@api_key)
+
+    assert_response :forbidden
+    assert_equal "insufficient_scope", JSON.parse(response.body)["error"]
+  end
+
+  test "should require authentication to update an account" do
+    account = accounts(:depository)
+
+    patch "/api/v1/accounts/#{account.id}", params: { account: { name: "Nope" } }
+
+    assert_response :unauthorized
+  end
+
+  test "should reject invalid update params with validation metadata" do
+    account = accounts(:depository)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { name: "" } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :unprocessable_entity
+    response_body = JSON.parse(response.body)
+    assert_equal "validation_failed", response_body["error"]
+    assert response_body["errors"].is_a?(Array)
+    assert response_body["errors"].any?
+  end
+
+  test "should reject updates to linked accounts" do
+    account = accounts(:connected)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { name: "Nope" } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :unprocessable_entity
+    assert_equal "validation_failed", JSON.parse(response.body)["error"]
+  end
+
+  test "should return 404 when updating another family's account" do
+    other_rw_key = ApiKey.create!(
+      user: @other_family_user,
+      name: "Other Family Write Key",
+      scopes: [ "read_write" ],
+      source: "mobile",
+      display_key: "other_family_rw_#{SecureRandom.hex(8)}"
+    )
+    account = accounts(:depository)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { name: "Nope" } },
+      headers: api_headers(other_rw_key)
+
+    assert_response :not_found
+  end
+
+  test "should return 404 for malformed account id on update" do
+    patch "/api/v1/accounts/not-a-uuid",
+      params: { account: { name: "Nope" } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :not_found
+  end
+
+  test "should archive an active manual account with confirmation" do
+    account = accounts(:depository)
+
+    post "/api/v1/accounts/#{account.id}/archive",
+      params: { confirm: true },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :success
+    response_body = JSON.parse(response.body)
+    assert_equal "disabled", response_body["status"]
+    assert_equal "disabled", account.reload.status
+    assert_not_includes response_body["capabilities"], "archive"
+  end
+
+  test "should require explicit confirmation to archive" do
+    account = accounts(:depository)
+
+    post "/api/v1/accounts/#{account.id}/archive",
+      params: {},
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :unprocessable_entity
+    response_body = JSON.parse(response.body)
+    assert_equal "validation_failed", response_body["error"]
+    assert account.reload.active?
+  end
+
+  test "should reject archiving an already archived account" do
+    account = accounts(:depository)
+    account.disable!
+
+    post "/api/v1/accounts/#{account.id}/archive",
+      params: { confirm: true, include_disabled: true },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :unprocessable_entity
+    assert_equal "validation_failed", JSON.parse(response.body)["error"]
+  end
+
+  test "should require write scope to archive" do
+    account = accounts(:depository)
+
+    post "/api/v1/accounts/#{account.id}/archive",
+      params: { confirm: true },
+      headers: api_headers(@api_key)
+
+    assert_response :forbidden
+  end
+
+  test "should delete a manual account with confirmation" do
+    account = accounts(:depository)
+
+    delete "/api/v1/accounts/#{account.id}",
+      params: { confirm: true },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :success
+    assert_equal "Account deleted successfully", JSON.parse(response.body)["message"]
+    assert_equal "pending_deletion", account.reload.status
+  end
+
+  test "should require explicit confirmation to delete" do
+    account = accounts(:depository)
+
+    delete "/api/v1/accounts/#{account.id}",
+      params: {},
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :unprocessable_entity
+    assert_equal "validation_failed", JSON.parse(response.body)["error"]
+    assert account.reload.active?
+  end
+
+  test "should reject deleting a linked account" do
+    account = accounts(:connected)
+
+    delete "/api/v1/accounts/#{account.id}",
+      params: { confirm: true },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :unprocessable_entity
+    assert_equal "validation_failed", JSON.parse(response.body)["error"]
+  end
+
+  test "should require write scope to delete" do
+    account = accounts(:depository)
+
+    delete "/api/v1/accounts/#{account.id}",
+      params: { confirm: true },
+      headers: api_headers(@api_key)
+
+    assert_response :forbidden
+  end
+
+  test "should return 404 when deleting another family's account" do
+    other_rw_key = ApiKey.create!(
+      user: @other_family_user,
+      name: "Other Family Delete Key",
+      scopes: [ "read_write" ],
+      source: "mobile",
+      display_key: "other_family_del_#{SecureRandom.hex(8)}"
+    )
+    account = accounts(:depository)
+
+    delete "/api/v1/accounts/#{account.id}",
+      params: { confirm: true },
+      headers: api_headers(other_rw_key)
+
+    assert_response :not_found
+  end
+
   private
 
     def api_headers(api_key)

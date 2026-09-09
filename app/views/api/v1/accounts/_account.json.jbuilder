@@ -2,6 +2,11 @@
 
 balance_money = account.balance_money
 cash_balance_money = account.cash_balance_money
+capabilities = [ "read" ]
+if account.manual?
+  capabilities += [ "update", "delete" ]
+  capabilities << "archive" if account.active?
+end
 
 json.id account.id
 json.name account.name
@@ -16,5 +21,8 @@ json.subtype account.subtype
 json.status account.status
 json.institution_name account.institution_name
 json.institution_domain account.institution_domain
+json.manual account.manual?
+json.linked account.linked?
+json.capabilities capabilities
 json.created_at account.created_at.iso8601
 json.updated_at account.updated_at.iso8601

@@ -155,6 +155,212 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        /** Delete a manual account */
+        delete: {
+            parameters: {
+                query: {
+                    /** @description Must be true to confirm deletion. Deleted accounts are marked for deletion. */
+                    confirm: boolean;
+                };
+                header?: never;
+                path: {
+                    /** @description Account ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description account deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeleteResponse"];
+                    };
+                };
+                /** @description unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description insufficient scope */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description account not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description confirmation required */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update a manual account */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Account ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AccountUpdateRequest"];
+                };
+            };
+            responses: {
+                /** @description account updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountDetail"];
+                    };
+                };
+                /** @description unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description insufficient scope */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description account not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description invalid account */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/accounts/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Account ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive a manual account */
+        post: {
+            parameters: {
+                query: {
+                    /** @description Must be true to confirm archiving. Archived accounts are disabled. */
+                    confirm: boolean;
+                };
+                header?: never;
+                path: {
+                    /** @description Account ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description account archived */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountDetail"];
+                    };
+                };
+                /** @description unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description insufficient scope */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description account not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description confirmation required */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -6614,6 +6820,12 @@ export interface components {
             status: "active" | "draft" | "disabled" | "pending_deletion";
             institution_name?: string | null;
             institution_domain?: string | null;
+            /** @description True when the account has no live sync provider attached */
+            manual?: boolean;
+            /** @description True when the account is linked to a sync provider */
+            linked?: boolean;
+            /** @description Core actions the caller may attempt on this account */
+            capabilities?: ("read" | "update" | "archive" | "delete")[];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -6641,6 +6853,23 @@ export interface components {
                 exclude_from_reports?: boolean;
                 enable_category_matcher?: boolean;
                 accountable?: components["schemas"]["AccountableCreateDetails"];
+            };
+        };
+        AccountUpdateRequest: {
+            /** @description Core manual account fields. Provider unlinking, sharing/ownership, report/default settings, and advanced subtype metadata are not part of the core milestone. */
+            account: {
+                /** @description Account display name */
+                name?: string;
+                /** @description Current balance in major currency units; writes a manual valuation entry */
+                balance?: number;
+                /** @description ISO currency code */
+                currency?: string;
+                /** @description Account subtype for the existing account type */
+                subtype?: string | null;
+                institution_name?: string | null;
+                notes?: string | null;
+                /** @description Alternative to the confirm query param for archive/delete confirmation */
+                confirm?: boolean;
             };
         };
         /** @description Type-specific manual account fields. Fields that do not apply to account_type are ignored. */
