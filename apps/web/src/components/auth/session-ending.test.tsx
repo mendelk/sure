@@ -21,8 +21,17 @@ import type { BffSessionStatus } from "~/lib/bff-auth-client";
 import { SessionEndingGuard } from "./session-ending";
 import type { SessionEndingResult } from "./session-ending";
 
-const ENDING_CODES = ["api-mismatch", "logged-out", "deactivated", "session-expired"] as const;
-const KEEP_CODES = ["throttled", "unavailable", "csrf", "origin", "invalid-refresh"] as const;
+const ENDING_CODES = [
+	"api-mismatch",
+	"api-too-old",
+	"api-too-new",
+	"api-missing-capability",
+	"logged-out",
+	"deactivated",
+	"session-expired",
+	"invalid-refresh",
+] as const;
+const KEEP_CODES = ["throttled", "unavailable", "csrf", "origin"] as const;
 
 function signedInStatus(): BffSessionStatus {
 	return {

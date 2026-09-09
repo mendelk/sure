@@ -1,26 +1,28 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import * as React from "react";
-import { AppShell } from "~/components/shell/app-shell";
+import { AuthenticatedShell } from "~/components/shell/authenticated-shell";
 import { RouteErrorState, RouteNotFound, RoutePending } from "~/components/shell/route-states";
 import { formatMessage } from "~/lib/i18n/messages";
 import { guardAuthenticated, loginSearchFor } from "~/lib/route-guards";
-import { bffSessionStatusFn } from "./login";
+import { bffSessionQueryOptions } from "./login";
 
 /**
  * Authenticated route group (t_alt_fnd_010).
  *
  * SSR-safe guard: `beforeLoad` runs on the server during SSR and on the
  * client during navigation. It reads the sealed BFF session through the
- * status server function (cookie-reading server-side, credentialed RPC
+ * shared status query (cookie-reading server-side, credentialed RPC
  * client-side — never `localStorage`, never browser globals), then
  * fails closed to `/login?next=<pathname>` when signed out. The derived
  * capability map travels in route context so the shell and every child
  * render capability-derived navigation from the same server-validated
- * source.
+ * source; populating the shared query entry also lets the reactive
+ * shell (`AuthenticatedShell`) flip chrome when a later
+ * session-ending query replaces it (t_alt_fnd_021).
  */
 export const Route = createFileRoute("/_authenticated")({
-	beforeLoad: async ({ location }) => {
-		const status = await bffSessionStatusFn();
+	beforeLoad: async ({ context, location }) => {
+		const status = await context.queryClient.ensureQueryData(bffSessionQueryOptions);
 		const decision = guardAuthenticated(status);
 		if (!decision.allowed) {
 			throw redirect({
@@ -45,8 +47,8 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout(): React.ReactElement {
 	const { session, capabilities } = Route.useRouteContext();
 	return (
-		<AppShell session={session} capabilities={capabilities}>
+		<AuthenticatedShell session={session} capabilities={capabilities}>
 			<Outlet />
-		</AppShell>
+		</AuthenticatedShell>
 	);
 }

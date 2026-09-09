@@ -14,43 +14,40 @@ import type { DashboardFilter } from "~/lib/app-search";
 import { parseDashboardSearch } from "~/lib/app-search";
 import { proxyBffWithSession } from "~/lib/sure-auth-session.server";
 import type { BffAuthErrorCode } from "~/lib/sure-auth-session.server";
-import type { BffProxyResult } from "~/lib/sure-api-bff.server";
+import { GetApiV1Accounts200Response } from "~/lib/api/zod/endpoints/accounts/accounts.zod";
 
 export type BffDashboardSummaryResult =
 	| { readonly ok: true; readonly accountCount: number }
 	| { readonly ok: false; readonly error: { readonly code: BffAuthErrorCode } };
 
-/** Lenient account count for the workspace summary (fail-closed upstream). */
-function narrowAccountCount(result: BffProxyResult): number | undefined {
-	if (!(result.body instanceof ArrayBuffer)) {
-		return undefined;
-	}
+/**
+ * Consume the proxied accounts payload through the generated response
+ * parser (`GET /api/v1/accounts` 200): the transport already
+ * contract-validated these bytes, and this typed read replaces any ad
+ * hoc schema. Unparseable bodies fail closed to `undefined` so the
+ * caller maps them to `api-mismatch`.
+ */
+function dashboardAccountCount(body: ArrayBuffer): number | undefined {
 	let decoded: unknown;
 	try {
-		decoded = JSON.parse(new TextDecoder().decode(result.body)) as unknown;
+		decoded = JSON.parse(new TextDecoder().decode(body)) as unknown;
 	} catch {
 		return undefined;
 	}
-	if (typeof decoded === "object" && decoded !== null && !Array.isArray(decoded)) {
-		for (const [key, value] of Object.entries(decoded)) {
-			if (key === "accounts" && Array.isArray(value)) {
-				return value.length;
-			}
-		}
+	const parsed = GetApiV1Accounts200Response.safeParse(decoded);
+	if (!parsed.success) {
+		return undefined;
 	}
-	if (Array.isArray(decoded)) {
-		return decoded.length;
-	}
-	return undefined;
+	return parsed.data.accounts.length;
 }
 
 /**
  * First real authenticated query (t_alt_fnd_021): the workspace account
  * collection through the session-authenticated proxy. Session-ending
- * failures (`api-mismatch`, `logged-out`, `deactivated`,
- * `session-expired`) resolve as data so `SessionEndingGuard` can clear
- * local session state and render signed-out; transport throws propagate
- * to the route error state with retry.
+ * failures (`BFF_SESSION_ENDING_CODES`) resolve as data so
+ * `SessionEndingGuard` can clear local session state and render
+ * signed-out; transport throws propagate to the route error state with
+ * retry.
  */
 export const bffDashboardSummaryFn = createServerFn({ method: "GET" }).handler(
 	async (): Promise<BffDashboardSummaryResult> => {
@@ -65,7 +62,10 @@ export const bffDashboardSummaryFn = createServerFn({ method: "GET" }).handler(
 		if (!outcome.ok) {
 			return { ok: false, error: { code: outcome.error.code } };
 		}
-		const accountCount = narrowAccountCount(outcome.result);
+		if (!(outcome.result.body instanceof ArrayBuffer)) {
+			return { ok: false, error: { code: "api-mismatch" } };
+		}
+		const accountCount = dashboardAccountCount(outcome.result.body);
 		if (accountCount === undefined) {
 			return { ok: false, error: { code: "api-mismatch" } };
 		}

@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import {
@@ -59,6 +59,17 @@ export const bffSessionStatusFn = createServerFn({ method: "GET" }).handler(
 		return getBffSessionStatus(getRequestHeader("Cookie") ?? null);
 	},
 );
+
+/**
+ * Shared session-status query (t_alt_fnd_021): the authenticated layout
+ * populates it in `beforeLoad` and the reactive shell subscribes to it,
+ * so a session-ending query flips the chrome through the same entry it
+ * clears.
+ */
+export const bffSessionQueryOptions = queryOptions({
+	queryKey: BFF_SESSION_QUERY_KEY,
+	queryFn: () => bffSessionStatusFn(),
+});
 
 interface BffLoginFnInput {
 	readonly email: string;

@@ -1,13 +1,17 @@
 // Session-ending guard (t_alt_fnd_021).
 //
 // Wraps the first real authenticated query output: when a proxied call
-// surfaces a session-ending failure (`api-mismatch`, `logged-out`,
-// `deactivated`, `session-expired`) after the route guard already passed
-// (e.g. the session died between guard and query), the browser resets to
-// signed-out — the `BFF_SESSION_QUERY_KEY` entry is cleared through
-// `clearSessionOnEndingCode` and the signed-out state renders in place.
-// Every other outcome renders `children` untouched so transport failures,
-// throttles, and guard rejections keep the cached session.
+// surfaces a session-ending failure (`api-mismatch`, `api-too-old`,
+// `api-too-new`, `api-missing-capability`, `logged-out`, `deactivated`,
+// `session-expired`, `invalid-refresh`) after the route guard already
+// passed (e.g. the session died between guard and query), the browser
+// resets to signed-out — the `BFF_SESSION_QUERY_KEY` entry is cleared
+// through `clearSessionOnEndingCode` and deliberately replaced with the
+// signed-out state (the authenticated shell consumes that entry, so no
+// authenticated chrome survives) while the signed-out card renders in
+// place. Every other outcome renders `children` untouched so transport
+// failures, throttles, and origin/CSRF guard rejections keep the cached
+// session.
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";

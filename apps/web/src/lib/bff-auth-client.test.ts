@@ -76,7 +76,16 @@ describe("clearLocalSessionState", () => {
 
 describe("isSessionEndingCode", () => {
 	it("flags every session-ending failure code", () => {
-		for (const code of ["api-mismatch", "logged-out", "deactivated", "session-expired"]) {
+		for (const code of [
+			"api-mismatch",
+			"api-too-old",
+			"api-too-new",
+			"api-missing-capability",
+			"logged-out",
+			"deactivated",
+			"session-expired",
+			"invalid-refresh",
+		]) {
 			expect(isSessionEndingCode(code)).toBe(true);
 		}
 	});
@@ -85,11 +94,10 @@ describe("isSessionEndingCode", () => {
 		for (const code of [
 			"unavailable",
 			"throttled",
-			"invalid-refresh",
 			"csrf",
 			"origin",
-			"api-too-old",
 			"invalid-credentials",
+			"mfa-unsupported",
 		]) {
 			expect(isSessionEndingCode(code)).toBe(false);
 		}
@@ -104,7 +112,16 @@ function seededSessionClient(): QueryClient {
 
 describe("clearSessionOnEndingCode", () => {
 	it("clears the session entry per ending code", () => {
-		for (const code of ["api-mismatch", "logged-out", "deactivated", "session-expired"]) {
+		for (const code of [
+			"api-mismatch",
+			"api-too-old",
+			"api-too-new",
+			"api-missing-capability",
+			"logged-out",
+			"deactivated",
+			"session-expired",
+			"invalid-refresh",
+		]) {
 			const queryClient = seededSessionClient();
 			expect(clearSessionOnEndingCode(queryClient, code)).toBe(true);
 			expect(queryClient.getQueryData(BFF_SESSION_QUERY_KEY)).toBeUndefined();
@@ -112,7 +129,7 @@ describe("clearSessionOnEndingCode", () => {
 	});
 
 	it("leaves the session entry alone otherwise", () => {
-		for (const code of ["unavailable", "throttled", "csrf", "origin", "invalid-refresh"]) {
+		for (const code of ["unavailable", "throttled", "csrf", "origin"]) {
 			const queryClient = seededSessionClient();
 			expect(clearSessionOnEndingCode(queryClient, code)).toBe(false);
 			expect(queryClient.getQueryData(BFF_SESSION_QUERY_KEY)).toBeDefined();

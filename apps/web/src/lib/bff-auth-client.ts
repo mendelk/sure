@@ -146,16 +146,22 @@ export function clearLocalSessionState(queryClient: QueryClient): void {
 /**
  * Proxied-call failure codes that end the local session (t_alt_fnd_021):
  * the browser must reset to signed-out when an authenticated query
- * surfaces one of these — revocation/expiry (`logged-out`,
- * `session-expired`), upstream deactivation (`deactivated`), or
- * deployment API incompatibility (`api-mismatch`). Every other failure
- * (transport, throttles, guard rejections) keeps the cached session.
+ * surfaces one of these — logout/revocation/expiry (`logged-out`,
+ * `session-expired`, `invalid-refresh`), upstream deactivation
+ * (`deactivated`), or deployment API incompatibility (`api-mismatch`,
+ * `api-too-old`, `api-too-new`, `api-missing-capability`). Every other
+ * failure (transport, throttles, origin/CSRF guard rejections,
+ * credential failures) keeps the cached session.
  */
 export const BFF_SESSION_ENDING_CODES = [
 	"api-mismatch",
+	"api-too-old",
+	"api-too-new",
+	"api-missing-capability",
 	"logged-out",
 	"deactivated",
 	"session-expired",
+	"invalid-refresh",
 ] as const;
 
 export type BffSessionEndingCode = (typeof BFF_SESSION_ENDING_CODES)[number];
