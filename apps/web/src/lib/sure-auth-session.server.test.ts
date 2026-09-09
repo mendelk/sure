@@ -265,7 +265,11 @@ function mockFetch(mock: MockUpstream): typeof fetch {
 				}
 				return jsonResponse(200, { revoked: true });
 			}
-			return errorResponse(401, "unauthorized", "Access token or API key is invalid, expired, or missing");
+			return errorResponse(
+				401,
+				"unauthorized",
+				"Access token or API key is invalid, expired, or missing",
+			);
 		}
 
 		if (method === "GET" && path === "/api/v1/accounts") {
