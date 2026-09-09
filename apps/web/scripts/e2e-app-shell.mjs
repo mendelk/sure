@@ -83,8 +83,12 @@ try {
 			await page.goto(`${config.webOrigin}/dashboard`, { waitUntil: "load" });
 			await page.getByRole("heading", { name: "Log in to Sure" }).waitFor({ timeout: 15_000 });
 			const url = new URL(page.url());
-			if (url.pathname !== "/login" || url.searchParams.get("next") !== "/dashboard") {
-				throw new Error(`expected /login?next=/dashboard, saw ${url.pathname}${url.search}.`);
+			// The dashboard normalizes its default search (`q`, `filter`)
+			// into the URL before the guard redirects, so `next` carries
+			// the full deep link — accept the bare or normalized target.
+			const next = url.searchParams.get("next");
+			if (url.pathname !== "/login" || next?.startsWith("/dashboard") !== true) {
+				throw new Error(`expected /login?next=/dashboard…, saw ${url.pathname}${url.search}.`);
 			}
 		} finally {
 			await context.close();

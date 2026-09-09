@@ -14,12 +14,23 @@
 //   `apiGetJson` reads finance data back with the bearer token, and
 //   `assertSessionExpired` proves unknown tokens map to a safe 401.
 //
-// Seam (t_alt_fnd_007): the app has no login/session UI yet, so there is no
-// browser cookie handoff to assert. `loginAs` returns tokens to the
-// *harness* (never logged, never written to artifacts); the browser-side
-// session assertion lands with the auth UI and reuses `loginAs` +
-// `clearBrowserSession` from here.
+// Seam (t_alt_fnd_007 → t_alt_fnd_020): the login/logout UI exists
+// (`src/routes/login.tsx`, `src/routes/logout.tsx`), so the smoke suite
+// drives the real browser cookie handoff end to end: UI login → session
+// cookie → authed page render → UI logout → revocation. `loginAs` returns
+// tokens to the *harness* (never logged, never written to artifacts);
+// browser flows below reuse it only for the complementary API leg.
+import { spawnSync } from "node:child_process";
+import { resolve } from "node:path";
 import { SENSITIVE_MASK_SELECTORS, roleCredentials } from "./e2e-config.mjs";
+
+/**
+ * BFF cookie names (mirrors `src/lib/bff-session.ts`: the `HttpOnly`
+ * session id plus the readable anti-CSRF token). Pinned here so the
+ * smoke suite can assert the browser cookie handoff directly.
+ */
+export const BFF_SESSION_COOKIE_NAME = "__Host-sure-bff-session";
+export const BFF_CSRF_COOKIE_NAME = "__Host-sure-bff-csrf";
 
 export function devicePayload() {
 	return {
@@ -132,6 +143,70 @@ export async function assertSessionExpired(apiRequest, config) {
 	if (typeof payload?.error !== "string") {
 		throw new Error("[e2e] expired-session response is not a safe error envelope.");
 	}
+}
+
+/**
+ * Fill the real `/login` form and submit. Ends on the post-login target
+ * (the app's `next` handling decides where); callers assert the landing
+ * page. Matches the app-shell suite's flow so both suites drive the same
+ * UI (see scripts/e2e-app-shell.mjs).
+ */
+export async function loginThroughUi(page, config, role, next) {
+	const { email, password } = roleCredentials(config, role);
+	await page.goto(`${config.webOrigin}/login${next === undefined ? "" : `?next=${next}`}`, {
+		waitUntil: "load",
+	});
+	await page.getByLabel(/email/i).fill(email);
+	await page.getByLabel(/password/i).fill(password);
+	await page.getByRole("button", { name: /log in/i }).click();
+	await page.getByTestId("page-title").waitFor({ state: "visible", timeout: 15_000 });
+}
+
+/** Read a named cookie value from the browser context (undefined when absent). */
+export async function browserCookieValue(context, name) {
+	const cookies = await context.cookies();
+	return cookies.find((cookie) => cookie.name === name)?.value;
+}
+
+/**
+ * Probe the Rails-side state of the token pair the BFF minted for one
+ * browser session. The BFF registers a per-session device
+ * (`bff-<sessionId>`, see `BFF_DEVICE_*` in
+ * `src/lib/sure-auth-session.server.ts`); this runs `bin/rails runner`
+ * (RAILS_ENV=test) and reports whether that device still holds an active
+ * token pair: `"active"` or `"revoked"`.
+ *
+ * Secret-free: the session id travels via environment (like
+ * `SURE_E2E_PASSWORD`), never enters logs or artifacts, and the runner
+ * prints only the one-word verdict. Throws (redacted: exit status only)
+ * when Rails cannot answer, so a broken probe never passes silently.
+ */
+export function railsDeviceTokenState(webRoot, { email, sessionId }) {
+	const repoRoot = resolve(webRoot, "..", "..");
+	const script = [
+		'user = User.find_by!(email: ENV.fetch("E2E_DEVICE_EMAIL"))',
+		'device = user.mobile_devices.find_by(device_id: "bff-#{ENV.fetch("E2E_BFF_SESSION_ID")}")',
+		'puts(device&.active_tokens&.exists? ? "active" : "revoked")',
+	].join("; ");
+	const result = spawnSync("bin/rails", ["runner", "-e", "test", script], {
+		cwd: repoRoot,
+		env: {
+			...process.env,
+			RAILS_ENV: "test",
+			E2E_DEVICE_EMAIL: email,
+			E2E_BFF_SESSION_ID: sessionId,
+		},
+		encoding: "utf8",
+	});
+	const verdict = (result.stdout ?? "")
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => line !== "")
+		.at(-1);
+	if (result.status !== 0 || (verdict !== "active" && verdict !== "revoked")) {
+		throw new Error(`[e2e] Rails device-token probe failed (status ${String(result.status)}).`);
+	}
+	return verdict;
 }
 
 /** Drop all browser session state (cookies + storage) and reload. */

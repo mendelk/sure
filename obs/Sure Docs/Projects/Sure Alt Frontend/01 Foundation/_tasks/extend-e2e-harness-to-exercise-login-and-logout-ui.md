@@ -5,18 +5,18 @@ parentId: null
 id: "t_alt_fnd_020"
 title: "Extend e2e harness to exercise the login and logout UI against real Rails"
 type: "task"
-status: "todo"
+status: "done"
 priority: "medium"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["testing", "auth", "frontend"]
 subtaskIds: []
 dependencies: ["t_alt_fnd_007", "t_alt_fnd_012"]
 timeEstimate: 8
 createdAt: "2026-09-08T02:10:00.000Z"
-updatedAt: "2026-09-08T02:10:00.000Z"
+updatedAt: "2026-09-09T02:40:00.000Z"
 ---
 
 Drive the real browser → BFF → Rails login and logout flows in the

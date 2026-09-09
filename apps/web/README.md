@@ -178,7 +178,7 @@ Three layers, so mocks are never the only integration evidence:
 | ----- | ----- | -------------- |
 | Unit/component | `pnpm test` (vitest + Testing Library) | Accessible queries, deterministic UTC clock (`src/test-utils/time.ts`), OpenAPI-typed fixtures (`src/test-utils/api-fixtures.ts`), contract-validated fetch stubs (`src/test-utils/mock-handlers.ts`) |
 | Live BFF | `pnpm test:e2e:live` (gated by `SURE_E2E_LIVE=1`) | Hardened BFF transport → real Rails test API → PostgreSQL, with generated-contract parsing on both sides (`src/lib/api/bff-live.test.ts`) |
-| Browser smoke | `pnpm test:e2e` (Playwright/Chromium) | Browser → web SSR → configured Rails origin, seeded login/roles, bearer finance read, session-expiry 401, API-failure injection, mobile viewports, light/dark theme (`scripts/e2e-smoke.mjs` + `scripts/e2e-helpers.mjs`) |
+| Browser smoke | `pnpm test:e2e` (Playwright/Chromium) | Browser → web SSR → configured Rails origin, seeded login/roles, bearer finance read, session-expiry 401, API-failure injection, mobile viewports, light/dark theme, plus the real login/logout UI round-trip (post-login redirect, authenticated chrome, cookie-carried session across reload, Rails pair revocation for the browser session, accessible invalid/unavailable states) (`scripts/e2e-smoke.mjs` + `scripts/e2e-helpers.mjs`) |
 
 ### Orchestrated run (CI and local)
 
@@ -195,9 +195,14 @@ PostgreSQL and Redis reachable (`DATABASE_URL`/`REDIS_URL` or
 `DB_HOST`/`DB_PORT`/`POSTGRES_*`), plus Chromium
 (`pnpm --filter @sure/web exec playwright install chromium`).
 Repeat runs are safe: the seed is idempotent and namespaced, and cleanup
-removes only the harness family. Useful overrides: `SURE_E2E_RAILS_PORT`,
+removes only the harness family. The orchestrator mints an ephemeral
+`SURE_SESSION_SECRET` per run (honored from the environment when set) so
+the preview BFF can seal login sessions, and restarts the web preview
+between the smoke and app-shell suites — BFF login throttles and sessions
+live in preview process memory, so each UI suite gets a fresh throttle
+budget. Useful overrides: `SURE_E2E_RAILS_PORT`,
 `SURE_E2E_WEB_PORT`, `SURE_E2E_EMAIL` / `SURE_E2E_VIEWER_EMAIL` /
-`SURE_E2E_PASSWORD`, `E2E_ARTIFACTS_DIR`.
+`SURE_E2E_PASSWORD`, `SURE_SESSION_SECRET`, `E2E_ARTIFACTS_DIR`.
 
 ### Privacy mode
 

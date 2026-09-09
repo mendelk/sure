@@ -7,9 +7,17 @@
 //     deterministic users ("member"/"viewer") and finance data.
 //  2. Boot Rails (`-b 127.0.0.1 -p SURE_E2E_RAILS_PORT`) and wait for `/up`.
 //  3. `pnpm build` + `vite preview` the TanStack app with
-//     `SURE_API_ORIGIN` pinned to the Rails origin, wait for the root.
-//  4. Run the Playwright smoke suite (`./e2e-smoke.mjs`), then the live
-//     BFF → Rails → database vitest file with `SURE_E2E_LIVE=1`.
+//     `SURE_API_ORIGIN` pinned to the Rails origin (plus an ephemeral
+//     `SURE_SESSION_SECRET` so the BFF can seal login sessions —
+//     honored from the environment when set), wait for the root.
+//     The preview restarts between the smoke and app-shell suites: BFF
+//     login throttles and sessions live in preview process memory, so a
+//     restart gives each UI suite a fresh throttle budget without
+//     touching the security policy.
+//  4. Run the Playwright smoke suite (`./e2e-smoke.mjs`, from the web
+//     package directory — the scripts live under `apps/web/scripts`),
+//     then the app-shell suite and the live BFF → Rails → database
+//     vitest file with `SURE_E2E_LIVE=1`.
 //  5. ALWAYS: stop every spawned process (SIGTERM, escalate to SIGKILL)
 //     and delete the seeded rows (`E2E_CLEANUP=1`), even on failure or
 //     Ctrl-C. Masked screenshots + server logs stay in the artifacts dir.
@@ -21,6 +29,7 @@
 //
 // Usage: `pnpm test:e2e:ci` (from apps/web), or `node scripts/e2e-services.mjs`.
 import { spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdir, open } from "node:fs/promises";
 import net from "node:net";
 import { join, resolve } from "node:path";
@@ -76,7 +85,7 @@ async function waitForUrl(url, timeoutMs, label) {
 /** Run a short command synchronously; throws with the failing argv. */
 function runForeground(argv, options = {}) {
 	const result = spawnSync(argv[0], argv.slice(1), {
-		cwd: repoRoot,
+		cwd: options.cwd ?? repoRoot,
 		stdio: "inherit",
 		env: { ...process.env, ...RAILS_ENV, ...options.env },
 	});
@@ -119,6 +128,19 @@ async function stopAll() {
 		if (child.exitCode === null) {
 			child.kill("SIGKILL");
 		}
+	}
+}
+
+/** Stop one spawned server (preview restarts); the rest keep running. */
+async function stopOne(child) {
+	children.delete(child);
+	child.kill("SIGTERM");
+	const deadline = Date.now() + 15_000;
+	while (child.exitCode === null && Date.now() < deadline) {
+		await new Promise((wake) => setTimeout(wake, 250));
+	}
+	if (child.exitCode === null) {
+		child.kill("SIGKILL");
 	}
 }
 
@@ -180,36 +202,60 @@ try {
 
 	log("building the web app…");
 	runForeground(["pnpm", "--filter", "@sure/web", "build"], { env: {} });
-	log(`previewing the web app on ${config.webOrigin}…`);
-	await spawnServer(
-		[
-			"pnpm",
-			"--filter",
-			"@sure/web",
-			"exec",
-			"vite",
-			"preview",
-			"--port",
-			String(config.webPort),
-			"--strictPort",
-			"--host",
-			config.host,
-		],
-		{ cwd: repoRoot, env: { SURE_API_ORIGIN: config.railsOrigin } },
-		"web.log",
-	);
-	await waitForUrl(config.webOrigin, config.webStartupTimeoutMs, "web preview");
+	// The BFF seals login sessions with SURE_SESSION_SECRET (see
+	// src/lib/sure-auth-session.server.ts): mint an ephemeral 256-bit key
+	// per orchestrated run unless the environment pins one. Sessions are
+	// process-memory anyway, so nothing survives the run; the value is
+	// never logged.
+	const sessionSecret =
+		process.env["SURE_SESSION_SECRET"]?.trim() || randomBytes(32).toString("base64");
+	async function startWebPreview() {
+		log(`previewing the web app on ${config.webOrigin}…`);
+		const child = await spawnServer(
+			[
+				"pnpm",
+				"--filter",
+				"@sure/web",
+				"exec",
+				"vite",
+				"preview",
+				"--port",
+				String(config.webPort),
+				"--strictPort",
+				"--host",
+				config.host,
+			],
+			{
+				cwd: repoRoot,
+				env: { SURE_API_ORIGIN: config.railsOrigin, SURE_SESSION_SECRET: sessionSecret },
+			},
+			"web.log",
+		);
+		await waitForUrl(config.webOrigin, config.webStartupTimeoutMs, "web preview");
+		return child;
+	}
+	let webChild = await startWebPreview();
 
 	log("running the Playwright smoke suite…");
-	runForeground(["node", "scripts/e2e-smoke.mjs"], { env: {} });
+	// Script paths resolve against the web package directory (they live
+	// under apps/web/scripts, not the repo root).
+	runForeground(["node", "scripts/e2e-smoke.mjs"], { cwd: webRoot, env: {} });
+
+	// Fresh throttle budget + session store for the next UI suite (see
+	// the header note): the smoke logout already closed its session, so
+	// nothing of value is lost.
+	log("restarting the web preview between UI suites…");
+	await stopOne(webChild);
+	webChild = await startWebPreview();
 
 	log("running the Playwright app-shell suite…");
-	runForeground(["node", "scripts/e2e-app-shell.mjs"], { env: {} });
+	runForeground(["node", "scripts/e2e-app-shell.mjs"], { cwd: webRoot, env: {} });
 
 	log("running the live BFF → Rails → database suite…");
 	runForeground(
 		["pnpm", "--filter", "@sure/web", "exec", "vitest", "run", "src/lib/api/bff-live.test.ts"],
 		{
+			cwd: webRoot,
 			env: {
 				SURE_E2E_LIVE: "1",
 				SURE_E2E_RAILS_ORIGIN: config.railsOrigin,
