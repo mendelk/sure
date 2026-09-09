@@ -714,6 +714,9 @@ describe("logout / revocation (REQ-API-01)", () => {
 			deps,
 		);
 		expect(result.ok).toBe(true);
+		if (!result.ok) {
+			return;
+		}
 		expect(mock.logoutCalls).toBe(1);
 		for (const cookie of result.cookies) {
 			expect(cookie.value).toBe("");
@@ -740,6 +743,9 @@ describe("logout / revocation (REQ-API-01)", () => {
 			deps,
 		);
 		expect(result.ok).toBe(true);
+		if (!result.ok) {
+			return;
+		}
 		expect(mock.logoutCalls).toBe(1);
 		for (const family of mock.families.values()) {
 			expect(family.refreshUsed).toBe(true);
@@ -782,6 +788,83 @@ describe("logout / revocation (REQ-API-01)", () => {
 			deps,
 		);
 		expect(result.ok).toBe(true);
+		expect(mock.logoutCalls).toBe(0);
+	});
+
+	it("stays idempotent: a second same-origin logout succeeds", async () => {
+		const mock = createMockUpstream();
+		const deps = testDeps(mock);
+		const { cookieHeader, csrfToken } = await loginOk(mock, deps);
+
+		const first = await logoutOfBffSession(
+			{ cookieHeader, origin: BFF_ORIGIN, csrfToken, bffOrigin: BFF_ORIGIN },
+			deps,
+		);
+		expect(first.ok).toBe(true);
+		expect(mock.logoutCalls).toBe(1);
+
+		const second = await logoutOfBffSession(
+			{ cookieHeader, origin: BFF_ORIGIN, csrfToken, bffOrigin: BFF_ORIGIN },
+			deps,
+		);
+		expect(second.ok).toBe(true);
+		expect(mock.logoutCalls).toBe(1);
+	});
+
+	it("rejects cross-origin logout without destroying the session (t_alt_fnd_021)", async () => {
+		const mock = createMockUpstream();
+		const deps = testDeps(mock);
+		const { cookieHeader, csrfToken } = await loginOk(mock, deps);
+
+		const result = await logoutOfBffSession(
+			{ cookieHeader, origin: "https://evil.test", csrfToken, bffOrigin: BFF_ORIGIN },
+			deps,
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) {
+			return;
+		}
+		expect(result.error.code).toBe("origin");
+		expect(mock.logoutCalls).toBe(0);
+		// The session survives a rejected logout: no revocation happened.
+		expect(getBffSessionStatus(cookieHeader, deps).authenticated).toBe(true);
+	});
+
+	it("rejects logout bound to another session's CSRF token (t_alt_fnd_021)", async () => {
+		const mock = createMockUpstream();
+		const deps = testDeps(mock);
+		const { cookieHeader } = await loginOk(mock, deps);
+
+		const result = await logoutOfBffSession(
+			{ cookieHeader, origin: BFF_ORIGIN, csrfToken: "attacker-token", bffOrigin: BFF_ORIGIN },
+			deps,
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) {
+			return;
+		}
+		expect(result.error.code).toBe("csrf");
+		expect(mock.logoutCalls).toBe(0);
+		expect(getBffSessionStatus(cookieHeader, deps).authenticated).toBe(true);
+	});
+
+	it("rejects cross-origin logout for stale cookies", async () => {
+		const mock = createMockUpstream();
+		const deps = testDeps(mock);
+		const result = await logoutOfBffSession(
+			{
+				cookieHeader: `${BFF_SESSION_COOKIE_NAME}=AbcDef0123456789_-Ab12`,
+				origin: "https://evil.test",
+				csrfToken: "x",
+				bffOrigin: BFF_ORIGIN,
+			},
+			deps,
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) {
+			return;
+		}
+		expect(result.error.code).toBe("origin");
 		expect(mock.logoutCalls).toBe(0);
 	});
 });

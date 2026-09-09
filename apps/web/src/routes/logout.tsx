@@ -44,7 +44,13 @@ function LogoutPage(): React.ReactElement {
 		setPending(true);
 		setFailed(false);
 		try {
-			await bffLogoutFn();
+			const result = await bffLogoutFn();
+			if (!result.ok) {
+				// Guard rejection (cross-origin / CSRF mismatch): the server
+				// session is preserved, so keep the local session too.
+				setFailed(true);
+				return;
+			}
 			clearLocalSessionState(queryClient);
 			// Refresh the status entry to signed-out so header chrome flips.
 			queryClient.setQueryData(BFF_SESSION_QUERY_KEY, {
@@ -54,8 +60,8 @@ function LogoutPage(): React.ReactElement {
 			const target = splitNextTarget(search.next);
 			await navigate({ to: target.to, search: target.search, replace: true });
 		} catch {
-			// Transport failure only (the server function always resolves
-			// otherwise): stay signed in and say so.
+			// Transport failure only (the server function resolves otherwise):
+			// stay signed in and say so.
 			setFailed(true);
 		} finally {
 			setPending(false);

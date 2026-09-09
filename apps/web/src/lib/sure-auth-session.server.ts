@@ -920,17 +920,27 @@ export interface BffLogoutInput {
 	readonly bffOrigin: string;
 }
 
-export interface BffLogoutResult {
-	readonly ok: true;
-	readonly cookies: readonly BffSetCookie[];
-}
+export type BffLogoutResult =
+	| {
+			readonly ok: true;
+			readonly cookies: readonly BffSetCookie[];
+	  }
+	| BffAuthFailure;
 
 /**
  * Three-step logout, atomic-from-the-user's-view (ADR-0001 §3.3): destroy
  * the server-side session, best-effort explicit revocation via
  * `POST /api/v1/auth/logout` (failures swallowed — the tokens are already
- * unreachable without the destroyed session), clear the cookies. Always
- * reports success to the browser: logout must never strand a session.
+ * unreachable without the destroyed session), clear the cookies.
+ *
+ * Mutation guards (t_alt_fnd_021, REQ-TRAN-01) are enforced here directly,
+ * not only inside the best-effort upstream revocation: a live session
+ * requires same-origin plus CSRF binding to its stored token, so a
+ * cross-origin or cross-session logout is rejected with the session
+ * preserved. A stale/missing session stays idempotent-success on
+ * same-origin requests (origin still enforced); only the CSRF binding has
+ * nothing to bind to. Guard rejections return a failure with no cookies —
+ * the caller must not clear local state for them.
  */
 export async function logoutOfBffSession(
 	input: BffLogoutInput,
@@ -938,27 +948,41 @@ export async function logoutOfBffSession(
 ): Promise<BffLogoutResult> {
 	const resolved = resolveDeps(deps);
 	const read = readBffSession(input.cookieHeader, resolved);
-	if (read.ok) {
-		resolved.store.delete(read.sessionId);
-		try {
-			const request: BffProxyRequest = {
-				method: "POST",
-				path: "/api/v1/auth/logout",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ refresh_token: read.payload.refreshToken }),
-				origin: input.origin,
-				csrfToken: input.csrfToken ?? read.payload.csrfToken,
-				bffOrigin: input.bffOrigin,
-				auth: { bearerToken: read.payload.accessToken },
-			};
-			await proxyToSureApi(request, {
-				fetchImpl: resolved.fetchImpl,
-				upstreamOrigin: resolved.upstreamOrigin,
-			});
-		} catch {
-			// Best-effort revocation: the session is already destroyed, so
-			// the tokens are unreachable regardless of this outcome.
+	if (!read.ok) {
+		if (input.origin !== input.bffOrigin) {
+			return fail("origin", "Mutations require a same-origin request.");
 		}
+		return { ok: true, cookies: clearSessionCookies() };
+	}
+	const guard = checkBffMutationGuards({
+		method: "POST",
+		origin: input.origin,
+		csrfToken: input.csrfToken,
+		bffOrigin: input.bffOrigin,
+		expectedCsrfToken: read.payload.csrfToken,
+	});
+	if (!guard.ok) {
+		return fail(guard.code, guard.message);
+	}
+	resolved.store.delete(read.sessionId);
+	try {
+		const request: BffProxyRequest = {
+			method: "POST",
+			path: "/api/v1/auth/logout",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refresh_token: read.payload.refreshToken }),
+			origin: input.origin,
+			csrfToken: input.csrfToken ?? read.payload.csrfToken,
+			bffOrigin: input.bffOrigin,
+			auth: { bearerToken: read.payload.accessToken },
+		};
+		await proxyToSureApi(request, {
+			fetchImpl: resolved.fetchImpl,
+			upstreamOrigin: resolved.upstreamOrigin,
+		});
+	} catch {
+		// Best-effort revocation: the session is already destroyed, so
+		// the tokens are unreachable regardless of this outcome.
 	}
 	return { ok: true, cookies: clearSessionCookies() };
 }

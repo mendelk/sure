@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fnd_021"
 title: "Clear browser local session state on api-mismatch and auth failures in real pages"
 type: "task"
-status: "todo"
+status: "done"
 priority: "low"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["auth", "frontend"]
 subtaskIds: []

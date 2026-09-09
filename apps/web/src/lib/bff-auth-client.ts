@@ -143,6 +143,40 @@ export function clearLocalSessionState(queryClient: QueryClient): void {
 	queryClient.removeQueries({ queryKey: BFF_SESSION_QUERY_KEY });
 }
 
+/**
+ * Proxied-call failure codes that end the local session (t_alt_fnd_021):
+ * the browser must reset to signed-out when an authenticated query
+ * surfaces one of these — revocation/expiry (`logged-out`,
+ * `session-expired`), upstream deactivation (`deactivated`), or
+ * deployment API incompatibility (`api-mismatch`). Every other failure
+ * (transport, throttles, guard rejections) keeps the cached session.
+ */
+export const BFF_SESSION_ENDING_CODES = [
+	"api-mismatch",
+	"logged-out",
+	"deactivated",
+	"session-expired",
+] as const;
+
+export type BffSessionEndingCode = (typeof BFF_SESSION_ENDING_CODES)[number];
+
+/** Whether a proxied-call failure code ends the local session. */
+export function isSessionEndingCode(code: string): code is BffSessionEndingCode {
+	return (BFF_SESSION_ENDING_CODES as readonly string[]).includes(code);
+}
+
+/**
+ * Clear local session state when `code` ends the session. Returns whether
+ * the session was cleared so callers can branch to the signed-out state.
+ */
+export function clearSessionOnEndingCode(queryClient: QueryClient, code: string): boolean {
+	if (!isSessionEndingCode(code)) {
+		return false;
+	}
+	clearLocalSessionState(queryClient);
+	return true;
+}
+
 /** Whether a status/error means the browser must reset to signed-out. */
 export function isSignedOutStatus(status: BffSessionStatus): boolean {
 	return !status.authenticated;

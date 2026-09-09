@@ -102,15 +102,27 @@ export const bffLoginFn = createServerFn({ method: "POST" })
 		return { ok: true, user: result.user, csrfToken: result.csrfToken };
 	});
 
-/** Three-step server-side logout (session destroy + revocation + clearing). */
+type BffLogoutFnResult =
+	| { readonly ok: true }
+	| { readonly ok: false; readonly error: { readonly code: BffLoginErrorCode } };
+
+/**
+ * Three-step server-side logout (session destroy + revocation + clearing).
+ * Guard rejections (`origin`/`csrf`, enforced directly by
+ * `logoutOfBffSession`) propagate as failures so the browser keeps its
+ * local session — only success clears.
+ */
 export const bffLogoutFn = createServerFn({ method: "POST" }).handler(
-	async (): Promise<{ readonly ok: true }> => {
+	async (): Promise<BffLogoutFnResult> => {
 		const result = await logoutOfBffSession({
 			cookieHeader: getRequestHeader("Cookie") ?? null,
 			origin: getRequestHeader("Origin") ?? null,
 			csrfToken: getRequestHeader("X-Csrf-Token") ?? getCookie("__Host-sure-bff-csrf") ?? null,
 			bffOrigin: requestBffOrigin(),
 		});
+		if (!result.ok) {
+			return { ok: false, error: { code: result.error.code } };
+		}
 		applyBffCookies(result.cookies);
 		return { ok: true };
 	},

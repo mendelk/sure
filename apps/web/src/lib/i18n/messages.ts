@@ -105,6 +105,12 @@ const enMessageData = {
 		"The sign-in service is unavailable. Check your connection and try again.",
 	"auth.invalidData": "Invalid login data.",
 
+	// Session-ending guard (components/auth/session-ending.tsx): rendered
+	// in place when an authenticated query surfaces a session-ending
+	// failure after the route guard already passed.
+	"session.signedOutTitle": "Session ended",
+	"session.signedOutBody": "Your session has ended. Sign in again to continue.",
+
 	// Auth: logout page (routes/logout.tsx).
 	"auth.logoutTitle": "Log out of Sure",
 	"auth.logoutDescription": "This signs you out on this device and revokes the session.",
@@ -180,6 +186,7 @@ const enMessageData = {
 	"dashboard.filterArchived": "Archived",
 	"dashboard.deepLink": "Deep link to this filtered view",
 	"dashboard.goToSettings": "Go to settings",
+	"dashboard.accounts": "Workspace accounts: {count}.",
 
 	// Settings (routes/_authenticated/settings*.tsx).
 	"settings.title": "Settings",
