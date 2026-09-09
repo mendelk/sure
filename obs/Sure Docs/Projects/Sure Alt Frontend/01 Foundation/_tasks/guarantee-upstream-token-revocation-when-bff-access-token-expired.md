@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fnd_019"
 title: "Guarantee upstream token revocation when BFF access token is expired"
 type: "task"
-status: "todo"
+status: "done"
 priority: "medium"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["auth", "backend", "security"]
 subtaskIds: []

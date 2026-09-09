@@ -6,7 +6,8 @@ module Api
       skip_before_action :authenticate_request!
       skip_before_action :check_api_key_rate_limit
       skip_before_action :log_api_access
-      before_action :authenticate_request!, only: %i[enable_ai logout]
+      before_action :authenticate_request!, only: %i[enable_ai]
+      before_action :authenticate_logout_request!, only: %i[logout]
       before_action :ensure_write_scope, only: :enable_ai
       before_action :check_api_key_rate_limit, only: %i[enable_ai logout]
       before_action :log_api_access, only: %i[enable_ai logout]
@@ -340,11 +341,15 @@ module Api
       # already destroyed its own server-side session, and calls here so the
       # Sure token pair cannot outlive the browser session ("never delete
       # cookie only"). Revokes the bearer token that authenticated this
-      # request, or — when the access token is already unusable — the token
-      # identified by the `refresh_token` param. Both identifiers are
-      # single-use secrets looked up by hashed value; an unknown identifier
-      # still returns `revoked: true` so logout stays idempotent and does not
-      # oracle token validity.
+      # request, or — when no valid bearer is presented (e.g. the access
+      # token already expired) — the token identified by the `refresh_token`
+      # param. Possession of the refresh secret proves authority, so the
+      # unauthenticated revoke-by-refresh path needs no bearer. Both
+      # identifiers are single-use secrets looked up by hashed value; an
+      # unknown identifier still returns `revoked: true` so logout stays
+      # idempotent and does not oracle token validity. The unauthenticated
+      # path is rate-limited like the sign-in endpoints (see Rack::Attack
+      # "auth/logout") so it cannot be used to enumerate refresh tokens.
       def logout
         revoked = false
 
@@ -483,6 +488,25 @@ module Api
 
         def ensure_write_scope
           authorize_scope!(:write)
+        end
+
+        # Logout authentication (t_alt_fnd_019): revoke-by-`refresh_token`
+        # carries its own authority — possession of the refresh secret — so
+        # it must not 401 when the BFF's stored access token has expired.
+        # Authenticate best-effort to preserve bearer-priority revocation
+        # for valid credentials; an expired bearer silently falls through
+        # to the refresh branch instead of rendering 401. With no
+        # `refresh_token` param, normal authentication still applies.
+        def authenticate_logout_request!
+          if params[:refresh_token].blank?
+            authenticate_request!
+            return
+          end
+
+          return if authenticate_api_key
+          return if authenticate_oauth(silent: true)
+
+          @authentication_method = :refresh_token
         end
     end
   end

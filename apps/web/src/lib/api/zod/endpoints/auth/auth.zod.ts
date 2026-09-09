@@ -141,7 +141,7 @@ export const PostApiV1AuthRefresh400Response = ErrorResponse;
 export const PostApiV1AuthRefresh401Response = ErrorResponse;
 
 /**
- * Explicit token revocation for BFF logout (ADR-0001 REQ-API-01). Revokes the bearer token that authenticated the request, or the token identified by the refresh_token param. Unknown identifiers return revoked true so logout stays idempotent.
+ * Explicit token revocation for BFF logout (ADR-0001 REQ-API-01). Revokes the bearer token that authenticated the request, or — when no valid bearer is presented — the token identified by the refresh_token param (possession of the refresh secret authorizes revocation, so an expired access token cannot block logout). Unknown identifiers return revoked true so logout stays idempotent.
  * @summary Revoke the current OAuth token (BFF logout)
  */
 export const PostApiV1AuthLogoutBody = zod.strictObject({

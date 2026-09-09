@@ -15,6 +15,15 @@ class RackAttackTest < ActionDispatch::IntegrationTest
     assert_includes throttles, "oauth/token", "OAuth token endpoint should have rate limiting"
   end
 
+  test "unauthenticated logout-by-refresh has rate limiting configured" do
+    # The credential-less logout path accepts a bare refresh secret
+    # (t_alt_fnd_019), so it is throttled like the sign-in endpoints to
+    # block refresh-token enumeration (we don't need to trigger it; the
+    # throttle only runs in production/staging).
+    throttles = Rack::Attack.throttles.keys
+    assert_includes throttles, "auth/logout", "Unauthenticated logout should have rate limiting"
+  end
+
   test "api requests have rate limiting configured" do
     # Test that API rate limiting is configured
     throttles = Rack::Attack.throttles.keys

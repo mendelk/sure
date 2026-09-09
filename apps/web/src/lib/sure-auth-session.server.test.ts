@@ -244,13 +244,28 @@ function mockFetch(mock: MockUpstream): typeof fetch {
 			if (mock.logoutFail) {
 				return errorResponse(500, "server_error");
 			}
+			// Mirrors Rails `POST /api/v1/auth/logout` after t_alt_fnd_019:
+			// a valid bearer revokes first; otherwise a presented
+			// refresh_token revokes by family (possession proves authority,
+			// so an expired bearer cannot block revocation); unknown
+			// identifiers stay idempotent (`revoked: true`, no oracle);
+			// no credential at all still 401s.
 			const auth = headers.get("Authorization") ?? "";
 			const bearer = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
-			const family = mock.accessIndex.get(bearer);
-			if (family !== undefined) {
-				family.refreshUsed = true;
+			const byBearer = bearer === "" ? undefined : mock.accessIndex.get(bearer);
+			if (byBearer !== undefined) {
+				byBearer.refreshUsed = true;
+				return jsonResponse(200, { revoked: true });
 			}
-			return jsonResponse(200, { revoked: true });
+			const refresh = stringField(readJsonBody(requestInit), "refresh_token");
+			if (refresh !== "") {
+				const byRefresh = mock.families.get(refresh);
+				if (byRefresh !== undefined && !byRefresh.refreshUsed) {
+					byRefresh.refreshUsed = true;
+				}
+				return jsonResponse(200, { revoked: true });
+			}
+			return errorResponse(401, "unauthorized", "Access token or API key is invalid, expired, or missing");
 		}
 
 		if (method === "GET" && path === "/api/v1/accounts") {
@@ -696,6 +711,35 @@ describe("logout / revocation (REQ-API-01)", () => {
 		);
 		expect(result.ok).toBe(true);
 		expect(mock.logoutCalls).toBe(1);
+		for (const cookie of result.cookies) {
+			expect(cookie.value).toBe("");
+			expect(cookie.maxAge).toBe(0);
+		}
+		expect(getBffSessionStatus(cookieHeader, deps)).toEqual({
+			ok: true,
+			authenticated: false,
+			reason: "stale",
+		});
+	});
+
+	it("revokes upstream exactly once when the stored access token is expired (t_alt_fnd_019)", async () => {
+		const mock = createMockUpstream();
+		const deps = testDeps(mock);
+		const { cookieHeader, csrfToken } = await loginOk(mock, deps);
+
+		// Idle timeout: the access token dies upstream while the refresh
+		// family lives on. The BFF must still revoke the pair server-side.
+		mock.accessIndex.clear();
+
+		const result = await logoutOfBffSession(
+			{ cookieHeader, origin: BFF_ORIGIN, csrfToken, bffOrigin: BFF_ORIGIN },
+			deps,
+		);
+		expect(result.ok).toBe(true);
+		expect(mock.logoutCalls).toBe(1);
+		for (const family of mock.families.values()) {
+			expect(family.refreshUsed).toBe(true);
+		}
 		for (const cookie of result.cookies) {
 			expect(cookie.value).toBe("");
 			expect(cookie.maxAge).toBe(0);

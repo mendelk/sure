@@ -1157,6 +1157,92 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     assert_equal true, JSON.parse(response.body)["revoked"]
   end
 
+  # Unauthenticated revoke-by-refresh (t_alt_fnd_019): possession of the
+  # refresh secret proves authority, so the BFF can revoke the pair even
+  # with no bearer at all.
+  test "should revoke by refresh_token param without any credentials" do
+    user = users(:family_admin)
+    device = user.mobile_devices.create!(@device_info)
+    token = Doorkeeper::AccessToken.create!(
+      application: @shared_app,
+      resource_owner_id: user.id,
+      mobile_device_id: device.id,
+      expires_in: 30.days.to_i,
+      scopes: "read_write",
+      use_refresh_token: true
+    )
+
+    post "/api/v1/auth/logout",
+      params: { refresh_token: token.refresh_token },
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body)["revoked"]
+    assert token.reload.revoked?
+  end
+
+  # Core t_alt_fnd_019 regression: an expired BFF access token must not 401
+  # the logout — the valid refresh_token still revokes the pair upstream.
+  test "should revoke by refresh_token when the bearer is expired" do
+    user = users(:family_admin)
+    device = user.mobile_devices.create!(@device_info)
+    token = Doorkeeper::AccessToken.create!(
+      application: @shared_app,
+      resource_owner_id: user.id,
+      mobile_device_id: device.id,
+      expires_in: 30.days.to_i,
+      scopes: "read_write",
+      use_refresh_token: true
+    )
+    expired_bearer = token.token
+    refresh_secret = token.refresh_token
+    token.update!(created_at: 31.days.ago)
+
+    post "/api/v1/auth/logout",
+      params: { refresh_token: refresh_secret },
+      headers: {
+        "Authorization" => "Bearer #{expired_bearer}",
+        "Content-Type" => "application/json"
+      }
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body)["revoked"]
+    assert token.reload.revoked?
+  end
+
+  test "should return revoked true for an unknown refresh token without credentials (idempotent logout)" do
+    assert_no_difference("Doorkeeper::AccessToken.count") do
+      post "/api/v1/auth/logout",
+        params: { refresh_token: "unknown-refresh-secret" },
+        headers: { "Content-Type" => "application/json" }
+    end
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body)["revoked"]
+  end
+
+  test "should return revoked true for an already-revoked refresh token without credentials (idempotent logout)" do
+    user = users(:family_admin)
+    device = user.mobile_devices.create!(@device_info)
+    token = Doorkeeper::AccessToken.create!(
+      application: @shared_app,
+      resource_owner_id: user.id,
+      mobile_device_id: device.id,
+      expires_in: 30.days.to_i,
+      scopes: "read_write",
+      use_refresh_token: true
+    )
+    refresh_secret = token.refresh_token
+    token.revoke
+
+    post "/api/v1/auth/logout",
+      params: { refresh_token: refresh_secret },
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body)["revoked"]
+  end
+
   test "should require authentication for logout" do
     post "/api/v1/auth/logout", headers: { "Content-Type" => "application/json" }
 

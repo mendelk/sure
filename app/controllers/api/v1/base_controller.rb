@@ -54,8 +54,10 @@ class Api::V1::BaseController < ApplicationController
       render_unauthorized unless performed?
     end
 
-    # Try OAuth authentication first
-    def authenticate_oauth
+    # Try OAuth authentication first. With silent: true, failures return
+    # false without rendering, so callers can fall through to an alternate
+    # credential (e.g. logout-by-refresh_token) instead of 401ing.
+    def authenticate_oauth(silent: false)
       return false unless request.headers["Authorization"].present?
 
       # Manually verify the token (bypassing doorkeeper_authorize! which had scope issues)
@@ -66,7 +68,7 @@ class Api::V1::BaseController < ApplicationController
       has_sufficient_scope = access_token&.scopes&.include?("read") || access_token&.scopes&.include?("read_write")
 
       unless access_token&.accessible? && has_sufficient_scope
-        render_json({ error: "unauthorized", message: "Access token is invalid, expired, or missing required scope" }, status: :unauthorized)
+        render_json({ error: "unauthorized", message: "Access token is invalid, expired, or missing required scope" }, status: :unauthorized) unless silent
         return false
       end
 
@@ -79,12 +81,12 @@ class Api::V1::BaseController < ApplicationController
         # If user doesn't exist, the token is invalid (user was deleted)
         unless @current_user
           Rails.logger.warn "API OAuth Token Invalid: Access token resource_owner_id #{doorkeeper_token.resource_owner_id} does not exist"
-          render_json({ error: "unauthorized", message: "Access token is invalid - user not found" }, status: :unauthorized)
+          render_json({ error: "unauthorized", message: "Access token is invalid - user not found" }, status: :unauthorized) unless silent
           return false
         end
 
         unless @current_user.active?
-          render_json({ error: "unauthorized", message: "Account has been deactivated" }, status: :unauthorized)
+          render_json({ error: "unauthorized", message: "Account has been deactivated" }, status: :unauthorized) unless silent
           return false
         end
       else
