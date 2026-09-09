@@ -5,11 +5,11 @@ parentId: null
 id: "t_alt_fin_001"
 title: "Complete core manual account API"
 type: "task"
-status: "todo"
+status: "done"
 priority: "critical"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["accounts", "api", "backend"]
 subtaskIds: []

@@ -59,7 +59,7 @@ Establish the minimum secure platform needed for core accounts and transactions.
 - [x] [[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]
 - [x] [[guarantee-upstream-token-revocation-when-bff-access-token-expired|Guarantee upstream token revocation when BFF access token is expired]]
 - [x] [[extend-e2e-harness-to-exercise-login-and-logout-ui|Extend e2e harness to exercise the login and logout UI against real Rails]]
-- [ ] [[clear-browser-local-session-state-on-auth-failures|Clear browser local session state on api-mismatch and auth failures in real pages]]
+- [x] [[clear-browser-local-session-state-on-auth-failures|Clear browser local session state on api-mismatch and auth failures in real pages]]
 
 ## Post-core platform enhancements
 

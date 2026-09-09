@@ -32,7 +32,7 @@ Deliver the first usable financial slice for existing users. A user can manage m
 
 ## Core sequence
 
-- [ ] [[complete-account-management-api|Complete core manual account API]]
+- [x] [[complete-account-management-api|Complete core manual account API]]
 - [ ] [[build-manual-account-forms-for-all-account-types|Build core manual account forms]]
 - [ ] [[implement-account-summary-navigation|Implement account summary navigation]]
 - [ ] [[complete-transaction-list-contract|Complete core transaction list contract]]
