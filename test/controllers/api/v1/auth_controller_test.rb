@@ -1210,6 +1210,39 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     assert token.reload.revoked?
   end
 
+  # Silent-mode regression (t_alt_fnd_019 follow-up): a bearer that
+  # resolves to an otherwise accessible token with no resource owner must
+  # fall through to the refresh branch instead of rendering 401 mid-chain.
+  test "should revoke by refresh_token when the bearer has no resource owner" do
+    user = users(:family_admin)
+    device = user.mobile_devices.create!(@device_info)
+    ownerless = Doorkeeper::AccessToken.create!(
+      application: @shared_app,
+      resource_owner_id: nil,
+      expires_in: 30.days.to_i,
+      scopes: "read_write"
+    )
+    token = Doorkeeper::AccessToken.create!(
+      application: @shared_app,
+      resource_owner_id: user.id,
+      mobile_device_id: device.id,
+      expires_in: 30.days.to_i,
+      scopes: "read_write",
+      use_refresh_token: true
+    )
+
+    post "/api/v1/auth/logout",
+      params: { refresh_token: token.refresh_token },
+      headers: {
+        "Authorization" => "Bearer #{ownerless.token}",
+        "Content-Type" => "application/json"
+      }
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body)["revoked"]
+    assert token.reload.revoked?
+  end
+
   test "should return revoked true for an unknown refresh token without credentials (idempotent logout)" do
     assert_no_difference("Doorkeeper::AccessToken.count") do
       post "/api/v1/auth/logout",

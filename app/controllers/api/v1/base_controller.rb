@@ -91,7 +91,7 @@ class Api::V1::BaseController < ApplicationController
         end
       else
         Rails.logger.warn "API OAuth Token Invalid: Access token missing resource_owner_id"
-        render_json({ error: "unauthorized", message: "Access token is invalid - missing resource owner" }, status: :unauthorized)
+        render_json({ error: "unauthorized", message: "Access token is invalid - missing resource owner" }, status: :unauthorized) unless silent
         return false
       end
 

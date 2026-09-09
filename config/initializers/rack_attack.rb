@@ -37,17 +37,14 @@ class Rack::Attack
     request.ip if request.post? && request.path == "/sessions/passkey_options"
   end
 
-  # Throttle unauthenticated logout-by-refresh like the sign-in endpoints.
-  # POST /api/v1/auth/logout accepts a bare refresh secret when no valid
-  # bearer is presented (t_alt_fnd_019), so IP-throttle the credential-less
-  # path to block refresh-token enumeration. Authenticated logouts stay on
-  # the general API throttles below.
+  # Throttle logout-by-refresh like the sign-in endpoints. POST
+  # /api/v1/auth/logout accepts a refresh secret whenever no valid bearer
+  # or API key is presented (t_alt_fnd_019) — including requests carrying
+  # an invalid or expired credential — so IP-throttle every POST to this
+  # path to block refresh-token enumeration. Header-scoping the bucket
+  # would let a junk bearer evade it.
   throttle("auth/logout", limit: 10, period: 1.minute) do |request|
-    if request.post? && request.path == "/api/v1/auth/logout" &&
-        request.get_header("HTTP_AUTHORIZATION").blank? &&
-        request.get_header("HTTP_X_API_KEY").blank?
-      request.ip
-    end
+    request.ip if request.post? && request.path == "/api/v1/auth/logout"
   end
 
   # Throttle admin endpoints to prevent brute-force attacks
