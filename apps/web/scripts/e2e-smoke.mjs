@@ -23,10 +23,10 @@
 //  4. Failure leg — the API-failure helper aborts Rails traffic in-browser
 //     and the abort surfaces as a network error (no hang, no unhandled
 //     rejection); wrong credentials and an aborted login mutation render
-//     the accessible invalid/unavailable form states on `/login` (the
-//     mutation abort stands in for an unreachable server: the BFF login
-//     runs server-side, so only the browser→BFF POST can be aborted
-//     from Playwright).
+//     the accessible invalid/unavailable form states on `/login`. The
+//     aborted mutation only proves the browser→BFF transport path — the
+//     real unreachable-Rails outage runs as a dedicated script
+//     (`./e2e-outage.mjs`, orchestrated while Rails is stopped).
 //
 // Expects SURE_E2E_* env (see ./e2e-config.mjs). Writes only redacted
 // artifacts: masked PNGs plus a secret-free summary JSON. Exit non-zero on
@@ -38,9 +38,13 @@ import { chromium, request } from "playwright";
 import { E2E_THEMES, E2E_VIEWPORTS, resolveE2EConfig } from "./e2e-config.mjs";
 import {
 	apiGetJson,
+	assertBffCookieAttributes,
+	assertLoginNextPath,
+	assertNoTokenDisclosure,
 	assertSessionExpired,
 	BFF_CSRF_COOKIE_NAME,
 	BFF_SESSION_COOKIE_NAME,
+	browserCookie,
 	browserCookieValue,
 	captureMasked,
 	clearBrowserSession,
@@ -214,7 +218,8 @@ try {
 				.getByRole("link", { name: "Admin" })
 				.waitFor({ state: "visible", timeout: 15_000 });
 			// Cookie handoff: the opaque BFF session plus the readable
-			// anti-CSRF token both reached the browser.
+			// anti-CSRF token both reached the browser, hardened
+			// (Secure/HttpOnly/host-only/Path=/, CSRF readable by design).
 			authSessionId = await browserCookieValue(authContext, BFF_SESSION_COOKIE_NAME);
 			if (typeof authSessionId !== "string" || authSessionId === "") {
 				throw new Error("BFF session cookie missing after the UI login.");
@@ -223,6 +228,14 @@ try {
 			if (typeof csrf !== "string" || csrf === "") {
 				throw new Error("BFF CSRF cookie missing after the UI login.");
 			}
+			assertBffCookieAttributes(
+				await browserCookie(authContext, BFF_SESSION_COOKIE_NAME),
+				await browserCookie(authContext, BFF_CSRF_COOKIE_NAME),
+				new URL(config.webOrigin).hostname,
+			);
+			// Token non-disclosure: upstream tokens never reach browser
+			// surfaces — only the opaque session id does, HttpOnly.
+			await assertNoTokenDisclosure(authPage, authContext, authSessionId);
 			await captureMasked(authPage, join(config.artifactsDir, "authed-dashboard.png"));
 		} catch (error) {
 			await authContext.close();
@@ -288,15 +301,10 @@ try {
 			}
 			await authPage.goto(`${config.webOrigin}/dashboard`, { waitUntil: "load" });
 			await authPage.getByRole("heading", { name: "Log in to Sure" }).waitFor({ timeout: 15_000 });
-			const backToLogin = new URL(authPage.url());
-			const backNext = backToLogin.searchParams.get("next");
-			// The dashboard normalizes its default search (`q`, `filter`)
-			// into the URL before the guard redirects, so `next` carries
-			// the full deep link (`/dashboard?q=…&filter=…`) rather than
-			// the bare pathname.
-			if (backToLogin.pathname !== "/login" || backNext?.startsWith("/dashboard") !== true) {
-				throw new Error(`expected /login?next=/dashboard…, saw ${authPage.url()}.`);
-			}
+			// Exact pathname validation (query allowed): the dashboard
+			// normalizes its default search into `next`, but a prefix
+			// match would let `/dashboard-evil` pass.
+			assertLoginNextPath(authPage.url(), "/dashboard");
 			// Revocation: the Rails pair minted for this exact browser
 			// session is dead (the BFF's three-step logout revokes it
 			// upstream — unit-pinned — and this probes the database).

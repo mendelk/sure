@@ -15,10 +15,15 @@
 //     restart gives each UI suite a fresh throttle budget without
 //     touching the security policy.
 //  4. Run the Playwright smoke suite (`./e2e-smoke.mjs`, from the web
-//     package directory — the scripts live under `apps/web/scripts`),
-//     then the app-shell suite and the live BFF → Rails → database
-//     vitest file with `SURE_E2E_LIVE=1`.
-//  5. ALWAYS: stop every spawned process (SIGTERM, escalate to SIGKILL)
+//     package directory — the scripts live under `apps/web/scripts`).
+//  5. Stop Rails and run the outage suite (`./e2e-outage.mjs`): the
+//     browser POSTs valid credentials to the up BFF while Rails is down,
+//     proving the real upstream outage renders accessibly with no
+//     session. Rails reboots afterwards for the remaining suites.
+//  6. Restart the preview (fresh throttle budget), run the app-shell
+//     suite, then the live BFF → Rails → database vitest file with
+//     `SURE_E2E_LIVE=1`.
+//  7. ALWAYS: stop every spawned process (SIGTERM, escalate to SIGKILL)
 //     and delete the seeded rows (`E2E_CLEANUP=1`), even on failure or
 //     Ctrl-C. Masked screenshots + server logs stay in the artifacts dir.
 //
@@ -192,13 +197,17 @@ try {
 		env: { SURE_E2E_PASSWORD: config.password },
 	});
 
-	log(`booting Rails on ${config.railsOrigin}…`);
-	await spawnServer(
-		["bin/rails", "server", "-b", config.host, "-p", String(config.railsPort), "-e", "test"],
-		{ cwd: repoRoot, env: RAILS_ENV },
-		"rails.log",
-	);
-	await waitForUrl(`${config.railsOrigin}/up`, config.railsStartupTimeoutMs, "Rails");
+	async function startRails() {
+		log(`booting Rails on ${config.railsOrigin}…`);
+		const child = await spawnServer(
+			["bin/rails", "server", "-b", config.host, "-p", String(config.railsPort), "-e", "test"],
+			{ cwd: repoRoot, env: RAILS_ENV },
+			"rails.log",
+		);
+		await waitForUrl(`${config.railsOrigin}/up`, config.railsStartupTimeoutMs, "Rails");
+		return child;
+	}
+	let railsChild = await startRails();
 
 	log("building the web app…");
 	runForeground(["pnpm", "--filter", "@sure/web", "build"], { env: {} });
@@ -240,6 +249,18 @@ try {
 	// Script paths resolve against the web package directory (they live
 	// under apps/web/scripts, not the repo root).
 	runForeground(["node", "scripts/e2e-smoke.mjs"], { cwd: webRoot, env: {} });
+
+	// Real upstream outage on the smoke preview's throttle budget (3
+	// logins by now — well under the limit): stop Rails, prove the BFF
+	// fails closed with no session, then reboot Rails for the suites
+	// that need it. A failure here throws like any other suite step, so
+	// the `finally` below still stops every process and cleans the seed.
+	log("stopping Rails for the outage leg…");
+	await stopOne(railsChild);
+	log("running the Rails-outage suite (BFF up, Rails down)…");
+	runForeground(["node", "scripts/e2e-outage.mjs"], { cwd: webRoot, env: {} });
+	log("rebooting Rails for the remaining suites…");
+	railsChild = await startRails();
 
 	// Fresh throttle budget + session store for the next UI suite (see
 	// the header note): the smoke logout already closed its session, so

@@ -21,7 +21,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { E2E_VIEWPORTS, resolveE2EConfig, roleCredentials } from "./e2e-config.mjs";
-import { captureMasked } from "./e2e-helpers.mjs";
+import { assertLoginNextPath, captureMasked } from "./e2e-helpers.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const webRoot = join(here, "..");
@@ -82,14 +82,10 @@ try {
 		try {
 			await page.goto(`${config.webOrigin}/dashboard`, { waitUntil: "load" });
 			await page.getByRole("heading", { name: "Log in to Sure" }).waitFor({ timeout: 15_000 });
-			const url = new URL(page.url());
-			// The dashboard normalizes its default search (`q`, `filter`)
-			// into the URL before the guard redirects, so `next` carries
-			// the full deep link — accept the bare or normalized target.
-			const next = url.searchParams.get("next");
-			if (url.pathname !== "/login" || next?.startsWith("/dashboard") !== true) {
-				throw new Error(`expected /login?next=/dashboard…, saw ${url.pathname}${url.search}.`);
-			}
+			// Exact pathname validation (query allowed): the dashboard
+			// normalizes its default search into `next`, but a prefix
+			// match would let `/dashboard-evil` pass.
+			assertLoginNextPath(page.url(), "/dashboard");
 		} finally {
 			await context.close();
 		}

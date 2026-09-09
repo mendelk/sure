@@ -164,8 +164,131 @@ export async function loginThroughUi(page, config, role, next) {
 
 /** Read a named cookie value from the browser context (undefined when absent). */
 export async function browserCookieValue(context, name) {
+	const cookie = await browserCookie(context, name);
+	return cookie?.value;
+}
+
+/** Read the full cookie object (attributes included) or undefined. */
+export async function browserCookie(context, name) {
 	const cookies = await context.cookies();
-	return cookies.find((cookie) => cookie.name === name)?.value;
+	return cookies.find((cookie) => cookie.name === name);
+}
+
+/**
+ * Assert the BFF session cookie keeps its hardened attributes
+ * (`src/lib/bff-session.ts` / ADR-0001 REQ-SESS-03): `Secure`,
+ * `HttpOnly`, `SameSite=Lax`, host-only (no leading-dot domain scoped
+ * to the BFF host), and `Path=/`. The readable CSRF cookie shares the
+ * posture but is deliberately NOT `HttpOnly` (page JS echoes it as the
+ * mutation header).
+ */
+export function assertBffCookieAttributes(sessionCookie, csrfCookie, hostname) {
+	for (const [label, cookie, httpOnly] of [
+		["session", sessionCookie, true],
+		["csrf", csrfCookie, false],
+	]) {
+		if (cookie === undefined) {
+			throw new Error(`[e2e] BFF ${label} cookie missing from the browser.`);
+		}
+		if (
+			cookie.httpOnly !== httpOnly ||
+			cookie.secure !== true ||
+			cookie.sameSite !== "Lax" ||
+			cookie.domain !== hostname ||
+			cookie.domain.startsWith(".") ||
+			cookie.path !== "/"
+		) {
+			throw new Error(`[e2e] BFF ${label} cookie lost its hardened attributes.`);
+		}
+	}
+}
+
+/**
+ * Assert upstream tokens never reach browser surfaces after a UI login.
+ * The opaque BFF session id is the only browser-visible session handle
+ * (tokens stay sealed server-side per ADR-0001 D1/REQ-SESS-01), so its
+ * absence from every JS-reachable surface — plus the absence of
+ * token-named cookies/storage keys — is the non-disclosure proof:
+ * `document.cookie` (HttpOnly check, with the readable CSRF cookie as
+ * the control), `localStorage`/`sessionStorage`, the URL, and rendered
+ * HTML. All comparisons stay in memory; failures never echo secrets.
+ */
+export async function assertNoTokenDisclosure(page, context, sessionId) {
+	const cookies = await context.cookies();
+	for (const cookie of cookies) {
+		if (cookie.name === BFF_SESSION_COOKIE_NAME || cookie.name === BFF_CSRF_COOKIE_NAME) {
+			continue;
+		}
+		if (/token|bearer|refresh|access|api[_-]?key/i.test(cookie.name)) {
+			throw new Error(`[e2e] unexpected token-carrying cookie "${cookie.name}".`);
+		}
+	}
+	const jsCookies = await page.evaluate(() => document.cookie);
+	if (jsCookies.includes(sessionId)) {
+		throw new Error("[e2e] BFF session id is readable from document.cookie (HttpOnly lost).");
+	}
+	if (!jsCookies.includes(BFF_CSRF_COOKIE_NAME)) {
+		throw new Error("[e2e] readable CSRF cookie missing from document.cookie.");
+	}
+	const storageHit = await page.evaluate((id) => {
+		for (const store of [window.localStorage, window.sessionStorage]) {
+			for (let index = 0; index < store.length; index += 1) {
+				const key = store.key(index) ?? "";
+				if (/access.?token|refresh.?token|bearer/i.test(key)) {
+					return `key:${key}`;
+				}
+				if (key.includes(id) || (store.getItem(key) ?? "").includes(id)) {
+					return "value";
+				}
+			}
+		}
+		return null;
+	}, sessionId);
+	if (storageHit !== null) {
+		throw new Error(
+			storageHit === "value"
+				? "[e2e] BFF session id leaked into browser storage."
+				: `[e2e] unexpected token-carrying storage key "${storageHit.slice(4)}".`,
+		);
+	}
+	if (page.url().includes(sessionId)) {
+		throw new Error("[e2e] BFF session id leaked into the URL.");
+	}
+	const html = await page.content();
+	if (html.includes(sessionId)) {
+		throw new Error("[e2e] BFF session id leaked into rendered HTML.");
+	}
+}
+
+/**
+ * Parse a `/login?next=…` URL into the redirect target. Rejects anything
+ * that is not a same-origin relative target (missing `next`, absolute
+ * URLs, protocol-relative `//evil`), so callers validate the exact
+ * pathname instead of prefix-matching (a prefix would let
+ * `/dashboard-evil` pass). Query parameters are allowed: the dashboard
+ * normalizes its default search (`q`, `filter`) into the URL before the
+ * guard redirects.
+ */
+export function loginNextTarget(pageUrl) {
+	const current = new URL(pageUrl);
+	if (current.pathname !== "/login") {
+		throw new Error(`[e2e] expected /login, saw "${current.pathname}".`);
+	}
+	const next = current.searchParams.get("next");
+	if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//")) {
+		throw new Error("[e2e] login redirect is missing a safe same-origin next target.");
+	}
+	return new URL(next, current.origin);
+}
+
+/** Assert a `/login?next=…` URL targets exactly `expectedPath` (query allowed). */
+export function assertLoginNextPath(pageUrl, expectedPath) {
+	const target = loginNextTarget(pageUrl);
+	if (target.pathname !== expectedPath) {
+		throw new Error(
+			`[e2e] expected login next pathname "${expectedPath}", saw "${target.pathname}".`,
+		);
+	}
 }
 
 /**
