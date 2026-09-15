@@ -8,7 +8,12 @@
   "files": {
     "ignoreUnknown": false,
     "ignore": [],
-    "include": ["./app/javascript/**/*.js"]
+    "include": [
+      "./app/javascript/**/*.js",
+      "./app/javascript/**/*.ts",
+      "./app/javascript/**/*.tsx",
+      "./vite.config.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

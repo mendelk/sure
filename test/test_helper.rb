@@ -100,6 +100,12 @@ module ActiveSupport
       File.write(tailwind_build, "/* test */") unless tailwind_build.exist?
     end
 
+    def ensure_spa_build
+      spa_build = Rails.root.join("app/assets/builds/spa.js")
+      FileUtils.mkdir_p(spa_build.dirname)
+      File.write(spa_build, "/* test */") unless spa_build.exist?
+    end
+
     def with_env_overrides(overrides = {}, &block)
       ClimateControl.modify(**overrides, &block)
     end
