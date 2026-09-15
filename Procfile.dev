@@ -1,3 +1,4 @@
 web: bundle exec ${DEBUG:+rdbg -O -n -c --} bin/rails server
 css: bundle exec bin/rails tailwindcss:watch[always] 2>/dev/null
+spa: npm run spa:watch
 worker: bundle exec sidekiq

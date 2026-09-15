@@ -2,6 +2,17 @@
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version and Gemfile
 ARG RUBY_VERSION=3.4.9
+FROM node:24-slim AS frontend
+
+WORKDIR /rails
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY vite.config.ts tsconfig.spa.json ./
+COPY app/javascript/spa ./app/javascript/spa
+RUN npm run spa:build
+
 FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim AS base
 
 # Rails app lives here
@@ -36,6 +47,7 @@ RUN bundle install \
 
 # Copy application code
 COPY . .
+COPY --from=frontend /rails/app/assets/builds/spa.js /rails/app/assets/builds/spa.js
 
 # Precompile bootsnap code for faster boot times
 RUN bundle exec bootsnap precompile -j 0 app/ lib/

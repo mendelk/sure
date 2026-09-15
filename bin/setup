@@ -20,6 +20,7 @@ FileUtils.chdir APP_ROOT do
   puts "\n== Building design tokens =="
   system! "npm install"
   system! "npm run tokens:build"
+  system! "npm run spa:build"
 
   # puts "\n== Copying sample files =="
   # unless File.exist?("config/database.yml")

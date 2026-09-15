@@ -77,8 +77,8 @@ jobs:
         run: npm install
         shell: bash
 
-      - name: Lint/Format js code
-        run: npm run lint
+      - name: Check JavaScript and SPA code
+        run: npm run lint && npm run spa:check
 
   test_unit:
     runs-on: ubuntu-latest
