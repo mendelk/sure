@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => ({
     },
     minify: mode === "production",
     outDir: "app/assets/builds",
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         codeSplitting: false,
       },

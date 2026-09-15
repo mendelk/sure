@@ -7,6 +7,10 @@ import {
 } from "@tanstack/react-router";
 import type { Router } from "@tanstack/react-router";
 import type { SpaBootstrap } from "./bootstrap";
+import {
+  TransactionsPage,
+  validateTransactionSearch,
+} from "./transactions-page";
 
 type RouterContext = {
   bootstrap: SpaBootstrap;
@@ -29,9 +33,20 @@ const routingRoute = createRoute({
   component: RoutingPage,
 });
 
+const transactionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/transactions",
+  validateSearch: validateTransactionSearch,
+  component: TransactionsPage,
+});
+
 // SPA routes use their real application URLs. Each route is mirrored explicitly
 // in config/routes.rb, so React and Rails pages can coexist at the same root.
-const routeTree = rootRoute.addChildren([indexRoute, routingRoute]);
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  routingRoute,
+  transactionsRoute,
+]);
 
 export type SpaRouter = Router<typeof routeTree>;
 
@@ -52,6 +67,8 @@ declare module "@tanstack/react-router" {
 
 function SpaFrame() {
   const { bootstrap } = rootRoute.useRouteContext();
+
+  if (bootstrap.embedded) return <Outlet />;
 
   return (
     <div className="min-h-dvh bg-surface text-primary">
@@ -82,6 +99,14 @@ function SpaFrame() {
                 >
                   Routing
                 </Link>
+              </li>
+              <li>
+                <a
+                  className="block rounded-lg px-3 py-2 text-secondary transition-colors hover:bg-container-hover hover:text-primary"
+                  href={bootstrap.railsPaths.transactions}
+                >
+                  Transactions
+                </a>
               </li>
               <li>
                 <a
