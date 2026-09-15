@@ -1,10 +1,16 @@
 {
 	"devDependencies": {
-		"@biomejs/biome": "^1.9.3"
+		"@biomejs/biome": "^1.9.3",
+		"@types/react": "^19.3.0",
+		"@types/react-dom": "^19.3.0",
+		"@vitejs/plugin-react": "^6.1.1",
+		"typescript": "^7.0.2",
+		"vite": "^8.3.0"
 	},
 	"name": "sure",
 	"version": "1.0.0",
 	"description": "The personal finance app for everyone",
+	"type": "module",
 	"scripts": {
 		"style:check": "biome check",
 		"style:fix": "biome check --write",
@@ -12,9 +18,18 @@
 		"lint:fix": "biome lint --write",
 		"format:check": "biome format",
 		"format": "biome format --write",
+		"spa:build": "vite build",
+		"spa:watch": "vite build --watch --mode development",
+		"spa:typecheck": "tsc --noEmit --project tsconfig.spa.json",
+		"spa:check": "npm run spa:typecheck && npm run spa:build",
 		"tokens:build": "node bin/tokens.mjs",
 		"tokens:check": "node bin/tokens.mjs && git diff --quiet -- app/assets/tailwind/sure-design-system/_generated.css"
 	},
 	"author": "",
-	"license": "ISC"
+	"license": "ISC",
+	"dependencies": {
+		"@tanstack/react-router": "^1.170.36",
+		"react": "^19.3.0",
+		"react-dom": "^19.3.0"
+	}
 }
