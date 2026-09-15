@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.spa.json",
+  "include": [
+    "app/javascript/spa/**/*.ts",
+    "app/javascript/spa/**/*.tsx",
+    "config/orval/**/*.ts",
+    "orval.config.ts",
+    "vite.config.ts"
+  ]
+}
