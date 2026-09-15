@@ -16,6 +16,11 @@ components:
       name: X-Api-Key
       in: header
       description: API key for authentication. Generate one from your account settings.
+    cookieSession:
+      type: apiKey
+      name: session_token
+      in: cookie
+      description: Authenticated Sure browser session.
   schemas:
     Pagination:
       type: object
@@ -1730,6 +1735,164 @@ components:
           type: array
           items:
             "$ref": "#/components/schemas/Transaction"
+        pagination:
+          "$ref": "#/components/schemas/Pagination"
+    SpaTransactionAccount:
+      type: object
+      required:
+      - id
+      - name
+      - account_type
+      - path
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        account_type:
+          type: string
+        path:
+          type: string
+    SpaTransactionCategory:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+    SpaTransactionMerchant:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    SpaTransactionTag:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+          nullable: true
+    SpaTransaction:
+      type: object
+      required:
+      - id
+      - entry_id
+      - date
+      - amount
+      - amount_cents
+      - signed_amount_cents
+      - currency
+      - name
+      - classification
+      - pending
+      - excluded
+      - detail_path
+      - account
+      - tags
+      properties:
+        id:
+          type: string
+          format: uuid
+        entry_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        amount:
+          type: string
+        amount_cents:
+          type: integer
+          minimum: 0
+        signed_amount_cents:
+          type: integer
+        currency:
+          type: string
+        name:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        classification:
+          type: string
+        pending:
+          type: boolean
+        excluded:
+          type: boolean
+        detail_path:
+          type: string
+        account:
+          "$ref": "#/components/schemas/SpaTransactionAccount"
+        category:
+          "$ref": "#/components/schemas/SpaTransactionCategory"
+          nullable: true
+        merchant:
+          "$ref": "#/components/schemas/SpaTransactionMerchant"
+          nullable: true
+        tags:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SpaTransactionTag"
+    SpaTransactionSummary:
+      type: object
+      required:
+      - count
+      - income
+      - expense
+      - transfer_inflow
+      - transfer_outflow
+      - currency
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        income:
+          type: string
+        expense:
+          type: string
+        transfer_inflow:
+          type: string
+        transfer_outflow:
+          type: string
+        currency:
+          type: string
+    SpaTransactionCollection:
+      type: object
+      required:
+      - transactions
+      - summary
+      - pagination
+      properties:
+        transactions:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SpaTransaction"
+        summary:
+          "$ref": "#/components/schemas/SpaTransactionSummary"
         pagination:
           "$ref": "#/components/schemas/Pagination"
     TransactionSplitRequest:
@@ -3509,6 +3672,134 @@ components:
               type: integer
               minimum: 0
 paths:
+  "/api/spa/transactions":
+    get:
+      summary: List transactions for the browser SPA
+      tags:
+      - SPA Transactions
+      security:
+      - cookieSession: []
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: start_date
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: end_date
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: types
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - income
+            - expense
+            - transfer
+        style: form
+        explode: false
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - pending
+            - confirmed
+        style: form
+        explode: false
+      - name: accounts
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: false
+      - name: account_ids
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+            format: uuid
+        style: form
+        explode: false
+      - name: categories
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: false
+      - name: merchants
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: false
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: false
+      responses:
+        '200':
+          description: transactions listed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SpaTransactionCollection"
+        '401':
+          description: browser session required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: invalid date filter
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/api/v1/accounts":
     get:
       summary: List accounts

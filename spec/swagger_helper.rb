@@ -31,6 +31,12 @@ RSpec.configure do |config|
             name: 'X-Api-Key',
             in: :header,
             description: 'API key for authentication. Generate one from your account settings.'
+          },
+          cookieSession: {
+            type: :apiKey,
+            name: 'session_token',
+            in: :cookie,
+            description: 'Authenticated Sure browser session.'
           }
         },
         schemas: {
@@ -941,6 +947,93 @@ RSpec.configure do |config|
                 type: :array,
                 items: { '$ref' => '#/components/schemas/Transaction' }
               },
+              pagination: { '$ref' => '#/components/schemas/Pagination' }
+            }
+          },
+          SpaTransactionAccount: {
+            type: :object,
+            required: %w[id name account_type path],
+            properties: {
+              id: { type: :string, format: :uuid },
+              name: { type: :string },
+              account_type: { type: :string },
+              path: { type: :string }
+            }
+          },
+          SpaTransactionCategory: {
+            type: :object,
+            required: %w[id name],
+            properties: {
+              id: { type: :string, format: :uuid },
+              name: { type: :string },
+              color: { type: :string, nullable: true },
+              icon: { type: :string, nullable: true }
+            }
+          },
+          SpaTransactionMerchant: {
+            type: :object,
+            required: %w[id name],
+            properties: {
+              id: { type: :string, format: :uuid },
+              name: { type: :string }
+            }
+          },
+          SpaTransactionTag: {
+            type: :object,
+            required: %w[id name],
+            properties: {
+              id: { type: :string, format: :uuid },
+              name: { type: :string },
+              color: { type: :string, nullable: true }
+            }
+          },
+          SpaTransaction: {
+            type: :object,
+            required: %w[id entry_id date amount amount_cents signed_amount_cents currency name classification pending excluded detail_path account tags],
+            properties: {
+              id: { type: :string, format: :uuid },
+              entry_id: { type: :string, format: :uuid },
+              date: { type: :string, format: :date },
+              amount: { type: :string },
+              amount_cents: { type: :integer, minimum: 0 },
+              signed_amount_cents: { type: :integer },
+              currency: { type: :string },
+              name: { type: :string },
+              notes: { type: :string, nullable: true },
+              classification: { type: :string },
+              pending: { type: :boolean },
+              excluded: { type: :boolean },
+              detail_path: { type: :string },
+              account: { '$ref' => '#/components/schemas/SpaTransactionAccount' },
+              category: { '$ref' => '#/components/schemas/SpaTransactionCategory', nullable: true },
+              merchant: { '$ref' => '#/components/schemas/SpaTransactionMerchant', nullable: true },
+              tags: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/SpaTransactionTag' }
+              }
+            }
+          },
+          SpaTransactionSummary: {
+            type: :object,
+            required: %w[count income expense transfer_inflow transfer_outflow currency],
+            properties: {
+              count: { type: :integer, minimum: 0 },
+              income: { type: :string },
+              expense: { type: :string },
+              transfer_inflow: { type: :string },
+              transfer_outflow: { type: :string },
+              currency: { type: :string }
+            }
+          },
+          SpaTransactionCollection: {
+            type: :object,
+            required: %w[transactions summary pagination],
+            properties: {
+              transactions: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/SpaTransaction' }
+              },
+              summary: { '$ref' => '#/components/schemas/SpaTransactionSummary' },
               pagination: { '$ref' => '#/components/schemas/Pagination' }
             }
           },

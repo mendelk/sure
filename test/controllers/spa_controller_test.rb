@@ -23,6 +23,22 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
     assert_select "script[type='module'][src*='spa']"
   end
 
+  test "serves transactions through the embedded SPA shell" do
+    get transactions_path
+
+    assert_response :success
+    assert_select "main#main #spa-root"
+    assert_select "meta[name='turbo-visit-control'][content='reload']"
+    assert_select "script#spa-bootstrap[type='application/json']" do |elements|
+      bootstrap = JSON.parse(elements.first.text)
+
+      assert_equal true, bootstrap.fetch("embedded")
+      assert_equal api_spa_transactions_path, bootstrap.dig("apiPaths", "transactions")
+      assert_equal transactions_path, bootstrap.dig("railsPaths", "transactions")
+      assert_equal new_transaction_path, bootstrap.dig("railsPaths", "newTransaction")
+    end
+  end
+
   test "serves nested client routes through the same shell" do
     get "/spa/routing"
 

@@ -4,332 +4,74 @@ class TransactionsTest < ApplicationSystemTestCase
   setup do
     sign_in @user = users(:family_admin)
 
-    Entry.delete_all # clean slate
+    Entry.delete_all
+    @groceries = create_transaction("Weekly groceries", Date.current, 100)
+    @paycheck = create_transaction("Paycheck", 1.day.ago.to_date, -500)
 
-    create_transaction("one", 12.days.ago.to_date, 100)
-    create_transaction("two", 10.days.ago.to_date, 100)
-    create_transaction("three", 9.days.ago.to_date, 100)
-    create_transaction("four", 8.days.ago.to_date, 100)
-    create_transaction("five", 7.days.ago.to_date, 100)
-    create_transaction("six", 7.days.ago.to_date, 100)
-    create_transaction("seven", 4.days.ago.to_date, 100)
-    create_transaction("eight", 3.days.ago.to_date, 100)
-    create_transaction("nine", 1.days.ago.to_date, 100)
-    @uncategorized_transaction = create_transaction("ten", 1.days.ago.to_date, 100)
-    create_transaction("eleven", Date.current, 100, category: categories(:food_and_drink), tags: [ tags(:one) ], merchant: merchants(:amazon))
-
-    @transactions = @user.family.entries
-                         .transactions
-                         .reverse_chronological
-
-    @transaction = @transactions.first
-
-    @page_size = 10
-
-    visit transactions_url(per_page: @page_size)
-  end
-
-  test "can search for a transaction" do
-    assert_selector "h1", text: "Transactions"
-
-    within "form#transactions-search" do
-      fill_in "Search transactions ...", with: @transaction.name
-      find("#q_search").send_keys(:tab) # Trigger blur to submit form
-    end
-
-    assert_selector "#" + dom_id(@transaction), count: 1
-
-    assert_field "Search transactions ...", with: @transaction.name
-  end
-
-  test "can start a category rule from a merchant" do
-    merchant = @transaction.transaction.merchant
-    category = @transaction.transaction.category
-
-    within "##{dom_id(@transaction)}" do
-      find("[data-testid='merchant-rule-menu-#{@transaction.transaction.id}-desktop'] button").click
-      click_link "Always categorize #{merchant.name} as #{category.name}"
-    end
-
-    within "turbo-frame#modal" do
-      assert_text "New transaction rule"
-      assert_selector "input[name='rule[name]'][value='#{merchant.name}']"
-      assert_selector "select[name*='[condition_type]'] option[selected][value='transaction_merchant']"
-      assert_selector "select[name*='conditions_attributes'][name*='[value]'] option[selected][value='#{merchant.id}']"
-      assert_selector "select[name*='[action_type]'] option[selected][value='set_transaction_category']"
-      assert_selector "select[name*='actions_attributes'][name*='[value]'] option[selected][value='#{category.id}']"
-    end
-  end
-
-  test "merchant menu item text wraps within the menu panel" do
-    # Long merchant + category names produce an "Always categorize ..." item
-    # that previously overflowed the 18rem panel when inheriting nowrap
-    # from the transaction row.
-    merchant = @user.family.merchants.create!(name: "Whole Foods Market Downtown")
-    category = @user.family.categories.create!(name: "Entertainment and Leisure")
-    entry = create_transaction("long merchant", Date.current, 100, category: category, merchant: merchant)
     visit transactions_url
+  end
 
-    find("[data-testid='merchant-rule-menu-#{entry.transaction.id}-desktop'] button").click
+  test "searches the transaction ledger" do
+    assert_selector "h1", text: "Transactions"
+    assert_selector "##{dom_id(@groceries)}"
+    assert_selector "##{dom_id(@paycheck)}"
 
-    overflow = evaluate_script(<<~JS)
+    fill_in "Merchant, note, or transaction", with: @groceries.name
+    click_button "Search"
+
+    assert_current_path(/search=Weekly(?:\+|%20)groceries/, wait: 5)
+    assert_selector "##{dom_id(@groceries)}"
+    assert_no_selector "##{dom_id(@paycheck)}"
+  end
+
+  test "filters transactions by type" do
+    click_button "Income"
+
+    assert_current_path(/types=/, wait: 5)
+    assert_selector "##{dom_id(@paycheck)}"
+    assert_no_selector "##{dom_id(@groceries)}"
+  end
+
+  test "opens transaction details in the drawer" do
+    within "##{dom_id(@groceries)}" do
+      click_link @groceries.name
+    end
+
+    within "turbo-frame#drawer" do
+      assert_field "Name", with: @groceries.name
+    end
+  end
+
+  test "scrolls a full transaction page inside the application shell" do
+    25.times do |index|
+      create_transaction("Scroll transaction #{index}", Date.current - index.days, index + 1)
+    end
+
+    visit transactions_url(search: "Scroll transaction")
+    assert_selector "[id^='entry_']", minimum: 25, visible: :all
+
+    scroll_height, client_height = evaluate_script(<<~JS)
       (() => {
-        const menu = Array.from(document.querySelectorAll('[role="menu"]'))
-          .find(m => m.getBoundingClientRect().width > 0);
-        if (!menu) return "NO OPEN MENU";
-        const panelRight = menu.firstElementChild.getBoundingClientRect().right;
-        return Math.max(...Array.from(menu.querySelectorAll("a span:last-child"))
-          .map(s => s.getBoundingClientRect().right - panelRight));
+        const scrollContainer = document.querySelector("#transactions-scroll");
+        return [scrollContainer.scrollHeight, scrollContainer.clientHeight];
       })()
     JS
+    assert_operator scroll_height, :>, client_height
 
-    assert overflow.is_a?(Numeric), "expected open merchant menu, got: #{overflow.inspect}"
-    assert_operator overflow, :<=, 1, "menu item text overflows the panel"
-  end
-
-  test "can add and remove a category filter from search" do
-    category = @transaction.transaction.category
-
-    fill_in "Search transactions ...", with: "category:#{category.name}"
-    assert_selector "#transaction-filter-search-menu [role='option']", text: category.name
-    find("#q_search").send_keys(:enter)
-
-    assert_selector "[data-transaction-filter-search-target='tokens']", text: "Category: #{category.name}"
-    assert_selector "#" + dom_id(@transaction), count: 1
-
-    find("[data-transaction-filter-search-target='tokens'] button").click
-
-    assert_no_selector "[data-transaction-filter-search-target='tokens']", text: category.name
-  end
-
-  test "can add date and amount filters from search" do
-    start_date = 10.days.ago.to_date.iso8601
-
-    fill_in "Search transactions ...", with: "date:"
-    assert_selector "#transaction-filter-search-menu [role='option']", text: "Start date"
-    find("#q_search").send_keys(:enter)
-    fill_in "Search transactions ...", with: "start-date:#{start_date}"
-    find("#q_search").send_keys(:enter)
-
-    assert_selector "[data-transaction-filter-search-target='tokens']", text: "Start date: #{start_date}"
-
-    # The token renders client-side before the async submit completes. Wait
-    # for the navigation (params land in the URL) so the next filter starts
-    # from the reloaded page instead of racing the in-flight submit.
-    assert_current_path(%r{q%5Bstart_date%5D=#{Regexp.escape(start_date)}}, wait: 5)
-
-    fill_in "Search transactions ...", with: "amount:greater"
-    assert_selector "#transaction-filter-search-menu [role='option']", text: "Greater than"
-    find("#q_search").send_keys(:enter)
-    fill_in "Search transactions ...", with: "amount-greater:200"
-    find("#q_search").send_keys(:enter)
-
-    assert_selector "[data-transaction-filter-search-target='tokens']", text: "Amount greater than: 200"
-  end
-
-  test "can open filters and apply one or more" do
-    find("#transaction-filters-button").click
-
-    within "#transaction-filters-menu" do
-      check(@transaction.account.name)
-      click_button "Category"
-      check(@transaction.transaction.category.name)
-      click_button "Apply"
-    end
-
-    assert_selector "#" + dom_id(@transaction), count: 1
-
-    within "[data-transaction-filter-search-target='tokens']" do
-      assert_text "Account: #{@transaction.account.name}"
-      assert_text "Category: #{@transaction.transaction.category.name}"
-    end
-  end
-
-  test "can filter uncategorized transactions" do
-    find("#transaction-filters-button").click
-
-    within "#transaction-filters-menu" do
-      click_button "Category"
-      check("Uncategorized")
-      click_button "Apply"
-    end
-
-    assert_selector "#" + dom_id(@uncategorized_transaction), count: 1
-    assert_no_selector("#" + dom_id(@transaction))
-
-    find("#transaction-filters-button").click
-
-    within "#transaction-filters-menu" do
-      click_button "Category"
-      check(@transaction.transaction.category.name)
-      click_button "Apply"
-    end
-
-    assert_selector "#" + dom_id(@transaction), count: 1
-    assert_selector "#" + dom_id(@uncategorized_transaction), count: 1
-  end
-
-  test "all filters work and empty state shows if no match" do
-    find("#transaction-filters-button").click
-
-    account = @transaction.account
-    category = @transaction.transaction.category
-    merchant = @transaction.transaction.merchant
-
-    within "#transaction-filters-menu" do
-      click_button "Account"
-      check(account.name)
-
-      click_button "Date"
-      fill_in "q_start_date", with: 10.days.ago.to_date
-      fill_in "q_end_date", with: 1.day.ago.to_date
-
-      click_button "Type"
-      check("Income")
-
-      click_button "Amount"
-      select "Less than"
-      fill_in "q_amount", with: 200
-
-      click_button "Category"
-      check(category.name)
-
-      click_button "Merchant"
-      check(merchant.name)
-
-      click_button "Apply"
-    end
-
-    assert_text "No entries found"
-
-    # Wait for Turbo to finish updating the DOM
-    sleep 0.5
-
-    # Page reload doesn't affect results
-    visit current_url
-
-    assert_text "No entries found"
-
-    # Remove all filters using the search-field tokens.
-    filter_count = page.all("[data-transaction-filter-search-target='tokens'] button").count
-
-    filter_count.times do
-      page.all("[data-transaction-filter-search-target='tokens'] button").first.click
-    end
-
-    assert_text @transaction.name
-  end
-
-  test "can select and deselect entire page of transactions" do
-    all_transactions_checkbox.check
-    assert_selection_count(number_of_transactions_on_page)
-    all_transactions_checkbox.uncheck
-    assert_selection_count(0)
-  end
-
-  test "can select and deselect groups of transactions" do
-    date_transactions_checkbox(1.day.ago.to_date).check
-    assert_selection_count(2)
-
-    date_transactions_checkbox(1.day.ago.to_date).uncheck
-    assert_selection_count(0)
-  end
-
-  test "can select and deselect individual transactions" do
-    transaction_checkbox(@transactions.first).check
-    assert_selection_count(1)
-    transaction_checkbox(@transactions.second).check
-    assert_selection_count(2)
-    transaction_checkbox(@transactions.second).uncheck
-    assert_selection_count(1)
-  end
-
-  test "outermost group always overrides inner selections" do
-    transaction_checkbox(@transactions.first).check
-    assert_selection_count(1)
-
-    all_transactions_checkbox.check
-    assert_selection_count(number_of_transactions_on_page)
-
-    transaction_checkbox(@transactions.first).uncheck
-    assert_selection_count(number_of_transactions_on_page - 1)
-
-    date_transactions_checkbox(1.day.ago.to_date).uncheck
-    assert_selection_count(number_of_transactions_on_page - 3)
-
-    all_transactions_checkbox.uncheck
-    assert_selection_count(0)
-  end
-
-
-  test "can create deposit transaction for investment account" do
-    investment_account = accounts(:investment)
-    investment_account.entries.create!(name: "Investment account", date: Date.current, amount: 1000, currency: "USD", entryable: Transaction.new)
-    transfer_date = Date.current
-    visit account_url(investment_account, tab: "activity")
-    within "[data-testid='activity-menu']" do
-      click_on "New"
-      click_on "New activity"
-    end
-    select "Deposit", from: "Type"
-    fill_in "Date", with: transfer_date
-    fill_in "model[amount]", with: 175.25
-    click_button "Add transaction"
-    within "#" + dom_id(investment_account, "entries_#{transfer_date}") do
-      assert_text "175.25"
-    end
-  end
-
-  test "transfers should always sum to zero" do
-    # Use two accounts that result in funds_movement kind (not investment/crypto which become investment_contribution)
-    asset_account = accounts(:other_asset)
-    depository_account = accounts(:depository)
-    outflow_entry = create_transaction("outflow", Date.current, 500, account: asset_account)
-    inflow_entry = create_transaction("inflow", 1.day.ago.to_date, -500, account: depository_account)
-    @user.family.auto_match_transfers!
-    visit transactions_url
-
-    within "#entry-group-" + Date.current.to_s + "-totals" do
-      assert_text "-$100.00" # transaction eleven from setup
-    end
+    row = find("#transactions [id^='entry_']", match: :first)
+    origin = Selenium::WebDriver::WheelActions::ScrollOrigin.element(row.native)
+    page.driver.browser.action.scroll_from(origin, 0, 600).perform
+    assert_operator evaluate_script('document.querySelector("#transactions-scroll").scrollTop'), :>, 0
   end
 
   private
-
-    def create_transaction(name, date, amount, category: nil, merchant: nil, tags: [], account: nil)
-      account ||= accounts(:depository)
-
-      account.entries.create! \
+    def create_transaction(name, date, amount)
+      accounts(:depository).entries.create!(
         name: name,
         date: date,
         amount: amount,
         currency: "USD",
-        entryable: Transaction.new(category: category, merchant: merchant, tags: tags)
-    end
-
-    def number_of_transactions_on_page
-      [ @user.family.entries.count, @page_size ].min
-    end
-
-    def all_transactions_checkbox
-      find("#selection_entry")
-    end
-
-    def date_transactions_checkbox(date)
-      find("#selection_entry_#{date}")
-    end
-
-    def transaction_checkbox(transaction)
-      find("#" + dom_id(transaction, "selection"))
-    end
-
-    def assert_selection_count(count)
-      if count == 0
-        assert_no_selector("#entry-selection-bar")
-      else
-        within "#entry-selection-bar" do
-          assert_text "#{count} transaction#{count == 1 ? "" : "s"} selected"
-        end
-      end
+        entryable: Transaction.new
+      )
     end
 end

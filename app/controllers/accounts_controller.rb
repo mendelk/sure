@@ -297,9 +297,7 @@ class AccountsController < ApplicationController
       Current.family
     end
 
-    # Shares the "per page" preference with TransactionsController's
-    # prev_transaction_page_params so the page size the user picks on either
-    # the account activity feed or the global transactions page applies to both.
+    # Stores the account activity page size in the existing session payload.
     def store_per_page!(value)
       Current.session.update!(
         prev_transaction_page_params: Current.session.prev_transaction_page_params.merge("per_page" => value)

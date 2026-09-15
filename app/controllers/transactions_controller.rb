@@ -3,7 +3,6 @@ class TransactionsController < ApplicationController
 
   before_action :set_entry_for_unlock, only: :unlock
   before_action :set_entry_for_tags, only: :update_tags
-  before_action :store_params!, only: :index
 
   def show
     super
@@ -17,81 +16,6 @@ class TransactionsController < ApplicationController
     set_new_transaction_form_options
   end
 
-  def index
-    @q = search_params
-    @accessible_account_ids = Current.user.accessible_accounts.pluck(:id)
-    @search = Transaction::Search.new(Current.family, filters: @q, accessible_account_ids: @accessible_account_ids)
-
-    base_scope = @search.transactions_scope
-                       .reverse_chronological
-                       .includes(
-                         { entry: :account },
-                         :category, :merchant, :tags,
-                         # Union of #2643 counterpart UI + Skylight category-menu N+1:
-                         # - outflow rows need inflow_transaction (to_account) for both
-                         #   counterpart display and Transfer#categorizable?/#payment?
-                         # - inflow rows need outflow_transaction (from_account) for
-                         #   counterpart display, and inflow_transaction (to_account)
-                         #   for the category menu on the same row
-                         {
-                           transfer_as_outflow: {
-                             inflow_transaction: { entry: :account }
-                           }
-                         },
-                         {
-                           transfer_as_inflow: {
-                             inflow_transaction: { entry: :account },
-                             outflow_transaction: { entry: :account }
-                           }
-                         }
-                       )
-
-    @pagy, @transactions = pagy(base_scope, limit: safe_per_page(stored_params["per_page"]))
-    Transaction::ActivitySecurityPreloader.new(@transactions).preload
-    @family_tags = Current.family.tags.alphabetically.to_a
-
-    # Preload split parent data
-    entry_ids = @transactions.map { |t| t.entry.id }
-
-    # Load split parent entries for grouped display (only when grouping is enabled)
-    @split_parents = if Current.user.show_split_grouped?
-      split_parent_ids = @transactions.filter_map { |t| t.entry.parent_entry_id }.uniq
-      if split_parent_ids.any?
-        Entry.where(id: split_parent_ids)
-             .includes(:account, entryable: [ :category, :merchant ])
-             .index_by(&:id)
-      else
-        {}
-      end
-    else
-      {}
-    end
-
-    # Preload which entries on this page are split parents (have children) to avoid N+1
-    @split_parent_entry_ids = if entry_ids.any?
-      Entry.where(parent_entry_id: entry_ids).distinct.pluck(:parent_entry_id).to_set
-    else
-      Set.new
-    end
-
-    @uncategorized_count = Rails.cache.fetch(uncategorized_count_cache_key) do
-      Current.accessible_entries.uncategorized_transactions.count
-    end
-
-    # Load projected recurring transactions for next 10 days
-    @projected_recurring = Rails.cache.fetch(projected_recurring_cache_key, expires_in: 1.day) do
-      Current.family.recurring_transactions
-                    .accessible_by(Current.user)
-                    .active
-                    .where("next_expected_date <= ? AND next_expected_date >= ?",
-                           10.days.from_now.to_date,
-                           Date.current)
-                    .includes(:merchant)
-                    .to_a
-    end
-
-    @breadcrumbs = [ [ t("breadcrumbs.home"), root_path ], [ t("breadcrumbs.transactions"), nil ] ]
-  end
 
   def create
     account = Current.user.accessible_accounts.find_by(id: params.dig(:entry, :account_id))
@@ -423,31 +347,6 @@ class TransactionsController < ApplicationController
   end
 
   private
-    # Scoped by user (not just family) because Current.accessible_entries is
-    # user-scoped for family sharing (see Current#accessible_entries).
-    #
-    # Includes Family#accounts_status_version because `uncategorized_transactions`
-    # filters on account status (draft/active), and toggling an account's
-    # active status (AccountsController#toggle_active) doesn't touch `entries`
-    # or `AccountShare`, so it wouldn't otherwise bust this cache.
-    def uncategorized_count_cache_key
-      "transactions_uncategorized_count/v3/#{Current.family.id}/#{Current.user.id}/" \
-        "#{Current.family.entries_version}/#{Current.family.accounts_status_version}/#{Current.account_share_version}"
-    end
-
-    # Scoped additionally by Date.current since the "next 10 days" window is
-    # date-dependent and would otherwise return a stale window on a cache hit
-    # from an earlier day.
-    #
-    # Includes Family#recurring_transaction_merchants_version because the
-    # cached records are preloaded with :merchant and rendered with its
-    # name/logo, but editing a FamilyMerchant or a shared ProviderMerchant
-    # doesn't touch `recurring_transactions`.
-    def projected_recurring_cache_key
-      "transactions_projected_recurring/v5/#{Current.family.id}/#{Current.user.id}/#{Date.current}/" \
-        "#{Current.family.recurring_transactions_version}/#{Current.family.accounts_status_version}/" \
-        "#{Current.family.recurring_transaction_merchants_version}/#{Current.account_share_version}"
-    end
 
     # The "Mark as Recurring" block is only ever rendered under these same
     # conditions (see transactions/show.html.erb), so skip the extra query
@@ -577,54 +476,6 @@ class TransactionsController < ApplicationController
       else
         {} # read_only — no edits allowed
       end
-    end
-
-    def search_params
-      cleaned_params = params.fetch(:q, {})
-              .permit(
-                :start_date, :end_date, :search, :amount,
-                :amount_operator, :active_accounts_only,
-                accounts: [], account_ids: [],
-                categories: [], merchants: [], types: [], tags: [], status: [],
-                excluded_accounts: [], excluded_account_ids: [],
-                excluded_categories: [], excluded_merchants: [],
-                excluded_types: [], excluded_tags: [], excluded_status: []
-              )
-              .to_h
-              .compact_blank
-
-      cleaned_params.delete(:amount_operator) unless cleaned_params[:amount].present?
-
-
-      cleaned_params
-    end
-
-    def store_params!
-      if should_restore_params?
-        params_to_restore = {}
-
-        params_to_restore[:q] = stored_params["q"].presence || {}
-        params_to_restore[:page] = stored_params["page"].presence || 1
-        params_to_restore[:per_page] = stored_params["per_page"].presence || 50
-
-        redirect_to transactions_path(params_to_restore)
-      else
-        Current.session.update!(
-          prev_transaction_page_params: {
-            q: search_params,
-            page: params[:page],
-            per_page: params[:per_page].presence || stored_params["per_page"]
-          }
-        )
-      end
-    end
-
-    def should_restore_params?
-      request.query_parameters.blank? && (stored_params["q"].present? || stored_params["page"].present? || stored_params["per_page"].present?)
-    end
-
-    def stored_params
-      Current.session.prev_transaction_page_params
     end
 
     # Helper methods for convert_to_trade

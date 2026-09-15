@@ -511,7 +511,10 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :transactions, only: %i[index new create show update destroy] do
+  get "transactions", to: "spa#show", as: :transactions
+  post "transactions", to: "transactions#create"
+
+  resources :transactions, only: %i[new show update destroy] do
     resource :split, only: %i[new create edit update destroy]
     resource :transfer_match, only: %i[new create]
     resource :pending_duplicate_merges, only: %i[new create]
@@ -716,6 +719,10 @@ Rails.application.routes.draw do
         get "test_scope_required", to: "test#scope_required"
         get "test_multiple_scopes_required", to: "test#multiple_scopes_required"
       end
+    end
+
+    namespace :spa do
+      resources :transactions, only: :index
     end
   end
 

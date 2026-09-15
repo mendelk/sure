@@ -1,13 +1,22 @@
-<% content_for :title, "React route · #{product_name}" %>
+<% content_for :title, @spa_embedded ? "Transactions · #{product_name}" : "React route · #{product_name}" %>
 <% bootstrap = {
   currentUser: {
     id: Current.user.id,
     name: Current.user.display_name
   },
+  embedded: @spa_embedded,
+  apiPaths: {
+    transactions: api_spa_transactions_path
+  },
   railsPaths: {
-    home: root_path
+    home: root_path,
+    imports: imports_path,
+    newImport: new_import_path,
+    newTransaction: new_transaction_path,
+    reports: reports_path,
+    transactions: transactions_path
   }
 } %>
 
-<div id="spa-root"></div>
+<div id="spa-root" class="<%= "flex min-h-0 flex-1 flex-col" if @spa_embedded %>"></div>
 <script id="spa-bootstrap" type="application/json"><%= raw json_escape(bootstrap.to_json) %></script>
