@@ -12,6 +12,10 @@ local execution; over SSH they bind to the SSH server address. Override that int
 `ORCA_PUBLISH_HOST`. Destroying a workspace removes its isolated services and volumes but leaves the
 shared Postgres service and `sure-orca-shared-postgres` volume intact.
 
+On the gradual frontend branch, `bin/dev` also runs `npm run spa:watch`. Vite rebuilds
+`app/assets/builds/spa.js` whenever React or TypeScript source under `app/javascript/spa` changes,
+and Rails serves the rebuilt bundle from the same `railsUrl`.
+
 ## First-time setup
 
 1. Start Docker/OrbStack, or install rootless Podman with Podman Compose.
