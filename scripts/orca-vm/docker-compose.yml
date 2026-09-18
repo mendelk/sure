@@ -18,8 +18,8 @@ services:
       - bundle:/bundle
       - npm-cache:/root/.npm
     ports:
-      - 127.0.0.1::22
-      - 127.0.0.1::3000
+      - ${ORCA_PUBLISH_HOST:-127.0.0.1}::22
+      - ${ORCA_PUBLISH_HOST:-127.0.0.1}::3000
     depends_on:
       - redis
       - selenium
@@ -28,12 +28,12 @@ services:
       - shared
 
   redis:
-    image: redis:latest
+    image: docker.io/library/redis:latest
     volumes:
       - redis:/data
 
   selenium:
-    image: selenium/standalone-chromium:latest
+    image: docker.io/selenium/standalone-chromium:latest
     environment:
       SE_NODE_MAX_SESSIONS: 4
       SE_NODE_OVERRIDE_MAX_SESSIONS: "true"
@@ -47,6 +47,7 @@ volumes:
   redis:
 
 networks:
+  default: {}
   shared:
     external: true
     name: sure-orca-shared
