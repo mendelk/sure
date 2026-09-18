@@ -6,12 +6,14 @@ without rebuilding the image. Worktrees have isolated app, Redis, Selenium, and 
 while sharing one persistent Postgres database and its data.
 
 The app container runs `bin/setup` and starts `bin/dev` automatically, including Rails development
-reloading and the Tailwind watcher. Workspace creation waits for Rails to respond before reporting
-success. A persistent Traefik project, visible in Arcane through the remote environment, watches
-per-workspace route files. Each workspace receives a deterministic hostname such as
-`sure-my-branch-a1b2c3d4e5.192-168-1-97.sslip.io` on port `8080`, so Rails' host-only cookies remain
-isolated between worktrees. Override the port with `ORCA_PROXY_PORT` and the wildcard DNS suffix with
-`ORCA_PROXY_BASE_DOMAIN`.
+reloading and the Tailwind watcher. During setup it loads a deterministic sample dataset when
+`user@example.com` is absent; sign in with `user@example.com` and `Password1!`. Re-running setup
+preserves existing data and skips sample generation once that demo user exists. Workspace creation
+waits for Rails to respond before reporting success. A persistent Traefik project, visible in Arcane through
+the remote environment, watches per-workspace route files. Each workspace receives a deterministic
+hostname such as `sure-my-branch-a1b2c3d4e5.192-168-1-97.sslip.io` on port `8080`, so Rails' host-only
+cookies remain isolated between worktrees. Override the port with `ORCA_PROXY_PORT` and the
+wildcard DNS suffix with `ORCA_PROXY_BASE_DOMAIN`.
 
 The backend ports still bind to `127.0.0.1` for local execution and to the SSH server address for
 remote execution. `railsUrl` is always the canonical Traefik URL; use it instead of a backend
