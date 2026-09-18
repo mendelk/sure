@@ -39,6 +39,25 @@ class Demo::GeneratorTest < ActiveSupport::TestCase
     assert_equal 1, ApiKey.where(display_key: ApiKey::DEMO_MONITORING_KEY).count
   end
 
+  test "goal generation supports multiple goals sharing the demo accounts" do
+    @family.accounts.create!(
+      name: "Primary checking",
+      balance: 150_000,
+      currency: "USD",
+      accountable: Depository.new
+    )
+    @family.accounts.create!(
+      name: "Secondary savings",
+      balance: 10_000,
+      currency: "USD",
+      accountable: Depository.new
+    )
+
+    assert_difference -> { @family.goals.count }, 9 do
+      Demo::Generator.new(seed: 12345).send(:generate_goals!, @family)
+    end
+  end
+
   private
     def create_user!(family, email)
       family.users.create!(

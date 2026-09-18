@@ -1345,7 +1345,8 @@ class Demo::Generator
           name: "Emergency fund",
           target: 30_000,
           target_date: nil,
-          accounts: [ secondary ]
+          accounts: [ secondary ],
+          allocation: 2_000
         },
         # active · behind big — combined pools still well short of the target
         {
@@ -1353,6 +1354,7 @@ class Demo::Generator
           target: 500_000,
           target_date: 24.months.from_now.to_date,
           accounts: eligible.first(2),
+          allocation: 20_000,
           pledges: [
             { account: primary, amount: 2_000, kind: "transfer", status: "open", expires_at: 4.days.from_now }
           ]
@@ -1363,7 +1365,8 @@ class Demo::Generator
           name: "Long-term portfolio",
           target: 200_000,
           target_date: 60.months.from_now.to_date,
-          accounts: [ primary ]
+          accounts: [ primary ],
+          allocation: 100_000
         },
         # active · past-due — exercises "was due" header copy + the
         # months_remaining = 0 branch in monthly_target_amount
@@ -1371,7 +1374,8 @@ class Demo::Generator
           name: "Tax prep buffer",
           target: 1_200,
           target_date: 2.months.ago.to_date,
-          accounts: [ secondary ]
+          accounts: [ secondary ],
+          allocation: 1_000
         },
         # AASM paused
         {
@@ -1379,7 +1383,8 @@ class Demo::Generator
           target: 15_000,
           target_date: 18.months.from_now.to_date,
           state: "paused",
-          accounts: [ primary ]
+          accounts: [ primary ],
+          allocation: 10_000
         },
         # AASM archived
         {
@@ -1387,7 +1392,8 @@ class Demo::Generator
           target: 1_500,
           target_date: 12.months.ago.to_date,
           state: "archived",
-          accounts: [ primary ]
+          accounts: [ primary ],
+          allocation: 1_500
         },
         # AASM completed
         {
@@ -1395,7 +1401,8 @@ class Demo::Generator
           target: 8_000,
           target_date: 6.months.ago.to_date,
           state: "completed",
-          accounts: [ primary ]
+          accounts: [ primary ],
+          allocation: 8_000
         }
       ]
 
@@ -1409,7 +1416,12 @@ class Demo::Generator
           color: Goal::COLORS.sample,
           state: goal_spec[:state] || "active"
         )
-        goal_spec[:accounts].uniq.each { |a| goal.goal_accounts.build(account: a) }
+        goal_spec[:accounts].uniq.each do |account|
+          goal.goal_accounts.build(
+            account: account,
+            allocated_amount: goal_spec[:allocation]
+          )
+        end
         goal.save!
         wedding_goal = goal if goal_spec[:name] == "Wedding fund"
 

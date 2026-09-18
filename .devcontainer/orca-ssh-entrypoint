@@ -26,5 +26,8 @@ start_workspace() {
 }
 
 rm -f /tmp/sure-workspace.exit
-(set +e; start_workspace; printf '%s\n' "$?" > /tmp/sure-workspace.exit) >/tmp/sure-workspace.log 2>&1 &
+(
+  trap 'printf "%s\n" "$?" > /tmp/sure-workspace.exit' EXIT
+  start_workspace
+) >/tmp/sure-workspace.log 2>&1 &
 exec /usr/sbin/sshd -D -e
