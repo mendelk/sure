@@ -1,7 +1,9 @@
 import {
+  ArrowLeftRight,
   Box,
   ChartBar,
   ChevronRight,
+  Clock,
   CreditCard,
   Eye,
   EyeOff,
@@ -39,10 +41,12 @@ function createIcon(children: ReactNode): ComponentType<SVGProps<SVGSVGElement>>
 }
 
 const ICONS = {
+  "arrow-left-right": ArrowLeftRight,
   box: Box,
   "chart-bar": ChartBar,
   "chevron-right": ChevronRight,
   "credit-card": CreditCard,
+  clock: Clock,
   download: createIcon(
     <>
       <path d="M12 15V3" />
