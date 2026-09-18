@@ -7,7 +7,7 @@
 - Minitest tests mirror `app/` under `test/`; fixtures are in `test/fixtures/`. Migrations and schema are in `db/`, scripts in `bin/`, shared libraries in `lib/`.
 - Use `Current.user` and `Current.family`, never `current_user` or `current_family`. Preserve family tenancy and existing authorization boundaries.
 - Prefer built-in Rails patterns and established dependencies. New dependencies need a strong technical or business reason. Keep changes focused, readable and consistent with nearby code.
-- Ruby uses two-space indentation, `snake_case` methods/variables and `CamelCase` classes. JavaScript uses `lowerCamelCase` variables/functions and `PascalCase` classes; follow Biome. Keep domain logic out of ERB.
+- Ruby uses two-space indentation, `snake_case` methods/variables and `CamelCase` classes. JavaScript uses `lowerCamelCase` variables/functions and `PascalCase` classes; follow oxlint and oxfmt. Keep domain logic out of ERB.
 - Never commit secrets; use environment variables and `.env.local` for local configuration.
 - Do not start `rails server`, touch `tmp/restart.txt`, run `rails credentials`, or automatically run migrations. Setup and database commands in the [development guide](docs/llm-guides/development.md) are for explicitly requested environment work.
 - New migrations use the current Rails migration version; leave historical migration versions intact.
@@ -15,7 +15,7 @@
 ## Tests and pull requests
 
 - Use Minitest and fixtures for behavioral tests, with Mocha and VCR where needed. RSpec/rswag is for OpenAPI documentation only. Follow the [testing guide](docs/llm-guides/testing.md).
-- Run `bin/rails test` and ensure it is green before pushing. Before opening a PR, run **all** checks in the [pre-PR checklist](docs/llm-guides/development.md#before-opening-a-pull-request): full Rails tests, applicable system tests, Ruby and ERB lint, Biome and Brakeman. Only create the PR when all required checks pass.
+- Run `bin/rails test` and ensure it is green before pushing. Before opening a PR, run **all** checks in the [pre-PR checklist](docs/llm-guides/development.md#before-opening-a-pull-request): full Rails tests, applicable system tests, Ruby and ERB lint, oxlint and oxfmt, and Brakeman. Only create the PR when all required checks pass.
 - Commits use imperative subjects of at most 72 characters, with rationale and issue references where relevant. Target `main` with small, cohesive changes.
 - PRs explain the problem, resulting behavior and validation; link issues and include screenshots for UI changes and migration notes when applicable. Ensure CI passes and the branch is up to date before requesting review; see [CONTRIBUTING.md](CONTRIBUTING.md).
 

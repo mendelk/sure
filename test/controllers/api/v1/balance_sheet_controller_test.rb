@@ -35,12 +35,48 @@ class Api::V1::BalanceSheetControllerTest < ActionDispatch::IntegrationTest
     assert response_body.key?("net_worth")
     assert response_body.key?("assets")
     assert response_body.key?("liabilities")
+    assert response_body.key?("net_worth_series")
+    assert response_body.key?("accounts")
 
     %w[net_worth assets liabilities].each do |field|
       assert response_body[field].key?("amount"), "#{field} should have amount"
       assert response_body[field].key?("currency"), "#{field} should have currency"
       assert response_body[field].key?("formatted"), "#{field} should have formatted"
     end
+
+    assert response_body["net_worth_series"].is_a?(Array)
+    response_body["net_worth_series"].each do |point|
+      assert point.key?("date")
+      assert point["value"].key?("amount")
+    end
+
+    response_body["accounts"].each do |account|
+      assert account.key?("id")
+      assert account.key?("name")
+      assert account.key?("classification")
+      assert account.key?("balance")
+      assert account["balance"].key?("formatted")
+    end
+  end
+
+  test "should authenticate with browser session for read access" do
+    sign_in @user
+
+    get "/api/v1/balance_sheet"
+
+    assert_response :success
+    assert JSON.parse(response.body).key?("net_worth")
+  end
+
+  test "session auth should not grant write access" do
+    sign_in @user
+
+    post "/api/v1/transactions",
+      params: { transaction: { account_id: @family.accounts.first.id, name: "x", date: Date.current, amount: 1 } },
+      as: :json
+
+    assert_response :forbidden
+    assert_equal "insufficient_scope", JSON.parse(response.body).fetch("error")
   end
 
   private

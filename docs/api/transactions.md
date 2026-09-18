@@ -21,7 +21,7 @@ The Transactions API allows external applications to manage financial transactio
 
 ## Authentication requirements
 
-All transaction endpoints require an OAuth2 access token or API key that grants the appropriate scope (`read` or `read_write`).
+All transaction endpoints require an OAuth2 access token or API key that grants the appropriate scope (`read` or `read_write`). Read endpoints (`GET /api/v1/transactions`) also accept an authenticated browser session (`cookieSession`).
 
 ## Available endpoints
 
@@ -55,6 +55,12 @@ The `GET /api/v1/transactions` endpoint supports the following query parameters 
 | `min_amount` | number | Filter by minimum amount |
 | `max_amount` | number | Filter by maximum amount |
 | `type` | string | Filter by transaction type: `income` or `expense` |
+| `types[]` | string[] | Filter by multiple transaction types (`income`, `expense`, `transfer`) |
+| `status[]` | string[] | Filter by transaction status (`pending`, `confirmed`) |
+| `accounts[]` | string[] | Filter by account names |
+| `categories[]` | string[] | Filter by category names |
+| `merchants[]` | string[] | Filter by merchant names |
+| `tags[]` | string[] | Filter by tag names |
 | `search` | string | Search by name, notes, or merchant name |
 
 ## Transaction object
