@@ -12,13 +12,13 @@
 - Run app: `bin/dev` — starts Rails server and asset/watchers via `Procfile.dev`.
 - Test suite: `bin/rails test` — run all Minitest tests; add `TEST=test/models/user_test.rb` to target a file.
 - Lint Ruby: `bin/rubocop` — style checks; add `-A` to auto-correct safe cops.
-- Lint/format JS/CSS: `npm run lint` and `npm run format` — uses Biome.
+- Lint/format JS/CSS: `npm run lint` and `npm run format` — uses oxlint + oxfmt.
 - Security scan: `bin/brakeman` — static analysis for common Rails issues.
 
 ## Coding Style & Naming Conventions
 - Ruby: 2-space indent, `snake_case` for methods/vars, `CamelCase` for classes/modules. Follow Rails conventions for folders and file names.
 - Views: ERB checked by `erb-lint` (see `.erb_lint.yml`). Avoid heavy logic in views; prefer helpers/components.
-- JavaScript: `lowerCamelCase` for vars/functions, `PascalCase` for classes/components. Let Biome format code.
+- JavaScript: `lowerCamelCase` for vars/functions, `PascalCase` for classes/components. Let oxfmt format code.
 - Commit small, cohesive changes; keep diffs focused.
 
 ## Testing Guidelines
@@ -28,7 +28,7 @@
 
 ## Commit & Pull Request Guidelines
 - Commits: Imperative subject ≤ 72 chars (e.g., "Add account balance validation"). Include rationale in body and reference issues (`#123`).
-- PRs: Clear description, linked issues, screenshots for UI changes, and migration notes if applicable. Ensure CI passes, tests added/updated, and `rubocop`/Biome are clean.
+- PRs: Clear description, linked issues, screenshots for UI changes, and migration notes if applicable. Ensure CI passes, tests added/updated, and `rubocop`/oxlint + oxfmt are clean.
 
 ## Security & Configuration Tips
 - Never commit secrets. Start from `.env.local.example`; use `.env.local` for development only.

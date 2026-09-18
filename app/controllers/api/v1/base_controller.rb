@@ -2,6 +2,7 @@
 
 class Api::V1::BaseController < ApplicationController
   include Doorkeeper::Rails::Helpers
+  include Api::V1::SessionAuthentication
 
   InvalidFilterError = Class.new(StandardError)
 
@@ -47,10 +48,12 @@ class Api::V1::BaseController < ApplicationController
       request.format = :json
     end
 
-    # Authenticate using either OAuth or API key
+    # Authenticate using either OAuth or API key. As a final fallback, accept
+    # an authenticated browser session (first-party SPA), read-only.
     def authenticate_request!
       return if authenticate_oauth
       return if authenticate_api_key
+      return if authenticate_session
       render_unauthorized unless performed?
     end
 
@@ -176,13 +179,16 @@ class Api::V1::BaseController < ApplicationController
       @current_user
     end
 
-    # Get current scopes from either authentication method
+    # Get current scopes from either authentication method. Browser-session
+    # auth is read-only.
     def current_scopes
       case @authentication_method
       when :oauth
         doorkeeper_token&.scopes&.to_a || []
       when :api_key
         @api_key&.scopes || []
+      when :session
+        %w[read]
       else
         []
       end

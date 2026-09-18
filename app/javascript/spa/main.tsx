@@ -7,9 +7,7 @@ import { createSpaRouter } from "./router";
 
 const rootElement = document.querySelector<HTMLElement>("#spa-root");
 
-if (!rootElement) {
-  throw new Error("SPA root element is missing");
-}
+if (!rootElement) throw new Error("SPA root element is missing");
 
 const queryClient = new QueryClient({
   defaultOptions: {

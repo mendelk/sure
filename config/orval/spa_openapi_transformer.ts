@@ -1,18 +1,20 @@
 import { defineTransformer } from "orval";
 
-const SPA_TRANSACTION_PATH = "/api/spa/transactions";
+const TRANSACTION_PATH = "/api/v1/transactions";
 
 export default defineTransformer((document) => {
-  const transactionPath = document.paths?.[SPA_TRANSACTION_PATH];
+  const transactionPath = document.paths?.[TRANSACTION_PATH];
 
   if (!transactionPath) {
-    throw new Error(`${SPA_TRANSACTION_PATH} is missing from the OpenAPI document`);
+    throw new Error(`${TRANSACTION_PATH} is missing from the OpenAPI document`);
   }
 
   return {
     ...document,
     paths: {
-      [SPA_TRANSACTION_PATH]: transactionPath,
+      [TRANSACTION_PATH]: {
+        get: transactionPath.get,
+      },
     },
   };
 });

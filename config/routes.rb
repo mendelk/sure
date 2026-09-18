@@ -721,9 +721,6 @@ Rails.application.routes.draw do
       end
     end
 
-    namespace :spa do
-      resources :transactions, only: :index
-    end
   end
 
 
@@ -877,11 +874,6 @@ Rails.application.routes.draw do
   get "terms", to: terms_url ? redirect(terms_url) : "pages#terms"
   get "intro", to: "pages#intro"
 
-  # Canary routes for the React/TanStack shell. Future SPA pages can live at
-  # top-level URLs by pointing their explicit Rails route at "spa#show"; they
-  # do not need to live below /spa.
-  get "spa", to: "spa#show", as: :spa
-  get "spa/*path", to: "spa#show"
 
   # Admin namespace for super admin functionality
   namespace :admin do

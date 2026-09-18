@@ -4,12 +4,11 @@
     <title><%= content_for(:title) || product_name %></title>
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
-    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "tailwind" %>
     <%= render "layouts/dark_mode_check" %>
     <%= render "layouts/privacy_mode_check" %>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="dark light">
-    <meta name="turbo-visit-control" content="reload">
     <%= javascript_include_tag "spa", type: "module" %>
   </head>
   <body class="min-h-full bg-surface text-primary antialiased">

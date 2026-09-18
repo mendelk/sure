@@ -400,6 +400,10 @@ components:
           nullable: true
         status:
           type: string
+        path:
+          type: string
+          nullable: true
+          description: Web app URL for the account, present in transaction list responses.
     AccountDetail:
       type: object
       required:
@@ -1669,137 +1673,6 @@ components:
       type: object
       required:
       - id
-      - date
-      - amount
-      - currency
-      - name
-      - classification
-      - account
-      - tags
-      - created_at
-      - updated_at
-      properties:
-        id:
-          type: string
-          format: uuid
-        date:
-          type: string
-          format: date
-        amount:
-          type: string
-        currency:
-          type: string
-        name:
-          type: string
-        notes:
-          type: string
-          nullable: true
-        external_id:
-          type: string
-          nullable: true
-        source:
-          type: string
-          nullable: true
-        user_modified:
-          type: boolean
-        classification:
-          type: string
-        account:
-          "$ref": "#/components/schemas/Account"
-        category:
-          "$ref": "#/components/schemas/Category"
-          nullable: true
-        merchant:
-          "$ref": "#/components/schemas/Merchant"
-          nullable: true
-        tags:
-          type: array
-          items:
-            "$ref": "#/components/schemas/Tag"
-        transfer:
-          "$ref": "#/components/schemas/Transfer"
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-    TransactionCollection:
-      type: object
-      required:
-      - transactions
-      - pagination
-      properties:
-        transactions:
-          type: array
-          items:
-            "$ref": "#/components/schemas/Transaction"
-        pagination:
-          "$ref": "#/components/schemas/Pagination"
-    SpaTransactionAccount:
-      type: object
-      required:
-      - id
-      - name
-      - account_type
-      - path
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        account_type:
-          type: string
-        path:
-          type: string
-    SpaTransactionCategory:
-      type: object
-      required:
-      - id
-      - name
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        color:
-          type: string
-          nullable: true
-        icon:
-          type: string
-          nullable: true
-    SpaTransactionMerchant:
-      type: object
-      required:
-      - id
-      - name
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-    SpaTransactionTag:
-      type: object
-      required:
-      - id
-      - name
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        color:
-          type: string
-          nullable: true
-    SpaTransaction:
-      type: object
-      required:
-      - id
       - entry_id
       - date
       - amount
@@ -1808,11 +1681,13 @@ components:
       - currency
       - name
       - classification
+      - detail_path
       - pending
       - excluded
-      - detail_path
       - account
       - tags
+      - created_at
+      - updated_at
       properties:
         id:
           type: string
@@ -1837,27 +1712,50 @@ components:
         notes:
           type: string
           nullable: true
+        external_id:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+        user_modified:
+          type: boolean
+        detail_path:
+          type: string
+          description: Web app URL for the transaction detail page, present in list
+            responses.
         classification:
           type: string
         pending:
           type: boolean
+          description: Whether the transaction is still pending at a provider (present
+            in list responses).
         excluded:
           type: boolean
-        detail_path:
-          type: string
+          description: Whether the transaction is excluded from reports (present in
+            list responses).
         account:
-          "$ref": "#/components/schemas/SpaTransactionAccount"
+          "$ref": "#/components/schemas/Account"
         category:
-          "$ref": "#/components/schemas/SpaTransactionCategory"
+          "$ref": "#/components/schemas/Category"
           nullable: true
         merchant:
-          "$ref": "#/components/schemas/SpaTransactionMerchant"
+          "$ref": "#/components/schemas/Merchant"
           nullable: true
         tags:
           type: array
           items:
-            "$ref": "#/components/schemas/SpaTransactionTag"
-    SpaTransactionSummary:
+            "$ref": "#/components/schemas/Tag"
+        transfer:
+          "$ref": "#/components/schemas/Transfer"
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    TransactionSummary:
       type: object
       required:
       - count
@@ -1880,19 +1778,19 @@ components:
           type: string
         currency:
           type: string
-    SpaTransactionCollection:
+    TransactionCollection:
       type: object
       required:
       - transactions
-      - summary
       - pagination
+      - summary
       properties:
         transactions:
           type: array
           items:
-            "$ref": "#/components/schemas/SpaTransaction"
+            "$ref": "#/components/schemas/Transaction"
         summary:
-          "$ref": "#/components/schemas/SpaTransactionSummary"
+          "$ref": "#/components/schemas/TransactionSummary"
         pagination:
           "$ref": "#/components/schemas/Pagination"
     TransactionSplitRequest:
@@ -3461,6 +3359,46 @@ components:
         formatted:
           type: string
           description: Locale-formatted money string
+    BalanceSheetPoint:
+      type: object
+      required:
+      - date
+      - value
+      properties:
+        date:
+          type: string
+          format: date
+        value:
+          "$ref": "#/components/schemas/Money"
+    BalanceSheetAccount:
+      type: object
+      required:
+      - id
+      - name
+      - classification
+      - account_type
+      - balance
+      - currency
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        classification:
+          type: string
+          enum:
+          - asset
+          - liability
+        account_type:
+          type: string
+        balance:
+          "$ref": "#/components/schemas/Money"
+        currency:
+          type: string
+        path:
+          type: string
+          nullable: true
     BalanceSheet:
       type: object
       required:
@@ -3468,6 +3406,8 @@ components:
       - net_worth
       - assets
       - liabilities
+      - net_worth_series
+      - accounts
       properties:
         currency:
           type: string
@@ -3478,6 +3418,14 @@ components:
           "$ref": "#/components/schemas/Money"
         liabilities:
           "$ref": "#/components/schemas/Money"
+        net_worth_series:
+          type: array
+          items:
+            "$ref": "#/components/schemas/BalanceSheetPoint"
+        accounts:
+          type: array
+          items:
+            "$ref": "#/components/schemas/BalanceSheetAccount"
     SuccessMessage:
       type: object
       required:
@@ -3672,47 +3620,124 @@ components:
               type: integer
               minimum: 0
 paths:
-  "/api/spa/transactions":
+  "/api/v1/transactions":
     get:
-      summary: List transactions for the browser SPA
+      summary: List transactions
       tags:
-      - SPA Transactions
+      - Transactions
       security:
+      - apiKeyAuth: []
       - cookieSession: []
+      description: Returns global ledger history for accessible accounts, including
+        disabled accounts but excluding accounts pending deletion.
       parameters:
       - name: page
         in: query
         required: false
+        description: 'Page number (default: 1)'
         schema:
           type: integer
-          minimum: 1
       - name: per_page
         in: query
         required: false
+        description: 'Items per page (default: 25, max: 100)'
         schema:
           type: integer
-          minimum: 1
-          maximum: 100
-      - name: search
+      - name: account_id
         in: query
         required: false
+        description: Filter by account ID
+        schema:
+          type: string
+      - name: category_id
+        in: query
+        required: false
+        description: Filter by category ID
+        schema:
+          type: string
+      - name: merchant_id
+        in: query
+        required: false
+        description: Filter by merchant ID
         schema:
           type: string
       - name: start_date
         in: query
         required: false
+        description: Filter transactions from this date
         schema:
           type: string
           format: date
       - name: end_date
         in: query
         required: false
+        description: Filter transactions until this date
         schema:
           type: string
           format: date
+      - name: min_amount
+        in: query
+        required: false
+        description: Filter by minimum amount
+        schema:
+          type: number
+      - name: max_amount
+        in: query
+        required: false
+        description: Filter by maximum amount
+        schema:
+          type: number
+      - name: type
+        in: query
+        required: false
+        description: Filter by transaction type
+        schema:
+          type: string
+          enum:
+          - income
+          - expense
+      - name: search
+        in: query
+        required: false
+        description: Search by name, notes, or merchant name
+        schema:
+          type: string
+      - name: account_ids
+        in: query
+        required: false
+        description: Filter by multiple account IDs
+        schema:
+          type: array
+          items:
+            type: string
+      - name: category_ids
+        in: query
+        required: false
+        description: Filter by multiple category IDs
+        schema:
+          type: array
+          items:
+            type: string
+      - name: merchant_ids
+        in: query
+        required: false
+        description: Filter by multiple merchant IDs
+        schema:
+          type: array
+          items:
+            type: string
+      - name: tag_ids
+        in: query
+        required: false
+        description: Filter by tag IDs
+        schema:
+          type: array
+          items:
+            type: string
       - name: types
         in: query
         required: false
+        description: Filter by transaction types
         schema:
           type: array
           items:
@@ -3726,6 +3751,7 @@ paths:
       - name: status
         in: query
         required: false
+        description: Filter by transaction status
         schema:
           type: array
           items:
@@ -3738,25 +3764,17 @@ paths:
       - name: accounts
         in: query
         required: false
+        description: Filter by multiple account names
         schema:
           type: array
           items:
             type: string
-        style: form
-        explode: false
-      - name: account_ids
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-            format: uuid
         style: form
         explode: false
       - name: categories
         in: query
         required: false
+        description: Filter by multiple category names
         schema:
           type: array
           items:
@@ -3766,6 +3784,7 @@ paths:
       - name: merchants
         in: query
         required: false
+        description: Filter by multiple merchant names
         schema:
           type: array
           items:
@@ -3775,6 +3794,7 @@ paths:
       - name: tags
         in: query
         required: false
+        description: Filter by multiple tag names
         schema:
           type: array
           items:
@@ -3783,19 +3803,255 @@ paths:
         explode: false
       responses:
         '200':
-          description: transactions listed
+          description: transactions filtered by date range
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/SpaTransactionCollection"
-        '401':
-          description: browser session required
+                "$ref": "#/components/schemas/TransactionCollection"
+        '422':
+          description: invalid date filter
           content:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+    post:
+      summary: Create transaction
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: transaction created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Transaction"
+        '200':
+          description: transaction already exists for external idempotency key
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Transaction"
         '422':
-          description: invalid date filter
+          description: validation error - missing required fields
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transaction:
+                  type: object
+                  properties:
+                    account_id:
+                      type: string
+                      format: uuid
+                      description: Account ID (required)
+                    date:
+                      type: string
+                      format: date
+                      description: Transaction date
+                    amount:
+                      type: number
+                      description: Transaction amount
+                    name:
+                      type: string
+                      description: Transaction name/description
+                    description:
+                      type: string
+                      description: Alternative to name field
+                    notes:
+                      type: string
+                      description: Additional notes
+                    currency:
+                      type: string
+                      description: Currency code (defaults to family currency)
+                    category_id:
+                      type: string
+                      format: uuid
+                      description: Category ID
+                    merchant_id:
+                      type: string
+                      format: uuid
+                      description: Merchant ID
+                    nature:
+                      type: string
+                      enum:
+                      - income
+                      - expense
+                      - inflow
+                      - outflow
+                      description: Transaction nature (determines sign)
+                    external_id:
+                      type: string
+                      description: Optional external idempotency key scoped to account
+                        and source
+                    source:
+                      type: string
+                      description: Optional source namespace for external_id. Requires
+                        external_id and defaults to api when external_id is provided
+                    user_modified:
+                      type: boolean
+                      description: Whether provider syncs should preserve user-supplied
+                        transaction changes
+                    tag_ids:
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                      description: Array of tag IDs
+                  required:
+                  - account_id
+                  - date
+                  - amount
+                  - name
+              required:
+              - transaction
+        required: true
+  "/api/v1/transactions/{id}":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      description: Transaction ID
+    get:
+      summary: Retrieve a transaction
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: transaction retrieved
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Transaction"
+        '404':
+          description: transaction not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+    patch:
+      summary: Update a transaction
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: transaction updated
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Transaction"
+        '404':
+          description: transaction not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transaction:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                      format: date
+                    amount:
+                      type: number
+                    name:
+                      type: string
+                    description:
+                      type: string
+                      description: Alternative to name field
+                    notes:
+                      type: string
+                    currency:
+                      type: string
+                      description: Currency code
+                    category_id:
+                      type: string
+                      format: uuid
+                    merchant_id:
+                      type: string
+                      format: uuid
+                    nature:
+                      type: string
+                      enum:
+                      - income
+                      - expense
+                      - inflow
+                      - outflow
+                    tag_ids:
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+                      description: Array of tag IDs to assign. Omit to preserve existing
+                        tags; use [] to clear all tags.
+        required: true
+    delete:
+      summary: Delete a transaction
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: transaction deleted
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DeleteResponse"
+        '404':
+          description: transaction not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/balance_sheet":
+    get:
+      summary: Show balance sheet
+      tags:
+      - Balance Sheet
+      description: Returns the family balance sheet including net worth, total assets,
+        total liabilities, the net worth time series, and a row per accessible account
+        with amounts converted to the family's primary currency.
+      security:
+      - apiKeyAuth: []
+      - cookieSession: []
+      responses:
+        '200':
+          description: balance sheet returned
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BalanceSheet"
+        '401':
+          description: unauthorized
           content:
             application/json:
               schema:
@@ -4454,28 +4710,6 @@ paths:
                 "$ref": "#/components/schemas/ErrorResponse"
         '403':
           description: insufficient scope
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-  "/api/v1/balance_sheet":
-    get:
-      summary: Show balance sheet
-      tags:
-      - Balance Sheet
-      description: Returns the family balance sheet including net worth, total assets,
-        and total liabilities with amounts converted to the family's primary currency.
-      security:
-      - apiKeyAuth: []
-      responses:
-        '200':
-          description: balance sheet returned
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/BalanceSheet"
-        '401':
-          description: unauthorized
           content:
             application/json:
               schema:
@@ -8065,338 +8299,6 @@ paths:
             schema:
               "$ref": "#/components/schemas/TransactionSplitRequest"
         required: true
-  "/api/v1/transactions":
-    get:
-      summary: List transactions
-      tags:
-      - Transactions
-      security:
-      - apiKeyAuth: []
-      description: Returns global ledger history for accessible accounts, including
-        disabled accounts but excluding accounts pending deletion.
-      parameters:
-      - name: page
-        in: query
-        required: false
-        description: 'Page number (default: 1)'
-        schema:
-          type: integer
-      - name: per_page
-        in: query
-        required: false
-        description: 'Items per page (default: 25, max: 100)'
-        schema:
-          type: integer
-      - name: account_id
-        in: query
-        required: false
-        description: Filter by account ID
-        schema:
-          type: string
-      - name: category_id
-        in: query
-        required: false
-        description: Filter by category ID
-        schema:
-          type: string
-      - name: merchant_id
-        in: query
-        required: false
-        description: Filter by merchant ID
-        schema:
-          type: string
-      - name: start_date
-        in: query
-        required: false
-        description: Filter transactions from this date
-        schema:
-          type: string
-          format: date
-      - name: end_date
-        in: query
-        required: false
-        description: Filter transactions until this date
-        schema:
-          type: string
-          format: date
-      - name: min_amount
-        in: query
-        required: false
-        description: Filter by minimum amount
-        schema:
-          type: number
-      - name: max_amount
-        in: query
-        required: false
-        description: Filter by maximum amount
-        schema:
-          type: number
-      - name: type
-        in: query
-        required: false
-        description: Filter by transaction type
-        schema:
-          type: string
-          enum:
-          - income
-          - expense
-      - name: search
-        in: query
-        required: false
-        description: Search by name, notes, or merchant name
-        schema:
-          type: string
-      - name: account_ids
-        in: query
-        required: false
-        description: Filter by multiple account IDs
-        schema:
-          type: array
-          items:
-            type: string
-      - name: category_ids
-        in: query
-        required: false
-        description: Filter by multiple category IDs
-        schema:
-          type: array
-          items:
-            type: string
-      - name: merchant_ids
-        in: query
-        required: false
-        description: Filter by multiple merchant IDs
-        schema:
-          type: array
-          items:
-            type: string
-      - name: tag_ids
-        in: query
-        required: false
-        description: Filter by tag IDs
-        schema:
-          type: array
-          items:
-            type: string
-      responses:
-        '200':
-          description: transactions filtered by date range
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/TransactionCollection"
-    post:
-      summary: Create transaction
-      tags:
-      - Transactions
-      security:
-      - apiKeyAuth: []
-      parameters: []
-      responses:
-        '201':
-          description: transaction created
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/Transaction"
-        '200':
-          description: transaction already exists for external idempotency key
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/Transaction"
-        '422':
-          description: validation error - missing required fields
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                transaction:
-                  type: object
-                  properties:
-                    account_id:
-                      type: string
-                      format: uuid
-                      description: Account ID (required)
-                    date:
-                      type: string
-                      format: date
-                      description: Transaction date
-                    amount:
-                      type: number
-                      description: Transaction amount
-                    name:
-                      type: string
-                      description: Transaction name/description
-                    description:
-                      type: string
-                      description: Alternative to name field
-                    notes:
-                      type: string
-                      description: Additional notes
-                    currency:
-                      type: string
-                      description: Currency code (defaults to family currency)
-                    category_id:
-                      type: string
-                      format: uuid
-                      description: Category ID
-                    merchant_id:
-                      type: string
-                      format: uuid
-                      description: Merchant ID
-                    nature:
-                      type: string
-                      enum:
-                      - income
-                      - expense
-                      - inflow
-                      - outflow
-                      description: Transaction nature (determines sign)
-                    external_id:
-                      type: string
-                      description: Optional external idempotency key scoped to account
-                        and source
-                    source:
-                      type: string
-                      description: Optional source namespace for external_id. Requires
-                        external_id and defaults to api when external_id is provided
-                    user_modified:
-                      type: boolean
-                      description: Whether provider syncs should preserve user-supplied
-                        transaction changes
-                    tag_ids:
-                      type: array
-                      items:
-                        type: string
-                        format: uuid
-                      description: Array of tag IDs
-                  required:
-                  - account_id
-                  - date
-                  - amount
-                  - name
-              required:
-              - transaction
-        required: true
-  "/api/v1/transactions/{id}":
-    parameters:
-    - name: id
-      in: path
-      schema:
-        type: string
-        format: uuid
-      required: true
-      description: Transaction ID
-    get:
-      summary: Retrieve a transaction
-      tags:
-      - Transactions
-      security:
-      - apiKeyAuth: []
-      responses:
-        '200':
-          description: transaction retrieved
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/Transaction"
-        '404':
-          description: transaction not found
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-    patch:
-      summary: Update a transaction
-      tags:
-      - Transactions
-      security:
-      - apiKeyAuth: []
-      parameters: []
-      responses:
-        '200':
-          description: transaction updated
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/Transaction"
-        '404':
-          description: transaction not found
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                transaction:
-                  type: object
-                  properties:
-                    date:
-                      type: string
-                      format: date
-                    amount:
-                      type: number
-                    name:
-                      type: string
-                    description:
-                      type: string
-                      description: Alternative to name field
-                    notes:
-                      type: string
-                    currency:
-                      type: string
-                      description: Currency code
-                    category_id:
-                      type: string
-                      format: uuid
-                    merchant_id:
-                      type: string
-                      format: uuid
-                    nature:
-                      type: string
-                      enum:
-                      - income
-                      - expense
-                      - inflow
-                      - outflow
-                    tag_ids:
-                      type: array
-                      items:
-                        type: string
-                        format: uuid
-                      description: Array of tag IDs to assign. Omit to preserve existing
-                        tags; use [] to clear all tags.
-        required: true
-    delete:
-      summary: Delete a transaction
-      tags:
-      - Transactions
-      security:
-      - apiKeyAuth: []
-      responses:
-        '200':
-          description: transaction deleted
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/DeleteResponse"
-        '404':
-          description: transaction not found
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
   "/api/v1/transfers":
     get:
       summary: List transfers

@@ -276,7 +276,8 @@ RSpec.configure do |config|
               id: { type: :string, format: :uuid },
               name: { type: :string },
               account_type: { type: :string, nullable: true },
-              status: { type: :string }
+              status: { type: :string },
+              path: { type: :string, nullable: true, description: 'Web app URL for the account, present in transaction list responses.' }
             }
           },
           AccountDetail: {
@@ -915,18 +916,24 @@ RSpec.configure do |config|
           },
           Transaction: {
             type: :object,
-            required: %w[id date amount currency name classification account tags created_at updated_at],
+            required: %w[id entry_id date amount amount_cents signed_amount_cents currency name classification detail_path pending excluded account tags created_at updated_at],
             properties: {
               id: { type: :string, format: :uuid },
+              entry_id: { type: :string, format: :uuid },
               date: { type: :string, format: :date },
               amount: { type: :string },
+              amount_cents: { type: :integer, minimum: 0 },
+              signed_amount_cents: { type: :integer },
               currency: { type: :string },
               name: { type: :string },
               notes: { type: :string, nullable: true },
               external_id: { type: :string, nullable: true },
               source: { type: :string, nullable: true },
               user_modified: { type: :boolean },
+              detail_path: { type: :string, description: 'Web app URL for the transaction detail page, present in list responses.' },
               classification: { type: :string },
+              pending: { type: :boolean, description: 'Whether the transaction is still pending at a provider (present in list responses).' },
+              excluded: { type: :boolean, description: 'Whether the transaction is excluded from reports (present in list responses).' },
               account: { '$ref' => '#/components/schemas/Account' },
               category: { '$ref' => '#/components/schemas/Category', nullable: true },
               merchant: { '$ref' => '#/components/schemas/Merchant', nullable: true },
@@ -939,81 +946,7 @@ RSpec.configure do |config|
               updated_at: { type: :string, format: :'date-time' }
             }
           },
-          TransactionCollection: {
-            type: :object,
-            required: %w[transactions pagination],
-            properties: {
-              transactions: {
-                type: :array,
-                items: { '$ref' => '#/components/schemas/Transaction' }
-              },
-              pagination: { '$ref' => '#/components/schemas/Pagination' }
-            }
-          },
-          SpaTransactionAccount: {
-            type: :object,
-            required: %w[id name account_type path],
-            properties: {
-              id: { type: :string, format: :uuid },
-              name: { type: :string },
-              account_type: { type: :string },
-              path: { type: :string }
-            }
-          },
-          SpaTransactionCategory: {
-            type: :object,
-            required: %w[id name],
-            properties: {
-              id: { type: :string, format: :uuid },
-              name: { type: :string },
-              color: { type: :string, nullable: true },
-              icon: { type: :string, nullable: true }
-            }
-          },
-          SpaTransactionMerchant: {
-            type: :object,
-            required: %w[id name],
-            properties: {
-              id: { type: :string, format: :uuid },
-              name: { type: :string }
-            }
-          },
-          SpaTransactionTag: {
-            type: :object,
-            required: %w[id name],
-            properties: {
-              id: { type: :string, format: :uuid },
-              name: { type: :string },
-              color: { type: :string, nullable: true }
-            }
-          },
-          SpaTransaction: {
-            type: :object,
-            required: %w[id entry_id date amount amount_cents signed_amount_cents currency name classification pending excluded detail_path account tags],
-            properties: {
-              id: { type: :string, format: :uuid },
-              entry_id: { type: :string, format: :uuid },
-              date: { type: :string, format: :date },
-              amount: { type: :string },
-              amount_cents: { type: :integer, minimum: 0 },
-              signed_amount_cents: { type: :integer },
-              currency: { type: :string },
-              name: { type: :string },
-              notes: { type: :string, nullable: true },
-              classification: { type: :string },
-              pending: { type: :boolean },
-              excluded: { type: :boolean },
-              detail_path: { type: :string },
-              account: { '$ref' => '#/components/schemas/SpaTransactionAccount' },
-              category: { '$ref' => '#/components/schemas/SpaTransactionCategory', nullable: true },
-              merchant: { '$ref' => '#/components/schemas/SpaTransactionMerchant', nullable: true },
-              tags: {
-                type: :array,
-                items: { '$ref' => '#/components/schemas/SpaTransactionTag' }
-              }
-            }
-          },
-          SpaTransactionSummary: {
+          TransactionSummary: {
             type: :object,
             required: %w[count income expense transfer_inflow transfer_outflow currency],
             properties: {
@@ -1025,15 +958,15 @@ RSpec.configure do |config|
               currency: { type: :string }
             }
           },
-          SpaTransactionCollection: {
+          TransactionCollection: {
             type: :object,
-            required: %w[transactions summary pagination],
+            required: %w[transactions pagination summary],
             properties: {
               transactions: {
                 type: :array,
-                items: { '$ref' => '#/components/schemas/SpaTransaction' }
+                items: { '$ref' => '#/components/schemas/Transaction' }
               },
-              summary: { '$ref' => '#/components/schemas/SpaTransactionSummary' },
+              summary: { '$ref' => '#/components/schemas/TransactionSummary' },
               pagination: { '$ref' => '#/components/schemas/Pagination' }
             }
           },
@@ -1911,14 +1844,43 @@ RSpec.configure do |config|
               formatted: { type: :string, description: 'Locale-formatted money string' }
             }
           },
+          BalanceSheetPoint: {
+            type: :object,
+            required: %w[date value],
+            properties: {
+              date: { type: :string, format: :date },
+              value: { '$ref' => '#/components/schemas/Money' }
+            }
+          },
+          BalanceSheetAccount: {
+            type: :object,
+            required: %w[id name classification account_type balance currency],
+            properties: {
+              id: { type: :string, format: :uuid },
+              name: { type: :string },
+              classification: { type: :string, enum: %w[asset liability] },
+              account_type: { type: :string },
+              balance: { '$ref' => '#/components/schemas/Money' },
+              currency: { type: :string },
+              path: { type: :string, nullable: true }
+            }
+          },
           BalanceSheet: {
             type: :object,
-            required: %w[currency net_worth assets liabilities],
+            required: %w[currency net_worth assets liabilities net_worth_series accounts],
             properties: {
               currency: { type: :string, description: 'Family primary currency' },
               net_worth: { '$ref' => '#/components/schemas/Money' },
               assets: { '$ref' => '#/components/schemas/Money' },
-              liabilities: { '$ref' => '#/components/schemas/Money' }
+              liabilities: { '$ref' => '#/components/schemas/Money' },
+              net_worth_series: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/BalanceSheetPoint' }
+              },
+              accounts: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/BalanceSheetAccount' }
+              }
             }
           },
           SuccessMessage: {

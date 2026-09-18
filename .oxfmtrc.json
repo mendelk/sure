@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "tabWidth": 2,
+  "useTabs": false,
+  "singleQuote": false,
+  "semi": true,
+  "trailingComma": "all",
+  "ignorePatterns": ["app/javascript/spa/routeTree.gen.ts"]
+}

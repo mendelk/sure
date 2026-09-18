@@ -14,36 +14,46 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       .accessible_by(current_resource_owner)
       .where.not(status: "pending_deletion")
       .select(:id)
-    transactions_query = family.transactions
-      .joins(:entry).where(entries: { account_id: accessible_account_ids })
 
-    # Apply filters
-    transactions_query = apply_filters(transactions_query)
+    @search = Transaction::Search.new(
+      family,
+      filters: search_filters.merge(
+        # v1 contract: global ledger history includes disabled accounts; only
+        # pending-deletion accounts are excluded (filtered above).
+        active_accounts_only: false
+      ),
+      accessible_account_ids: accessible_account_ids
+    )
 
-    # Apply search
-    transactions_query = apply_search(transactions_query) if params[:search].present?
-
-    # Include necessary associations for efficient queries
-    transactions_query = transactions_query.includes(
-      { entry: :account },
-      :category, :merchant, :tags,
-      transfer_as_outflow: { inflow_transaction: { entry: :account } },
-      transfer_as_inflow: { outflow_transaction: { entry: :account } }
-    ).reverse_chronological
+    scope = @search.transactions_scope
+                   .reverse_chronological
+                   .includes(
+                     { entry: :account },
+                     :category, :merchant, :tags,
+                     transfer_as_outflow: { inflow_transaction: { entry: :account } },
+                     transfer_as_inflow: { outflow_transaction: { entry: :account } }
+                   )
 
     # Handle pagination with Pagy
     @pagy, @transactions = pagy(
-      transactions_query,
+      scope,
       page: safe_page_param,
       limit: safe_per_page_param
     )
 
     # Make per_page available to the template
     @per_page = safe_per_page_param
+    @totals = @search.totals
 
     # Rails will automatically use app/views/api/v1/transactions/index.json.jbuilder
     render :index
 
+  rescue Date::Error => e
+    render json: {
+      error: "validation_failed",
+      message: e.message,
+      errors: [ e.message ]
+    }, status: :unprocessable_entity
   rescue => e
     Rails.logger.error "TransactionsController#index error: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
@@ -225,87 +235,47 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       authorize_scope!(:write)
     end
 
-    def apply_filters(query)
-      # Account filtering
-      if params[:account_id].present?
-        query = query.where(entries: { account_id: params[:account_id] })
-      end
+    # Maps query params onto Transaction::Search filter attributes so the API
+    # uses the same filter semantics as the rest of the app (name- and ID-based
+    # filters, transfer-aware type filtering, pending/confirmed status).
+    def search_filters
+      filters = {}
+      filters[:search] = params[:search] if params[:search].present?
+      filters[:start_date] = validate_date!(:start_date) if params[:start_date].present?
+      filters[:end_date] = validate_date!(:end_date) if params[:end_date].present?
 
-      if params[:account_ids].present?
-        account_ids = Array(params[:account_ids])
-        query = query.where(entries: { account_id: account_ids })
-      end
+      filters[:account_ids] = array_param(:account_ids) | array_param(:account_id)
+      filters[:accounts] = array_param(:accounts)
 
-      # Category filtering
-      if params[:category_id].present?
-        query = query.where(category_id: params[:category_id])
-      end
+      # Transaction::Search filters categories/merchants/tags by name; resolve
+      # legacy ID-based params to names.
+      category_ids = array_param(:category_ids) | array_param(:category_id)
+      filters[:categories] = array_param(:categories) | names_for_ids(current_resource_owner.family.categories, category_ids)
+      merchant_ids = array_param(:merchant_ids) | array_param(:merchant_id)
+      filters[:merchants] = array_param(:merchants) | names_for_ids(current_resource_owner.family.merchants, merchant_ids)
+      tag_ids = array_param(:tag_ids)
+      filters[:tags] = array_param(:tags) | names_for_ids(current_resource_owner.family.tags, tag_ids)
 
-      if params[:category_ids].present?
-        category_ids = Array(params[:category_ids])
-        query = query.where(category_id: category_ids)
-      end
-
-      # Merchant filtering
-      if params[:merchant_id].present?
-        query = query.where(merchant_id: params[:merchant_id])
-      end
-
-      if params[:merchant_ids].present?
-        merchant_ids = Array(params[:merchant_ids])
-        query = query.where(merchant_id: merchant_ids)
-      end
-
-      # Date range filtering
-      if params[:start_date].present?
-        query = query.where("entries.date >= ?", Date.parse(params[:start_date]))
-      end
-
-      if params[:end_date].present?
-        query = query.where("entries.date <= ?", Date.parse(params[:end_date]))
-      end
-
-      # Amount filtering
-      if params[:min_amount].present?
-        min_amount = params[:min_amount].to_f
-        query = query.where("entries.amount >= ?", min_amount)
-      end
-
-      if params[:max_amount].present?
-        max_amount = params[:max_amount].to_f
-        query = query.where("entries.amount <= ?", max_amount)
-      end
-
-      # Tag filtering
-      if params[:tag_ids].present?
-        tag_ids = Array(params[:tag_ids])
-        query = query.where(
-          id: query.joins(:tags).where(tags: { id: tag_ids }).distinct.select(:id)
-        )
-      end
-
-      # Transaction type filtering (income/expense)
-      if params[:type].present?
-        case params[:type].downcase
-        when "income"
-          query = query.where("entries.amount < 0")
-        when "expense"
-          query = query.where("entries.amount > 0")
-        end
-      end
-
-      query
+      filters[:types] = array_param(:types) | array_param(:type)
+      filters[:status] = array_param(:status)
+      filters
     end
 
-    def apply_search(query)
-      search_term = "%#{params[:search]}%"
+    def names_for_ids(scope, ids)
+      return [] if ids.blank?
+      scope.where(id: ids).pluck(:name)
+    end
 
-      query
-        .left_joins(:merchant)
-        .where(
-          "entries.name ILIKE ? OR entries.notes ILIKE ? OR merchants.name ILIKE ?",
-          search_term, search_term, search_term
-        )
+    def validate_date!(key)
+      Date.iso8601(params[key])
+    rescue ArgumentError
+      raise InvalidFilterError, "#{key} must be an ISO 8601 date"
+    end
+
+    # Accepts repeated params (a=1&a=2), comma-separated values (a=1,2), and
+    # Rails' array notation (a[]=1), matching how the browser SPA sends filters.
+    def array_param(key)
+      Array(params[key]).flat_map { |value| value.to_s.split(",") }.compact_blank
     end
 
     def transaction_params
