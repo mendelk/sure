@@ -1,64 +1,57 @@
 {
-	"devDependencies": {
-		"@biomejs/biome": "^1.9.3",
-		"@tanstack/router-plugin": "^1.168.40",
-		"@types/react": "^19.3.0",
-		"@types/react-dom": "^19.3.0",
-		"@vitejs/plugin-react": "^6.1.1",
-		"eslint-plugin-react-you-might-not-need-an-effect": "^1.0.2",
-		"husky": "^9.1.7",
-		"lint-staged": "^17.5.1",
-		"orval": "^8.33.0",
-		"oxlint": "^1.83.0",
-		"oxlint-tsgolint": "^7.0.2001",
-		"typescript": "^7.0.2",
-		"vite": "^8.3.0"
-	},
-	"name": "sure",
-	"version": "1.0.0",
-	"description": "The personal finance app for everyone",
-	"type": "module",
-	"scripts": {
-		"prepare": "husky",
-		"style:check": "biome check",
-		"style:fix": "biome check --write",
-		"lint": "biome lint && oxlint --deny-warnings app/javascript/spa vite.config.ts orval.config.ts config/orval",
-		"lint:fix": "biome lint --write && oxlint --fix --deny-warnings app/javascript/spa vite.config.ts orval.config.ts config/orval",
-		"format:check": "biome format",
-		"format": "biome format --write",
-		"spa:build": "vite build",
-		"spa:generate": "orval --config orval.config.ts && biome format --write app/javascript/spa/api/generated.ts",
-		"spa:watch": "vite build --watch --mode development",
-		"spa:typecheck": "tsc --noEmit --project tsconfig.spa.json",
-		"spa:check": "npm run spa:generate && npm run spa:typecheck && npm run spa:build",
-		"tokens:build": "node bin/tokens.mjs",
-		"tokens:check": "node bin/tokens.mjs && git diff --quiet -- app/assets/tailwind/sure-design-system/_generated.css",
-		"prepare": "husky"
-	},
-	"author": "",
-	"license": "ISC",
-	"dependencies": {
-		"@tanstack/react-query": "^5.102.8",
-		"@tanstack/react-router": "^1.170.36",
-		"react": "^19.3.0",
-		"react-dom": "^19.3.0",
-		"zod": "^4.6.5"
-	},
-	"lint-staged": {
-		"app/javascript/**/*.{js,ts,tsx}": [
-			"biome check --no-errors-on-unmatched --files-ignore-unknown=true",
-			"oxlint --deny-warnings"
-		],
-		"vite.config.ts": [
-			"biome check --no-errors-on-unmatched",
-			"oxlint --deny-warnings"
-		],
-		"orval.config.ts": [
-			"biome check --no-errors-on-unmatched",
-			"oxlint --deny-warnings"
-		],
-		"config/orval/**/*": [
-			"oxlint --deny-warnings"
-		]
-	}
+  "devDependencies": {
+    "@ogs-gmbh/oxlint-presets": "^1.2.0",
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/typography": "^0.5.20",
+    "@tanstack/router-plugin": "^1.168.40",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint-plugin-better-tailwindcss": "^4.7.0",
+    "eslint-plugin-react-you-might-not-need-an-effect": "^1.0.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "orval": "^8.33.0",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
+  },
+  "name": "sure",
+  "version": "1.0.0",
+  "description": "The personal finance app for everyone",
+  "type": "module",
+  "scripts": {
+    "lint": "oxlint --deny-warnings app/javascript/spa",
+    "lint:fix": "oxlint --fix --deny-warnings app/javascript/spa",
+    "format:check": "oxfmt --check app/javascript/spa",
+    "format": "oxfmt app/javascript/spa",
+    "spa:build": "vite build",
+    "spa:generate": "orval --config orval.config.ts && oxfmt app/javascript/spa/api/generated.ts",
+    "spa:watch": "vite build --watch --mode development",
+    "spa:typecheck": "tsc --noEmit --project tsconfig.spa.json",
+    "spa:check": "npm run spa:generate && npm run spa:typecheck && npm run spa:build",
+    "tokens:build": "node bin/tokens.mjs",
+    "tokens:check": "node bin/tokens.mjs && git diff --quiet -- app/assets/tailwind/sure-design-system/_generated.css",
+    "prepare": "husky"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@headlessui/react": "^2.2.10",
+    "@tanstack/react-query": "^5.102.8",
+    "@tanstack/react-router": "^1.170.36",
+    "lucide-react": "^1.47.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "lint-staged": {
+    "app/javascript/spa/**/*.{js,ts,tsx}": [
+      "oxfmt --no-error-on-unmatched-pattern",
+      "oxlint --deny-warnings"
+    ]
+  }
 }

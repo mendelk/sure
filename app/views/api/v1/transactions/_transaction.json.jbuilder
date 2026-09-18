@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 json.id transaction.id
+json.entry_id transaction.entry.id
 json.date transaction.entry.date
 json.amount transaction.entry.amount_money.format
 
@@ -20,13 +21,17 @@ json.notes transaction.entry.notes
 json.external_id transaction.entry.external_id
 json.source transaction.entry.source
 json.user_modified transaction.entry.user_modified
+json.detail_path entry_path(transaction.entry)
 json.classification transaction.entry.classification
+json.pending transaction.pending?
+json.excluded transaction.entry.excluded?
 
 # Account information
 json.account do
   json.id transaction.entry.account.id
   json.name transaction.entry.account.name
   json.account_type transaction.entry.account.accountable_type.underscore
+  json.path account_path(transaction.entry.account, tab: "transactions")
 end
 
 # Category information

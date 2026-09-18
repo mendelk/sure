@@ -9,7 +9,7 @@ export default defineConfig({
       },
       filters: {
         mode: "include",
-        tags: ["SPA Transactions"],
+        tags: ["Transactions"],
       },
     },
     output: {

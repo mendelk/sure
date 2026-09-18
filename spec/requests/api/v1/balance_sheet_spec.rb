@@ -36,9 +36,10 @@ RSpec.describe 'API V1 Balance Sheet', type: :request do
   path '/api/v1/balance_sheet' do
     get 'Show balance sheet' do
       tags 'Balance Sheet'
-      description 'Returns the family balance sheet including net worth, total assets, and total liabilities ' \
+      description 'Returns the family balance sheet including net worth, total assets, total liabilities, ' \
+                  'the net worth time series, and a row per accessible account ' \
                   'with amounts converted to the family\'s primary currency.'
-      security [ { apiKeyAuth: [] } ]
+      security [ { apiKeyAuth: [] }, { cookieSession: [] } ]
       produces 'application/json'
 
       response '200', 'balance sheet returned' do

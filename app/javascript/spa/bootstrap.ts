@@ -4,17 +4,26 @@ const SpaBootstrapSchema = z.object({
   currentUser: z.object({
     id: z.string(),
     name: z.string(),
+    initials: z.string(),
+    email: z.string(),
   }),
-  embedded: z.boolean(),
+  embedded: z.optional(z.nullable(z.boolean())),
   apiPaths: z.object({
     transactions: z.string(),
+    summary: z.string(),
   }),
   railsPaths: z.object({
     home: z.string(),
+    logo: z.string(),
+    accounts: z.string(),
+    budgets: z.string(),
     imports: z.string(),
     newImport: z.string(),
     newTransaction: z.string(),
     reports: z.string(),
+    settings: z.string(),
+    changelog: z.string(),
+    signOut: z.string(),
     transactions: z.string(),
   }),
 });
@@ -23,15 +32,11 @@ export type SpaBootstrap = z.infer<typeof SpaBootstrapSchema>;
 
 export function readSpaBootstrap(): SpaBootstrap {
   const element = document.querySelector<HTMLScriptElement>("#spa-bootstrap");
+  const textContent: unknown = element?.textContent;
 
-  if (
-    element === null ||
-    element.textContent === null ||
-    element.textContent.length === 0
-  ) {
+  if (typeof textContent !== "string" || textContent.length === 0)
     throw new Error("SPA bootstrap data is missing");
-  }
 
-  const payload: unknown = JSON.parse(element.textContent);
+  const payload: unknown = JSON.parse(textContent);
   return SpaBootstrapSchema.parse(payload);
 }
