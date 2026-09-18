@@ -17,6 +17,8 @@
 set -euo pipefail
 
 source "$(dirname "$0")/common.sh"
+ensure_state
+
 
 worktree_path="${1:-${ORCA_WORKTREE_PATH:-$repo_root}}"
 if [[ -d "$worktree_path" ]]; then
@@ -27,14 +29,17 @@ worktree_hash="$(node -e 'process.stdout.write(require("node:crypto").createHash
 project_name="sure-${worktree_name}-${worktree_hash}"
 project_name="$(printf '%s' "$project_name" | tr '[:upper:].' '[:lower:]-' | tr -cd 'a-z0-9_-')"
 
-if ! docker info >/dev/null 2>&1; then
-  echo "Docker daemon is not running; nothing to clean for project $project_name" >&2
+if ! select_container_engine; then
+  echo "No usable Docker or Podman runtime; nothing to clean for project $project_name" >&2
   exit 0
 fi
 
 export ORCA_IMAGE="unused-during-cleanup"
 export ORCA_SSH_PUBLIC_KEY="unused-during-cleanup"
 export ORCA_WORKTREE_PATH="$worktree_path"
+export ORCA_PUBLISH_HOST="$(resolve_publish_host)"
 
-docker compose --project-name "$project_name" --file "$compose_file" down --volumes >&2 || true
-echo "Cleaned Docker project $project_name (shared Postgres left intact)" >&2
+
+
+compose --project-name "$project_name" --file "$compose_file" down --volumes >&2 || true
+echo "Cleaned $container_engine Compose project $project_name (shared Postgres left intact)" >&2

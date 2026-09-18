@@ -6,7 +6,7 @@ RUN apt-get update -qq \
   && rm -rf /var/lib/apt/lists /var/cache/apt/archives \
   && mkdir -p /run/sshd /root/.ssh \
   && chmod 700 /root/.ssh \
-  && ssh-keygen -A \
+  && rm -f /etc/ssh/ssh_host_* \
   && printf '%s\n' \
     'PermitRootLogin prohibit-password' \
     'PasswordAuthentication no' \
