@@ -1,10 +1,16 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { z } from "zod/mini";
-import { GetApiV1Transactions200Response, GetApiV1TransactionsQueryParams } from "./generated";
+import {
+  GetApiV1Transactions200Response,
+  GetApiV1TransactionsId200Response,
+  GetApiV1TransactionsIdParams,
+  GetApiV1TransactionsQueryParams,
+} from "./generated";
 
 export type TransactionCollection = z.infer<typeof GetApiV1Transactions200Response>;
 export type TransactionQuery = z.input<typeof GetApiV1TransactionsQueryParams>;
 export type SpaTransaction = TransactionCollection["transactions"][number];
+export type SpaTransactionDetail = z.infer<typeof GetApiV1TransactionsId200Response>;
 
 export class TransactionApiError extends Error {
   constructor(
@@ -51,6 +57,40 @@ async function requestTransactions(
     throw new TransactionApiError("Your session has expired", response.status);
   if (response.status === 422)
     throw new TransactionApiError("Transaction filters are invalid", response.status);
+
+  throw new TransactionApiError(
+    `Transaction request failed with status ${response.status}`,
+    response.status,
+  );
+}
+
+export function transactionDetailQueryOptions(basePath: string, id: string) {
+  return queryOptions({
+    queryKey: ["spa", "transaction", basePath, id] as const,
+    queryFn: ({ signal }) => requestTransactionDetail(basePath, id, signal),
+    retry: (failureCount, error) =>
+      !(error instanceof TransactionApiError && error.status < 500) && failureCount < 2,
+  });
+}
+
+async function requestTransactionDetail(
+  basePath: string,
+  id: string,
+  signal?: AbortSignal,
+): Promise<SpaTransactionDetail> {
+  const { id: transactionId } = GetApiV1TransactionsIdParams.parse({ id });
+  const response = await fetch(`${basePath}/${transactionId}`, {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  const payload: unknown = await response.json();
+
+  if (response.status === 200) return GetApiV1TransactionsId200Response.parse(payload);
+  if (response.status === 401)
+    throw new TransactionApiError("Your session has expired", response.status);
+  if (response.status === 404)
+    throw new TransactionApiError("Transaction not found", response.status);
 
   throw new TransactionApiError(
     `Transaction request failed with status ${response.status}`,

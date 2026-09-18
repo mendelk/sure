@@ -5,7 +5,7 @@ export default defineConfig({
     input: {
       target: "./docs/api/openapi.yaml",
       override: {
-        transformer: "./config/orval/spa_openapi_transformer.ts",
+        transformer: "./config/orval/spa-openapi-transformer.ts",
       },
       filters: {
         mode: "include",
@@ -19,6 +19,7 @@ export default defineConfig({
       override: {
         zod: {
           generateEachHttpStatus: true,
+          useBrandedTypes: true,
           strict: {
             response: true,
           },

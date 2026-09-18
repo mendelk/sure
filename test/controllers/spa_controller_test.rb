@@ -28,6 +28,17 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
     assert_select "script[type='module'][src*='spa']"
   end
 
+  test "serves transaction detail through the React SPA shell" do
+    transaction = @user.family.transactions.first
+
+    get spa_transaction_path(transaction)
+
+    assert_response :success
+    assert_select "#spa-root"
+    assert_select "script#spa-bootstrap[type='application/json']"
+    assert_select "script[type='module'][src*='spa']"
+  end
+
   test "requires a Rails session" do
     Current.session.destroy!
 

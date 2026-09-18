@@ -512,9 +512,10 @@ Rails.application.routes.draw do
   end
 
   get "transactions", to: "spa#show", as: :transactions
+  get "transactions/:id", to: "spa#show", as: :spa_transaction, constraints: { id: /[0-9a-f-]{36}/i }
   post "transactions", to: "transactions#create"
 
-  resources :transactions, only: %i[new show update destroy] do
+  resources :transactions, only: %i[new update destroy] do
     resource :split, only: %i[new create edit update destroy]
     resource :transfer_match, only: %i[new create]
     resource :pending_duplicate_merges, only: %i[new create]

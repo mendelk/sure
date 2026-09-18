@@ -96,7 +96,7 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_enqueued_with(job: SyncJob)
   end
 
-  test "show links a transfer leg to its matching transaction" do
+  test "v1 show links a transfer leg to its matching transaction" do
     transfer = create_transfer(
       from_account: accounts(:depository),
       to_account: accounts(:credit_card),
@@ -104,14 +104,21 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     )
     # create_transfer queries transaction entries during build, leaving a
     # stale nil cached on the in-memory objects — reload before use.
-    outflow_entry = transfer.outflow_transaction.reload.entry
+    outflow_transaction = transfer.outflow_transaction.reload
     inflow_entry = transfer.inflow_transaction.reload.entry
 
-    get transaction_url(outflow_entry)
+    api_key = ApiKey.create!(
+      user: @user,
+      name: "Transfer Show Key",
+      scopes: [ "read" ],
+      display_key: "test_transfer_show_#{SecureRandom.hex(8)}"
+    )
+
+    get api_v1_transaction_url(outflow_transaction), headers: { "X-Api-Key" => api_key.plain_key }
     assert_response :success
 
-    assert_select "a[href=?][data-turbo-frame=?][data-turbo-action=?]",
-      entry_path(inflow_entry), "drawer", "advance"
+    response_data = JSON.parse(response.body)
+    assert_equal inflow_entry.account_id, response_data.dig("transfer", "other_account", "id")
   end
 
   test "re-renders show with mark-recurring state when update fails validation" do

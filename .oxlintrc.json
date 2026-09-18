@@ -34,18 +34,34 @@
     }
   },
   "options": {
+    "denyWarnings": true,
     "typeAware": true,
     "typeCheck": true,
     "maxWarnings": 0
   },
   "ignorePatterns": [
     "app/assets/builds/**",
+    "app/components/**/*.js",
+    "app/javascript/application.js",
+    "app/javascript/controllers/**",
+    "app/javascript/services/**",
+    "app/javascript/shims/**",
     "app/javascript/spa/api/generated.ts",
     "app/javascript/spa/routeTree.gen.ts",
+    "app/javascript/utils/**",
+    "app/views/**/*.js",
+    "bin/**",
+    "config/orval/spa-openapi-transformer.ts",
+    "desktop/**",
+    "mobile/**",
     "node_modules/**",
+    "obs/**",
+    "orval.config.ts",
     "public/assets/**",
+    "test/javascript/**",
     "tmp/**",
-    "vendor/**"
+    "vendor/**",
+    "vite.config.ts"
   ],
   "extends": [
     "./node_modules/@ogs-gmbh/oxlint-presets/eslint-recommended.json",
