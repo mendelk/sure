@@ -173,7 +173,6 @@ class Demo::GeneratorTest < ActiveSupport::TestCase
     assert_operator projections["Student Loan"].months_saved, :>, 0,
       "the extra payment must bring the student loan's payoff forward"
   end
-
   private
     # Exercise the actual account/transaction orchestration without generating
     # years of unrelated spending, securities, budgets and goals in each test.
