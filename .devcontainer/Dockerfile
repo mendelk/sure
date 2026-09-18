@@ -1,5 +1,5 @@
 ARG RUBY_VERSION=3.4.9
-FROM ruby:${RUBY_VERSION}-slim-bookworm
+FROM docker.io/library/ruby:${RUBY_VERSION}-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 

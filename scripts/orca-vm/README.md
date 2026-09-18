@@ -1,16 +1,20 @@
-# Orca Docker environment
+# Orca container environment
 
-This recipe creates one Docker Compose project per local Git worktree. Each app bind-mounts its worktree
-at `/workspace`, so local code changes are reflected immediately. Worktrees have isolated app, Redis,
-Selenium, and bundle services while sharing one persistent Postgres database and its data.
+This recipe creates one Compose project per Git worktree using Docker or rootless Podman. Each app
+bind-mounts its worktree at `/workspace`, so Ruby, ERB, JavaScript, and CSS changes are reflected
+without rebuilding the image. Worktrees have isolated app, Redis, Selenium, and bundle services
+while sharing one persistent Postgres database and its data.
 
-The app container runs `bin/setup` and starts `bin/dev` automatically. Workspace creation waits for
-Rails to respond before reporting success. Destroying a workspace removes its isolated services and
-volumes but leaves the shared Postgres service and `sure-orca-shared-postgres` volume intact.
+The app container runs `bin/setup` and starts `bin/dev` automatically, including Rails development
+reloading and the Tailwind watcher. Workspace creation waits for Rails to respond before reporting
+success. The create hook reports the browser address as `railsUrl`. Ports bind to `127.0.0.1` for
+local execution; over SSH they bind to the SSH server address. Override that interface with
+`ORCA_PUBLISH_HOST`. Destroying a workspace removes its isolated services and volumes but leaves the
+shared Postgres service and `sure-orca-shared-postgres` volume intact.
 
 ## First-time setup
 
-1. Start Docker or OrbStack.
+1. Start Docker/OrbStack, or install rootless Podman with Podman Compose.
 2. Build the reusable base image:
 
    ```sh
@@ -26,7 +30,7 @@ volumes but leaves the shared Postgres service and `sure-orca-shared-postgres` v
 The generated state and SSH key under this directory are gitignored. Re-run the build when the
 devcontainer dependencies change.
 
-Run the create hook from a worktree to start or refresh that worktree's deterministic Docker project:
+Run the create hook from a worktree to start or refresh that worktree's deterministic Compose project:
 
 ```sh
 ./scripts/orca-vm/docker-create.sh

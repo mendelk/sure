@@ -5,6 +5,8 @@ if [[ -z "${ORCA_SSH_PUBLIC_KEY:-}" ]]; then
   echo "ORCA_SSH_PUBLIC_KEY is required" >&2
   exit 1
 fi
+ssh-keygen -A
+
 
 install -d -m 700 /root/.ssh
 printf '%s\n' "$ORCA_SSH_PUBLIC_KEY" > /root/.ssh/authorized_keys
