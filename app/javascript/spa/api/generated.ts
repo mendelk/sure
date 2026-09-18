@@ -8,60 +8,84 @@
 import * as zod from "zod/mini";
 
 /**
- * @summary List transactions for the browser SPA
+ * Returns global ledger history for accessible accounts, including disabled accounts but excluding accounts pending deletion.
+ * @summary List transactions
  */
-
-export const getApiSpaTransactionsQueryPerPageMax = 100;
-
-export const GetApiSpaTransactionsQueryParams = /*#__PURE__*/ zod.object({
-  page: /*#__PURE__*/ zod.optional(
-    /*#__PURE__*/ zod
-      .int()
-      .check(/*#__PURE__*/ zod.gte(1)),
-  ),
-  per_page: /*#__PURE__*/ zod.optional(
-    /*#__PURE__*/ zod
-      .int()
-      .check(/*#__PURE__*/ zod.gte(1))
-      .check(/*#__PURE__*/ zod.lte(getApiSpaTransactionsQueryPerPageMax)),
-  ),
-  search: /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
-  start_date: /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.iso.date()),
-  end_date: /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.iso.date()),
-  types: /*#__PURE__*/ zod.optional(
-    /*#__PURE__*/ zod.array(
-      /*#__PURE__*/ zod.enum(["income", "expense", "transfer"]),
-    ),
-  ),
-  status: /*#__PURE__*/ zod.optional(
-    /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.enum(["pending", "confirmed"])),
-  ),
-  accounts: /*#__PURE__*/ zod.optional(
-    /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),
-  ),
-  account_ids: /*#__PURE__*/ zod.optional(
-    /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.uuid()),
-  ),
-  categories: /*#__PURE__*/ zod.optional(
-    /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),
-  ),
-  merchants: /*#__PURE__*/ zod.optional(
-    /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),
-  ),
-  tags: /*#__PURE__*/ zod.optional(
-    /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),
-  ),
+export const GetApiV1TransactionsQueryParams = /*#__PURE__*/ zod.object({
+  page: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.int())
+    .check(/*#__PURE__*/ zod.describe("Page number (default: 1)")),
+  per_page: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.int())
+    .check(/*#__PURE__*/ zod.describe("Items per page (default: 25, max: 100)")),
+  account_id: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.string())
+    .check(/*#__PURE__*/ zod.describe("Filter by account ID")),
+  category_id: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.string())
+    .check(/*#__PURE__*/ zod.describe("Filter by category ID")),
+  merchant_id: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.string())
+    .check(/*#__PURE__*/ zod.describe("Filter by merchant ID")),
+  start_date: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.iso.date())
+    .check(/*#__PURE__*/ zod.describe("Filter transactions from this date")),
+  end_date: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.iso.date())
+    .check(/*#__PURE__*/ zod.describe("Filter transactions until this date")),
+  min_amount: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.number())
+    .check(/*#__PURE__*/ zod.describe("Filter by minimum amount")),
+  max_amount: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.number())
+    .check(/*#__PURE__*/ zod.describe("Filter by maximum amount")),
+  type: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.enum(["income", "expense"]))
+    .check(/*#__PURE__*/ zod.describe("Filter by transaction type")),
+  search: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.string())
+    .check(/*#__PURE__*/ zod.describe("Search by name, notes, or merchant name")),
+  account_ids: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()))
+    .check(/*#__PURE__*/ zod.describe("Filter by multiple account IDs")),
+  category_ids: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()))
+    .check(/*#__PURE__*/ zod.describe("Filter by multiple category IDs")),
+  merchant_ids: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()))
+    .check(/*#__PURE__*/ zod.describe("Filter by multiple merchant IDs")),
+  tag_ids: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()))
+    .check(/*#__PURE__*/ zod.describe("Filter by tag IDs")),
+  types: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.enum(["income", "expense", "transfer"])))
+    .check(/*#__PURE__*/ zod.describe("Filter by transaction types")),
+  status: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.enum(["pending", "confirmed"])))
+    .check(/*#__PURE__*/ zod.describe("Filter by transaction status")),
+  accounts: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()))
+    .check(/*#__PURE__*/ zod.describe("Filter by multiple account names")),
+  categories: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()))
+    .check(/*#__PURE__*/ zod.describe("Filter by multiple category names")),
+  merchants: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()))
+    .check(/*#__PURE__*/ zod.describe("Filter by multiple merchant names")),
+  tags: /*#__PURE__*/ zod
+    .optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()))
+    .check(/*#__PURE__*/ zod.describe("Filter by multiple tag names")),
 });
 
-export const getApiSpaTransactions200ResponseTransactionsItemAmountCentsMin = 0;
+export const getApiV1Transactions200ResponseTransactionsItemAmountCentsMin = 0;
 
-export const getApiSpaTransactions200ResponseSummaryCountMin = 0;
+export const getApiV1Transactions200ResponseSummaryCountMin = 0;
 
-export const getApiSpaTransactions200ResponsePaginationTotalCountMin = 0;
+export const getApiV1Transactions200ResponsePaginationTotalCountMin = 0;
 
-export const getApiSpaTransactions200ResponsePaginationTotalPagesMin = 0;
+export const getApiV1Transactions200ResponsePaginationTotalPagesMin = 0;
 
-export const GetApiSpaTransactions200Response = /*#__PURE__*/ zod.strictObject({
+export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   transactions: /*#__PURE__*/ zod.array(
     /*#__PURE__*/ zod.strictObject({
       id: /*#__PURE__*/ zod.uuid(),
@@ -71,31 +95,57 @@ export const GetApiSpaTransactions200Response = /*#__PURE__*/ zod.strictObject({
       amount_cents: /*#__PURE__*/ zod
         .int()
         .check(
-          /*#__PURE__*/ zod.gte(
-            getApiSpaTransactions200ResponseTransactionsItemAmountCentsMin,
-          ),
+          /*#__PURE__*/ zod.gte(getApiV1Transactions200ResponseTransactionsItemAmountCentsMin),
         ),
       signed_amount_cents: /*#__PURE__*/ zod.int(),
       currency: /*#__PURE__*/ zod.string(),
       name: /*#__PURE__*/ zod.string(),
       notes: /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+      external_id: /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+      source: /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+      user_modified: /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+      detail_path: /*#__PURE__*/ zod
+        .string()
+        .check(
+          /*#__PURE__*/ zod.describe(
+            "Web app URL for the transaction detail page, present in list responses.",
+          ),
+        ),
       classification: /*#__PURE__*/ zod.string(),
-      pending: /*#__PURE__*/ zod.boolean(),
-      excluded: /*#__PURE__*/ zod.boolean(),
-      detail_path: /*#__PURE__*/ zod.string(),
+      pending: /*#__PURE__*/ zod
+        .boolean()
+        .check(
+          /*#__PURE__*/ zod.describe(
+            "Whether the transaction is still pending at a provider (present in list responses).",
+          ),
+        ),
+      excluded: /*#__PURE__*/ zod
+        .boolean()
+        .check(
+          /*#__PURE__*/ zod.describe(
+            "Whether the transaction is excluded from reports (present in list responses).",
+          ),
+        ),
       account: /*#__PURE__*/ zod.strictObject({
         id: /*#__PURE__*/ zod.uuid(),
         name: /*#__PURE__*/ zod.string(),
-        account_type: /*#__PURE__*/ zod.string(),
-        path: /*#__PURE__*/ zod.string(),
+        account_type: /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+        status: /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+        path: /*#__PURE__*/ zod
+          .nullish(/*#__PURE__*/ zod.string())
+          .check(
+            /*#__PURE__*/ zod.describe(
+              "Web app URL for the account, present in transaction list responses.",
+            ),
+          ),
       }),
       category: /*#__PURE__*/ zod.optional(
         /*#__PURE__*/ zod.union([
           /*#__PURE__*/ zod.strictObject({
             id: /*#__PURE__*/ zod.uuid(),
             name: /*#__PURE__*/ zod.string(),
-            color: /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
-            icon: /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+            color: /*#__PURE__*/ zod.string(),
+            icon: /*#__PURE__*/ zod.string(),
           }),
           /*#__PURE__*/ zod.null(),
         ]),
@@ -105,6 +155,8 @@ export const GetApiSpaTransactions200Response = /*#__PURE__*/ zod.strictObject({
           /*#__PURE__*/ zod.strictObject({
             id: /*#__PURE__*/ zod.uuid(),
             name: /*#__PURE__*/ zod.string(),
+            website_url: /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
+            logo_url: /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
           }),
           /*#__PURE__*/ zod.null(),
         ]),
@@ -113,17 +165,45 @@ export const GetApiSpaTransactions200Response = /*#__PURE__*/ zod.strictObject({
         /*#__PURE__*/ zod.strictObject({
           id: /*#__PURE__*/ zod.uuid(),
           name: /*#__PURE__*/ zod.string(),
-          color: /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+          color: /*#__PURE__*/ zod.string(),
         }),
       ),
+      transfer: /*#__PURE__*/ zod.optional(
+        /*#__PURE__*/ zod.union([
+          /*#__PURE__*/ zod.strictObject({
+            id: /*#__PURE__*/ zod.uuid(),
+            amount: /*#__PURE__*/ zod.string(),
+            currency: /*#__PURE__*/ zod.string(),
+            other_account: /*#__PURE__*/ zod.optional(
+              /*#__PURE__*/ zod.union([
+                /*#__PURE__*/ zod.strictObject({
+                  id: /*#__PURE__*/ zod.uuid(),
+                  name: /*#__PURE__*/ zod.string(),
+                  account_type: /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+                  status: /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+                  path: /*#__PURE__*/ zod
+                    .nullish(/*#__PURE__*/ zod.string())
+                    .check(
+                      /*#__PURE__*/ zod.describe(
+                        "Web app URL for the account, present in transaction list responses.",
+                      ),
+                    ),
+                }),
+                /*#__PURE__*/ zod.null(),
+              ]),
+            ),
+          }),
+          /*#__PURE__*/ zod.null(),
+        ]),
+      ),
+      created_at: /*#__PURE__*/ zod.iso.datetime({ offset: true }),
+      updated_at: /*#__PURE__*/ zod.iso.datetime({ offset: true }),
     }),
   ),
   summary: /*#__PURE__*/ zod.strictObject({
     count: /*#__PURE__*/ zod
       .int()
-      .check(
-        /*#__PURE__*/ zod.gte(getApiSpaTransactions200ResponseSummaryCountMin),
-      ),
+      .check(/*#__PURE__*/ zod.gte(getApiV1Transactions200ResponseSummaryCountMin)),
     income: /*#__PURE__*/ zod.string(),
     expense: /*#__PURE__*/ zod.string(),
     transfer_inflow: /*#__PURE__*/ zod.string(),
@@ -131,30 +211,18 @@ export const GetApiSpaTransactions200Response = /*#__PURE__*/ zod.strictObject({
     currency: /*#__PURE__*/ zod.string(),
   }),
   pagination: /*#__PURE__*/ zod.strictObject({
-    page: /*#__PURE__*/ zod
-      .int()
-      .check(/*#__PURE__*/ zod.gte(1)),
-    per_page: /*#__PURE__*/ zod
-      .int()
-      .check(/*#__PURE__*/ zod.gte(1)),
+    page: /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(1)),
+    per_page: /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(1)),
     total_count: /*#__PURE__*/ zod
       .int()
-      .check(
-        /*#__PURE__*/ zod.gte(
-          getApiSpaTransactions200ResponsePaginationTotalCountMin,
-        ),
-      ),
+      .check(/*#__PURE__*/ zod.gte(getApiV1Transactions200ResponsePaginationTotalCountMin)),
     total_pages: /*#__PURE__*/ zod
       .int()
-      .check(
-        /*#__PURE__*/ zod.gte(
-          getApiSpaTransactions200ResponsePaginationTotalPagesMin,
-        ),
-      ),
+      .check(/*#__PURE__*/ zod.gte(getApiV1Transactions200ResponsePaginationTotalPagesMin)),
   }),
 });
 
-export const GetApiSpaTransactions401Response = /*#__PURE__*/ zod.strictObject({
+export const GetApiV1Transactions401Response = /*#__PURE__*/ zod.strictObject({
   error: /*#__PURE__*/ zod.string(),
   message: /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   details: /*#__PURE__*/ zod.nullish(
@@ -172,7 +240,7 @@ export const GetApiSpaTransactions401Response = /*#__PURE__*/ zod.strictObject({
     ),
 });
 
-export const GetApiSpaTransactions422Response = /*#__PURE__*/ zod.strictObject({
+export const GetApiV1Transactions422Response = /*#__PURE__*/ zod.strictObject({
   error: /*#__PURE__*/ zod.string(),
   message: /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   details: /*#__PURE__*/ zod.nullish(

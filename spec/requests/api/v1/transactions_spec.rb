@@ -88,7 +88,7 @@ RSpec.describe 'API V1 Transactions', type: :request do
   path '/api/v1/transactions' do
     get 'List transactions' do
       tags 'Transactions'
-      security [ { apiKeyAuth: [] } ]
+      security [ { apiKeyAuth: [] }, { cookieSession: [] } ]
       description 'Returns global ledger history for accessible accounts, including disabled accounts but excluding accounts pending deletion.'
       produces 'application/json'
       parameter name: :page, in: :query, type: :integer, required: false,
@@ -128,6 +128,30 @@ RSpec.describe 'API V1 Transactions', type: :request do
       parameter name: :tag_ids, in: :query, required: false,
                 description: 'Filter by tag IDs',
                 schema: { type: :array, items: { type: :string } }
+      parameter name: :types, in: :query, required: false,
+                description: 'Filter by transaction types',
+                schema: { type: :array, items: { type: :string, enum: %w[income expense transfer] } },
+                style: :form, explode: false
+      parameter name: :status, in: :query, required: false,
+                description: 'Filter by transaction status',
+                schema: { type: :array, items: { type: :string, enum: %w[pending confirmed] } },
+                style: :form, explode: false
+      parameter name: :accounts, in: :query, required: false,
+                description: 'Filter by multiple account names',
+                schema: { type: :array, items: { type: :string } },
+                style: :form, explode: false
+      parameter name: :categories, in: :query, required: false,
+                description: 'Filter by multiple category names',
+                schema: { type: :array, items: { type: :string } },
+                style: :form, explode: false
+      parameter name: :merchants, in: :query, required: false,
+                description: 'Filter by multiple merchant names',
+                schema: { type: :array, items: { type: :string } },
+                style: :form, explode: false
+      parameter name: :tags, in: :query, required: false,
+                description: 'Filter by multiple tag names',
+                schema: { type: :array, items: { type: :string } },
+                style: :form, explode: false
 
       response '200', 'transactions listed' do
         schema '$ref' => '#/components/schemas/TransactionCollection'
@@ -148,6 +172,20 @@ RSpec.describe 'API V1 Transactions', type: :request do
 
         let(:start_date) { (Date.current - 7.days).to_s }
         let(:end_date) { Date.current.to_s }
+
+        run_test!
+      end
+      response '422', 'invalid date filter' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:start_date) { 'not-a-date' }
+
+        run_test!
+      end
+      response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { 'invalid-key' }
 
         run_test!
       end

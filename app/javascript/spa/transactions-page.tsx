@@ -1,24 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  useNavigate,
-  useRouteContext,
-  useSearch,
-} from "@tanstack/react-router";
+import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useMemo } from "react";
 import {
   TransactionApiError,
   transactionsQueryOptions,
-} from "./api/transactions";
-import type {
-  SpaTransaction,
-  TransactionCollection,
-  TransactionQuery,
+  type SpaTransaction,
+  type TransactionCollection,
+  type TransactionQuery,
 } from "./api/transactions";
 
 type TransactionType = "income" | "expense" | "transfer";
 
 export type TransactionRouteSearch = {
-  page: number;
+  page?: number;
   search?: string;
   start_date?: string;
   end_date?: string;
@@ -31,17 +25,9 @@ export type TransactionRouteSearch = {
   tags?: string[];
 };
 
-const ARRAY_FILTERS = [
-  "accounts",
-  "account_ids",
-  "categories",
-  "merchants",
-  "tags",
-] as const;
+const ARRAY_FILTERS = ["accounts", "account_ids", "categories", "merchants", "tags"] as const;
 
-export function validateTransactionSearch(
-  input: Record<string, unknown>,
-): TransactionRouteSearch {
+export function validateTransactionSearch(input: Record<string, unknown>): TransactionRouteSearch {
   const pageValue = Number(input.page);
   const result: TransactionRouteSearch = {
     page: Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1,
@@ -54,8 +40,7 @@ export function validateTransactionSearch(
       value === "income" || value === "expense" || value === "transfer",
   );
   const status = arrayValue(input.status ?? input["q[status][]"]).filter(
-    (value): value is "pending" | "confirmed" =>
-      value === "pending" || value === "confirmed",
+    (value): value is "pending" | "confirmed" => value === "pending" || value === "confirmed",
   );
 
   if (search !== undefined) result.search = search;
@@ -96,11 +81,9 @@ export function TransactionsPage() {
     [data?.transactions],
   );
   const activeFilterCount = countActiveFilters(routeSearch);
-  const activeType =
-    routeSearch.types?.length === 1 ? routeSearch.types[0] : undefined;
+  const activeType = routeSearch.types?.length === 1 ? routeSearch.types[0] : undefined;
   const csrfToken =
-    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
-      ?.content ?? "";
+    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? "";
 
   function updateSearch(changes: Partial<TransactionRouteSearch>) {
     void navigate({
@@ -119,13 +102,8 @@ export function TransactionsPage() {
     >
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-secondary">
-            Ledger
-          </p>
-          <h1
-            className="mt-1 text-xl font-medium text-primary"
-            id="transactions-title"
-          >
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-secondary">Ledger</p>
+          <h1 className="mt-1 text-xl font-medium text-primary" id="transactions-title">
             Transactions
           </h1>
         </div>
@@ -178,9 +156,7 @@ export function TransactionsPage() {
         >
           <div className="mx-4 w-full max-w-sm rounded-xl bg-container p-6 text-center shadow-border-xs">
             <p className="font-medium text-primary">Drop your CSV here</p>
-            <p className="mt-1 text-sm text-secondary">
-              Release to start importing transactions.
-            </p>
+            <p className="mt-1 text-sm text-secondary">Release to start importing transactions.</p>
           </div>
         </div>
         <div className="space-y-4 border-b border-tertiary p-4">
@@ -266,8 +242,7 @@ export function TransactionsPage() {
                 ] as const
               ).map(([value, label]) => {
                 const active =
-                  activeType === value ||
-                  (activeType === undefined && value === undefined);
+                  activeType === value || (activeType === undefined && value === undefined);
 
                 return (
                   <button
@@ -301,25 +276,16 @@ export function TransactionsPage() {
                 }
                 type="button"
               >
-                Clear {activeFilterCount}{" "}
-                {activeFilterCount === 1 ? "filter" : "filters"}
+                Clear {activeFilterCount} {activeFilterCount === 1 ? "filter" : "filters"}
               </button>
             ) : null}
           </div>
         </div>
 
-        <div
-          className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-contain"
-          id="transactions-scroll"
-        >
+        <div id="transactions-scroll">
           {error !== undefined ? (
-            <div
-              className="m-4 rounded-xl border border-destructive bg-container p-5"
-              role="alert"
-            >
-              <p className="font-medium text-primary">
-                Transactions unavailable
-              </p>
+            <div className="m-4 rounded-xl border border-destructive bg-container p-5" role="alert">
+              <p className="font-medium text-primary">Transactions unavailable</p>
               <p className="mt-1 text-sm text-secondary">{error}</p>
               <button
                 className="mt-4 text-sm font-medium text-link hover:underline"
@@ -333,9 +299,7 @@ export function TransactionsPage() {
             <TransactionSkeleton />
           ) : data.transactions.length === 0 ? (
             <div className="px-6 py-16 text-center">
-              <p className="font-medium text-primary">
-                No matching transactions
-              </p>
+              <p className="font-medium text-primary">No matching transactions</p>
               <p className="mt-1 text-sm text-secondary">
                 Change filters or create a new transaction.
               </p>
@@ -354,10 +318,7 @@ export function TransactionsPage() {
                   </div>
                   <ul className="divide-y divide-tertiary">
                     {transactions.map((transaction) => (
-                      <TransactionRow
-                        key={transaction.id}
-                        transaction={transaction}
-                      />
+                      <TransactionRow key={transaction.id} transaction={transaction} />
                     ))}
                   </ul>
                 </div>
@@ -453,11 +414,9 @@ function TransactionRow({ transaction }: { transaction: SpaTransaction }) {
       <div className="hidden min-w-0 items-center gap-2 sm:flex">
         <span
           aria-hidden="true"
-          className="size-2 shrink-0 rounded-full bg-secondary"
+          className="size-2 shrink-0 rounded-full bg-container-inset"
           style={
-            transaction.category?.color !== null &&
-            transaction.category?.color !== undefined &&
-            transaction.category.color.length > 0
+            typeof transaction.category?.color === "string" && transaction.category.color.length > 0
               ? { backgroundColor: transaction.category.color }
               : undefined
           }
@@ -521,27 +480,22 @@ function Pagination({
 
 function TransactionSkeleton() {
   return (
-    <output
-      aria-label="Loading transactions"
-      className="block divide-y divide-tertiary"
-    >
+    <output aria-label="Loading transactions" className="block divide-y divide-tertiary">
       {[0, 1, 2, 3, 4].map((row) => (
         <div className="flex items-center gap-3 px-4 py-3" key={row}>
           <div className="size-10 animate-pulse rounded-full bg-container-inset" />
           <div className="grow space-y-2">
-            <div className="h-3 w-1/3 animate-pulse rounded bg-container-inset" />
-            <div className="h-2.5 w-1/4 animate-pulse rounded bg-container-inset" />
+            <div className="h-3 w-1/3 animate-pulse rounded-sm bg-container-inset" />
+            <div className="h-2.5 w-1/4 animate-pulse rounded-sm bg-container-inset" />
           </div>
-          <div className="h-3 w-20 animate-pulse rounded bg-container-inset" />
+          <div className="h-3 w-20 animate-pulse rounded-sm bg-container-inset" />
         </div>
       ))}
     </output>
   );
 }
 
-function groupTransactionsByDate(
-  transactions: SpaTransaction[],
-): [string, SpaTransaction[]][] {
+function groupTransactionsByDate(transactions: SpaTransaction[]): [string, SpaTransaction[]][] {
   const groups = new Map<string, SpaTransaction[]>();
 
   for (const transaction of transactions) {
@@ -560,14 +514,12 @@ function formatTransactionDate(date: string): string {
   yesterday.setDate(today.getDate() - 1);
 
   if (parsedDate.toDateString() === today.toDateString()) return "Today";
-  if (parsedDate.toDateString() === yesterday.toDateString())
-    return "Yesterday";
+  if (parsedDate.toDateString() === yesterday.toDateString()) return "Yesterday";
 
   return new Intl.DateTimeFormat(document.documentElement.lang || undefined, {
     day: "numeric",
     month: "long",
-    year:
-      parsedDate.getFullYear() === today.getFullYear() ? undefined : "numeric",
+    year: parsedDate.getFullYear() === today.getFullYear() ? undefined : "numeric",
   }).format(parsedDate);
 }
 
@@ -583,11 +535,8 @@ function stringValue(value: unknown): string | undefined {
 }
 
 function arrayValue(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.filter(
-      (item): item is string => typeof item === "string" && item.length > 0,
-    );
-  }
+  if (Array.isArray(value))
+    return value.filter((item): item is string => typeof item === "string" && item.length > 0);
 
   const string = stringValue(value);
   return string === undefined ? [] : [string];

@@ -7,49 +7,31 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
     sign_in @user = users(:family_admin)
   end
 
-  test "renders the authenticated React shell" do
-    get spa_path
+  test "serves transactions through the React SPA shell" do
+    get transactions_path
 
     assert_response :success
-    assert_select "meta[name='turbo-visit-control'][content='reload']"
     assert_select "#spa-root"
     assert_select "script#spa-bootstrap[type='application/json']" do |elements|
       bootstrap = JSON.parse(elements.first.text)
 
       assert_equal @user.id, bootstrap.dig("currentUser", "id")
       assert_equal @user.display_name, bootstrap.dig("currentUser", "name")
+      assert_equal @user.initials, bootstrap.dig("currentUser", "initials")
       assert_equal root_path, bootstrap.dig("railsPaths", "home")
-    end
-    assert_select "script[type='module'][src*='spa']"
-  end
-
-  test "serves transactions through the embedded SPA shell" do
-    get transactions_path
-
-    assert_response :success
-    assert_select "main#main #spa-root"
-    assert_select "meta[name='turbo-visit-control'][content='reload']"
-    assert_select "script#spa-bootstrap[type='application/json']" do |elements|
-      bootstrap = JSON.parse(elements.first.text)
-
-      assert_equal true, bootstrap.fetch("embedded")
-      assert_equal api_spa_transactions_path, bootstrap.dig("apiPaths", "transactions")
+      assert_equal api_v1_transactions_path, bootstrap.dig("apiPaths", "transactions")
+      assert_equal api_v1_balance_sheet_path, bootstrap.dig("apiPaths", "summary")
+      assert_equal session_path(Current.session), bootstrap.dig("railsPaths", "signOut")
       assert_equal transactions_path, bootstrap.dig("railsPaths", "transactions")
       assert_equal new_transaction_path, bootstrap.dig("railsPaths", "newTransaction")
     end
-  end
-
-  test "serves nested client routes through the same shell" do
-    get "/spa/routing"
-
-    assert_response :success
-    assert_select "#spa-root"
+    assert_select "script[type='module'][src*='spa']"
   end
 
   test "requires a Rails session" do
     Current.session.destroy!
 
-    get spa_path
+    get transactions_path
 
     assert_redirected_to new_session_path
   end
