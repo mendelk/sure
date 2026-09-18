@@ -1,10 +1,13 @@
 {
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.3",
+		"@tanstack/router-plugin": "^1.168.40",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",
 		"@vitejs/plugin-react": "^6.1.1",
 		"eslint-plugin-react-you-might-not-need-an-effect": "^1.0.2",
+		"husky": "^9.1.7",
+		"lint-staged": "^17.5.1",
 		"orval": "^8.33.0",
 		"oxlint": "^1.83.0",
 		"oxlint-tsgolint": "^7.0.2001",
@@ -16,6 +19,7 @@
 	"description": "The personal finance app for everyone",
 	"type": "module",
 	"scripts": {
+		"prepare": "husky",
 		"style:check": "biome check",
 		"style:fix": "biome check --write",
 		"lint": "biome lint && oxlint --deny-warnings app/javascript/spa vite.config.ts orval.config.ts config/orval",
@@ -28,7 +32,8 @@
 		"spa:typecheck": "tsc --noEmit --project tsconfig.spa.json",
 		"spa:check": "npm run spa:generate && npm run spa:typecheck && npm run spa:build",
 		"tokens:build": "node bin/tokens.mjs",
-		"tokens:check": "node bin/tokens.mjs && git diff --quiet -- app/assets/tailwind/sure-design-system/_generated.css"
+		"tokens:check": "node bin/tokens.mjs && git diff --quiet -- app/assets/tailwind/sure-design-system/_generated.css",
+		"prepare": "husky"
 	},
 	"author": "",
 	"license": "ISC",
@@ -38,5 +43,22 @@
 		"react": "^19.3.0",
 		"react-dom": "^19.3.0",
 		"zod": "^4.6.5"
+	},
+	"lint-staged": {
+		"app/javascript/**/*.{js,ts,tsx}": [
+			"biome check --no-errors-on-unmatched --files-ignore-unknown=true",
+			"oxlint --deny-warnings"
+		],
+		"vite.config.ts": [
+			"biome check --no-errors-on-unmatched",
+			"oxlint --deny-warnings"
+		],
+		"orval.config.ts": [
+			"biome check --no-errors-on-unmatched",
+			"oxlint --deny-warnings"
+		],
+		"config/orval/**/*": [
+			"oxlint --deny-warnings"
+		]
 	}
 }
