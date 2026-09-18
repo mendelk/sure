@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import type { SpaBootstrap } from "./bootstrap";
 import { AppShell } from "./app-shell";
+import { TransactionDetailDrawer } from "./transaction-detail-page";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
 
 type RouterContext = {
@@ -24,7 +25,13 @@ const transactionsRoute = createRoute({
   component: TransactionsPage,
 });
 
-const routeTree = rootRoute.addChildren([transactionsRoute]);
+const transactionDetailRoute = createRoute({
+  getParentRoute: () => transactionsRoute,
+  path: "$transactionId",
+  component: TransactionDetailDrawer,
+});
+
+const routeTree = rootRoute.addChildren([transactionsRoute.addChildren([transactionDetailRoute])]);
 export type SpaRouter = Router<typeof routeTree>;
 
 export function createSpaRouter(bootstrap: SpaBootstrap): SpaRouter {

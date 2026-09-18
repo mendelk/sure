@@ -37,26 +37,29 @@ class TransactionsTest < ApplicationSystemTestCase
       click_link @groceries.name
     end
 
-    within "turbo-frame#drawer" do
-      assert_field "Name", with: @groceries.name
+    assert_current_path %r{\A/transactions/#{@groceries.entryable.id}(\?.*)?\z}
+    within "dialog[open]" do
+      assert_text @groceries.amount_money.format
+      assert_text @groceries.name
     end
+    assert_selector "#transactions-scroll"
   end
 
-  test "scrolls a full transaction page inside the application shell" do
-    25.times do |index|
+  test "scrolls a full transaction page inside the table" do
+    100.times do |index|
       create_transaction("Scroll transaction #{index}", Date.current - index.days, index + 1)
     end
 
     visit transactions_url(search: "Scroll transaction")
     assert_selector "[id^='entry_']", minimum: 25, visible: :all
 
-    scroll_height, client_height = evaluate_script(<<~JS)
+    list_height, list_scroll = evaluate_script(<<~JS)
       (() => {
-        const scrollContainer = document.querySelector("#transactions-scroll");
-        return [scrollContainer.scrollHeight, scrollContainer.clientHeight];
+        const list = document.querySelector("#transactions-scroll");
+        return [list.clientHeight, list.scrollHeight];
       })()
     JS
-    assert_operator scroll_height, :>, client_height
+    assert_operator list_scroll, :>, list_height
 
     row = find("#transactions [id^='entry_']", match: :first)
     origin = Selenium::WebDriver::WheelActions::ScrollOrigin.element(row.native)

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useMemo } from "react";
 import {
   TransactionApiError,
@@ -98,7 +98,7 @@ export function TransactionsPage() {
   return (
     <section
       aria-labelledby="transactions-title"
-      className="flex min-h-0 flex-1 flex-col gap-4 pb-6 lg:pb-12"
+      className="flex min-h-0 h-full flex-1 flex-col gap-4 overflow-hidden pb-6 lg:pb-12"
     >
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -282,7 +282,7 @@ export function TransactionsPage() {
           </div>
         </div>
 
-        <div id="transactions-scroll">
+        <div className="h-0 min-h-0 flex-1 overflow-y-auto" id="transactions-scroll">
           {error !== undefined ? (
             <div className="m-4 rounded-xl border border-destructive bg-container p-5" role="alert">
               <p className="font-medium text-primary">Transactions unavailable</p>
@@ -337,6 +337,7 @@ export function TransactionsPage() {
           />
         ) : null}
       </div>
+      <Outlet />
     </section>
   );
 }
@@ -392,15 +393,13 @@ function TransactionRow({ transaction }: { transaction: SpaTransaction }) {
         </div>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
-            <a
+            <Link
               className="truncate text-sm font-medium text-primary hover:underline"
-              data-turbo-action="advance"
-              data-turbo-frame="drawer"
-              data-turbo-prefetch="false"
-              href={transaction.detail_path}
+              params={{ transactionId: transaction.id }}
+              to="/transactions/$transactionId"
             >
               {transaction.name}
-            </a>
+            </Link>
             {transaction.pending ? (
               <span className="rounded-full bg-container-inset px-2 py-0.5 text-[11px] font-medium text-secondary">
                 Pending
