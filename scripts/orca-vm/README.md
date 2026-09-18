@@ -6,11 +6,14 @@ without rebuilding the image. Worktrees have isolated app, Redis, Selenium, and 
 while sharing one persistent Postgres database and its data.
 
 The app container runs `bin/setup` and starts `bin/dev` automatically, including Rails development
-reloading and the Tailwind watcher. Workspace creation waits for Rails to respond before reporting
-success. The create hook reports the browser address as `railsUrl`. Ports bind to `127.0.0.1` for
-local execution; over SSH they bind to the SSH server address. Override that interface with
-`ORCA_PUBLISH_HOST`. Destroying a workspace removes its isolated services and volumes but leaves the
-shared Postgres service and `sure-orca-shared-postgres` volume intact.
+reloading and the Tailwind watcher. During setup it loads a deterministic sample dataset when
+`user@example.com` is absent; sign in with `user@example.com` and `Password1!`. Re-running setup
+preserves existing data and skips sample generation once that demo user exists. Workspace creation
+waits for Rails to respond before reporting success. The create hook reports the browser address as
+`railsUrl`. Ports bind to `127.0.0.1` for local execution; over SSH they bind to the SSH server
+address. Override that interface with `ORCA_PUBLISH_HOST`. Destroying a workspace removes its
+isolated services and volumes but leaves the shared Postgres service and
+`sure-orca-shared-postgres` volume intact.
 
 On the gradual frontend branch, `bin/dev` also runs `npm run spa:watch`. Vite rebuilds
 `app/assets/builds/spa.js` whenever React or TypeScript source under `app/javascript/spa` changes,
