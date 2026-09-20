@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[capture-the-proven-local-dashboard-shape|Capture the proven local dashboard shape]]"
-timeEstimate: 10
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:29.386Z
+timeEstimate: 10
 ---
 
 Evolve the proven starter dashboard without overwriting user changes.

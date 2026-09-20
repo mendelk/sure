@@ -20,9 +20,9 @@ dependencies:
   - "[[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]"
   - "[[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]"
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
-timeEstimate: 28
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:40.510Z
+timeEstimate: 28
 ---
 
 Create cross-cutting presentation foundations for English-first localization, light/dark/system themes, and sensitive-value masking.

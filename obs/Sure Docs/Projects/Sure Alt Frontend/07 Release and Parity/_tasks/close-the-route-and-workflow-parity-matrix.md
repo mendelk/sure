@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
   - "[[publish-v2-providers-release|Publish V2 providers release]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:50.718Z
+timeEstimate: 40
 ---
 
 Re-audit the current Rails application and prove every in-scope browser workflow has alternate-route, API-contract, and test evidence.

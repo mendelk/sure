@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[verify-finance-and-planning-quality-gate|Verify finance and planning quality gate]]"
   - "[[publish-ingestion-and-simplefin-release|Publish ingestion and SimpleFIN release]]"
-timeEstimate: 24
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:44.829Z
+timeEstimate: 24
 ---
 
 Publish the staged release adding complete account, investment, transfer, report, budget, goal, and planning workflows.

@@ -18,9 +18,9 @@ subtaskIds: []
 dependencies:
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[add-localization-theme-and-privacy-foundations|Add localization theme and privacy foundations]]"
-timeEstimate: 28
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:43.706Z
+timeEstimate: 28
 ---
 
 Make the web app installable and resilient without pretending financial mutations work offline.

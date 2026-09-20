@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[integrate-the-frontend-service-with-docker-compose|Integrate the frontend service with Docker Compose]]"
-timeEstimate: 24
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:39.679Z
+timeEstimate: 24
 ---
 
 Document installation, configuration, upgrades, rollback, backup boundaries, troubleshooting, and security for the alternate frontend service.

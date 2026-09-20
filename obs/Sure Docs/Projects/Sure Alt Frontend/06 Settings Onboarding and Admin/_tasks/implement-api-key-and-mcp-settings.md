@@ -20,9 +20,9 @@ dependencies:
   - "[[define-identity-capabilities-and-settings-contract|Define identity capabilities and settings contract]]"
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:43.623Z
+timeEstimate: 36
 ---
 
 API-enable and implement user API-key lifecycle and MCP token/connection settings.

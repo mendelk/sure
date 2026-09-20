@@ -20,9 +20,9 @@ dependencies:
   - "[[review-and-select-dashboard-interactions|Review and select dashboard interactions]]"
   - "[[review-and-select-report-presentations|Review and select report presentations]]"
   - "[[verify-the-local-persistence-lifecycle|Verify the local persistence lifecycle]]"
-timeEstimate: 8
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:33.619Z
+timeEstimate: 8
 ---
 
 Start productization by deleting every interaction and presentation path rejected at the review checkpoints.

@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[extract-only-the-proven-feature-seams|Extract only the proven feature seams]]"
   - "[[verify-the-local-persistence-lifecycle|Verify the local persistence lifecycle]]"
-timeEstimate: 8
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:39.966Z
+timeEstimate: 8
 ---
 
 Make the proven local data replaceable later without choosing database tables before product behavior settles further.

@@ -17,9 +17,9 @@ tags:
   - parity
 subtaskIds: []
 dependencies: []
-timeEstimate: 24
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:25.910Z
+timeEstimate: 24
 ---
 
 Create the authoritative route-and-workflow matrix for self-hosted Sure, including super-admin surfaces and excluding hosted billing and native-client work.

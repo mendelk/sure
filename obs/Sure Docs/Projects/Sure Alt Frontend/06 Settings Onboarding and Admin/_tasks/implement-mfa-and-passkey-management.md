@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[implement-password-email-and-session-management|Implement password email and session management]]"
   - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:40.204Z
+timeEstimate: 40
 ---
 
 API-enable MFA setup/verification/disable and WebAuthn/passkey registration, sign-in verification, listing, and removal.

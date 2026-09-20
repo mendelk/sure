@@ -21,9 +21,9 @@ dependencies:
   - "[[build-provider-catalog-and-settings-ui|Build provider catalog and settings UI]]"
   - "[[define-reusable-provider-connection-api-contract|Define reusable provider connection API contract]]"
   - "[[publish-automation-settings-and-admin-release|Publish automation settings and admin release]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:45.115Z
+timeEstimate: 36
 ---
 
 API-enable and implement credential/token flows for Lunchflow and Up through account selection, linking, sync, reconnect, and disconnect.

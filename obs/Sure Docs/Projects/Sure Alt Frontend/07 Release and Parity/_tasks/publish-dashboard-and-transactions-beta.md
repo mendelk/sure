@@ -20,9 +20,9 @@ dependencies:
   - "[[verify-production-beta-quality-gate|Verify production beta quality gate]]"
   - "[[integrate-the-frontend-service-with-docker-compose|Integrate the frontend service with Docker Compose]]"
   - "[[document-self-hosted-configuration-and-operations|Document self-hosted configuration and operations]]"
-timeEstimate: 24
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:41.122Z
+timeEstimate: 24
 ---
 
 Publish the production-quality beta containing existing-user login, dashboard, transaction editing, sync, PWA resilience, and self-hosted packaging.

@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
   - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
-timeEstimate: 32
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:31.677Z
+timeEstimate: 32
 ---
 
 Implement the TanStack Start server-side transport that is the browser's only path to the configured Sure API.

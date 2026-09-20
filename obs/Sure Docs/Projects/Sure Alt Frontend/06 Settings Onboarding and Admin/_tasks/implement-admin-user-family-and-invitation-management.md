@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[define-super-admin-api-and-authorization|Define super-admin API and authorization]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:52.188Z
+timeEstimate: 40
 ---
 
 Implement super-admin user, deletion review, family, pending invitation, invite-code, and supported role/status management.
