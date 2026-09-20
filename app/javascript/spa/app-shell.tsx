@@ -780,7 +780,7 @@ export function AppShell() {
       <div className="flex min-h-0 min-w-0 grow flex-col">
         <main
           id="main"
-          className="grow overflow-y-auto px-3 lg:px-10 w-full mx-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0"
+          className="flex min-h-0 grow flex-col overflow-y-auto px-3 lg:px-10 w-full mx-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0"
         >
           <BreadcrumbBar
             onToggleSidebar={() => {

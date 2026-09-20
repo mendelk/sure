@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { z } from "zod/mini";
+import * as z from "zod/mini";
 import {
   GetApiV1Transactions200Response,
   GetApiV1TransactionsId200Response,
@@ -366,6 +366,97 @@ async function requestTransactionDetail(
 
   throw new TransactionApiError(
     `Transaction request failed with status ${response.status}`,
+    response.status,
+  );
+}
+
+export const UpcomingRecurringTransactionSchema = z.object({
+  id: z.string(),
+  amount: z.string(),
+  amount_cents: z.number(),
+  currency: z.string(),
+  expected_day_of_month: z.number(),
+  last_occurrence_date: z.string(),
+  next_expected_date: z.string(),
+  status: z.string(),
+  occurrence_count: z.number(),
+  name: z.optional(z.nullable(z.string())),
+  manual: z.boolean(),
+  expected_amount_min: z.optional(z.nullable(z.string())),
+  expected_amount_min_cents: z.optional(z.nullable(z.number())),
+  expected_amount_max: z.optional(z.nullable(z.string())),
+  expected_amount_max_cents: z.optional(z.nullable(z.number())),
+  expected_amount_avg: z.optional(z.nullable(z.string())),
+  expected_amount_avg_cents: z.optional(z.nullable(z.number())),
+  transfer: z.optional(z.nullable(z.boolean())),
+  account: z.optional(
+    z.nullable(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        account_type: z.optional(z.nullable(z.string())),
+      }),
+    ),
+  ),
+  destination_account: z.optional(
+    z.nullable(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        account_type: z.optional(z.nullable(z.string())),
+      }),
+    ),
+  ),
+  merchant: z.optional(
+    z.nullable(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        logo_url: z.optional(z.nullable(z.string())),
+      }),
+    ),
+  ),
+});
+
+export const UpcomingRecurringCollectionSchema = z.object({
+  recurring_transactions: z.array(UpcomingRecurringTransactionSchema),
+  pagination: z.object({
+    page: z.number(),
+    per_page: z.number(),
+    total_count: z.number(),
+    total_pages: z.number(),
+  }),
+});
+
+export type UpcomingRecurringTransaction = z.infer<typeof UpcomingRecurringTransactionSchema>;
+export type UpcomingRecurringCollection = z.infer<typeof UpcomingRecurringCollectionSchema>;
+
+export function upcomingTransactionsQueryOptions(path: string) {
+  return queryOptions({
+    queryKey: ["spa", "upcoming-recurring", path] as const,
+    queryFn: ({ signal }) => requestUpcomingTransactions(path, signal),
+    retry: (failureCount, error) =>
+      !(error instanceof TransactionApiError && error.status < 500) && failureCount < 2,
+  });
+}
+
+async function requestUpcomingTransactions(
+  path: string,
+  signal?: AbortSignal,
+): Promise<UpcomingRecurringCollection> {
+  const response = await fetch(`${path}?upcoming=true&per_page=100`, {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  const payload: unknown = await response.json();
+
+  if (response.status === 200) return UpcomingRecurringCollectionSchema.parse(payload);
+  if (response.status === 401)
+    throw new TransactionApiError("Your session has expired", response.status);
+
+  throw new TransactionApiError(
+    `Upcoming transactions request failed with status ${response.status}`,
     response.status,
   );
 }
