@@ -9,6 +9,7 @@
   },
   apiPaths: {
     transactions: api_v1_transactions_path,
+    recurringTransactions: api_v1_recurring_transactions_path,
     summary: api_v1_balance_sheet_path,
     accounts: api_v1_accounts_path,
     categories: api_v1_categories_path,
@@ -17,6 +18,7 @@
     transfers: api_v1_transfers_path,
     sureqlRun: dashboard_monarch_run_path
   },
+  recurringTransactionsDisabled: Current.family.recurring_transactions_disabled?,
   railsPaths: {
     home: root_path,
     logo: image_path("logomark-color.svg"),
@@ -32,7 +34,8 @@
     signOut: session_path(Current.session),
     transactions: transactions_path,
     familyMerchants: family_merchants_path,
-    newRule: new_rule_path
+    newRule: new_rule_path,
+    recurringTransactions: recurring_transactions_path
   }
 } %>
 

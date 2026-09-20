@@ -41,6 +41,7 @@ json.recurrence_rules recurring_transaction.recurrence_rules do |rule|
   json.weekday_ordinal rule.weekday_ordinal
   json.month_of_year rule.month_of_year
 end
+json.transfer recurring_transaction.transfer?
 json.created_at recurring_transaction.created_at.iso8601
 json.updated_at recurring_transaction.updated_at.iso8601
 
@@ -54,10 +55,21 @@ else
   json.account nil
 end
 
+if recurring_transaction.destination_account.present?
+  json.destination_account do
+    json.id recurring_transaction.destination_account.id
+    json.name recurring_transaction.destination_account.name
+    json.account_type recurring_transaction.destination_account.accountable_type&.underscore
+  end
+else
+  json.destination_account nil
+end
+
 if recurring_transaction.merchant.present?
   json.merchant do
     json.id recurring_transaction.merchant.id
     json.name recurring_transaction.merchant.name
+    json.logo_url Setting.transform_brand_fetch_url(recurring_transaction.merchant.logo_url)
   end
 else
   json.merchant nil

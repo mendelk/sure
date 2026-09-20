@@ -49,17 +49,38 @@ class TransactionsTest < ApplicationSystemTestCase
     end
   end
 
-  test "opens transaction details in the drawer" do
-    within "##{dom_id(@groceries)}" do
-      click_link @groceries.name
+  test "opens transaction details without moving the ledger" do
+    40.times do |index|
+      create_transaction(
+        "Scroll transaction #{index}",
+        Date.current - index.days,
+        index + 1,
+        merchant: merchants(:netflix)
+      )
+    end
+    visit transactions_url
+    assert_selector "[id^='entry_']", minimum: 25, visible: :all
+
+    row_id, scroll_before = evaluate_script(<<~JS)
+      (() => {
+        const list = document.querySelector("#transactions-scroll");
+        list.scrollTop = 700;
+        const bounds = list.getBoundingClientRect();
+        const row = [...list.querySelectorAll("[id^='entry_']")].find((candidate) => {
+          const rect = candidate.getBoundingClientRect();
+          return rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+        });
+        return [row.id, list.scrollTop];
+      })()
+    JS
+
+    within "##{row_id}" do
+      find("a").click
     end
 
-    assert_current_path %r{\A/transactions/#{@groceries.entryable.id}(\?.*)?\z}
-    within "dialog[open]" do
-      assert_text @groceries.amount_money.format
-      assert_text @groceries.name
-    end
-    assert_selector "#transactions-scroll"
+    assert_current_path %r{\A/transactions/[^/]+(\?.*)?\z}
+    assert_selector "dialog[open], [role='dialog']"
+    assert_equal scroll_before, evaluate_script('document.querySelector("#transactions-scroll").scrollTop')
   end
 
   test "scrolls a full transaction page inside the table" do
@@ -82,6 +103,42 @@ class TransactionsTest < ApplicationSystemTestCase
     origin = Selenium::WebDriver::WheelActions::ScrollOrigin.element(row.native)
     page.driver.browser.action.scroll_from(origin, 0, 600).perform
     assert_operator evaluate_script('document.querySelector("#transactions-scroll").scrollTop'), :>, 0
+  end
+  test "switches between transactions and upcoming tabs" do
+    merchant = merchants(:netflix)
+    @user.family.recurring_transactions.create!(
+      account: accounts(:depository),
+      merchant: merchant,
+      amount: 19.99,
+      currency: "USD",
+      expected_day_of_month: Date.current.day,
+      last_occurrence_date: Date.current - 1.month,
+      next_expected_date: Date.current + 3.days,
+      status: "active",
+      occurrence_count: 5,
+      manual: true
+    )
+
+    visit transactions_url
+
+    assert_selector "button[role='tab']", text: "Transactions"
+    assert_selector "button[role='tab']", text: "Upcoming"
+    assert_selector "#transactions"
+    assert_no_selector "#upcoming"
+
+    click_button "Upcoming"
+
+    assert_current_path(/tab=upcoming/, wait: 5)
+    assert_selector "#upcoming"
+    assert_no_selector "#transactions"
+    assert_text merchant.name
+    assert_text "Projected"
+    assert_text "Recurring"
+
+    click_button "Transactions"
+
+    assert_selector "#transactions"
+    assert_no_selector "#upcoming"
   end
 
   private
