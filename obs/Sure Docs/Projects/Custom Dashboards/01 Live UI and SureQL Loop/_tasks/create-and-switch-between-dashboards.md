@@ -5,11 +5,11 @@ parentId:
 id: t_cd_live_006
 title: Create and switch between dashboards
 type: task
-status: todo
+status: "done"
 priority: critical
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - frontend

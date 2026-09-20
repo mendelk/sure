@@ -5,11 +5,11 @@ parentId:
 id: t_cd_present_004
 title: Compare inline and focused report editing
 type: task
-status: todo
+status: "done"
 priority: high
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - frontend
