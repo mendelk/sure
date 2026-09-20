@@ -21,7 +21,7 @@ The Transactions API allows external applications to manage financial transactio
 
 ## Authentication requirements
 
-All transaction endpoints require an OAuth2 access token or API key that grants the appropriate scope (`read` or `read_write`). Read endpoints (`GET /api/v1/transactions`) also accept an authenticated browser session (`cookieSession`).
+All transaction endpoints require an OAuth2 access token or API key that grants the appropriate scope (`read` or `read_write`). Read endpoints (`GET /api/v1/transactions`) also accept an authenticated browser session (`cookieSession`). Write endpoints also accept a browser session when the request presents a valid CSRF token (`X-CSRF-Token` header), matching the classic web app's forgery protection.
 
 ## Available endpoints
 
@@ -30,8 +30,11 @@ All transaction endpoints require an OAuth2 access token or API key that grants 
 | `GET /api/v1/transactions` | `read` | List transactions with filtering and pagination. |
 | `GET /api/v1/transactions/{id}` | `read` | Retrieve a single transaction with full details. |
 | `POST /api/v1/transactions` | `write` | Create a new transaction. |
-| `PATCH /api/v1/transactions/{id}` | `write` | Update an existing transaction. |
+| `PATCH /api/v1/transactions/{id}` | `write` | Update an existing transaction. Supports `excluded` to toggle report exclusion. |
 | `DELETE /api/v1/transactions/{id}` | `write` | Permanently delete a transaction. |
+| `GET /api/v1/transactions/{id}/transfer_match_candidates` | `read` | List candidate entries this transaction could be matched against, ordered by date proximity. |
+| `POST /api/v1/transactions/{id}/transfer_match` | `write` | Create a transfer match: link an existing transaction (`matched_entry_id`) or create a counterpart on `target_account_id`. |
+| `PATCH /api/v1/transfers/{id}` | `write` | Confirm or reject a pending transfer match (`status`: `confirmed` or `rejected`). |
 
 Refer to the generated [`openapi.yaml`](openapi.yaml) for request/response schemas, reusable components (pagination, errors, accounts, categories, merchants, tags), and security definitions.
 

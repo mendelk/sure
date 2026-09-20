@@ -172,5 +172,79 @@ RSpec.describe 'API V1 Transfers', type: :request do
         run_test!
       end
     end
+
+    patch 'Update a transfer' do
+      tags 'Transactions'
+      security [ { apiKeyAuth: [] } ]
+      consumes 'application/json'
+      produces 'application/json'
+
+      let(:id) { transfer.id }
+
+      parameter name: :body, in: :body, required: true, schema: {
+        type: :object,
+        properties: {
+          transfer: {
+            type: :object,
+            properties: {
+              status: { type: :string, enum: %w[confirmed rejected], description: 'Confirm a pending match, or reject it (removes the match and records the pair as rejected).' }
+            },
+            required: %w[status]
+          }
+        },
+        required: %w[transfer]
+      }
+
+      response '200', 'transfer confirmed' do
+        schema '$ref' => '#/components/schemas/TransferDecision'
+
+        let(:body) { { transfer: { status: 'confirmed' } } }
+
+        run_test!
+      end
+
+      response '200', 'transfer rejected' do
+        schema '$ref' => '#/components/schemas/DeleteResponse'
+
+        let(:body) { { transfer: { status: 'rejected' } } }
+
+        run_test! do |response|
+          body = JSON.parse(response.body)
+          expect(body['message']).to eq 'Transfer rejected'
+        end
+      end
+
+      response '422', 'invalid status' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:body) { { transfer: { status: 'pending' } } }
+
+        run_test!
+      end
+
+      response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { nil }
+
+        run_test!
+      end
+
+      response '403', 'insufficient scope' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { api_key_without_read_scope.plain_key }
+
+        run_test!
+      end
+
+      response '404', 'transfer not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+    end
   end
 end

@@ -227,6 +227,112 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil found_transaction, "Should find disabled account transactions in global history search"
   end
 
+  test "should filter transactions by absolute amount with operator" do
+    small_entry = @account.entries.create!(
+      name: "Small Amount Coffee",
+      amount: 5.50,
+      currency: "USD",
+      date: Date.current,
+      entryable: Transaction.new
+    )
+
+    large_entry = @account.entries.create!(
+      name: "Large Amount Coffee",
+      amount: 500.00,
+      currency: "USD",
+      date: Date.current,
+      entryable: Transaction.new
+    )
+
+    get api_v1_transactions_url,
+        params: { search: "Amount Coffee", amount: 100, amount_operator: "greater", per_page: 200 },
+        headers: api_headers(@api_key)
+    assert_response :success
+
+    transaction_ids = JSON.parse(response.body)["transactions"].map { |t| t["id"] }
+    assert_includes transaction_ids, large_entry.transaction.id
+    assert_not_includes transaction_ids, small_entry.transaction.id
+  end
+
+  test "should support min_amount legacy alias" do
+    entry = @account.entries.create!(
+      name: "Legacy Alias Coffee",
+      amount: 500.00,
+      currency: "USD",
+      date: Date.current,
+      entryable: Transaction.new
+    )
+
+    get api_v1_transactions_url,
+        params: { search: "Legacy Alias Coffee", min_amount: 100 },
+        headers: api_headers(@api_key)
+    assert_response :success
+
+    transaction_ids = JSON.parse(response.body)["transactions"].map { |t| t["id"] }
+    assert_includes transaction_ids, entry.transaction.id
+  end
+
+  test "should reject invalid amount_operator" do
+    get api_v1_transactions_url,
+        params: { amount: 100, amount_operator: "between" },
+        headers: api_headers(@api_key)
+    assert_response :unprocessable_entity
+  end
+
+  test "should exclude transactions by negative category filter" do
+    food_entry = @account.entries.create!(
+      name: "Excluded Category Coffee",
+      amount: 12.34,
+      currency: "USD",
+      date: Date.current,
+      entryable: Transaction.new(category: categories(:food_and_drink))
+    )
+
+    other_entry = @account.entries.create!(
+      name: "Excluded Category Coffee",
+      amount: 12.34,
+      currency: "USD",
+      date: Date.current,
+      entryable: Transaction.new(category: categories(:income))
+    )
+
+    get api_v1_transactions_url,
+        params: { search: "Excluded Category Coffee", excluded_categories: [ "Food & Drink" ], per_page: 200 },
+        headers: api_headers(@api_key)
+    assert_response :success
+
+    transaction_ids = JSON.parse(response.body)["transactions"].map { |t| t["id"] }
+    assert_includes transaction_ids, other_entry.transaction.id
+    assert_not_includes transaction_ids, food_entry.transaction.id
+  end
+
+  test "should exclude transactions by negative id-based filters" do
+    merchant_entry = @account.entries.create!(
+      name: "Excluded Merchant Coffee",
+      amount: 12.34,
+      currency: "USD",
+      date: Date.current,
+      entryable: Transaction.new(merchant: merchants(:netflix))
+    )
+
+    other_entry = @account.entries.create!(
+      name: "Excluded Merchant Coffee",
+      amount: 12.34,
+      currency: "USD",
+      date: Date.current,
+      entryable: Transaction.new
+    )
+
+    get api_v1_transactions_url,
+        params: { search: "Excluded Merchant Coffee", excluded_merchant_ids: [ merchants(:netflix).id ], per_page: 200 },
+        headers: api_headers(@api_key)
+    assert_response :success
+
+    transaction_ids = JSON.parse(response.body)["transactions"].map { |t| t["id"] }
+    assert_includes transaction_ids, other_entry.transaction.id
+    assert_not_includes transaction_ids, merchant_entry.transaction.id
+  end
+
   test "should paginate transactions" do
     get api_v1_transactions_url,
         params: { page: 1, per_page: 5 },

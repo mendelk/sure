@@ -9,27 +9,21 @@ class TransferMatchesController < ApplicationController
   def create
     return unless require_account_permission!(@entry.account, redirect_path: transactions_path)
 
-    target_account = resolve_target_account
-    return unless require_account_permission!(target_account, redirect_path: transactions_path)
+    result = Transfer::Matcher.match(
+      transaction: @entry.transaction,
+      method: transfer_match_params[:method],
+      matched_entry_id: transfer_match_params[:matched_entry_id],
+      target_account_id: transfer_match_params[:target_account_id],
+      accessible_accounts: accessible_accounts,
+      accessible_entries: Current.accessible_entries
+    )
 
-    @transfer = build_transfer
-    Transfer.transaction do
-      @transfer.save!
-
-      # Use DESTINATION (inflow) account for kind, matching Transfer::Creator logic
-      destination_account = @transfer.inflow_transaction.entry.account
-      outflow_kind = Transfer.kind_for_account(destination_account)
-      outflow_attrs = { kind: outflow_kind }
-
-      if outflow_kind == "investment_contribution"
-        category = destination_account.family.investment_contributions_category
-        outflow_attrs[:category] = category if category.present? && @transfer.outflow_transaction.category_id.blank?
-      end
-
-      @transfer.outflow_transaction.update!(outflow_attrs)
-      @transfer.inflow_transaction.update!(kind: "funds_movement")
+    unless result.error.nil?
+      redirect_back_or_to transactions_path, alert: result.error
+      return
     end
 
+    @transfer = result.transfer
     @transfer.sync_account_later
 
     redirect_back_or_to transactions_path, notice: t(".success")
@@ -42,45 +36,5 @@ class TransferMatchesController < ApplicationController
 
     def transfer_match_params
       params.require(:transfer_match).permit(:method, :matched_entry_id, :target_account_id)
-    end
-
-    def resolve_target_account
-      if transfer_match_params[:method] == "new"
-        accessible_accounts.find(transfer_match_params[:target_account_id])
-      else
-        Current.accessible_entries.find(transfer_match_params[:matched_entry_id]).account
-      end
-    end
-
-    def build_transfer
-      if transfer_match_params[:method] == "new"
-        target_account = accessible_accounts.find(transfer_match_params[:target_account_id])
-
-        missing_transaction = Transaction.new(
-          entry: target_account.entries.build(
-            amount: @entry.amount * -1,
-            currency: @entry.currency,
-            date: @entry.date,
-            name: "Transfer to #{@entry.amount.negative? ? @entry.account.name : target_account.name}",
-            user_modified: true,
-          )
-        )
-
-        transfer = Transfer.find_or_initialize_by(
-          inflow_transaction: @entry.amount.positive? ? missing_transaction : @entry.transaction,
-          outflow_transaction: @entry.amount.positive? ? @entry.transaction : missing_transaction
-        )
-        transfer.status = "confirmed"
-        transfer
-      else
-        target_transaction = Current.accessible_entries.find(transfer_match_params[:matched_entry_id])
-
-        transfer = Transfer.find_or_initialize_by(
-          inflow_transaction: @entry.amount.negative? ? @entry.transaction : target_transaction.transaction,
-          outflow_transaction: @entry.amount.negative? ? target_transaction.transaction : @entry.transaction
-        )
-        transfer.status = "confirmed"
-        transfer
-      end
     end
 end
