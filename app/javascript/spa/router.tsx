@@ -7,6 +7,7 @@ import {
 import type { SpaBootstrap } from "./bootstrap";
 import { AppShell } from "./app-shell";
 import { DashboardsPage } from "./dashboards-page";
+import { validateDashboardSearch } from "./dashboard-storage";
 import { validateNewTransactionSearch, NewTransactionPage } from "./new-transaction-page";
 import { TransactionDetailDrawer } from "./transaction-detail-page";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
@@ -42,6 +43,7 @@ const newTransactionRoute = createRoute({
 const dashboardsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dashboards",
+  validateSearch: validateDashboardSearch,
   component: DashboardsPage,
 });
 

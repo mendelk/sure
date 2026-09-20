@@ -8,6 +8,7 @@ import * as z from "zod/mini";
 // any saved snapshot.
 export const STARTER_QUERY = "from transactions\nsort {-date}\ntake 10";
 
+export const STARTER_DASHBOARD_ID = "starter-dashboard";
 export const STARTER_DASHBOARD_NAME = "My dashboard";
 export const STARTER_REPORT_ID = "sureql-report";
 export const STARTER_REPORT_NAME = "Recent transactions";
@@ -24,10 +25,10 @@ export const STARTER_LAYOUT: Layout = [
   },
 ];
 
-// Feature-local snapshot for the first /dashboards prototype only. It stores
-// a plain report array plus the grid positions needed to recreate the working
-// screen. Keep this shape local until the report-entity slice defines a durable
-// domain model.
+// Feature-local snapshot for the /dashboards prototype only. It stores a
+// plain dashboard array; each dashboard keeps its own report cards and grid
+// positions. Keep this shape local until the report-entity slice defines a
+// durable domain model.
 const DashboardLayoutItemSchema = z.object({
   i: z.string(),
   x: z.number(),
@@ -46,12 +47,21 @@ const DashboardReportSchema = z.object({
   query: z.string(),
 });
 
+const DashboardSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  reports: z.array(DashboardReportSchema),
+  layout: z.array(DashboardLayoutItemSchema),
+});
+
 const DashboardSnapshotSchema = z.object({
+  dashboards: z.optional(z.array(DashboardSchema)),
+  // Legacy single-dashboard fields, migrated to a one-item array on read.
   dashboardName: z.optional(z.string()),
   reports: z.optional(z.array(DashboardReportSchema)),
   reportName: z.optional(z.string()),
   query: z.optional(z.string()),
-  layout: z.array(DashboardLayoutItemSchema),
+  layout: z.optional(z.array(DashboardLayoutItemSchema)),
 });
 
 export interface DashboardReport {
@@ -60,15 +70,26 @@ export interface DashboardReport {
   query: string;
 }
 
-export interface DashboardSnapshot {
-  dashboardName: string;
+export interface Dashboard {
+  id: string;
+  name: string;
   reports: DashboardReport[];
   layout: Layout;
 }
 
-export function starterSnapshot(): DashboardSnapshot {
+export interface DashboardSnapshot {
+  dashboards: Dashboard[];
+}
+
+export function generateDashboardId(): string {
+  const parts = crypto.getRandomValues(new Uint32Array(4));
+  return `dashboard-${Array.from(parts, (part) => part.toString(16).padStart(8, "0")).join("")}`;
+}
+
+export function starterDashboard(): Dashboard {
   return {
-    dashboardName: STARTER_DASHBOARD_NAME,
+    id: STARTER_DASHBOARD_ID,
+    name: STARTER_DASHBOARD_NAME,
     reports: [
       {
         id: STARTER_REPORT_ID,
@@ -80,8 +101,26 @@ export function starterSnapshot(): DashboardSnapshot {
   };
 }
 
+export function starterSnapshot(): DashboardSnapshot {
+  return { dashboards: [starterDashboard()] };
+}
+
 export function dashboardStorageKey(userId: string): string {
   return `sure:dashboards:${userId}`;
+}
+
+// Deterministic survivor: the requested dashboard when it still exists,
+// otherwise the first remaining dashboard. Undefined when none remain.
+export function selectActiveDashboard(
+  snapshot: DashboardSnapshot,
+  requestedId: string | undefined,
+): Dashboard | undefined {
+  if (snapshot.dashboards.length === 0) return undefined;
+  if (requestedId !== undefined) {
+    const match = snapshot.dashboards.find((dashboard) => dashboard.id === requestedId);
+    if (match !== undefined) return match;
+  }
+  return snapshot.dashboards[0];
 }
 
 // Defensive read: malformed JSON, schema drift, or unavailable storage all
@@ -93,42 +132,72 @@ export function readDashboardSnapshot(userId: string): DashboardSnapshot | undef
     const parsed: unknown = JSON.parse(raw);
     const result = DashboardSnapshotSchema.safeParse(parsed);
     if (!result.success) return undefined;
+    if (result.data.dashboards !== undefined) return normalizeDashboards(result.data.dashboards);
 
-    const storedDashboardName = result.data.dashboardName?.trim();
-    const dashboardName =
-      storedDashboardName === undefined || storedDashboardName.length === 0
-        ? STARTER_DASHBOARD_NAME
-        : storedDashboardName;
-    const reports =
-      result.data.reports === undefined
-        ? migrateLegacyReport(result.data.reportName, result.data.query)
-        : normalizeReports(result.data.reports);
-    if (reports === undefined) return undefined;
-
-    const reportIds = new Set(reports.map((report) => report.id));
-    const layoutIds = new Set<string>();
-    const layout: LayoutItem[] = [];
-    for (const item of result.data.layout) {
-      if (!reportIds.has(item.i) || layoutIds.has(item.i)) return undefined;
-      layoutIds.add(item.i);
-      layout.push({
-        i: item.i,
-        x: item.x,
-        y: item.y,
-        w: item.w,
-        h: item.h,
-        minW: item.minW,
-        minH: item.minH,
-        maxW: item.maxW,
-        maxH: item.maxH,
-      });
-    }
-    if (layoutIds.size !== reportIds.size) return undefined;
-
-    return { dashboardName, reports, layout };
+    return migrateLegacySnapshot(result.data);
   } catch {
     return undefined;
   }
+}
+
+function normalizeDashboards(
+  storedDashboards: z.infer<typeof DashboardSchema>[],
+): DashboardSnapshot | undefined {
+  const ids = new Set<string>();
+  const dashboards: Dashboard[] = [];
+  for (const storedDashboard of storedDashboards) {
+    const normalized = normalizeDashboard(storedDashboard);
+    if (normalized === undefined || ids.has(normalized.id)) return undefined;
+    ids.add(normalized.id);
+    dashboards.push(normalized);
+  }
+  return { dashboards };
+}
+
+function normalizeDashboard(
+  storedDashboard: z.infer<typeof DashboardSchema>,
+): Dashboard | undefined {
+  const id = storedDashboard.id.trim();
+  const storedName = storedDashboard.name.trim();
+  if (id.length === 0) return undefined;
+  const reports = normalizeReports(storedDashboard.reports);
+  if (reports === undefined) return undefined;
+  const layout = normalizeLayout(
+    storedDashboard.layout,
+    new Set(reports.map((report) => report.id)),
+  );
+  if (layout === undefined) return undefined;
+  return {
+    id,
+    name: storedName.length === 0 ? STARTER_DASHBOARD_NAME : storedName,
+    reports,
+    layout,
+  };
+}
+
+function migrateLegacySnapshot(
+  stored: Omit<z.infer<typeof DashboardSnapshotSchema>, "dashboards">,
+): DashboardSnapshot | undefined {
+  const storedName = stored.dashboardName?.trim();
+  const reports =
+    stored.reports === undefined
+      ? migrateLegacyReport(stored.reportName, stored.query)
+      : normalizeReports(stored.reports);
+  if (reports === undefined) return undefined;
+  if (stored.layout === undefined) return undefined;
+  const layout = normalizeLayout(stored.layout, new Set(reports.map((report) => report.id)));
+  if (layout === undefined) return undefined;
+  return {
+    dashboards: [
+      {
+        id: STARTER_DASHBOARD_ID,
+        name:
+          storedName === undefined || storedName.length === 0 ? STARTER_DASHBOARD_NAME : storedName,
+        reports,
+        layout,
+      },
+    ],
+  };
 }
 
 function migrateLegacyReport(
@@ -163,6 +232,31 @@ function normalizeReports(
   return reports;
 }
 
+function normalizeLayout(
+  storedLayout: z.infer<typeof DashboardLayoutItemSchema>[],
+  reportIds: Set<string>,
+): Layout | undefined {
+  const layoutIds = new Set<string>();
+  const layout: LayoutItem[] = [];
+  for (const item of storedLayout) {
+    if (!reportIds.has(item.i) || layoutIds.has(item.i)) return undefined;
+    layoutIds.add(item.i);
+    layout.push({
+      i: item.i,
+      x: item.x,
+      y: item.y,
+      w: item.w,
+      h: item.h,
+      minW: item.minW,
+      minH: item.minH,
+      maxW: item.maxW,
+      maxH: item.maxH,
+    });
+  }
+  if (layoutIds.size !== reportIds.size) return undefined;
+  return layout;
+}
+
 // Best-effort write: private-mode/quota failures must never break the page.
 export function writeDashboardSnapshot(userId: string, snapshot: DashboardSnapshot): void {
   try {
@@ -181,4 +275,14 @@ export function loadOrInstallStarterSnapshot(userId: string): DashboardSnapshot 
   const starter = starterSnapshot();
   writeDashboardSnapshot(userId, starter);
   return starter;
+}
+
+export type DashboardRouteSearch = {
+  dashboard?: string;
+};
+
+export function validateDashboardSearch(input: Record<string, unknown>): DashboardRouteSearch {
+  const dashboard = input.dashboard;
+  if (typeof dashboard === "string" && dashboard.trim().length > 0) return { dashboard };
+  return {};
 }
