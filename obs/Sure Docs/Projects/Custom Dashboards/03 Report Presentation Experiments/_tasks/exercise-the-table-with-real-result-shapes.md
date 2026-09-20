@@ -5,11 +5,11 @@ parentId:
 id: t_cd_present_002
 title: Exercise the table with real result shapes
 type: task
-status: todo
+status: "done"
 priority: high
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - frontend
