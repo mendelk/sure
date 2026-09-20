@@ -31,7 +31,7 @@
     "spa:build": "vite build",
     "spa:generate": "orval --config orval.config.ts && oxfmt --no-error-on-unmatched-pattern app/javascript/spa/api/generated.ts",
     "spa:watch": "vite build --watch --mode development",
-    "spa:typecheck": "tsc --noEmit --project tsconfig.spa.json",
+    "spa:typecheck": "tsc --noEmit",
     "spa:check": "npm run spa:generate && npm run spa:typecheck && npm run spa:build",
     "tokens:build": "node bin/tokens.mjs",
     "tokens:check": "node bin/tokens.mjs && git diff --quiet -- app/assets/tailwind/sure-design-system/_generated.css",
@@ -41,10 +41,12 @@
   "license": "ISC",
   "dependencies": {
     "@headlessui/react": "^2.2.10",
+    "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-form": "^1.33.5",
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-router": "^1.170.36",
     "lucide-react": "^1.47.0",
+    "monaco-editor": "^0.56.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.5"
