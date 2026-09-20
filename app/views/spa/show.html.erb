@@ -1,4 +1,5 @@
-<% content_for :title, "Transactions · #{product_name}" %>
+<% page_title = request.path.start_with?("/dashboards") ? "Dashboards" : "Transactions" %>
+<% content_for :title, "#{page_title} · #{product_name}" %>
 <% bootstrap = {
   currentUser: {
     id: Current.user.id,
@@ -13,13 +14,15 @@
     categories: api_v1_categories_path,
     merchants: api_v1_merchants_path,
     tags: api_v1_tags_path,
-    transfers: api_v1_transfers_path
+    transfers: api_v1_transfers_path,
+    sureqlRun: dashboard_monarch_run_path
   },
   railsPaths: {
     home: root_path,
     logo: image_path("logomark-color.svg"),
     accounts: accounts_path,
     budgets: budgets_path,
+    dashboards: dashboards_path,
     imports: imports_path,
     newImport: new_import_path,
     newTransaction: new_transaction_path,
