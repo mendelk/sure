@@ -1,22 +1,24 @@
 ---
 pm-task: true
-projectId: "p_lfp_08"
-parentId: "t_lfp_703"
-id: "t_lfp_703_1"
-title: "Configure stochastic sampling and distributions"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[08 Scenarios Risk and Optimization|08 Scenarios Risk and Optimization]]"
+parentId: "[[run-configurable-monte-carlo-simulations|Run configurable Monte Carlo simulations]]"
+id: t_lfp_703_1
+title: Configure stochastic sampling and distributions
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["monte-carlo", "sampling"]
+tags:
+  - monte-carlo
+  - sampling
 subtaskIds: []
 dependencies: []
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Define trial count, seed, sampling method, historical sources, custom distributions, correlations, and account-level fixed/variable behavior.

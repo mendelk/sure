@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_alt_release"
-parentId: null
-id: "t_alt_rel_009"
-title: "Run final release quality review"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Release and Parity|07 Release and Parity]]"
+parentId:
+id: t_alt_rel_009
+title: Run final release quality review
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["quality", "security", "release"]
+tags:
+  - quality
+  - security
+  - release
 subtaskIds: []
-dependencies: ["t_alt_rel_008"]
+dependencies:
+  - "[[close-the-route-and-workflow-parity-matrix|Close the route and workflow parity matrix]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Run final full-product regression, threat-control verification, WCAG 2.2 AA review, browser matrix, and performance-budget audit.

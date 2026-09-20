@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_02"
-parentId: null
-id: "t_lfp_102"
-title: "Complete planning account taxonomy"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[02 Household and Current Finances|02 Household and Current Finances]]"
+parentId:
+id: t_lfp_102
+title: Complete planning account taxonomy
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["accounts", "baseline"]
+tags:
+  - accounts
+  - baseline
 subtaskIds: []
-dependencies: ["t_lfp_003"]
+dependencies:
+  - "[[define-current-data-and-plan-boundaries|Define current-data and plan boundaries]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Map Sure accounts to planning behavior and add missing financial account types needed for lifelong projections.

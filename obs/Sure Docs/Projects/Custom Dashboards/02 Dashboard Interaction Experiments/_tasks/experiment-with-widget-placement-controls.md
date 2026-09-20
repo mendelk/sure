@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_interactions"
-parentId: null
-id: "t_cd_interact_003"
-title: "Experiment with widget placement controls"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[02 Dashboard Interaction Experiments|02 Dashboard Interaction Experiments]]"
+parentId:
+id: t_cd_interact_003
+title: Experiment with widget placement controls
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "grid", "experiment"]
+tags:
+  - frontend
+  - grid
+  - experiment
 subtaskIds: []
-dependencies: ["t_cd_interact_001"]
+dependencies:
+  - "[[experiment-with-view-and-edit-modes|Experiment with view and edit modes]]"
 timeEstimate: 8
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Find understandable ways to add, move, resize, and remove report cards without making the canvas feel like an editor at all times.

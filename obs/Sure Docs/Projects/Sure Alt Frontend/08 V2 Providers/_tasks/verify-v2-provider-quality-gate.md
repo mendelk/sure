@@ -1,22 +1,36 @@
 ---
 pm-task: true
-projectId: "p_alt_v2_providers"
-parentId: null
-id: "t_alt_v2p_010"
-title: "Verify V2 provider quality gate"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[08 V2 Providers|08 V2 Providers]]"
+parentId:
+id: t_alt_v2p_010
+title: Verify V2 provider quality gate
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["milestone", "providers", "quality", "v2"]
+tags:
+  - milestone
+  - providers
+  - quality
+  - v2
 subtaskIds: []
-dependencies: ["t_alt_ing_005", "t_alt_ing_006", "t_alt_v2p_001", "t_alt_ing_008", "t_alt_ing_009", "t_alt_ing_010", "t_alt_ing_011", "t_alt_ing_012", "t_alt_ing_013", "t_alt_fnd_017"]
+dependencies:
+  - "[[implement-plaid-and-enable-banking-connections|Implement Plaid and Enable Banking connections]]"
+  - "[[implement-snaptrade-connection-flows|Implement SnapTrade connection flows]]"
+  - "[[implement-lunchflow-and-up-connections|Implement Lunchflow and Up connections]]"
+  - "[[implement-exchange-and-coinstats-connections|Implement exchange and CoinStats connections]]"
+  - "[[implement-brokerage-provider-connections|Implement brokerage provider connections]]"
+  - "[[implement-business-finance-provider-connections|Implement business finance provider connections]]"
+  - "[[implement-akahu-and-redbark-connections|Implement Akahu and Redbark connections]]"
+  - "[[implement-sophtron-challenge-flow|Implement Sophtron challenge flow]]"
+  - "[[implement-on-chain-wallet-connections|Implement on-chain wallet connections]]"
+  - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Verify every V2 provider meets API-only parity, security, accessibility, and release-quality requirements.

@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_001"
-title: "Audit web parity surface and API gap matrix"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_001
+title: Audit web parity surface and API gap matrix
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["discovery", "api", "parity"]
+tags:
+  - discovery
+  - api
+  - parity
 subtaskIds: []
 dependencies: []
 timeEstimate: 24
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Create the authoritative route-and-workflow matrix for self-hosted Sure, including super-admin surfaces and excluding hosted billing and native-client work.

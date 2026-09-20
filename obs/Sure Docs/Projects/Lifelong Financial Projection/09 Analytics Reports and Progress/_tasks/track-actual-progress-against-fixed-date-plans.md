@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_lfp_09"
-parentId: null
-id: "t_lfp_805"
-title: "Track actual progress against fixed-date plans"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[09 Analytics Reports and Progress|09 Analytics Reports and Progress]]"
+parentId:
+id: t_lfp_805
+title: Track actual progress against fixed-date plans
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["progress", "actuals"]
+tags:
+  - progress
+  - actuals
 subtaskIds: []
-dependencies: ["t_lfp_104", "t_lfp_201", "t_lfp_403", "t_lfp_801"]
+dependencies:
+  - "[[compose-versioned-current-finance-snapshots|Compose versioned current-finance snapshots]]"
+  - "[[manage-independent-scenario-plans|Manage independent scenario plans]]"
+  - "[[model-real-and-nominal-currency-values|Model real and nominal currency values]]"
+  - "[[deliver-yearly-summary-and-core-plan-metrics|Deliver yearly summary and core plan metrics]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Journal actual household financial snapshots and compare them with what a fixed-date plan projected for the same dates.

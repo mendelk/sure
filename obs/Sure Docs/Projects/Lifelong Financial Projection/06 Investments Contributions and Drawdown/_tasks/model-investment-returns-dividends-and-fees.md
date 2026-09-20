@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_06"
-parentId: null
-id: "t_lfp_501"
-title: "Model investment returns, dividends, and fees"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Investments Contributions and Drawdown|06 Investments Contributions and Drawdown]]"
+parentId:
+id: t_lfp_501
+title: Model investment returns, dividends, and fees
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["investments", "simulation"]
+tags:
+  - investments
+  - simulation
 subtaskIds: []
-dependencies: ["t_lfp_401", "t_lfp_403", "t_lfp_103"]
+dependencies:
+  - "[[implement-the-annual-simulation-ledger|Implement the annual simulation ledger]]"
+  - "[[model-real-and-nominal-currency-values|Model real and nominal currency values]]"
+  - "[[capture-planning-basis-and-account-rules|Capture planning basis and account rules]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Project account growth with separate appreciation, dividend, bond-income, cash-yield, and fee components.

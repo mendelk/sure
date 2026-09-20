@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_09"
-parentId: "t_lfp_803"
-id: "t_lfp_803_2"
-title: "Calculate effective marginal tax brackets"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[09 Analytics Reports and Progress|09 Analytics Reports and Progress]]"
+parentId: "[[deliver-tax-analytics-and-effective-brackets|Deliver tax analytics and effective brackets]]"
+id: t_lfp_803_2
+title: Calculate effective marginal tax brackets
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["analytics", "tax", "marginal-rate"]
+tags:
+  - analytics
+  - tax
+  - marginal-rate
 subtaskIds: []
-dependencies: ["t_lfp_803_1"]
+dependencies:
+  - "[[aggregate-tax-analytics-data|Aggregate tax analytics data]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Calculate the combined marginal effect of an additional dollar of each supported income type.

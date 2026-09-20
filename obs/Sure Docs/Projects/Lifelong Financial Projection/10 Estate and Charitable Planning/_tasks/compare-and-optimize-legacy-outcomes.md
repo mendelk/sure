@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_lfp_10"
-parentId: null
-id: "t_lfp_905"
-title: "Compare and optimize legacy outcomes"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[10 Estate and Charitable Planning|10 Estate and Charitable Planning]]"
+parentId:
+id: t_lfp_905
+title: Compare and optimize legacy outcomes
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["estate", "optimization", "analytics"]
+tags:
+  - estate
+  - optimization
+  - analytics
 subtaskIds: []
-dependencies: ["t_lfp_705", "t_lfp_903", "t_lfp_904"]
+dependencies:
+  - "[[optimize-multi-year-tax-strategies|Optimize multi-year tax strategies]]"
+  - "[[estimate-estate-inheritance-and-settlement-costs|Estimate estate, inheritance, and settlement costs]]"
+  - "[[model-lifetime-and-estate-charitable-giving|Model lifetime and estate charitable giving]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Make legacy a first-class objective when comparing plans, withdrawal orders, conversions, and charitable strategies.

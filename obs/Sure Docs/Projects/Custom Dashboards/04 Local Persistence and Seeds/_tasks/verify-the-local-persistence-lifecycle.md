@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_cd_persistence"
-parentId: null
-id: "t_cd_persist_006"
-title: "Verify the local persistence lifecycle"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[04 Local Persistence and Seeds|04 Local Persistence and Seeds]]"
+parentId:
+id: t_cd_persist_006
+title: Verify the local persistence lifecycle
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["verification", "local-storage", "seeds"]
+tags:
+  - verification
+  - local-storage
+  - seeds
 subtaskIds: []
-dependencies: ["t_cd_persist_004", "t_cd_persist_005"]
+dependencies:
+  - "[[add-explicit-seed-reset-controls|Add explicit seed reset controls]]"
+  - "[[handle-local-storage-failures-and-conflicts|Handle local storage failures and conflicts]]"
 timeEstimate: 6
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Prove the local-first lifecycle protects real dashboard customizations before final integration.

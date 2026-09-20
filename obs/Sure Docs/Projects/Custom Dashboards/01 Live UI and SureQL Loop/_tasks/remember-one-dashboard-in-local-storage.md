@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_live"
-parentId: null
-id: "t_cd_live_003"
-title: "Remember one dashboard in local storage"
-type: "task"
-status: "done"
-priority: "critical"
+projectId: "[[01 Live UI and SureQL Loop|01 Live UI and SureQL Loop]]"
+parentId:
+id: t_cd_live_003
+title: Remember one dashboard in local storage
+type: task
+status: done
+priority: critical
 start: ""
 due: ""
 progress: 100
 assignees: []
-tags: ["frontend", "local-storage", "walking-slice"]
+tags:
+  - frontend
+  - local-storage
+  - walking-slice
 subtaskIds: []
-dependencies: ["t_cd_live_002"]
+dependencies:
+  - "[[place-the-live-report-on-a-draggable-grid|Place the live report on a draggable grid]]"
 timeEstimate: 6
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Persist the exact working screen so iteration survives refresh, without predicting the final storage model.

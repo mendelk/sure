@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_03"
-parentId: null
-id: "t_lfp_204"
-title: "Model real-asset life cycles"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[03 Plans Events and Milestones|03 Plans Events and Milestones]]"
+parentId:
+id: t_lfp_204
+title: Model real-asset life cycles
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["events", "assets", "debt"]
+tags:
+  - events
+  - assets
+  - debt
 subtaskIds: []
-dependencies: ["t_lfp_201", "t_lfp_102"]
+dependencies:
+  - "[[manage-independent-scenario-plans|Manage independent scenario plans]]"
+  - "[[complete-planning-account-taxonomy|Complete planning account taxonomy]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Model homes, rentals, vehicles, businesses, and custom real assets from purchase through operation, financing, sale, or estate settlement.

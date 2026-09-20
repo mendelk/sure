@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_finance"
-parentId: null
-id: "t_alt_fin_013"
-title: "Build responsive budget planning UI"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Finance Planning and Reports|04 Finance Planning and Reports]]"
+parentId:
+id: t_alt_fin_013
+title: Build responsive budget planning UI
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["budgets", "frontend", "forms"]
+tags:
+  - budgets
+  - frontend
+  - forms
 subtaskIds: []
-dependencies: ["t_alt_fin_012", "t_alt_fnd_016"]
+dependencies:
+  - "[[complete-budget-write-api|Complete budget write API]]"
+  - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Build month navigation, budget summaries, allocation editing, category grouping/movement, owner switching, sharing, and copy-previous UI.

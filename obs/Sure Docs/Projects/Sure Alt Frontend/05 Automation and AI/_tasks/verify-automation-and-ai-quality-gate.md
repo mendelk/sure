@@ -1,22 +1,32 @@
 ---
 pm-task: true
-projectId: "p_alt_automation"
-parentId: null
-id: "t_alt_auto_007"
-title: "Verify automation and AI quality gate"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[05 Automation and AI|05 Automation and AI]]"
+parentId:
+id: t_alt_auto_007
+title: Verify automation and AI quality gate
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["milestone", "ai", "quality"]
+tags:
+  - milestone
+  - ai
+  - quality
 subtaskIds: []
-dependencies: ["t_alt_auto_001", "t_alt_auto_002", "t_alt_auto_003", "t_alt_auto_004", "t_alt_auto_005", "t_alt_auto_006", "t_alt_fnd_017"]
+dependencies:
+  - "[[implement-recurring-transaction-automation|Implement recurring transaction automation]]"
+  - "[[implement-rules-authoring-and-execution|Implement rules authoring and execution]]"
+  - "[[implement-insights-workflows|Implement insights workflows]]"
+  - "[[implement-resilient-ai-chat|Implement resilient AI chat]]"
+  - "[[implement-ai-settings-prompts-and-usage|Implement AI settings prompts and usage]]"
+  - "[[add-web-push-notifications|Add web push notifications]]"
+  - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
 timeEstimate: 32
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Verify recurring, rules, insights, chat, AI settings, and push workflows meet parity and safety gates.

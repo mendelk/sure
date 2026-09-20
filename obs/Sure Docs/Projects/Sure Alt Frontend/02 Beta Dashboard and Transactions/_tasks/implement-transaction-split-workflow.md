@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
-parentId: null
-id: "t_alt_beta_008"
-title: "Implement transaction split workflow"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[02 Beta Dashboard and Transactions|02 Beta Dashboard and Transactions]]"
+parentId:
+id: t_alt_beta_008
+title: Implement transaction split workflow
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "transactions", "forms"]
+tags:
+  - frontend
+  - transactions
+  - forms
 subtaskIds: []
-dependencies: ["t_alt_beta_006", "t_alt_beta_007"]
+dependencies:
+  - "[[implement-transaction-create-edit-and-delete|Implement transaction create edit and delete]]"
+  - "[[implement-transaction-category-tag-and-merchant-editing|Implement transaction category tag and merchant editing]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Implement transaction splitting with exact arithmetic and explicit reconciliation to the parent amount.

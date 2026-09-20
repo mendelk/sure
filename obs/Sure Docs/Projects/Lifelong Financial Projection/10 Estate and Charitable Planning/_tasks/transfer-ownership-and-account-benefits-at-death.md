@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_10"
-parentId: "t_lfp_901"
-id: "t_lfp_901_2"
-title: "Transfer ownership and account benefits at death"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[10 Estate and Charitable Planning|10 Estate and Charitable Planning]]"
+parentId: "[[model-partner-death-and-survivor-transitions|Model partner death and survivor transitions]]"
+id: t_lfp_901_2
+title: Transfer ownership and account benefits at death
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["estate", "ownership"]
+tags:
+  - estate
+  - ownership
 subtaskIds: []
-dependencies: ["t_lfp_901_1"]
+dependencies:
+  - "[[end-person-specific-events-at-death|End person-specific events at death]]"
 timeEstimate: 24
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Transfer eligible individual and joint assets, debts, account restrictions, and beneficiary treatment to the survivor.

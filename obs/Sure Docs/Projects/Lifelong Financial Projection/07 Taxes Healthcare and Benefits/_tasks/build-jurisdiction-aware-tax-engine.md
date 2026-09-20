@@ -1,22 +1,31 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: null
-id: "t_lfp_601"
-title: "Build jurisdiction-aware tax engine"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId:
+id: t_lfp_601
+title: Build jurisdiction-aware tax engine
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "architecture"]
-subtaskIds: ["t_lfp_601_1", "t_lfp_601_2", "t_lfp_601_3"]
-dependencies: ["t_lfp_401", "t_lfp_101", "t_lfp_102", "t_lfp_004"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - tax
+  - architecture
+subtaskIds:
+  - "[[define-versioned-jurisdiction-ruleset-contract|Define versioned jurisdiction ruleset contract]]"
+  - "[[calculate-filing-units-and-composed-jurisdictions|Calculate filing units and composed jurisdictions]]"
+  - "[[support-transparent-custom-tax-models|Support transparent custom tax models]]"
+dependencies:
+  - "[[implement-the-annual-simulation-ledger|Implement the annual simulation ledger]]"
+  - "[[model-household-members-and-life-expectancy|Model household members and life expectancy]]"
+  - "[[complete-planning-account-taxonomy|Complete planning account taxonomy]]"
+  - "[[define-calculation-versioning-and-reproducibility|Define calculation versioning and reproducibility]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Calculate taxes by jurisdiction and tax year from typed income, deductions, credits, filing units, locations, and account activity.

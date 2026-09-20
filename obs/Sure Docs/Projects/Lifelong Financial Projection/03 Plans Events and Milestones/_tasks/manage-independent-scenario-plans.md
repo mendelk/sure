@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_03"
-parentId: null
-id: "t_lfp_201"
-title: "Manage independent scenario plans"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[03 Plans Events and Milestones|03 Plans Events and Milestones]]"
+parentId:
+id: t_lfp_201
+title: Manage independent scenario plans
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["plans", "scenarios"]
+tags:
+  - plans
+  - scenarios
 subtaskIds: []
-dependencies: ["t_lfp_003", "t_lfp_004", "t_lfp_104"]
+dependencies:
+  - "[[define-current-data-and-plan-boundaries|Define current-data and plan boundaries]]"
+  - "[[define-calculation-versioning-and-reproducibility|Define calculation versioning and reproducibility]]"
+  - "[[compose-versioned-current-finance-snapshots|Compose versioned current-finance snapshots]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Support multiple named financial plans that can start from current finances, custom starting conditions, an existing plan, or a guided template.

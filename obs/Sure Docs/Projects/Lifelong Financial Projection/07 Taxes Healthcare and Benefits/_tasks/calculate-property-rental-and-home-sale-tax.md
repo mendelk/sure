@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: "t_lfp_603"
-id: "t_lfp_603_3"
-title: "Calculate property, rental, and home-sale tax"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId: "[[model-deductions-credits-and-property-tax|Model deductions, credits, and property tax]]"
+id: t_lfp_603_3
+title: Calculate property, rental, and home-sale tax
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "property", "rental"]
+tags:
+  - tax
+  - property
+  - rental
 subtaskIds: []
-dependencies: ["t_lfp_603_2"]
+dependencies:
+  - "[[calculate-credits-and-carryforwards|Calculate credits and carryforwards]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Calculate property tax, rental deductions, and primary-residence sale treatment from real-asset facts.

@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_lfp_10"
-parentId: null
-id: "t_lfp_904"
-title: "Model lifetime and estate charitable giving"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[10 Estate and Charitable Planning|10 Estate and Charitable Planning]]"
+parentId:
+id: t_lfp_904
+title: Model lifetime and estate charitable giving
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["estate", "charity", "tax"]
+tags:
+  - estate
+  - charity
+  - tax
 subtaskIds: []
-dependencies: ["t_lfp_203", "t_lfp_607", "t_lfp_902"]
+dependencies:
+  - "[[model-expense-and-giving-events|Model expense and giving events]]"
+  - "[[model-roth-sepp-and-tax-advantaged-strategies|Model Roth, SEPP, and tax-advantaged strategies]]"
+  - "[[calculate-gross-estate-legacy-and-net-legacy|Calculate gross estate, legacy, and net legacy]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Support ordinary gifts, Qualified Charitable Distributions, donor-advised funds, and charitable estate allocations with appropriate tax treatment.

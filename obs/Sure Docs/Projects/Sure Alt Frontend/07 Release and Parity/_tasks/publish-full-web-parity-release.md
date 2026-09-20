@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_release"
-parentId: null
-id: "t_alt_rel_010"
-title: "Publish full web parity release"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Release and Parity|07 Release and Parity]]"
+parentId:
+id: t_alt_rel_010
+title: Publish full web parity release
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["release", "parity", "milestone"]
+tags:
+  - release
+  - parity
+  - milestone
 subtaskIds: []
-dependencies: ["t_alt_rel_003", "t_alt_rel_009"]
+dependencies:
+  - "[[document-self-hosted-configuration-and-operations|Document self-hosted configuration and operations]]"
+  - "[[run-final-release-quality-review|Run final release quality review]]"
 timeEstimate: 32
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Publish the full self-hosted and super-admin web-parity release of the alternate Sure frontend.

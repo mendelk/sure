@@ -1,22 +1,29 @@
 ---
 pm-task: true
-projectId: "p_alt_ingestion"
-parentId: null
-id: "t_alt_ing_018"
-title: "Verify ingestion and SimpleFIN quality gate"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[03 Data Ingestion and Providers|03 Data Ingestion and Providers]]"
+parentId:
+id: t_alt_ing_018
+title: Verify ingestion and SimpleFIN quality gate
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["milestone", "providers", "quality"]
+tags:
+  - milestone
+  - providers
+  - quality
 subtaskIds: []
-dependencies: ["t_alt_ing_007", "t_alt_ing_015", "t_alt_ing_017", "t_alt_fnd_017"]
+dependencies:
+  - "[[implement-simplefin-connection|Implement SimpleFIN connection]]"
+  - "[[build-resumable-import-wizard|Build resumable import wizard]]"
+  - "[[build-family-export-ui|Build family export UI]]"
+  - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Verify SimpleFIN plus import/export meets API-only parity, security, accessibility, and release-quality requirements.

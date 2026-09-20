@@ -1,22 +1,24 @@
 ---
 pm-task: true
-projectId: "p_lfp_01"
-parentId: null
-id: "t_lfp_001"
-title: "Establish functional parity catalog"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Product Definition and Architecture|01 Product Definition and Architecture]]"
+parentId:
+id: t_lfp_001
+title: Establish functional parity catalog
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["discovery", "parity"]
+tags:
+  - discovery
+  - parity
 subtaskIds: []
 dependencies: []
 timeEstimate: 24
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Create and maintain a comprehensive catalog of personal and household financial-planning capabilities. Treat the catalog as an outcome target rather than a prescription for interface, terminology, defaults, branding, or commercial structure.

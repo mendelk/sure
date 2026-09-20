@@ -1,22 +1,33 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: null
-id: "t_lfp_1002"
-title: "Deliver Canada planning rules"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId:
+id: t_lfp_1002
+title: Deliver Canada planning rules
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["international", "canada", "tax"]
-subtaskIds: ["t_lfp_1002_1", "t_lfp_1002_2", "t_lfp_1002_3"]
-dependencies: ["t_lfp_1001", "t_lfp_503", "t_lfp_602", "t_lfp_604", "t_lfp_605"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - international
+  - canada
+  - tax
+subtaskIds:
+  - "[[model-canadian-accounts-and-contributions|Model Canadian accounts and contributions]]"
+  - "[[calculate-canadian-income-and-dividend-taxes|Calculate Canadian income and dividend taxes]]"
+  - "[[calculate-canadian-benefits-and-couple-strategies|Calculate Canadian benefits and couple strategies]]"
+dependencies:
+  - "[[make-location-currency-and-filing-first-class|Make location, currency, and filing first-class]]"
+  - "[[enforce-contribution-and-employer-match-rules|Enforce contribution and employer-match rules]]"
+  - "[[implement-us-income-and-payroll-taxes|Implement US income and payroll taxes]]"
+  - "[[reconcile-withholding-refunds-and-tax-balances|Reconcile withholding, refunds, and tax balances]]"
+  - "[[estimate-social-security-pensions-and-medicare|Estimate Social Security, pensions, and Medicare]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Provide a coherent Canadian planning preset across accounts, federal/provincial taxes, contributions, withdrawals, dividends, and benefits.

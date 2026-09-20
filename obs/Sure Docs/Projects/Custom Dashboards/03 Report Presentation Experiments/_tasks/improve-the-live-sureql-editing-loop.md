@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_presentations"
-parentId: null
-id: "t_cd_present_001"
-title: "Improve the live SureQL editing loop"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[03 Report Presentation Experiments|03 Report Presentation Experiments]]"
+parentId:
+id: t_cd_present_001
+title: Improve the live SureQL editing loop
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "sureql", "experiment"]
+tags:
+  - frontend
+  - sureql
+  - experiment
 subtaskIds: []
-dependencies: ["t_cd_live_008"]
+dependencies:
+  - "[[refine-the-selected-first-slice|Refine the selected first slice]]"
 timeEstimate: 8
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Improve raw SureQL authoring from observed use without choosing a general report API.

@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_interactions"
-parentId: null
-id: "t_cd_interact_002"
-title: "Improve dashboard switching and management"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[02 Dashboard Interaction Experiments|02 Dashboard Interaction Experiments]]"
+parentId:
+id: t_cd_interact_002
+title: Improve dashboard switching and management
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "dashboard", "experiment"]
+tags:
+  - frontend
+  - dashboard
+  - experiment
 subtaskIds: []
-dependencies: ["t_cd_interact_001"]
+dependencies:
+  - "[[experiment-with-view-and-edit-modes|Experiment with view and edit modes]]"
 timeEstimate: 8
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Explore a clear navigation and management surface using multiple real dashboards.

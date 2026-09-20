@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: "t_lfp_602"
-id: "t_lfp_602_3"
-title: "Calculate US state and local taxes"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId: "[[implement-us-income-and-payroll-taxes|Implement US income and payroll taxes]]"
+id: t_lfp_602_3
+title: Calculate US state and local taxes
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "us", "state-local"]
+tags:
+  - tax
+  - us
+  - state-local
 subtaskIds: []
-dependencies: ["t_lfp_602_2"]
+dependencies:
+  - "[[calculate-us-investment-amt-and-niit-taxes|Calculate US investment, AMT, and NIIT taxes]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Calculate maintained state and supported locality taxes with source-specific retirement and investment rules.

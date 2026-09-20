@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_016"
-title: "Evaluate TanStack Charts for Sure visualizations"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_016
+title: Evaluate TanStack Charts for Sure visualizations
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["charts", "spike", "accessibility"]
+tags:
+  - charts
+  - spike
+  - accessibility
 subtaskIds: []
-dependencies: ["t_alt_fnd_008", "t_alt_fnd_009", "t_alt_fnd_012"]
+dependencies:
+  - "[[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]"
+  - "[[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 20
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Time-box a decision on the Alpha TanStack Charts library using representative Sure financial charts, with Recharts as the fallback.

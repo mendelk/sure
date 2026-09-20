@@ -1,22 +1,31 @@
 ---
 pm-task: true
-projectId: "p_lfp_09"
-parentId: null
-id: "t_lfp_803"
-title: "Deliver tax analytics and effective brackets"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[09 Analytics Reports and Progress|09 Analytics Reports and Progress]]"
+parentId:
+id: t_lfp_803
+title: Deliver tax analytics and effective brackets
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["analytics", "tax"]
-subtaskIds: ["t_lfp_803_1", "t_lfp_803_2", "t_lfp_803_3"]
-dependencies: ["t_lfp_602", "t_lfp_603", "t_lfp_604", "t_lfp_801"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - analytics
+  - tax
+subtaskIds:
+  - "[[aggregate-tax-analytics-data|Aggregate tax analytics data]]"
+  - "[[calculate-effective-marginal-tax-brackets|Calculate effective marginal tax brackets]]"
+  - "[[report-lifetime-tax-and-estate-effects|Report lifetime tax and estate effects]]"
+dependencies:
+  - "[[implement-us-income-and-payroll-taxes|Implement US income and payroll taxes]]"
+  - "[[model-deductions-credits-and-property-tax|Model deductions, credits, and property tax]]"
+  - "[[reconcile-withholding-refunds-and-tax-balances|Reconcile withholding, refunds, and tax balances]]"
+  - "[[deliver-yearly-summary-and-core-plan-metrics|Deliver yearly summary and core plan metrics]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Explain future income, tax liability, marginal rates, and effective brackets for each simulated year.

@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_03"
-parentId: null
-id: "t_lfp_203"
-title: "Model expense and giving events"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[03 Plans Events and Milestones|03 Plans Events and Milestones]]"
+parentId:
+id: t_lfp_203
+title: Model expense and giving events
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["events", "expenses"]
+tags:
+  - events
+  - expenses
 subtaskIds: []
-dependencies: ["t_lfp_201"]
+dependencies:
+  - "[[manage-independent-scenario-plans|Manage independent scenario plans]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Model ongoing and one-time expenses with the same timing and change-over-time power as income.

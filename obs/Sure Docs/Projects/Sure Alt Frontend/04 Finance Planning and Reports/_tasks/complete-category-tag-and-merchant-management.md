@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_finance"
-parentId: null
-id: "t_alt_fin_011"
-title: "Complete category tag and merchant management"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Finance Planning and Reports|04 Finance Planning and Reports]]"
+parentId:
+id: t_alt_fin_011
+title: Complete category tag and merchant management
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["classification", "api", "frontend"]
+tags:
+  - classification
+  - api
+  - frontend
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_010", "t_alt_fnd_012"]
+dependencies:
+  - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Complete standalone category, tag, and family-merchant CRUD, merge, bootstrap/import/enhance, and deletion reassignment workflows.

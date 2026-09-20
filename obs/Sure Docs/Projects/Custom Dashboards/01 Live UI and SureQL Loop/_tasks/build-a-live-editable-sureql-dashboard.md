@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_cd_live"
-parentId: null
-id: "t_cd_live_001"
-title: "Build a live editable SureQL dashboard"
-type: "task"
-status: "done"
-priority: "critical"
+projectId: "[[01 Live UI and SureQL Loop|01 Live UI and SureQL Loop]]"
+parentId:
+id: t_cd_live_001
+title: Build a live editable SureQL dashboard
+type: task
+status: done
+priority: critical
 start: ""
 due: ""
 progress: 100
 assignees: []
-tags: ["frontend", "sureql", "walking-slice"]
+tags:
+  - frontend
+  - sureql
+  - walking-slice
 subtaskIds: []
 dependencies: []
 timeEstimate: 10
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Make the first implementation visible and useful: `/dashboards` shows a raw SureQL editor, a Run action, and real authorized query results.

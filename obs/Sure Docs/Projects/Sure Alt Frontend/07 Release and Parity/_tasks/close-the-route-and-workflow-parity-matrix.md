@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_release"
-parentId: null
-id: "t_alt_rel_008"
-title: "Close the route and workflow parity matrix"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Release and Parity|07 Release and Parity]]"
+parentId:
+id: t_alt_rel_008
+title: Close the route and workflow parity matrix
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["parity", "audit", "release"]
+tags:
+  - parity
+  - audit
+  - release
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_rel_011"]
+dependencies:
+  - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
+  - "[[publish-v2-providers-release|Publish V2 providers release]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Re-audit the current Rails application and prove every in-scope browser workflow has alternate-route, API-contract, and test evidence.

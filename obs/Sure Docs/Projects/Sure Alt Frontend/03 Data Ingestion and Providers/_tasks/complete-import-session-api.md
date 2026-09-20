@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_ingestion"
-parentId: null
-id: "t_alt_ing_014"
-title: "Complete import session API"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[03 Data Ingestion and Providers|03 Data Ingestion and Providers]]"
+parentId:
+id: t_alt_ing_014
+title: Complete import session API
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["imports", "api", "backend"]
+tags:
+  - imports
+  - api
+  - backend
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_004"]
+dependencies:
+  - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
+  - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Complete the import API state machine needed for parity with upload, configuration, cleaning, mapping, review, publish, cancel, revert, and templates.

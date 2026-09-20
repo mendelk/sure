@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_001"
-title: "Define identity capabilities and settings contract"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_001
+title: Define identity capabilities and settings contract
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["settings", "api", "authorization"]
+tags:
+  - settings
+  - api
+  - authorization
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_004"]
+dependencies:
+  - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
+  - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Define the authenticated identity, family, role/capability, deployment feature, and settings resources needed to render safe navigation and forms.

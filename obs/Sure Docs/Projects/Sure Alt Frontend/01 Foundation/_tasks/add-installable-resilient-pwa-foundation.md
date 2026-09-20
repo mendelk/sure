@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_013"
-title: "Add installable resilient PWA foundation"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_013
+title: Add installable resilient PWA foundation
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["pwa", "frontend"]
+tags:
+  - pwa
+  - frontend
 subtaskIds: []
-dependencies: ["t_alt_fnd_010", "t_alt_fnd_011"]
+dependencies:
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
+  - "[[add-localization-theme-and-privacy-foundations|Add localization theme and privacy foundations]]"
 timeEstimate: 28
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Make the web app installable and resilient without pretending financial mutations work offline.

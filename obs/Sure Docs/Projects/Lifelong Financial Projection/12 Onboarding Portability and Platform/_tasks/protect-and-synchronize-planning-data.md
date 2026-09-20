@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_lfp_12"
-parentId: null
-id: "t_lfp_1107"
-title: "Protect and synchronize planning data"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[12 Onboarding Portability and Platform|12 Onboarding Portability and Platform]]"
+parentId:
+id: t_lfp_1107
+title: Protect and synchronize planning data
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["security", "sync", "privacy"]
+tags:
+  - security
+  - sync
+  - privacy
 subtaskIds: []
-dependencies: ["t_lfp_004", "t_lfp_201", "t_lfp_1105"]
+dependencies:
+  - "[[define-calculation-versioning-and-reproducibility|Define calculation versioning and reproducibility]]"
+  - "[[manage-independent-scenario-plans|Manage independent scenario plans]]"
+  - "[[provide-complete-plan-portability-and-plugin-contracts|Provide complete plan portability and plugin contracts]]"
 timeEstimate: 40
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Apply Sure's authentication, household authorization, privacy, recovery, and deletion guarantees to all planning data and long-running simulations.

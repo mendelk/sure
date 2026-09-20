@@ -1,22 +1,24 @@
 ---
 pm-task: true
-projectId: "p_lfp_10"
-parentId: "t_lfp_901"
-id: "t_lfp_901_1"
-title: "End person-specific events at death"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[10 Estate and Charitable Planning|10 Estate and Charitable Planning]]"
+parentId: "[[model-partner-death-and-survivor-transitions|Model partner death and survivor transitions]]"
+id: t_lfp_901_1
+title: End person-specific events at death
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["estate", "events"]
+tags:
+  - estate
+  - events
 subtaskIds: []
 dependencies: []
 timeEstimate: 16
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Stop or transform income, expenses, contributions, benefits, and milestones tied to a deceased household member.

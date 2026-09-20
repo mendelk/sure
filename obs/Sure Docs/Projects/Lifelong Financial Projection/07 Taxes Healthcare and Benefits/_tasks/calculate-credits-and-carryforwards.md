@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: "t_lfp_603"
-id: "t_lfp_603_2"
-title: "Calculate credits and carryforwards"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId: "[[model-deductions-credits-and-property-tax|Model deductions, credits, and property tax]]"
+id: t_lfp_603_2
+title: Calculate credits and carryforwards
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "credits", "carryforwards"]
+tags:
+  - tax
+  - credits
+  - carryforwards
 subtaskIds: []
-dependencies: ["t_lfp_603_1"]
+dependencies:
+  - "[[select-standard-or-itemized-deductions|Select standard or itemized deductions]]"
 timeEstimate: 20
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Apply refundable/nonrefundable credits and preserve supported deduction, charitable, rental, and capital-loss carryforwards.

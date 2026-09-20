@@ -1,22 +1,39 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_015"
-title: "Verify settings onboarding and admin quality gate"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_015
+title: Verify settings onboarding and admin quality gate
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["milestone", "admin", "quality"]
+tags:
+  - milestone
+  - admin
+  - quality
 subtaskIds: []
-dependencies: ["t_alt_set_002", "t_alt_set_003", "t_alt_set_004", "t_alt_set_005", "t_alt_set_006", "t_alt_set_007", "t_alt_set_008", "t_alt_set_009", "t_alt_set_011", "t_alt_set_012", "t_alt_set_013", "t_alt_set_014", "t_alt_set_016", "t_alt_fnd_017"]
+dependencies:
+  - "[[implement-profile-preferences-and-appearance|Implement profile preferences and appearance]]"
+  - "[[implement-password-email-and-session-management|Implement password email and session management]]"
+  - "[[implement-mfa-and-passkey-management|Implement MFA and passkey management]]"
+  - "[[implement-signup-recovery-and-sso-entry-flows|Implement signup recovery and SSO entry flows]]"
+  - "[[implement-api-key-and-mcp-settings|Implement API key and MCP settings]]"
+  - "[[implement-family-membership-invitations-and-sharing|Implement family membership invitations and sharing]]"
+  - "[[implement-hosting-debug-and-background-job-settings|Implement hosting debug and background job settings]]"
+  - "[[implement-new-user-onboarding|Implement new-user onboarding]]"
+  - "[[implement-admin-user-family-and-invitation-management|Implement admin user family and invitation management]]"
+  - "[[implement-admin-sso-provider-and-identity-block-management|Implement admin SSO provider and identity block management]]"
+  - "[[implement-admin-system-health-and-queue-tools|Implement admin system health and queue tools]]"
+  - "[[implement-guarded-reset-and-account-deletion|Implement guarded reset and account deletion]]"
+  - "[[implement-admin-impersonation-sessions|Implement admin impersonation sessions]]"
+  - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Verify user, family, auth/security, onboarding, hosting, and super-admin workflows meet parity and release gates.

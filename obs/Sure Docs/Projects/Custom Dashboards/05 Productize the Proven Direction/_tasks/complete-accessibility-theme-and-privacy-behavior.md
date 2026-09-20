@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_productize"
-parentId: null
-id: "t_cd_product_004"
-title: "Complete accessibility, theme, and privacy behavior"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[05 Productize the Proven Direction|05 Productize the Proven Direction]]"
+parentId:
+id: t_cd_product_004
+title: Complete accessibility, theme, and privacy behavior
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "accessibility", "design-system"]
+tags:
+  - frontend
+  - accessibility
+  - design-system
 subtaskIds: []
-dependencies: ["t_cd_product_002"]
+dependencies:
+  - "[[integrate-the-selected-dashboard-experience|Integrate the selected dashboard experience]]"
 timeEstimate: 10
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Finish cross-cutting behavior on the selected UI rather than polishing discarded experiments.

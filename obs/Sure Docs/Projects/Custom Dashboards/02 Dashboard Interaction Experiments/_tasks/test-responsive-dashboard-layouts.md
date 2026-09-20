@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_cd_interactions"
-parentId: null
-id: "t_cd_interact_004"
-title: "Test responsive dashboard layouts"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[02 Dashboard Interaction Experiments|02 Dashboard Interaction Experiments]]"
+parentId:
+id: t_cd_interact_004
+title: Test responsive dashboard layouts
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "grid", "responsive", "experiment"]
+tags:
+  - frontend
+  - grid
+  - responsive
+  - experiment
 subtaskIds: []
-dependencies: ["t_cd_interact_002", "t_cd_interact_003"]
+dependencies:
+  - "[[improve-dashboard-switching-and-management|Improve dashboard switching and management]]"
+  - "[[experiment-with-widget-placement-controls|Experiment with widget placement controls]]"
 timeEstimate: 8
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Use the real dashboard to learn whether separate breakpoint layouts are worth their complexity.

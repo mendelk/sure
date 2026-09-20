@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: "t_lfp_1004"
-id: "t_lfp_1004_1"
-title: "Model Australian accounts and personal taxes"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId: "[[deliver-australia-planning-rules|Deliver Australia planning rules]]"
+id: t_lfp_1004_1
+title: Model Australian accounts and personal taxes
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["australia", "accounts", "tax"]
+tags:
+  - australia
+  - accounts
+  - tax
 subtaskIds: []
 dependencies: []
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Model taxable, cash, property, and super accounts with Australian personal-income, gains, and Medicare-related rules.

@@ -1,22 +1,29 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: null
-id: "t_lfp_602"
-title: "Implement US income and payroll taxes"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId:
+id: t_lfp_602
+title: Implement US income and payroll taxes
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "us"]
-subtaskIds: ["t_lfp_602_1", "t_lfp_602_2", "t_lfp_602_3"]
-dependencies: ["t_lfp_601", "t_lfp_501"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - tax
+  - us
+subtaskIds:
+  - "[[calculate-us-federal-ordinary-and-payroll-taxes|Calculate US federal ordinary and payroll taxes]]"
+  - "[[calculate-us-investment-amt-and-niit-taxes|Calculate US investment, AMT, and NIIT taxes]]"
+  - "[[calculate-us-state-and-local-taxes|Calculate US state and local taxes]]"
+dependencies:
+  - "[[build-jurisdiction-aware-tax-engine|Build jurisdiction-aware tax engine]]"
+  - "[[model-investment-returns-dividends-and-fees|Model investment returns, dividends, and fees]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Estimate major US taxes and taxable-income categories for every projected year.

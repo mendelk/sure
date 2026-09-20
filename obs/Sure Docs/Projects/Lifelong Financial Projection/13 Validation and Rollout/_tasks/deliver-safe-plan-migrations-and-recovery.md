@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_lfp_13"
-parentId: null
-id: "t_lfp_1203"
-title: "Deliver safe plan migrations and recovery"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[13 Validation and Rollout|13 Validation and Rollout]]"
+parentId:
+id: t_lfp_1203
+title: Deliver safe plan migrations and recovery
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["migrations", "recovery", "quality"]
+tags:
+  - migrations
+  - recovery
+  - quality
 subtaskIds: []
-dependencies: ["t_lfp_004", "t_lfp_1105", "t_lfp_1107"]
+dependencies:
+  - "[[define-calculation-versioning-and-reproducibility|Define calculation versioning and reproducibility]]"
+  - "[[provide-complete-plan-portability-and-plugin-contracts|Provide complete plan portability and plugin contracts]]"
+  - "[[protect-and-synchronize-planning-data|Protect and synchronize planning data]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Protect long-lived plans as schemas, defaults, account mappings, and financial rules evolve over decades.

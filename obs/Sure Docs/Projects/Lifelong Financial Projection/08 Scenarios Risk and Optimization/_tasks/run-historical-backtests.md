@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_08"
-parentId: null
-id: "t_lfp_702"
-title: "Run historical backtests"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[08 Scenarios Risk and Optimization|08 Scenarios Risk and Optimization]]"
+parentId:
+id: t_lfp_702
+title: Run historical backtests
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["risk", "historical-data"]
+tags:
+  - risk
+  - historical-data
 subtaskIds: []
-dependencies: ["t_lfp_405", "t_lfp_501", "t_lfp_403"]
+dependencies:
+  - "[[make-simulation-results-auditable-and-repeatable|Make simulation results auditable and repeatable]]"
+  - "[[model-investment-returns-dividends-and-fees|Model investment returns, dividends, and fees]]"
+  - "[[model-real-and-nominal-currency-values|Model real and nominal currency values]]"
 timeEstimate: 40
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Replay plans against versioned historical investment, dividend, bond, and inflation sequences.

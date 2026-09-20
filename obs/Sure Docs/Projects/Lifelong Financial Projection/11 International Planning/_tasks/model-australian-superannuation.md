@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: "t_lfp_1004"
-id: "t_lfp_1004_2"
-title: "Model Australian superannuation"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId: "[[deliver-australia-planning-rules|Deliver Australia planning rules]]"
+id: t_lfp_1004_2
+title: Model Australian superannuation
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["australia", "superannuation"]
+tags:
+  - australia
+  - superannuation
 subtaskIds: []
-dependencies: ["t_lfp_1004_1"]
+dependencies:
+  - "[[model-australian-accounts-and-personal-taxes|Model Australian accounts and personal taxes]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Project employer and personal super contributions, limits, contribution tax, access, and retirement withdrawals.

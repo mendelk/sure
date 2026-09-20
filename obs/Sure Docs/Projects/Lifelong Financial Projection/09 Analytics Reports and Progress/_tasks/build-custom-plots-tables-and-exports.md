@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_09"
-parentId: null
-id: "t_lfp_804"
-title: "Build custom plots, tables, and exports"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[09 Analytics Reports and Progress|09 Analytics Reports and Progress]]"
+parentId:
+id: t_lfp_804
+title: Build custom plots, tables, and exports
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["analytics", "reports", "exports"]
+tags:
+  - analytics
+  - reports
+  - exports
 subtaskIds: []
-dependencies: ["t_lfp_801", "t_lfp_701"]
+dependencies:
+  - "[[deliver-yearly-summary-and-core-plan-metrics|Deliver yearly summary and core plan metrics]]"
+  - "[[compare-plans-and-run-reversible-what-if-changes|Compare plans and run reversible what-if changes]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Let users explore any compatible result metrics together and obtain portable, auditable reports.

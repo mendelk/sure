@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_04"
-parentId: null
-id: "t_lfp_301"
-title: "Implement ordered cash-flow allocation"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[04 Cash Flow Goals and Debt|04 Cash Flow Goals and Debt]]"
+parentId:
+id: t_lfp_301
+title: Implement ordered cash-flow allocation
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["cash-flow", "flows"]
+tags:
+  - cash-flow
+  - flows
 subtaskIds: []
-dependencies: ["t_lfp_202", "t_lfp_203", "t_lfp_103"]
+dependencies:
+  - "[[model-income-and-benefit-events|Model income and benefit events]]"
+  - "[[model-expense-and-giving-events|Model expense and giving events]]"
+  - "[[capture-planning-basis-and-account-rules|Capture planning basis and account rules]]"
 timeEstimate: 40
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Allocate available income through an ordered list of obligations and goals before resolving surplus or shortfall.

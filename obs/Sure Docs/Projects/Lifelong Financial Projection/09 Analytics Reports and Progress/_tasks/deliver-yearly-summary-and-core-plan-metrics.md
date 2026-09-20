@@ -1,22 +1,30 @@
 ---
 pm-task: true
-projectId: "p_lfp_09"
-parentId: null
-id: "t_lfp_801"
-title: "Deliver yearly summary and core plan metrics"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[09 Analytics Reports and Progress|09 Analytics Reports and Progress]]"
+parentId:
+id: t_lfp_801
+title: Deliver yearly summary and core plan metrics
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["analytics", "metrics"]
-subtaskIds: ["t_lfp_801_1", "t_lfp_801_2", "t_lfp_801_3"]
-dependencies: ["t_lfp_405", "t_lfp_504", "t_lfp_604"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - analytics
+  - metrics
+subtaskIds:
+  - "[[define-core-planning-metric-registry|Define core planning metric registry]]"
+  - "[[generate-explainable-yearly-summaries|Generate explainable yearly summaries]]"
+  - "[[configure-plan-metric-selections|Configure plan metric selections]]"
+dependencies:
+  - "[[make-simulation-results-auditable-and-repeatable|Make simulation results auditable and repeatable]]"
+  - "[[implement-account-liquidity-and-drawdown-order|Implement account liquidity and drawdown order]]"
+  - "[[reconcile-withholding-refunds-and-tax-balances|Reconcile withholding, refunds, and tax balances]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Expose a complete annual explanation and standard metric library for deterministic and stochastic results.

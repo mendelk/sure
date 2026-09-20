@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
-parentId: null
-id: "t_alt_beta_004"
-title: "Complete transaction list contract"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[02 Beta Dashboard and Transactions|02 Beta Dashboard and Transactions]]"
+parentId:
+id: t_alt_beta_004
+title: Complete transaction list contract
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["api", "transactions", "backend"]
+tags:
+  - api
+  - transactions
+  - backend
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_004"]
+dependencies:
+  - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
+  - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
 timeEstimate: 28
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Make the transactions API sufficient for a URL-driven, paginated browsing and editing experience.

@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_06"
-parentId: null
-id: "t_lfp_503"
-title: "Enforce contribution and employer-match rules"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Investments Contributions and Drawdown|06 Investments Contributions and Drawdown]]"
+parentId:
+id: t_lfp_503
+title: Enforce contribution and employer-match rules
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["investments", "contributions"]
+tags:
+  - investments
+  - contributions
 subtaskIds: []
-dependencies: ["t_lfp_301", "t_lfp_501", "t_lfp_102"]
+dependencies:
+  - "[[implement-ordered-cash-flow-allocation|Implement ordered cash-flow allocation]]"
+  - "[[model-investment-returns-dividends-and-fees|Model investment returns, dividends, and fees]]"
+  - "[[complete-planning-account-taxonomy|Complete planning account taxonomy]]"
 timeEstimate: 40
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Apply account-, person-, age-, income-, and year-specific contribution rules while preserving flexible flow strategies.

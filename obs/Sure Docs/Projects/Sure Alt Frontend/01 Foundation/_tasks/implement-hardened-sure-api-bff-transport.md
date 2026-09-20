@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_005"
-title: "Implement hardened Sure API BFF transport"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_005
+title: Implement hardened Sure API BFF transport
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "backend", "security"]
+tags:
+  - frontend
+  - backend
+  - security
 subtaskIds: []
-dependencies: ["t_alt_fnd_004", "t_alt_fnd_006"]
+dependencies:
+  - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
+  - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
 timeEstimate: 32
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Implement the TanStack Start server-side transport that is the browser's only path to the configured Sure API.

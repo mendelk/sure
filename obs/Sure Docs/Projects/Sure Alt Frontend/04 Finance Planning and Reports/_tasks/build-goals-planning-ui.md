@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_finance"
-parentId: null
-id: "t_alt_fin_015"
-title: "Build goals planning UI"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Finance Planning and Reports|04 Finance Planning and Reports]]"
+parentId:
+id: t_alt_fin_015
+title: Build goals planning UI
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["goals", "frontend", "charts"]
+tags:
+  - goals
+  - frontend
+  - charts
 subtaskIds: []
-dependencies: ["t_alt_fin_014", "t_alt_fnd_016"]
+dependencies:
+  - "[[add-goals-and-pledges-api|Add goals and pledges API]]"
+  - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Build goal list/detail/forms, funding breakdown, projection, consumption, lifecycle, and pledge workflows.

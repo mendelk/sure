@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_persistence"
-parentId: null
-id: "t_cd_persist_001"
-title: "Capture the proven local dashboard shape"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Local Persistence and Seeds|04 Local Persistence and Seeds]]"
+parentId:
+id: t_cd_persist_001
+title: Capture the proven local dashboard shape
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "local-storage", "evolution"]
+tags:
+  - frontend
+  - local-storage
+  - evolution
 subtaskIds: []
-dependencies: ["t_cd_live_008"]
+dependencies:
+  - "[[refine-the-selected-first-slice|Refine the selected first slice]]"
 timeEstimate: 8
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Replace the prototype's loose JSON handling with validation for only the fields used by the accepted first slice.
