@@ -1,8 +1,12 @@
+/* eslint-disable import/max-dependencies -- Route composes UI primitives with form and API modules. */
 import { DialogTitle } from "@headlessui/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { Button } from "./components/button";
+import { FormField } from "./components/form-field";
+import { IconButton } from "./components/icon-button";
 import { Icon } from "./icon";
 import { Modal } from "./modal";
 import { useDismiss } from "./use-dismiss";
@@ -45,9 +49,6 @@ export type NewTransactionFormValues = {
   notes: string;
   tag_ids: string[];
 };
-
-const inputClasses = "form-field__input w-full";
-const labelClasses = "form-field__label";
 
 function todayIso(): string {
   const now = new Date();
@@ -187,26 +188,19 @@ export function NewTransactionPage() {
               }}
             >
               {(field) => (
-                <div className="form-field">
-                  <div className="form-field__body">
-                    <label className={labelClasses} htmlFor="new-txn-name">
-                      Description
-                    </label>
-                    <input
-                      autoComplete="off"
-                      className={inputClasses}
-                      id="new-txn-name"
-                      onChange={(event) => {
-                        field.handleChange(event.currentTarget.value);
-                      }}
-                      placeholder="Describe transaction"
-                      required
-                      type="text"
-                      value={field.state.value}
-                    />
-                    <FieldError message={field.state.meta.errors.join(" ")} />
-                  </div>
-                </div>
+                <FormField
+                  autoComplete="off"
+                  error={field.state.meta.errors.join(" ")}
+                  id="new-txn-name"
+                  label="Description"
+                  onChange={(event) => {
+                    field.handleChange(event.currentTarget.value);
+                  }}
+                  placeholder="Describe transaction"
+                  required
+                  type="text"
+                  value={field.state.value}
+                />
               )}
             </form.Field>
             <form.Field
@@ -241,51 +235,37 @@ export function NewTransactionPage() {
                 }}
               >
                 {(field) => (
-                  <div className="form-field">
-                    <div className="form-field__body">
-                      <label className={labelClasses} htmlFor="new-txn-amount">
-                        Amount
-                      </label>
-                      <input
-                        className={inputClasses}
-                        id="new-txn-amount"
-                        inputMode="decimal"
-                        min={0}
-                        onChange={(event) => {
-                          field.handleChange(event.currentTarget.value);
-                        }}
-                        placeholder="0.00"
-                        required
-                        step="0.01"
-                        type="number"
-                        value={field.state.value}
-                      />
-                      <FieldError message={field.state.meta.errors.join(" ")} />
-                    </div>
-                  </div>
+                  <FormField
+                    error={field.state.meta.errors.join(" ")}
+                    id="new-txn-amount"
+                    inputMode="decimal"
+                    label="Amount"
+                    min={0}
+                    onChange={(event) => {
+                      field.handleChange(event.currentTarget.value);
+                    }}
+                    placeholder="0.00"
+                    required
+                    step="0.01"
+                    type="number"
+                    value={field.state.value}
+                  />
                 )}
               </form.Field>
               <form.Field name="date">
                 {(field) => (
-                  <div className="form-field">
-                    <div className="form-field__body">
-                      <label className={labelClasses} htmlFor="new-txn-date">
-                        Date
-                      </label>
-                      <input
-                        className={inputClasses}
-                        id="new-txn-date"
-                        max={todayIso()}
-                        min="1996-01-01"
-                        onChange={(event) => {
-                          field.handleChange(event.currentTarget.value);
-                        }}
-                        required
-                        type="date"
-                        value={field.state.value}
-                      />
-                    </div>
-                  </div>
+                  <FormField
+                    id="new-txn-date"
+                    label="Date"
+                    max={todayIso()}
+                    min="1996-01-01"
+                    onChange={(event) => {
+                      field.handleChange(event.currentTarget.value);
+                    }}
+                    required
+                    type="date"
+                    value={field.state.value}
+                  />
                 )}
               </form.Field>
             </div>
@@ -337,23 +317,17 @@ export function NewTransactionPage() {
               </form.Field>
               <form.Field name="notes">
                 {(field) => (
-                  <div className="form-field">
-                    <div className="form-field__body">
-                      <label className={labelClasses} htmlFor="new-txn-notes">
-                        Notes
-                      </label>
-                      <textarea
-                        className={inputClasses}
-                        id="new-txn-notes"
-                        onChange={(event) => {
-                          field.handleChange(event.currentTarget.value);
-                        }}
-                        placeholder="Enter a note"
-                        rows={5}
-                        value={field.state.value}
-                      />
-                    </div>
-                  </div>
+                  <FormField
+                    as="textarea"
+                    id="new-txn-notes"
+                    label="Notes"
+                    onChange={(event) => {
+                      field.handleChange(event.currentTarget.value);
+                    }}
+                    placeholder="Enter a note"
+                    rows={5}
+                    value={field.state.value}
+                  />
                 )}
               </form.Field>
             </div>
@@ -367,13 +341,9 @@ export function NewTransactionPage() {
             </Link>
             <form.Subscribe selector={(state) => state.canSubmit}>
               {(canSubmit) => (
-                <button
-                  className="inline-flex h-10 items-center justify-center rounded-lg button-bg-primary px-4 text-sm font-medium text-inverse transition-opacity disabled:opacity-50"
-                  disabled={!canSubmit || create.isPending}
-                  type="submit"
-                >
+                <Button disabled={!canSubmit || create.isPending} type="submit">
                   {create.isPending ? "Saving…" : "Create transaction"}
-                </button>
+                </Button>
               )}
             </form.Subscribe>
           </div>
@@ -392,24 +362,8 @@ function NewTransactionHeader({ onClose }: { onClose: () => void }) {
           Record income or an expense on a manual account.
         </p>
       </div>
-      <button
-        aria-label="Close"
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-container-hover hover:text-primary"
-        onClick={onClose}
-        type="button"
-      >
-        <Icon name="x" />
-      </button>
+      <IconButton className="shrink-0" icon="x" label="Close" onClick={onClose} />
     </div>
-  );
-}
-
-function FieldError({ message }: { message: string }) {
-  if (message.trim().length === 0) return null;
-  return (
-    <p className="text-xs text-destructive" role="alert">
-      {message}
-    </p>
   );
 }
 
@@ -450,17 +404,15 @@ function AccountSelect({
     account.name.toLowerCase().includes(query.trim().toLowerCase()),
   );
 
+  /* eslint-disable react/no-unstable-nested-components -- FormField receives a render callback, not a component type. */
   return (
-    <div className="form-field">
-      <div className="form-field__body">
-        <span className={labelClasses} id="new-txn-account-label">
-          Account
-        </span>
+    <FormField
+      control={({ className, ...controlProps }) => (
         <div className="relative" ref={containerRef}>
           <button
-            aria-labelledby="new-txn-account-label"
+            {...controlProps}
             aria-expanded={isOpen}
-            className="form-field__input flex min-h-7 cursor-pointer items-center gap-2 pr-8 text-left"
+            className={`${className} flex min-h-7 cursor-pointer items-center gap-2 pr-8 text-left`}
             onClick={() => {
               setIsOpen((value) => !value);
               setQuery("");
@@ -517,8 +469,12 @@ function AccountSelect({
             </div>
           ) : null}
         </div>
-        <FieldError message={error ?? ""} />
-      </div>
-    </div>
+      )}
+      error={error}
+      id="new-txn-account-trigger"
+      label="Account"
+      required
+    />
   );
+  /* eslint-enable react/no-unstable-nested-components */
 }
