@@ -51,6 +51,67 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "h2", text: /Account overview/i
   end
 
+  test "adds independent report cards and removes one without altering the other" do
+    visit dashboards_url
+
+    click_button "Add report"
+    within "#configure-report-dialog" do
+      fill_in "Report name", with: "Account overview"
+    end
+    set_query("from accounts\ntake 5")
+    within "#configure-report-dialog" do
+      click_button "Save and run"
+    end
+
+    assert_selector "h2", text: /Recent transactions/i
+    assert_selector "h2", text: /Account overview/i
+    within "section[aria-label='Account overview results']" do
+      assert_selector "table th", text: /balance/i
+    end
+
+    snapshot = dashboard_snapshot
+    added_report = snapshot.fetch("reports").find { |report| report.fetch("name") == "Account overview" }
+    assert_match(/\Areport-[0-9a-f-]+\z/, added_report.fetch("id"))
+    starter_layout = snapshot.fetch("layout").find { |item| item.fetch("i") == "sureql-report" }
+    added_layout = snapshot.fetch("layout").find { |item| item.fetch("i") == added_report.fetch("id") }
+    assert_operator added_layout.fetch("y"), :>=, starter_layout.fetch("y") + starter_layout.fetch("h")
+
+    set_query("from secrets", report_name: "Recent transactions")
+    within "#configure-report-dialog" do
+      click_button "Save and run"
+    end
+
+    within "section[aria-label='Recent transactions results']" do
+      assert_selector "[role='alert']", text: "unknown sureql source `secrets`"
+    end
+    within "section[aria-label='Account overview results']" do
+      assert_selector "table th", text: /balance/i
+    end
+
+    find("button[aria-label='Configure Recent transactions']").click
+    within "#configure-report-dialog" do
+      click_button "Remove report"
+    end
+    within "#remove-report-dialog" do
+      click_button "Remove report"
+    end
+
+    assert_no_selector "h2", text: /Recent transactions/i
+    assert_selector "h2", text: /Account overview/i
+    surviving_snapshot = dashboard_snapshot
+    surviving_layout = surviving_snapshot.fetch("layout")
+
+    visit dashboards_url
+
+    assert_no_selector "h2", text: /Recent transactions/i
+    assert_selector "h2", text: /Account overview/i
+    within "section[aria-label='Account overview results']" do
+      assert_selector "table th", text: /balance/i
+    end
+    assert_equal added_report.fetch("id"), dashboard_snapshot.fetch("reports").sole.fetch("id")
+    assert_equal surviving_layout, dashboard_snapshot.fetch("layout")
+  end
+
   test "edits SureQL query in Monaco and runs it to display updated results" do
     visit dashboards_url
 
@@ -178,8 +239,14 @@ class DashboardsTest < ApplicationSystemTestCase
       JS
     end
 
-    def set_query(query_text)
-      click_button "Configure" unless page.has_selector?("#configure-report-dialog", visible: :visible)
+    def set_query(query_text, report_name: nil)
+      unless page.has_selector?("#configure-report-dialog", visible: :visible)
+        if report_name
+          find("button[aria-label='Configure #{report_name}']").click
+        else
+          click_button "Configure"
+        end
+      end
       assert_selector ".monaco-editor", wait: 10
       page.execute_script(<<~JS, query_text)
         const editor = window.sureqlEditor || (window.monaco && window.monaco.editor.getModels()[0]);
@@ -194,6 +261,15 @@ class DashboardsTest < ApplicationSystemTestCase
       assert_selector ".monaco-editor", wait: 10
       assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), query_text
       find("button[aria-label='Close report configuration']").click
+    end
+
+    def dashboard_snapshot
+      page.evaluate_script(<<~JS)
+        (() => {
+          const bootstrap = JSON.parse(document.querySelector("#spa-bootstrap").textContent);
+          return JSON.parse(window.localStorage.getItem(`sure:dashboards:${bootstrap.currentUser.id}`));
+        })()
+      JS
     end
 
     def create_transaction(name, date, amount)
