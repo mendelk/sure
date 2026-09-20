@@ -5,11 +5,11 @@ parentId: null
 id: "t_cd_live_004"
 title: "Ship a resettable starter dashboard"
 type: "task"
-status: "todo"
+status: "done"
 priority: "high"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["frontend", "seeds", "walking-slice"]
 subtaskIds: []
