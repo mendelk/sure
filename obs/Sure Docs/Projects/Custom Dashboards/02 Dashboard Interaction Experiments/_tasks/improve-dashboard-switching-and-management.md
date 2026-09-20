@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[experiment-with-view-and-edit-modes|Experiment with view and edit modes]]"
-timeEstimate: 8
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:27.827Z
+timeEstimate: 8
 ---
 
 Explore a clear navigation and management surface using multiple real dashboards.

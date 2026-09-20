@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[define-core-dashboard-api-contract|Define core dashboard API contract]]"
   - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:28.905Z
+timeEstimate: 36
 ---
 
 Visualize net worth and asset/liability trends using the chart library selected by the foundation spike.

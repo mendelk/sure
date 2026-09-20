@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[implement-secure-login-refresh-and-logout-sessions|Implement secure login refresh and logout sessions]]"
   - "[[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:39.145Z
+timeEstimate: 36
 ---
 
 Build the shared authenticated route shell for desktop and mobile layouts.

@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
   - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
-timeEstimate: 32
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:25.855Z
+timeEstimate: 32
 ---
 
 Provide the API data needed for the core dashboard without reproducing Rails view-model logic in the browser.

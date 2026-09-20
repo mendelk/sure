@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[integrate-the-selected-dashboard-experience|Integrate the selected dashboard experience]]"
-timeEstimate: 10
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:36.798Z
+timeEstimate: 10
 ---
 
 Extract minimal boundaries only where accepted implementation now repeats or where a future storage adapter must substitute.

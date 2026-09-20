@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]"
-timeEstimate: 20
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:30.521Z
+timeEstimate: 20
 ---
 
 Generate TypeScript path/schema types from `docs/api/openapi.yaml` and expose a thin typed fetch layer for TanStack Query.

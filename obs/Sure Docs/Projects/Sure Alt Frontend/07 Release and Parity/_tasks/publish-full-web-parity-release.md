@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[document-self-hosted-configuration-and-operations|Document self-hosted configuration and operations]]"
   - "[[run-final-release-quality-review|Run final release quality review]]"
-timeEstimate: 32
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:53.949Z
+timeEstimate: 32
 ---
 
 Publish the full self-hosted and super-admin web-parity release of the alternate Sure frontend.

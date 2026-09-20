@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
   - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
-timeEstimate: 28
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:30.231Z
+timeEstimate: 28
 ---
 
 Make the transactions API sufficient for a URL-driven, paginated browsing and editing experience.

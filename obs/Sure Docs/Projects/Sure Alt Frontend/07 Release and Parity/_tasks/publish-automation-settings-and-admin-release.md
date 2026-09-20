@@ -20,9 +20,9 @@ dependencies:
   - "[[verify-automation-and-ai-quality-gate|Verify automation and AI quality gate]]"
   - "[[verify-settings-onboarding-and-admin-quality-gate|Verify settings onboarding and admin quality gate]]"
   - "[[publish-finance-and-planning-release|Publish finance and planning release]]"
-timeEstimate: 24
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:47.042Z
+timeEstimate: 24
 ---
 
 Publish the staged release adding automation, AI, security/auth, family, onboarding, operational settings, and super-admin workflows.

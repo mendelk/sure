@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
   - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:46.452Z
+timeEstimate: 40
 ---
 
 Create a complete JSON API for goals, funding accounts, projections, consumption, lifecycle transitions, and pledges.

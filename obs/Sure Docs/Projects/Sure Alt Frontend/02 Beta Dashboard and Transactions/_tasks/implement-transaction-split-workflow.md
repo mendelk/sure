@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[implement-transaction-create-edit-and-delete|Implement transaction create edit and delete]]"
   - "[[implement-transaction-category-tag-and-merchant-editing|Implement transaction category tag and merchant editing]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:36.012Z
+timeEstimate: 36
 ---
 
 Implement transaction splitting with exact arithmetic and explicit reconciliation to the parent amount.

@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[inventory-provider-connection-state-machines|Inventory provider connection state machines]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:27.809Z
+timeEstimate: 36
 ---
 
 Extend provider APIs beyond the current read-only connection listing so the alternate frontend can manage configured providers.

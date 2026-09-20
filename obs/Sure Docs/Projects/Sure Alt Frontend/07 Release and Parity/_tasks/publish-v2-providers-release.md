@@ -20,9 +20,9 @@ subtaskIds: []
 dependencies:
   - "[[verify-v2-provider-quality-gate|Verify V2 provider quality gate]]"
   - "[[publish-automation-settings-and-admin-release|Publish automation settings and admin release]]"
-timeEstimate: 24
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:48.941Z
+timeEstimate: 24
 ---
 
 Publish the V2 release adding every supported provider connection other than SimpleFIN.

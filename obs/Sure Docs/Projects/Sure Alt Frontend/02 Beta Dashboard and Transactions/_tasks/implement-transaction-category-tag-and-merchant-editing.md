@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[build-transaction-browsing-route|Build transaction browsing route]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:34.554Z
+timeEstimate: 36
 ---
 
 Add transaction-level category, tag, and merchant editing using existing typed collection and mutation APIs.

@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[verify-ingestion-and-simplefin-quality-gate|Verify ingestion and SimpleFIN quality gate]]"
   - "[[publish-dashboard-and-transactions-beta|Publish dashboard and transactions beta]]"
-timeEstimate: 24
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:43.059Z
+timeEstimate: 24
 ---
 
 Publish the staged release adding shared provider connection management, SimpleFIN, and import/export workflows.

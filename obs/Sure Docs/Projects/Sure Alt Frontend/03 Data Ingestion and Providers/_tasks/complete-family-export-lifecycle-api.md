@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
   - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
-timeEstimate: 24
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:36.548Z
+timeEstimate: 24
 ---
 
 Complete family export create/list/status/download/cancel/delete semantics for the alternate frontend.
