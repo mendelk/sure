@@ -9,6 +9,7 @@ const SpaBootstrapSchema = z.object({
   }),
   embedded: z.optional(z.nullable(z.boolean())),
   recurringTransactionsDisabled: z.optional(z.nullable(z.boolean())),
+  uncategorizedCount: z.optional(z.nullable(z.number())),
   apiPaths: z.object({
     transactions: z.string(),
     recurringTransactions: z.optional(z.string()),
@@ -37,6 +38,10 @@ const SpaBootstrapSchema = z.object({
     familyMerchants: z.string(),
     newRule: z.string(),
     recurringTransactions: z.optional(z.string()),
+    rules: z.optional(z.string()),
+    categories: z.optional(z.string()),
+    tags: z.optional(z.string()),
+    transactionsCategorize: z.optional(z.string()),
   }),
 });
 

@@ -28,6 +28,11 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
       assert_equal new_transaction_path, bootstrap.dig("railsPaths", "newTransaction")
       assert_equal family_merchants_path, bootstrap.dig("railsPaths", "familyMerchants")
       assert_equal new_rule_path, bootstrap.dig("railsPaths", "newRule")
+      assert_equal rules_path, bootstrap.dig("railsPaths", "rules")
+      assert_equal categories_path, bootstrap.dig("railsPaths", "categories")
+      assert_equal tags_path, bootstrap.dig("railsPaths", "tags")
+      assert_equal transactions_categorize_path, bootstrap.dig("railsPaths", "transactionsCategorize")
+      assert_not_nil bootstrap.dig("uncategorizedCount")
     end
     assert_select "script[type='module'][src*='spa']"
   end
