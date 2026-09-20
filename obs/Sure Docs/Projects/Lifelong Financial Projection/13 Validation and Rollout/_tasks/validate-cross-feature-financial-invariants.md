@@ -1,22 +1,31 @@
 ---
 pm-task: true
-projectId: "p_lfp_13"
-parentId: null
-id: "t_lfp_1202"
-title: "Validate cross-feature financial invariants"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[13 Validation and Rollout|13 Validation and Rollout]]"
+parentId:
+id: t_lfp_1202
+title: Validate cross-feature financial invariants
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["quality", "invariants"]
-subtaskIds: ["t_lfp_1202_1", "t_lfp_1202_2", "t_lfp_1202_3"]
-dependencies: ["t_lfp_1201", "t_lfp_705", "t_lfp_905", "t_lfp_1006"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - quality
+  - invariants
+subtaskIds:
+  - "[[enforce-ledger-conservation-invariants|Enforce ledger conservation invariants]]"
+  - "[[enforce-ownership-tax-and-timing-invariants|Enforce ownership, tax, and timing invariants]]"
+  - "[[enforce-cross-output-equivalence-invariants|Enforce cross-output equivalence invariants]]"
+dependencies:
+  - "[[build-reference-scenarios-and-calculation-fixtures|Build reference scenarios and calculation fixtures]]"
+  - "[[optimize-multi-year-tax-strategies|Optimize multi-year tax strategies]]"
+  - "[[compare-and-optimize-legacy-outcomes|Compare and optimize legacy outcomes]]"
+  - "[[operate-a-versioned-annual-rules-update-program|Operate a versioned annual rules-update program]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Continuously prove conservation, ownership, tax, timing, and metric invariants across interacting planning capabilities.

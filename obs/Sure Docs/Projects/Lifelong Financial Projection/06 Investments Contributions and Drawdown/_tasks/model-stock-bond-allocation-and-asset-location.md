@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_06"
-parentId: null
-id: "t_lfp_502"
-title: "Model stock-bond allocation and asset location"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Investments Contributions and Drawdown|06 Investments Contributions and Drawdown]]"
+parentId:
+id: t_lfp_502
+title: Model stock-bond allocation and asset location
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["investments", "allocation"]
+tags:
+  - investments
+  - allocation
 subtaskIds: []
-dependencies: ["t_lfp_501"]
+dependencies:
+  - "[[model-investment-returns-dividends-and-fees|Model investment returns, dividends, and fees]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Model portfolio-wide allocation over time and the tax-aware location of bonds across individual investment accounts.

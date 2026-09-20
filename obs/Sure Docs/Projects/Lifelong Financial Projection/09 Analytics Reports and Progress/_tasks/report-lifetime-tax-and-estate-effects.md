@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_09"
-parentId: "t_lfp_803"
-id: "t_lfp_803_3"
-title: "Report lifetime tax and estate effects"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[09 Analytics Reports and Progress|09 Analytics Reports and Progress]]"
+parentId: "[[deliver-tax-analytics-and-effective-brackets|Deliver tax analytics and effective brackets]]"
+id: t_lfp_803_3
+title: Report lifetime tax and estate effects
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["analytics", "tax", "estate"]
+tags:
+  - analytics
+  - tax
+  - estate
 subtaskIds: []
-dependencies: ["t_lfp_803_2"]
+dependencies:
+  - "[[calculate-effective-marginal-tax-brackets|Calculate effective marginal tax brackets]]"
 timeEstimate: 16
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Summarize lifetime liability, premiums, giving effects, estate taxes, and estate drag for plan and strategy comparison.

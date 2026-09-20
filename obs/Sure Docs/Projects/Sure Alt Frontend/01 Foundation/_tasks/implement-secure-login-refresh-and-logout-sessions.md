@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_007"
-title: "Implement secure login refresh and logout sessions"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_007
+title: Implement secure login refresh and logout sessions
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["auth", "frontend", "api"]
+tags:
+  - auth
+  - frontend
+  - api
 subtaskIds: []
-dependencies: ["t_alt_fnd_005", "t_alt_fnd_006"]
+dependencies:
+  - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
+  - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Allow existing non-MFA users to log in and maintain a secure BFF session for the first release.

@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_009"
-title: "Build accessible UI primitives and Storybook"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_009
+title: Build accessible UI primitives and Storybook
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["design-system", "accessibility", "storybook"]
+tags:
+  - design-system
+  - accessibility
+  - storybook
 subtaskIds: []
-dependencies: ["t_alt_fnd_003", "t_alt_fnd_008"]
+dependencies:
+  - "[[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript lint formatting and workspace scripts]]"
+  - "[[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Create the first reusable React Aria and StyleX primitives needed by authentication, navigation, forms, tables, overlays, and feedback.

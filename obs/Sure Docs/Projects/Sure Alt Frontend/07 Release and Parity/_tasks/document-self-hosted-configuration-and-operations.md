@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_alt_release"
-parentId: null
-id: "t_alt_rel_003"
-title: "Document self-hosted configuration and operations"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[07 Release and Parity|07 Release and Parity]]"
+parentId:
+id: t_alt_rel_003
+title: Document self-hosted configuration and operations
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["documentation", "self-hosting", "operations"]
+tags:
+  - documentation
+  - self-hosting
+  - operations
 subtaskIds: []
-dependencies: ["t_alt_rel_002"]
+dependencies:
+  - "[[integrate-the-frontend-service-with-docker-compose|Integrate the frontend service with Docker Compose]]"
 timeEstimate: 24
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Document installation, configuration, upgrades, rollback, backup boundaries, troubleshooting, and security for the alternate frontend service.

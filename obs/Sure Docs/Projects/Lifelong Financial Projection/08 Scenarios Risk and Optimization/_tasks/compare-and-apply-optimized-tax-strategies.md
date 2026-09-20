@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_08"
-parentId: "t_lfp_705"
-id: "t_lfp_705_3"
-title: "Compare and apply optimized tax strategies"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[08 Scenarios Risk and Optimization|08 Scenarios Risk and Optimization]]"
+parentId: "[[optimize-multi-year-tax-strategies|Optimize multi-year tax strategies]]"
+id: t_lfp_705_3
+title: Compare and apply optimized tax strategies
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["optimization", "compare"]
+tags:
+  - optimization
+  - compare
 subtaskIds: []
-dependencies: ["t_lfp_705_2"]
+dependencies:
+  - "[[generate-and-evaluate-tax-strategy-candidates|Generate and evaluate tax-strategy candidates]]"
 timeEstimate: 24
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Explain candidate strategies against baseline and convert the selected result into reviewable plan changes.

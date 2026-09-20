@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_release"
-parentId: null
-id: "t_alt_rel_005"
-title: "Publish ingestion and SimpleFIN release"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Release and Parity|07 Release and Parity]]"
+parentId:
+id: t_alt_rel_005
+title: Publish ingestion and SimpleFIN release
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["release", "providers", "milestone"]
+tags:
+  - release
+  - providers
+  - milestone
 subtaskIds: []
-dependencies: ["t_alt_ing_018", "t_alt_rel_004"]
+dependencies:
+  - "[[verify-ingestion-and-simplefin-quality-gate|Verify ingestion and SimpleFIN quality gate]]"
+  - "[[publish-dashboard-and-transactions-beta|Publish dashboard and transactions beta]]"
 timeEstimate: 24
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Publish the staged release adding shared provider connection management, SimpleFIN, and import/export workflows.

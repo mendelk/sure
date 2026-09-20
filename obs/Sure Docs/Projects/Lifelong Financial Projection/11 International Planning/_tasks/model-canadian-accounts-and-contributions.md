@@ -1,22 +1,24 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: "t_lfp_1002"
-id: "t_lfp_1002_1"
-title: "Model Canadian accounts and contributions"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId: "[[deliver-canada-planning-rules|Deliver Canada planning rules]]"
+id: t_lfp_1002_1
+title: Model Canadian accounts and contributions
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["canada", "accounts"]
+tags:
+  - canada
+  - accounts
 subtaskIds: []
 dependencies: []
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Model RRSP, RRIF, TFSA, taxable, and supported employer-pension behavior and contribution room.

@@ -1,22 +1,33 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: null
-id: "t_lfp_1003"
-title: "Deliver United Kingdom planning rules"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId:
+id: t_lfp_1003
+title: Deliver United Kingdom planning rules
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["international", "uk", "tax"]
-subtaskIds: ["t_lfp_1003_1", "t_lfp_1003_2", "t_lfp_1003_3"]
-dependencies: ["t_lfp_1001", "t_lfp_503", "t_lfp_504", "t_lfp_602", "t_lfp_604"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - international
+  - uk
+  - tax
+subtaskIds:
+  - "[[model-uk-accounts-and-personal-taxes|Model UK accounts and personal taxes]]"
+  - "[[model-uk-pension-contributions-and-withdrawals|Model UK pension contributions and withdrawals]]"
+  - "[[calculate-uk-inheritance-outcomes|Calculate UK inheritance outcomes]]"
+dependencies:
+  - "[[make-location-currency-and-filing-first-class|Make location, currency, and filing first-class]]"
+  - "[[enforce-contribution-and-employer-match-rules|Enforce contribution and employer-match rules]]"
+  - "[[implement-account-liquidity-and-drawdown-order|Implement account liquidity and drawdown order]]"
+  - "[[implement-us-income-and-payroll-taxes|Implement US income and payroll taxes]]"
+  - "[[reconcile-withholding-refunds-and-tax-balances|Reconcile withholding, refunds, and tax balances]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Provide a coherent UK planning preset across accounts, tax, pensions, allowances, and inheritance.

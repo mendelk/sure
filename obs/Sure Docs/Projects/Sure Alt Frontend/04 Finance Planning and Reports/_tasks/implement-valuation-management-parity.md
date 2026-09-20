@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_finance"
-parentId: null
-id: "t_alt_fin_007"
-title: "Implement valuation management parity"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Finance Planning and Reports|04 Finance Planning and Reports]]"
+parentId:
+id: t_alt_fin_007
+title: Implement valuation management parity
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["accounts", "valuations", "api"]
+tags:
+  - accounts
+  - valuations
+  - api
 subtaskIds: []
-dependencies: ["t_alt_fin_001", "t_alt_fnd_010", "t_alt_fnd_012"]
+dependencies:
+  - "[[complete-account-management-api|Complete account management API]]"
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 32
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Complete valuation show/create/update/delete and confirmation behavior for manually valued accounts.

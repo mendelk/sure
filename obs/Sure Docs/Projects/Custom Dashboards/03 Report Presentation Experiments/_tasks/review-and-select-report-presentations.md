@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_presentations"
-parentId: null
-id: "t_cd_present_005"
-title: "Review and select report presentations"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[03 Report Presentation Experiments|03 Report Presentation Experiments]]"
+parentId:
+id: t_cd_present_005
+title: Review and select report presentations
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["product-review", "reports", "checkpoint"]
+tags:
+  - product-review
+  - reports
+  - checkpoint
 subtaskIds: []
-dependencies: ["t_cd_present_004"]
+dependencies:
+  - "[[compare-inline-and-focused-report-editing|Compare inline and focused report editing]]"
 timeEstimate: 4
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Choose the report editing and presentation behaviors worth productizing.

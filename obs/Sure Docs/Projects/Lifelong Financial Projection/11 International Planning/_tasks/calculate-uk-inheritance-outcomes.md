@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: "t_lfp_1003"
-id: "t_lfp_1003_3"
-title: "Calculate UK inheritance outcomes"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId: "[[deliver-united-kingdom-planning-rules|Deliver United Kingdom planning rules]]"
+id: t_lfp_1003_3
+title: Calculate UK inheritance outcomes
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["uk", "estate", "tax"]
+tags:
+  - uk
+  - estate
+  - tax
 subtaskIds: []
-dependencies: ["t_lfp_1003_2"]
+dependencies:
+  - "[[model-uk-pension-contributions-and-withdrawals|Model UK pension contributions and withdrawals]]"
 timeEstimate: 20
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Apply maintained UK inheritance tax assumptions to survivor and terminal estate outcomes.

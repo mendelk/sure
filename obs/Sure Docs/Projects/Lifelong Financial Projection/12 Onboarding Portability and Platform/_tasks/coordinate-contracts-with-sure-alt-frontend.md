@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_12"
-parentId: null
-id: "t_lfp_1109"
-title: "Coordinate contracts with Sure Alt Frontend"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[12 Onboarding Portability and Platform|12 Onboarding Portability and Platform]]"
+parentId:
+id: t_lfp_1109
+title: Coordinate contracts with Sure Alt Frontend
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["integration", "frontend", "contracts"]
+tags:
+  - integration
+  - frontend
+  - contracts
 subtaskIds: []
-dependencies: ["t_lfp_1108", "t_lfp_801"]
+dependencies:
+  - "[[expose-complete-planning-api|Expose complete planning API]]"
+  - "[[deliver-yearly-summary-and-core-plan-metrics|Deliver yearly summary and core plan metrics]]"
 timeEstimate: 20
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Keep this financial-functionality project independent from `Sure Alt Frontend` while documenting the contracts that frontend work will consume.

@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
-parentId: null
-id: "t_alt_beta_009"
-title: "Implement sync trigger and progress UI"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[02 Beta Dashboard and Transactions|02 Beta Dashboard and Transactions]]"
+parentId:
+id: t_alt_beta_009
+title: Implement sync trigger and progress UI
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "sync", "api"]
+tags:
+  - frontend
+  - sync
+  - api
 subtaskIds: []
-dependencies: ["t_alt_fnd_004", "t_alt_fnd_010", "t_alt_fnd_012"]
+dependencies:
+  - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 28
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Let users trigger a family sync and understand its progress, completion, and recoverable failures.

@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_finance"
-parentId: null
-id: "t_alt_fin_003"
-title: "Build account detail activity and balance history"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Finance Planning and Reports|04 Finance Planning and Reports]]"
+parentId:
+id: t_alt_fin_003
+title: Build account detail activity and balance history
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["accounts", "frontend", "charts"]
+tags:
+  - accounts
+  - frontend
+  - charts
 subtaskIds: []
-dependencies: ["t_alt_fin_001", "t_alt_fnd_010", "t_alt_fnd_016"]
+dependencies:
+  - "[[complete-account-management-api|Complete account management API]]"
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
+  - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Turn the beta account placeholder into complete account overview, balance history, and activity routes.

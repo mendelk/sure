@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_13"
-parentId: "t_lfp_1201"
-id: "t_lfp_1201_2"
-title: "Build realistic lifecycle reference plans"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[13 Validation and Rollout|13 Validation and Rollout]]"
+parentId: "[[build-reference-scenarios-and-calculation-fixtures|Build reference scenarios and calculation fixtures]]"
+id: t_lfp_1201_2
+title: Build realistic lifecycle reference plans
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["quality", "fixtures", "lifecycles"]
+tags:
+  - quality
+  - fixtures
+  - lifecycles
 subtaskIds: []
-dependencies: ["t_lfp_1201_1"]
+dependencies:
+  - "[[build-hand-calculable-financial-fixtures|Build hand-calculable financial fixtures]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Build larger single, couple, FIRE, retirement, relocation, property, survivor, estate, and international plans.

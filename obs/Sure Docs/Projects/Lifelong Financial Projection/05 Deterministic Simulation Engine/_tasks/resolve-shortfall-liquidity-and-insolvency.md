@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_05"
-parentId: "t_lfp_401"
-id: "t_lfp_401_3"
-title: "Resolve shortfall, liquidity, and insolvency"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[05 Deterministic Simulation Engine|05 Deterministic Simulation Engine]]"
+parentId: "[[implement-the-annual-simulation-ledger|Implement the annual simulation ledger]]"
+id: t_lfp_401_3
+title: Resolve shortfall, liquidity, and insolvency
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["simulation", "solvency"]
+tags:
+  - simulation
+  - solvency
 subtaskIds: []
-dependencies: ["t_lfp_401_2"]
+dependencies:
+  - "[[calculate-balanced-yearly-account-ledger|Calculate balanced yearly account ledger]]"
 timeEstimate: 20
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Represent obligations that cannot be funded even when the household still owns illiquid or inaccessible assets.

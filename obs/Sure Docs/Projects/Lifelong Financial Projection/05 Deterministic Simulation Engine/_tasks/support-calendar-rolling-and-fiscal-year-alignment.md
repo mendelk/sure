@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_05"
-parentId: null
-id: "t_lfp_402"
-title: "Support calendar, rolling, and fiscal-year alignment"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[05 Deterministic Simulation Engine|05 Deterministic Simulation Engine]]"
+parentId:
+id: t_lfp_402
+title: Support calendar, rolling, and fiscal-year alignment
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["simulation", "time"]
+tags:
+  - simulation
+  - time
 subtaskIds: []
-dependencies: ["t_lfp_401"]
+dependencies:
+  - "[[implement-the-annual-simulation-ledger|Implement the annual simulation ledger]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Allow annual simulation periods to align with calendar years, rolling years from the plan start, or jurisdiction-specific fiscal/tax years.

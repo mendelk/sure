@@ -1,22 +1,24 @@
 ---
 pm-task: true
-projectId: "p_lfp_05"
-parentId: "t_lfp_401"
-id: "t_lfp_401_1"
-title: "Specify simulation processing order"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[05 Deterministic Simulation Engine|05 Deterministic Simulation Engine]]"
+parentId: "[[implement-the-annual-simulation-ledger|Implement the annual simulation ledger]]"
+id: t_lfp_401_1
+title: Specify simulation processing order
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["simulation", "ledger"]
+tags:
+  - simulation
+  - ledger
 subtaskIds: []
 dependencies: []
 timeEstimate: 16
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Define the authoritative order for opening balances, events, withholding, flows, transfers, debt, tax accrual, growth, drawdown, reconciliation, and closing balances.

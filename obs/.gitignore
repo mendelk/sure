@@ -1,0 +1,5 @@
+# Per-user Obsidian UI state
+Sure Docs/.obsidian/workspace*.json
+
+# Per-user dotpm settings, including the local API token
+Sure Docs/.obsidian/plugins/project-manager/data.json

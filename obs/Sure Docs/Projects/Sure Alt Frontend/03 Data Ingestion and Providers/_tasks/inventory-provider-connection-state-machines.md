@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_ingestion"
-parentId: null
-id: "t_alt_ing_001"
-title: "Inventory provider connection state machines"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[03 Data Ingestion and Providers|03 Data Ingestion and Providers]]"
+parentId:
+id: t_alt_ing_001
+title: Inventory provider connection state machines
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["providers", "discovery", "api"]
+tags:
+  - providers
+  - discovery
+  - api
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_004"]
+dependencies:
+  - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
+  - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
 timeEstimate: 28
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Document every enabled provider's connection, reauthorization, account-selection/linking, sync, review, and disconnection state machine.

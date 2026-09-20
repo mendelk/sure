@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: "t_lfp_1005"
-id: "t_lfp_1005_2"
-title: "Deliver European tax presets"
-type: "task"
-status: "todo"
-priority: "low"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId: "[[deliver-european-and-global-tax-presets|Deliver European and global tax presets]]"
+id: t_lfp_1005_2
+title: Deliver European tax presets
+type: task
+status: todo
+priority: low
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["international", "europe"]
+tags:
+  - international
+  - europe
 subtaskIds: []
-dependencies: ["t_lfp_1005_1"]
+dependencies:
+  - "[[deliver-germany-and-netherlands-presets|Deliver Germany and Netherlands presets]]"
 timeEstimate: 40
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Deliver planning-grade presets for Switzerland, Spain, Norway, Belgium, and Israel.

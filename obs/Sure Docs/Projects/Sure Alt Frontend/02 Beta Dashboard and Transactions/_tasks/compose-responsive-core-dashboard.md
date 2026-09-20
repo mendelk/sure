@@ -1,22 +1,29 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
-parentId: null
-id: "t_alt_beta_010"
-title: "Compose responsive core dashboard"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[02 Beta Dashboard and Transactions|02 Beta Dashboard and Transactions]]"
+parentId:
+id: t_alt_beta_010
+title: Compose responsive core dashboard
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "dashboard", "beta"]
+tags:
+  - frontend
+  - dashboard
+  - beta
 subtaskIds: []
-dependencies: ["t_alt_beta_002", "t_alt_beta_003", "t_alt_beta_005", "t_alt_beta_009"]
+dependencies:
+  - "[[implement-account-summary-navigation|Implement account summary navigation]]"
+  - "[[build-net-worth-and-balance-trends|Build net worth and balance trends]]"
+  - "[[build-transaction-browsing-route|Build transaction browsing route]]"
+  - "[[implement-sync-trigger-and-progress-ui|Implement sync trigger and progress UI]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Compose the first Sure-inspired dashboard from the account summary, trends, recent transactions, and sync status.

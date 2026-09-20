@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_015"
-title: "Enforce Sure API compatibility checks"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_015
+title: Enforce Sure API compatibility checks
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["api", "compatibility", "operations"]
+tags:
+  - api
+  - compatibility
+  - operations
 subtaskIds: []
-dependencies: ["t_alt_fnd_004", "t_alt_fnd_005"]
+dependencies:
+  - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
+  - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
 timeEstimate: 20
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Give the BFF a reliable way to reject an incompatible Sure API before users encounter arbitrary request failures.

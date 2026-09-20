@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_05"
-parentId: null
-id: "t_lfp_403"
-title: "Model real and nominal currency values"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[05 Deterministic Simulation Engine|05 Deterministic Simulation Engine]]"
+parentId:
+id: t_lfp_403
+title: Model real and nominal currency values
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["simulation", "inflation", "currency"]
+tags:
+  - simulation
+  - inflation
+  - currency
 subtaskIds: []
-dependencies: ["t_lfp_401", "t_lfp_402"]
+dependencies:
+  - "[[implement-the-annual-simulation-ledger|Implement the annual simulation ledger]]"
+  - "[[support-calendar-rolling-and-fiscal-year-alignment|Support calendar, rolling, and fiscal-year alignment]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Model all monetary inputs and results in nominal values while allowing users to enter and view amounts in today's purchasing power.

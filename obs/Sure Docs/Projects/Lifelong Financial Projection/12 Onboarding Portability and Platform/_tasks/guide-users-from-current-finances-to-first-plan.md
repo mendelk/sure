@@ -1,22 +1,30 @@
 ---
 pm-task: true
-projectId: "p_lfp_12"
-parentId: null
-id: "t_lfp_1101"
-title: "Guide users from current finances to first plan"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[12 Onboarding Portability and Platform|12 Onboarding Portability and Platform]]"
+parentId:
+id: t_lfp_1101
+title: Guide users from current finances to first plan
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["onboarding", "plans"]
+tags:
+  - onboarding
+  - plans
 subtaskIds: []
-dependencies: ["t_lfp_104", "t_lfp_201", "t_lfp_202", "t_lfp_203", "t_lfp_204", "t_lfp_301"]
+dependencies:
+  - "[[compose-versioned-current-finance-snapshots|Compose versioned current-finance snapshots]]"
+  - "[[manage-independent-scenario-plans|Manage independent scenario plans]]"
+  - "[[model-income-and-benefit-events|Model income and benefit events]]"
+  - "[[model-expense-and-giving-events|Model expense and giving events]]"
+  - "[[model-real-asset-life-cycles|Model real-asset life cycles]]"
+  - "[[implement-ordered-cash-flow-allocation|Implement ordered cash-flow allocation]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Provide a guided setup that converts Sure's existing household data into a useful first projection without requiring every advanced input.

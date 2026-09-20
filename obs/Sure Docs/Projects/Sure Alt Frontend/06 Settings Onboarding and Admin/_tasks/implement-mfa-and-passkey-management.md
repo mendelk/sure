@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_004"
-title: "Implement MFA and passkey management"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_004
+title: Implement MFA and passkey management
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["security", "mfa", "webauthn"]
+tags:
+  - security
+  - mfa
+  - webauthn
 subtaskIds: []
-dependencies: ["t_alt_set_003", "t_alt_fnd_006"]
+dependencies:
+  - "[[implement-password-email-and-session-management|Implement password email and session management]]"
+  - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 API-enable MFA setup/verification/disable and WebAuthn/passkey registration, sign-in verification, listing, and removal.

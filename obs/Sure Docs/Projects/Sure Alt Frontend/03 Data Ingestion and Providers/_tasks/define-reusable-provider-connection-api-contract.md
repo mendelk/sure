@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_ingestion"
-parentId: null
-id: "t_alt_ing_004"
-title: "Define reusable provider connection API contract"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[03 Data Ingestion and Providers|03 Data Ingestion and Providers]]"
+parentId:
+id: t_alt_ing_004
+title: Define reusable provider connection API contract
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["providers", "api", "security"]
+tags:
+  - providers
+  - api
+  - security
 subtaskIds: []
-dependencies: ["t_alt_ing_001", "t_alt_fnd_005", "t_alt_fnd_006"]
+dependencies:
+  - "[[inventory-provider-connection-state-machines|Inventory provider connection state machines]]"
+  - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
+  - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Define provider connection resources and transition responses that support diverse workflows without exposing Rails HTML or arbitrary dispatch.

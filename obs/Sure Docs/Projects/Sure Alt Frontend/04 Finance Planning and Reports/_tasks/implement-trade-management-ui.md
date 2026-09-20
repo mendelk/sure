@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_finance"
-parentId: null
-id: "t_alt_fin_006"
-title: "Implement trade management UI"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Finance Planning and Reports|04 Finance Planning and Reports]]"
+parentId:
+id: t_alt_fin_006
+title: Implement trade management UI
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["investments", "trades", "frontend"]
+tags:
+  - investments
+  - trades
+  - frontend
 subtaskIds: []
-dependencies: ["t_alt_fnd_004", "t_alt_fnd_010", "t_alt_fnd_012"]
+dependencies:
+  - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Build trade detail/create/edit/delete and unlock workflows from the existing trades API, extending only missing parity behavior.

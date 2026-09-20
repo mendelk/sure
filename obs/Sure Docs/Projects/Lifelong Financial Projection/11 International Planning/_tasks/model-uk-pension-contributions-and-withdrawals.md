@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: "t_lfp_1003"
-id: "t_lfp_1003_2"
-title: "Model UK pension contributions and withdrawals"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId: "[[deliver-united-kingdom-planning-rules|Deliver United Kingdom planning rules]]"
+id: t_lfp_1003_2
+title: Model UK pension contributions and withdrawals
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["uk", "pensions"]
+tags:
+  - uk
+  - pensions
 subtaskIds: []
-dependencies: ["t_lfp_1003_1"]
+dependencies:
+  - "[[model-uk-accounts-and-personal-taxes|Model UK accounts and personal taxes]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Apply UK pension annual limits and project UFPLS, PCLS, and drawdown choices.

@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_01"
-parentId: null
-id: "t_lfp_002"
-title: "Define planning domain language"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Product Definition and Architecture|01 Product Definition and Architecture]]"
+parentId:
+id: t_lfp_002
+title: Define planning domain language
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["domain", "architecture"]
+tags:
+  - domain
+  - architecture
 subtaskIds: []
-dependencies: ["t_lfp_001"]
+dependencies:
+  - "[[establish-functional-parity-catalog|Establish functional parity catalog]]"
 timeEstimate: 20
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Define Sure-native concepts for plans, starting conditions, people, events, flows, milestones, assumptions, tax jurisdictions, trials, strategies, progress points, and estate outcomes.
