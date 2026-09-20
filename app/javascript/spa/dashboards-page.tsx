@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Route composes UI primitives with dashboard modules. */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { GridLayout, useContainerWidth } from "react-grid-layout";
@@ -5,6 +6,9 @@ import type { EventCallback } from "react-grid-layout";
 import { useMemo, useState } from "react";
 // eslint-disable-next-line import/no-unassigned-import -- vendor stylesheet side-effect import
 import "react-grid-layout/css/styles.css";
+import { Button } from "./components/button";
+import { FormField } from "./components/form-field";
+import { IconButton } from "./components/icon-button";
 import { Icon } from "./icon";
 import { Modal } from "./modal";
 import { executeSureqlQuery } from "./api/transactions";
@@ -56,16 +60,17 @@ function ReportCardHeader({ name, onConfigure }: { name: string; onConfigure: ()
           drag to move · resize from corner
         </span>
       </div>
-      <button
+      <Button
         aria-label={`Configure ${name}`}
-        className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
+        className="shrink-0"
         onClick={onConfigure}
+        size="sm"
+        iconProps={{ name: "sliders-horizontal", size: "sm" }}
+        label="Configure"
+        labelClassName="hidden sm:inline"
         title="Configure report"
-        type="button"
-      >
-        <Icon name="sliders-horizontal" size="sm" />
-        <span className="hidden sm:inline">Configure</span>
-      </button>
+        variant="secondary"
+      />
     </div>
   );
 }
@@ -366,49 +371,35 @@ export function DashboardsPage() {
                   saveDashboardName();
                 }}
               >
-                <div className="form-field w-64">
-                  <div className="form-field__body">
-                    <input
-                      aria-label="dashboard-name"
-                      autoComplete="off"
-                      id="dashboard-name"
-                      className="form-field__input w-full"
-                      maxLength={80}
-                      onChange={(event) => {
-                        setTitleEditor({ id: titleEditor.id, draft: event.currentTarget.value });
-                      }}
-                      onFocus={(event) => {
-                        event.currentTarget.select();
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Escape") cancelEditingDashboardName();
-                      }}
-                      ref={(element) => {
-                        element?.focus();
-                      }}
-                      required
-                      type="text"
-                      value={titleEditor.draft}
-                    />
-                  </div>
-                </div>
-                <button
-                  aria-label="Save dashboard name"
-                  className="inline-flex size-8 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-surface-hover hover:text-primary focus-ring"
-                  title="Save dashboard name"
-                  type="submit"
-                >
-                  <Icon name="check" size="sm" />
-                </button>
-                <button
-                  aria-label="Cancel renaming dashboard"
-                  className="inline-flex size-8 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-surface-hover hover:text-primary focus-ring"
+                <FormField
+                  aria-label="Dashboard name"
+                  autoComplete="off"
+                  containerClassName="w-64"
+                  id="dashboard-name"
+                  maxLength={80}
+                  onChange={(event) => {
+                    setTitleEditor({ id: titleEditor.id, draft: event.currentTarget.value });
+                  }}
+                  onFocus={(event) => {
+                    event.currentTarget.select();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") cancelEditingDashboardName();
+                  }}
+                  ref={(element) => {
+                    element?.focus();
+                  }}
+                  required
+                  type="text"
+                  value={titleEditor.draft}
+                />
+                <IconButton label="Save dashboard name" icon="check" size="sm" type="submit" />
+                <IconButton
+                  label="Cancel renaming dashboard"
+                  icon="x"
                   onClick={cancelEditingDashboardName}
-                  title="Cancel renaming dashboard"
-                  type="button"
-                >
-                  <Icon name="x" size="sm" />
-                </button>
+                  size="sm"
+                />
               </form>
             ) : (
               <>
@@ -417,61 +408,54 @@ export function DashboardsPage() {
                   dashboards={snapshot.dashboards}
                   onSelect={switchDashboard}
                 />
-                <button
-                  aria-label="Rename dashboard"
-                  className="inline-flex size-8 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-surface-hover hover:text-primary focus-ring"
+                <IconButton
+                  label="Rename dashboard"
+                  icon="pencil"
                   onClick={() => {
                     startEditingDashboardName(activeDashboard);
                   }}
-                  title="Rename dashboard"
-                  type="button"
-                >
-                  <Icon name="pencil" size="sm" />
-                </button>
+                  size="sm"
+                />
               </>
             )}
           </div>
         )}
         <div className="flex items-center gap-2">
-          <button
-            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg button-bg-primary px-2.5 py-1.5 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover focus-ring"
-            onClick={createDashboard}
-            type="button"
-          >
-            <Icon name="plus" size="sm" />
-            <span>New dashboard</span>
-          </button>
+          <Button iconProps={{ name: "plus", size: "sm" }} onClick={createDashboard} size="sm">
+            New dashboard
+          </Button>
           {activeDashboard !== undefined && (
-            <button
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-lg button-bg-primary px-2.5 py-1.5 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover focus-ring"
-              onClick={addReport}
-              type="button"
+            <Button
+              iconProps={{ name: "plus", size: "sm" }}
+              onClick={() => {
+                addReport();
+              }}
+              size="sm"
             >
-              <Icon name="plus" size="sm" />
-              <span>Add report</span>
-            </button>
+              Add report
+            </Button>
           )}
           {activeDashboard !== undefined && (
-            <button
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-destructive bg-container px-2.5 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-surface-hover focus-ring"
+            <Button
               onClick={() => {
                 setDeleteDialogOpen(true);
               }}
-              type="button"
+              size="sm"
+              variant="destructive-outline"
             >
-              <span>Delete dashboard</span>
-            </button>
+              Delete dashboard
+            </Button>
           )}
-          <button
-            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
+          <Button
             onClick={() => {
               setResetDialogOpen(true);
             }}
-            type="button"
+            iconProps={{ name: "rotate-ccw", size: "sm" }}
+            size="sm"
+            variant="secondary"
           >
-            <Icon name="rotate-ccw" size="sm" />
-            <span>Reset starter dashboard</span>
-          </button>
+            Reset starter dashboard
+          </Button>
         </div>
       </header>
 
@@ -494,22 +478,18 @@ export function DashboardsPage() {
               : `${activeDashboard.name}, its report cards, and layouts will be removed.`}
           </p>
           <div className="flex justify-end gap-2">
-            <button
-              className="inline-flex min-h-8 items-center rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
+            <Button
               onClick={() => {
                 setDeleteDialogOpen(false);
               }}
-              type="button"
+              size="sm"
+              variant="secondary"
             >
               Cancel
-            </button>
-            <button
-              className="inline-flex min-h-8 items-center rounded-lg bg-destructive px-2.5 py-1.5 text-xs font-medium text-inverse transition-opacity hover:opacity-90 focus-ring"
-              onClick={deleteDashboard}
-              type="button"
-            >
+            </Button>
+            <Button onClick={deleteDashboard} size="sm" variant="destructive">
               Delete dashboard
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
@@ -528,35 +508,29 @@ export function DashboardsPage() {
             <h2 id="configure-report-title" className="text-base font-semibold text-primary">
               Configure report
             </h2>
-            <button
-              aria-label="Close report configuration"
-              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-surface-hover hover:text-primary focus-ring"
+            <IconButton
+              label="Close report configuration"
+              className="shrink-0"
+              icon="x"
               onClick={() => {
                 setSelectedReportId(null);
               }}
-              type="button"
-            >
-              <Icon name="x" size="sm" />
-            </button>
-          </div>
-
-          <div className="form-field__body">
-            <label className="form-field__label" htmlFor="report-name">
-              Report name
-            </label>
-            <input
-              autoComplete="off"
-              className="form-field__input"
-              id="report-name"
-              maxLength={80}
-              onChange={(event) => {
-                setReportNameDraft(event.currentTarget.value);
-              }}
-              required
-              type="text"
-              value={reportNameDraft}
+              size="sm"
             />
           </div>
+
+          <FormField
+            autoComplete="off"
+            id="report-name"
+            label="Report name"
+            maxLength={80}
+            onChange={(event) => {
+              setReportNameDraft(event.currentTarget.value);
+            }}
+            required
+            type="text"
+            value={reportNameDraft}
+          />
 
           <div>
             <p className="mb-1.5 text-xs font-medium text-secondary">Query</p>
@@ -570,37 +544,36 @@ export function DashboardsPage() {
           </div>
 
           <div className="flex items-center justify-between gap-2">
-            <button
-              className="inline-flex min-h-8 items-center rounded-lg border border-destructive bg-container px-2.5 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-surface-hover focus-ring"
+            <Button
               onClick={() => {
                 if (selectedReport === undefined) return;
                 setSelectedReportId(null);
                 setReportPendingRemovalId(selectedReport.id);
               }}
-              type="button"
+              size="sm"
+              variant="destructive-outline"
             >
               Remove report
-            </button>
+            </Button>
             <div className="flex justify-end gap-2">
-              <button
-                className="inline-flex min-h-8 items-center rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
+              <Button
                 onClick={() => {
                   setSelectedReportId(null);
                 }}
-                type="button"
+                size="sm"
+                variant="secondary"
               >
                 Cancel
-              </button>
-              <button
-                className="inline-flex min-h-8 items-center rounded-lg button-bg-primary px-2.5 py-1.5 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 focus-ring"
+              </Button>
+              <Button
                 disabled={
                   reportNameDraft.trim().length === 0 || reportQueryDraft.trim().length === 0
                 }
                 onClick={saveReportConfiguration}
-                type="button"
+                size="sm"
               >
                 Save and run
-              </button>
+              </Button>
             </div>
           </div>
         </div>
