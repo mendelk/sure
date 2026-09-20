@@ -1,9 +1,10 @@
-import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import { DialogTitle } from "@headlessui/react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./icon";
+import { Modal } from "./modal";
 import { useDismiss } from "./use-dismiss";
 import {
   TransactionApiError,
@@ -118,270 +119,267 @@ export function NewTransactionPage() {
   }
 
   return (
-    <Dialog className="relative z-40" onClose={close} open>
-      <div
-        aria-hidden="true"
-        className="fixed inset-0 bg-overlay pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
-      />
-      <div className="fixed inset-0 flex items-end justify-end overflow-y-auto lg:p-3">
-        <DialogPanel className="relative flex size-full flex-col overflow-hidden rounded-xl bg-surface p-0 shadow-border-xs lg:w-[550px]">
-          <div className="flex grow flex-col gap-4 overflow-y-auto p-4">
-            <NewTransactionHeader onClose={close} />
-            {serverErrors.length > 0 ? (
-              <div className="rounded-xl border border-destructive bg-container p-4" role="alert">
-                <p className="font-medium text-primary">Could not save this transaction</p>
-                <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-secondary">
-                  {serverErrors.map((message) => (
-                    <li key={message}>{message}</li>
-                  ))}
-                </ul>
+    <Modal
+      onClose={close}
+      open
+      panelClassName="relative flex size-full flex-col overflow-hidden rounded-xl bg-surface p-0 shadow-border-xs lg:w-[550px]"
+      placement="drawer"
+    >
+      <div className="flex grow flex-col gap-4 overflow-y-auto p-4">
+        <NewTransactionHeader onClose={close} />
+        {serverErrors.length > 0 ? (
+          <div className="rounded-xl border border-destructive bg-container p-4" role="alert">
+            <p className="font-medium text-primary">Could not save this transaction</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-secondary">
+              {serverErrors.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <form
+          className="flex grow flex-col gap-4"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit();
+          }}
+        >
+          <form.Field name="nature">
+            {(natureField) => (
+              <div
+                className="grid grid-cols-2 gap-1 rounded-xl bg-container-inset p-1"
+                role="tablist"
+                aria-label="Transaction type"
+              >
+                {(
+                  [
+                    ["outflow", "Expense"],
+                    ["inflow", "Income"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    aria-selected={natureField.state.value === value}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      natureField.state.value === value
+                        ? "bg-container text-primary shadow-border-xs"
+                        : "text-secondary hover:text-primary"
+                    }`}
+                    key={value}
+                    onClick={() => {
+                      natureField.handleChange(value);
+                    }}
+                    role="tab"
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-            ) : null}
-            <form
-              className="flex grow flex-col gap-4"
-              noValidate
-              onSubmit={(event) => {
-                event.preventDefault();
-                void form.handleSubmit();
+            )}
+          </form.Field>
+          <div className="space-y-2">
+            <form.Field
+              name="name"
+              validators={{
+                onSubmit: ({ value }) =>
+                  value.trim().length === 0 ? "Enter a description" : undefined,
               }}
             >
-              <form.Field name="nature">
-                {(natureField) => (
-                  <div
-                    className="grid grid-cols-2 gap-1 rounded-xl bg-container-inset p-1"
-                    role="tablist"
-                    aria-label="Transaction type"
-                  >
-                    {(
-                      [
-                        ["outflow", "Expense"],
-                        ["inflow", "Income"],
-                      ] as const
-                    ).map(([value, label]) => (
-                      <button
-                        aria-selected={natureField.state.value === value}
-                        className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                          natureField.state.value === value
-                            ? "bg-container text-primary shadow-border-xs"
-                            : "text-secondary hover:text-primary"
-                        }`}
-                        key={value}
-                        onClick={() => {
-                          natureField.handleChange(value);
+              {(field) => (
+                <div className="form-field">
+                  <div className="form-field__body">
+                    <label className={labelClasses} htmlFor="new-txn-name">
+                      Description
+                    </label>
+                    <input
+                      autoComplete="off"
+                      className={inputClasses}
+                      id="new-txn-name"
+                      onChange={(event) => {
+                        field.handleChange(event.currentTarget.value);
+                      }}
+                      placeholder="Describe transaction"
+                      required
+                      type="text"
+                      value={field.state.value}
+                    />
+                    <FieldError message={field.state.meta.errors.join(" ")} />
+                  </div>
+                </div>
+              )}
+            </form.Field>
+            <form.Field
+              name="account_id"
+              validators={{
+                onSubmit: ({ value }) => (value.length === 0 ? "Select an account" : undefined),
+              }}
+            >
+              {(field) => (
+                <AccountSelect
+                  accounts={accounts}
+                  loading={referenceQuery.isPending}
+                  onSelect={(id) => {
+                    field.handleChange(id);
+                  }}
+                  selectedAccountId={field.state.value}
+                  error={field.state.meta.errors.join(" ")}
+                />
+              )}
+            </form.Field>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <form.Field
+                name="amount"
+                validators={{
+                  onSubmit: ({ value }): string | undefined => {
+                    const parsed = Number(value);
+                    if (value.trim().length === 0) return "Enter an amount";
+                    if (!Number.isFinite(parsed) || parsed <= 0)
+                      return "Enter an amount greater than zero";
+                    return undefined;
+                  },
+                }}
+              >
+                {(field) => (
+                  <div className="form-field">
+                    <div className="form-field__body">
+                      <label className={labelClasses} htmlFor="new-txn-amount">
+                        Amount
+                      </label>
+                      <input
+                        className={inputClasses}
+                        id="new-txn-amount"
+                        inputMode="decimal"
+                        min={0}
+                        onChange={(event) => {
+                          field.handleChange(event.currentTarget.value);
                         }}
-                        role="tab"
-                        type="button"
-                      >
-                        {label}
-                      </button>
-                    ))}
+                        placeholder="0.00"
+                        required
+                        step="0.01"
+                        type="number"
+                        value={field.state.value}
+                      />
+                      <FieldError message={field.state.meta.errors.join(" ")} />
+                    </div>
                   </div>
                 )}
               </form.Field>
-              <div className="space-y-2">
-                <form.Field
-                  name="name"
-                  validators={{
-                    onSubmit: ({ value }) =>
-                      value.trim().length === 0 ? "Enter a description" : undefined,
-                  }}
-                >
-                  {(field) => (
-                    <div className="form-field">
-                      <div className="form-field__body">
-                        <label className={labelClasses} htmlFor="new-txn-name">
-                          Description
-                        </label>
-                        <input
-                          autoComplete="off"
-                          className={inputClasses}
-                          id="new-txn-name"
-                          onChange={(event) => {
-                            field.handleChange(event.currentTarget.value);
-                          }}
-                          placeholder="Describe transaction"
-                          required
-                          type="text"
-                          value={field.state.value}
-                        />
-                        <FieldError message={field.state.meta.errors.join(" ")} />
-                      </div>
+              <form.Field name="date">
+                {(field) => (
+                  <div className="form-field">
+                    <div className="form-field__body">
+                      <label className={labelClasses} htmlFor="new-txn-date">
+                        Date
+                      </label>
+                      <input
+                        className={inputClasses}
+                        id="new-txn-date"
+                        max={todayIso()}
+                        min="1996-01-01"
+                        onChange={(event) => {
+                          field.handleChange(event.currentTarget.value);
+                        }}
+                        required
+                        type="date"
+                        value={field.state.value}
+                      />
                     </div>
-                  )}
-                </form.Field>
-                <form.Field
-                  name="account_id"
-                  validators={{
-                    onSubmit: ({ value }) => (value.length === 0 ? "Select an account" : undefined),
+                  </div>
+                )}
+              </form.Field>
+            </div>
+            <form.Field name="category_id">
+              {(field) => (
+                <CategorySelect
+                  bootstrap={bootstrap}
+                  categories={categories}
+                  onSelect={(id) => {
+                    field.handleChange(id);
                   }}
-                >
-                  {(field) => (
-                    <AccountSelect
-                      accounts={accounts}
-                      loading={referenceQuery.isPending}
-                      onSelect={(id) => {
-                        field.handleChange(id);
-                      }}
-                      selectedAccountId={field.state.value}
-                      error={field.state.meta.errors.join(" ")}
-                    />
-                  )}
-                </form.Field>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <form.Field
-                    name="amount"
-                    validators={{
-                      onSubmit: ({ value }): string | undefined => {
-                        const parsed = Number(value);
-                        if (value.trim().length === 0) return "Enter an amount";
-                        if (!Number.isFinite(parsed) || parsed <= 0)
-                          return "Enter an amount greater than zero";
-                        return undefined;
-                      },
-                    }}
-                  >
-                    {(field) => (
-                      <div className="form-field">
-                        <div className="form-field__body">
-                          <label className={labelClasses} htmlFor="new-txn-amount">
-                            Amount
-                          </label>
-                          <input
-                            className={inputClasses}
-                            id="new-txn-amount"
-                            inputMode="decimal"
-                            min={0}
-                            onChange={(event) => {
-                              field.handleChange(event.currentTarget.value);
-                            }}
-                            placeholder="0.00"
-                            required
-                            step="0.01"
-                            type="number"
-                            value={field.state.value}
-                          />
-                          <FieldError message={field.state.meta.errors.join(" ")} />
-                        </div>
-                      </div>
-                    )}
-                  </form.Field>
-                  <form.Field name="date">
-                    {(field) => (
-                      <div className="form-field">
-                        <div className="form-field__body">
-                          <label className={labelClasses} htmlFor="new-txn-date">
-                            Date
-                          </label>
-                          <input
-                            className={inputClasses}
-                            id="new-txn-date"
-                            max={todayIso()}
-                            min="1996-01-01"
-                            onChange={(event) => {
-                              field.handleChange(event.currentTarget.value);
-                            }}
-                            required
-                            type="date"
-                            value={field.state.value}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </form.Field>
-                </div>
-                <form.Field name="category_id">
-                  {(field) => (
-                    <CategorySelect
-                      bootstrap={bootstrap}
-                      categories={categories}
-                      onSelect={(id) => {
-                        field.handleChange(id);
-                      }}
-                      selectedCategoryId={field.state.value}
-                    />
-                  )}
-                </form.Field>
-              </div>
-              <details className="group" open={false}>
-                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl bg-surface px-3 py-2 focus-ring [&::-webkit-details-marker]:hidden">
-                  <span className="text-xs font-medium uppercase text-secondary">Details</span>
-                  <Icon
-                    className="text-secondary transition-transform duration-150 motion-safe:group-open:rotate-180"
-                    name="chevron-down"
-                  />
-                </summary>
-                <div className="mt-2 space-y-2">
-                  <form.Field name="merchant_id">
-                    {(field) => (
-                      <MerchantSelect
-                        bootstrap={bootstrap}
-                        merchants={merchants}
-                        onSelect={(id) => {
-                          field.handleChange(id);
-                        }}
-                        selectedMerchantId={field.state.value}
-                      />
-                    )}
-                  </form.Field>
-                  <form.Field name="tag_ids" mode="array">
-                    {(field) => (
-                      <TagSelect
-                        bootstrap={bootstrap}
-                        onSelect={(ids) => {
-                          field.handleChange(ids);
-                        }}
-                        selectedTagIds={field.state.value}
-                        tags={tags}
-                      />
-                    )}
-                  </form.Field>
-                  <form.Field name="notes">
-                    {(field) => (
-                      <div className="form-field">
-                        <div className="form-field__body">
-                          <label className={labelClasses} htmlFor="new-txn-notes">
-                            Notes
-                          </label>
-                          <textarea
-                            className={inputClasses}
-                            id="new-txn-notes"
-                            onChange={(event) => {
-                              field.handleChange(event.currentTarget.value);
-                            }}
-                            placeholder="Enter a note"
-                            rows={5}
-                            value={field.state.value}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </form.Field>
-                </div>
-              </details>
-              <div className="mt-auto flex items-center justify-end gap-2 pt-2">
-                <Link
-                  className="inline-flex h-10 items-center justify-center rounded-lg border border-secondary bg-container px-4 text-sm font-medium text-primary transition-colors hover:bg-container-hover"
-                  to="/transactions"
-                >
-                  Cancel
-                </Link>
-                <form.Subscribe selector={(state) => state.canSubmit}>
-                  {(canSubmit) => (
-                    <button
-                      className="inline-flex h-10 items-center justify-center rounded-lg button-bg-primary px-4 text-sm font-medium text-inverse transition-opacity disabled:opacity-50"
-                      disabled={!canSubmit || create.isPending}
-                      type="submit"
-                    >
-                      {create.isPending ? "Saving…" : "Create transaction"}
-                    </button>
-                  )}
-                </form.Subscribe>
-              </div>
-            </form>
+                  selectedCategoryId={field.state.value}
+                />
+              )}
+            </form.Field>
           </div>
-        </DialogPanel>
+          <details className="group" open={false}>
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl bg-surface px-3 py-2 focus-ring [&::-webkit-details-marker]:hidden">
+              <span className="text-xs font-medium uppercase text-secondary">Details</span>
+              <Icon
+                className="text-secondary transition-transform duration-150 motion-safe:group-open:rotate-180"
+                name="chevron-down"
+              />
+            </summary>
+            <div className="mt-2 space-y-2">
+              <form.Field name="merchant_id">
+                {(field) => (
+                  <MerchantSelect
+                    bootstrap={bootstrap}
+                    merchants={merchants}
+                    onSelect={(id) => {
+                      field.handleChange(id);
+                    }}
+                    selectedMerchantId={field.state.value}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="tag_ids" mode="array">
+                {(field) => (
+                  <TagSelect
+                    bootstrap={bootstrap}
+                    onSelect={(ids) => {
+                      field.handleChange(ids);
+                    }}
+                    selectedTagIds={field.state.value}
+                    tags={tags}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="notes">
+                {(field) => (
+                  <div className="form-field">
+                    <div className="form-field__body">
+                      <label className={labelClasses} htmlFor="new-txn-notes">
+                        Notes
+                      </label>
+                      <textarea
+                        className={inputClasses}
+                        id="new-txn-notes"
+                        onChange={(event) => {
+                          field.handleChange(event.currentTarget.value);
+                        }}
+                        placeholder="Enter a note"
+                        rows={5}
+                        value={field.state.value}
+                      />
+                    </div>
+                  </div>
+                )}
+              </form.Field>
+            </div>
+          </details>
+          <div className="mt-auto flex items-center justify-end gap-2 pt-2">
+            <Link
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-secondary bg-container px-4 text-sm font-medium text-primary transition-colors hover:bg-container-hover"
+              to="/transactions"
+            >
+              Cancel
+            </Link>
+            <form.Subscribe selector={(state) => state.canSubmit}>
+              {(canSubmit) => (
+                <button
+                  className="inline-flex h-10 items-center justify-center rounded-lg button-bg-primary px-4 text-sm font-medium text-inverse transition-opacity disabled:opacity-50"
+                  disabled={!canSubmit || create.isPending}
+                  type="submit"
+                >
+                  {create.isPending ? "Saving…" : "Create transaction"}
+                </button>
+              )}
+            </form.Subscribe>
+          </div>
+        </form>
       </div>
-    </Dialog>
+    </Modal>
   );
 }
 

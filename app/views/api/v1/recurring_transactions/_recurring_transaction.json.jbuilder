@@ -20,6 +20,7 @@ json.expected_amount_max recurring_transaction.expected_amount_max_money&.format
 json.expected_amount_max_cents money_to_minor_units.call(recurring_transaction.expected_amount_max_money)
 json.expected_amount_avg recurring_transaction.expected_amount_avg_money&.format
 json.expected_amount_avg_cents money_to_minor_units.call(recurring_transaction.expected_amount_avg_money)
+json.transfer recurring_transaction.transfer?
 json.created_at recurring_transaction.created_at.iso8601
 json.updated_at recurring_transaction.updated_at.iso8601
 
@@ -33,10 +34,21 @@ else
   json.account nil
 end
 
+if recurring_transaction.destination_account.present?
+  json.destination_account do
+    json.id recurring_transaction.destination_account.id
+    json.name recurring_transaction.destination_account.name
+    json.account_type recurring_transaction.destination_account.accountable_type&.underscore
+  end
+else
+  json.destination_account nil
+end
+
 if recurring_transaction.merchant.present?
   json.merchant do
     json.id recurring_transaction.merchant.id
     json.name recurring_transaction.merchant.name
+    json.logo_url Setting.transform_brand_fetch_url(recurring_transaction.merchant.logo_url)
   end
 else
   json.merchant nil

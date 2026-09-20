@@ -13,9 +13,8 @@ class Api::V1::RecurringTransactionsController < Api::V1::BaseController
 
     @per_page = safe_per_page_param
     recurring_transactions_query = read_recurring_transactions_scope
-      .includes(:account, :merchant)
+      .includes(:account, :destination_account, :merchant)
       .order(status: :asc, next_expected_date: :asc)
-
     recurring_transactions_query = apply_filters(recurring_transactions_query)
 
     @pagy, @recurring_transactions = pagy(
@@ -175,6 +174,19 @@ class Api::V1::RecurringTransactionsController < Api::V1::BaseController
 
         query = query.where(account_id: params[:account_id])
       end
+
+      if params[:upcoming].to_s == "true"
+        days = (params[:upcoming_days] || 10).to_i.clamp(1, 365)
+        query = query.active.where("next_expected_date >= ? AND next_expected_date <= ?", Date.current, days.days.from_now.to_date)
+      else
+        if params[:start_date].present?
+          query = query.where("next_expected_date >= ?", params[:start_date].to_date) rescue query
+        end
+        if params[:end_date].present?
+          query = query.where("next_expected_date <= ?", params[:end_date].to_date) rescue query
+        end
+      end
+
       query
     end
 

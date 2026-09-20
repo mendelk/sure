@@ -1,9 +1,9 @@
-import { useEventListener } from "usehooks-ts";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { CategoryIcon, Icon } from "./icon";
+import { Modal } from "./modal";
 import {
   TransactionApiError,
   createCategory,
@@ -68,63 +68,53 @@ export function TransactionDetailDrawer() {
     : undefined;
 
   function close() {
-    void navigate({ to: "/transactions" });
+    void navigate({ to: "/transactions", resetScroll: false });
   }
 
-  useEventListener("keydown", (event) => {
-    if (event.key === "Escape") close();
-  });
-
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-end bg-overlay pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:p-3">
-      <button
-        aria-label="Close transaction details"
-        className="absolute inset-0 size-full cursor-default"
-        onClick={close}
-        type="button"
-      />
-      <dialog
-        aria-labelledby="transaction-detail-title"
-        className="relative flex size-full flex-col overflow-hidden rounded-xl bg-container p-0 shadow-border-xs lg:w-[550px]"
-        open
-      >
-        <div className="flex grow flex-col gap-4 overflow-y-auto p-4">
-          {error !== undefined ? (
-            <div className="rounded-xl border border-destructive bg-container p-5" role="alert">
-              <p className="font-medium text-primary">Transaction unavailable</p>
-              <p className="mt-1 text-sm text-secondary">{error}</p>
-              <div className="mt-4 flex items-center gap-3">
-                <button
-                  className="text-sm font-medium text-link hover:underline"
-                  onClick={() => void detailQuery.refetch()}
-                  type="button"
-                >
-                  Try again
-                </button>
-                <Link className="text-sm font-medium text-link hover:underline" to="/transactions">
-                  Back to transactions
-                </Link>
-              </div>
+    <Modal
+      ariaLabelledby="transaction-detail-title"
+      onClose={close}
+      open
+      panelClassName="relative flex size-full flex-col overflow-hidden rounded-xl bg-container p-0 shadow-border-xs lg:w-[550px]"
+      placement="drawer"
+    >
+      <div className="flex grow flex-col gap-4 overflow-y-auto p-4">
+        {error !== undefined ? (
+          <div className="rounded-xl border border-destructive bg-container p-5" role="alert">
+            <p className="font-medium text-primary">Transaction unavailable</p>
+            <p className="mt-1 text-sm text-secondary">{error}</p>
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                className="text-sm font-medium text-link hover:underline"
+                onClick={() => void detailQuery.refetch()}
+                type="button"
+              >
+                Try again
+              </button>
+              <Link className="text-sm font-medium text-link hover:underline" to="/transactions">
+                Back to transactions
+              </Link>
             </div>
-          ) : transaction === undefined ? (
-            <TransactionDetailSkeleton />
-          ) : (
-            <>
-              <TransactionDetailHeader transaction={transaction} onClose={close} />
-              {transaction.transfer ? (
-                <TransactionDetailTransfer bootstrap={bootstrap} transaction={transaction} />
-              ) : null}
-              <TransactionEditableForm bootstrap={bootstrap} transaction={transaction} />
-              {!transaction.transfer && !transaction.pending ? (
-                <TransferMatcher bootstrap={bootstrap} transaction={transaction} />
-              ) : null}
-              <TransactionDetailBody bootstrap={bootstrap} transaction={transaction} />
-              <TransactionDetailMeta transaction={transaction} />
-            </>
-          )}
-        </div>
-      </dialog>
-    </div>
+          </div>
+        ) : transaction === undefined ? (
+          <TransactionDetailSkeleton />
+        ) : (
+          <>
+            <TransactionDetailHeader transaction={transaction} onClose={close} />
+            {transaction.transfer ? (
+              <TransactionDetailTransfer bootstrap={bootstrap} transaction={transaction} />
+            ) : null}
+            <TransactionEditableForm bootstrap={bootstrap} transaction={transaction} />
+            {!transaction.transfer && !transaction.pending ? (
+              <TransferMatcher bootstrap={bootstrap} transaction={transaction} />
+            ) : null}
+            <TransactionDetailBody bootstrap={bootstrap} transaction={transaction} />
+            <TransactionDetailMeta transaction={transaction} />
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }
 

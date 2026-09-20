@@ -6,10 +6,12 @@ import {
   referenceDataQueryOptions,
   TransactionApiError,
   transactionsQueryOptions,
+  upcomingTransactionsQueryOptions,
   type ReferenceOption,
   type SpaTransaction,
   type TransactionCollection,
   type TransactionQuery,
+  type UpcomingRecurringTransaction,
 } from "./api/transactions";
 import { Icon } from "./icon";
 import { useDismiss } from "./use-dismiss";
@@ -17,6 +19,7 @@ import { useDismiss } from "./use-dismiss";
 type TransactionType = "income" | "expense" | "transfer";
 type AmountOperator = "equal" | "greater" | "less";
 export type TransactionRouteSearch = {
+  tab?: "transactions" | "upcoming";
   page?: number;
   search?: string;
   start_date?: string;
@@ -57,6 +60,9 @@ export function validateTransactionSearch(input: Record<string, unknown>): Trans
   const result: TransactionRouteSearch = {
     page: Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1,
   };
+  const tab = stringValue(input.tab);
+  if (tab === "upcoming") result.tab = "upcoming";
+
   const search = stringValue(input.search ?? input["q[search]"]);
   const startDate = stringValue(input.start_date ?? input["q[start_date]"]);
   const endDate = stringValue(input.end_date ?? input["q[end_date]"]);
@@ -101,8 +107,12 @@ export function TransactionsPage() {
   const routeSearch = useSearch({ from: "/transactions" });
   const navigate = useNavigate({ from: "/transactions" });
 
+  const recurringDisabled = Boolean(bootstrap.recurringTransactionsDisabled);
+  const activeTab = recurringDisabled ? "transactions" : (routeSearch.tab ?? "transactions");
+
+  const { tab: _tab, ...searchFilters } = routeSearch;
   const query: TransactionQuery = {
-    ...routeSearch,
+    ...searchFilters,
     per_page: 25,
   };
   const transactionsQuery = useQuery(
@@ -147,11 +157,20 @@ export function TransactionsPage() {
   function setColumn(column: "merchant" | "notes" | "tags", value: boolean) {
     setColumns((previous) => ({ ...previous, [column]: value }));
   }
+  function setTab(tab: "transactions" | "upcoming") {
+    void navigate({
+      search: {
+        ...routeSearch,
+        tab: tab === "transactions" ? undefined : "upcoming",
+        page: 1,
+      },
+    });
+  }
 
   return (
     <section
       aria-labelledby="transactions-title"
-      className="flex flex-1 flex-col gap-4 pb-6 lg:pb-12"
+      className="flex min-h-0 flex-1 flex-col gap-4 pb-6 lg:pb-12"
     >
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -173,106 +192,381 @@ export function TransactionsPage() {
 
       <TransactionSummary data={data} />
 
-      <div
-        className="relative flex flex-col rounded-xl bg-container shadow-border-xs"
-        id="transactions"
-      >
-        <div className="space-y-4 border-b border-tertiary p-4">
-          <div className="flex gap-2">
-            <TransactionSearchBox
-              accounts={reference.accounts}
-              categories={reference.categories}
-              merchants={reference.merchants}
-              routeSearch={routeSearch}
-              tags={reference.tags}
-              updateSearch={updateSearch}
-            />
-            <button
-              aria-expanded={filterOpen}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
-              onClick={() => {
-                setFilterOpen((value) => !value);
-              }}
-              type="button"
-            >
-              <Icon name="filter" size="sm" />
-              Filter
-              {activeFilterCount > 0 ? (
-                <span className="rounded-full bg-container-inset px-1.5 text-xs tabular-nums">
-                  {activeFilterCount}
-                </span>
-              ) : null}
-            </button>
-            <TransactionColumnsPopover columns={columns} onToggle={setColumn} />
-          </div>
-
-          {filterOpen ? (
-            <TransactionFilterPanel routeSearch={routeSearch} updateSearch={updateSearch} />
-          ) : null}
+      {!recurringDisabled ? (
+        <div className="flex max-w-fit rounded-lg bg-surface-inset p-1" role="tablist">
+          <button
+            aria-selected={activeTab === "transactions"}
+            className={`inline-flex w-full items-center justify-center rounded-md px-6 py-1 text-sm font-medium motion-safe:transition-colors motion-safe:duration-200 ${
+              activeTab === "transactions"
+                ? "tab-item-active text-primary shadow-sm"
+                : "text-secondary hover:bg-surface-inset-hover"
+            }`}
+            onClick={() => {
+              setTab("transactions");
+            }}
+            role="tab"
+            type="button"
+          >
+            Transactions
+          </button>
+          <button
+            aria-selected={activeTab === "upcoming"}
+            className={`inline-flex w-full items-center justify-center rounded-md px-6 py-1 text-sm font-medium motion-safe:transition-colors motion-safe:duration-200 ${
+              activeTab === "upcoming"
+                ? "tab-item-active text-primary shadow-sm"
+                : "text-secondary hover:bg-surface-inset-hover"
+            }`}
+            onClick={() => {
+              setTab("upcoming");
+            }}
+            role="tab"
+            type="button"
+          >
+            Upcoming
+          </button>
         </div>
+      ) : null}
 
-        <div id="transactions-scroll">
-          {error !== undefined ? (
-            <div className="m-4 rounded-xl border border-destructive bg-container p-5" role="alert">
-              <p className="font-medium text-primary">Transactions unavailable</p>
-              <p className="mt-1 text-sm text-secondary">{error}</p>
+      {activeTab === "transactions" ? (
+        <div
+          className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-container shadow-border-xs"
+          id="transactions"
+          role="tabpanel"
+        >
+          <div className="space-y-4 border-b border-tertiary p-4">
+            <div className="flex gap-2">
+              <TransactionSearchBox
+                accounts={reference.accounts}
+                categories={reference.categories}
+                merchants={reference.merchants}
+                routeSearch={routeSearch}
+                tags={reference.tags}
+                updateSearch={updateSearch}
+              />
               <button
-                className="mt-4 text-sm font-medium text-link hover:underline"
-                onClick={() => void transactionsQuery.refetch()}
+                aria-expanded={filterOpen}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
+                onClick={() => {
+                  setFilterOpen((value) => !value);
+                }}
                 type="button"
               >
-                Try again
+                <Icon name="filter" size="sm" />
+                Filter
+                {activeFilterCount > 0 ? (
+                  <span className="rounded-full bg-container-inset px-1.5 text-xs tabular-nums">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
               </button>
+              <TransactionColumnsPopover columns={columns} onToggle={setColumn} />
             </div>
-          ) : data === undefined ? (
-            <TransactionSkeleton />
-          ) : data.transactions.length === 0 ? (
-            <div className="px-6 py-16 text-center">
-              <p className="font-medium text-primary">No matching transactions</p>
-              <p className="mt-1 text-sm text-secondary">
-                Change filters or create a new transaction.
-              </p>
-            </div>
-          ) : (
-            <div aria-live="polite" className="divide-y divide-tertiary">
-              {groupedTransactions.map(([date, transactions]) => (
-                <div key={date}>
-                  <div className="flex items-center justify-between bg-container-inset px-4 py-2.5">
-                    <h2 className="text-xs font-medium uppercase tracking-wide text-secondary">
-                      {formatTransactionDate(date)}
-                    </h2>
-                    <span className="text-xs tabular-nums text-secondary">
-                      {transactions.length}
-                    </span>
-                  </div>
-                  <ul className="divide-y divide-tertiary">
-                    {transactions.map((transaction) => (
-                      <TransactionRow
-                        columns={columns}
-                        key={transaction.id}
-                        transaction={transaction}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {data !== undefined ? (
-          <Pagination
-            onPageChange={(page) => {
-              updateSearch({ page });
-            }}
-            page={data.pagination.page}
-            totalPages={data.pagination.total_pages}
-          />
-        ) : null}
-      </div>
+            {filterOpen ? (
+              <TransactionFilterPanel routeSearch={routeSearch} updateSearch={updateSearch} />
+            ) : null}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto" id="transactions-scroll">
+            {error !== undefined ? (
+              <div
+                className="m-4 rounded-xl border border-destructive bg-container p-5"
+                role="alert"
+              >
+                <p className="font-medium text-primary">Transactions unavailable</p>
+                <p className="mt-1 text-sm text-secondary">{error}</p>
+                <button
+                  className="mt-4 text-sm font-medium text-link hover:underline"
+                  onClick={() => void transactionsQuery.refetch()}
+                  type="button"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : data === undefined ? (
+              <TransactionSkeleton />
+            ) : data.transactions.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <p className="font-medium text-primary">No matching transactions</p>
+                <p className="mt-1 text-sm text-secondary">
+                  Change filters or create a new transaction.
+                </p>
+              </div>
+            ) : (
+              <div aria-live="polite" className="divide-y divide-tertiary">
+                {groupedTransactions.map(([date, transactions]) => (
+                  <div key={date}>
+                    <div className="flex items-center justify-between bg-container-inset px-4 py-2.5">
+                      <h2 className="text-xs font-medium uppercase tracking-wide text-secondary">
+                        {formatTransactionDate(date)}
+                      </h2>
+                      <span className="text-xs tabular-nums text-secondary">
+                        {transactions.length}
+                      </span>
+                    </div>
+                    <ul className="divide-y divide-tertiary">
+                      {transactions.map((transaction) => (
+                        <TransactionRow
+                          columns={columns}
+                          key={transaction.id}
+                          transaction={transaction}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {data !== undefined ? (
+            <Pagination
+              onPageChange={(page) => {
+                updateSearch({ page });
+              }}
+              page={data.pagination.page}
+              totalPages={data.pagination.total_pages}
+            />
+          ) : null}
+        </div>
+      ) : (
+        <UpcomingTransactionsView recurringPath={bootstrap.apiPaths.recurringTransactions} />
+      )}
       <Outlet />
     </section>
   );
+}
+function UpcomingTransactionsView({ recurringPath }: { recurringPath?: string }) {
+  const path = recurringPath ?? "/api/v1/recurring_transactions";
+  const upcomingQuery = useQuery(upcomingTransactionsQueryOptions(path));
+  const data = upcomingQuery.data;
+  const error = upcomingQuery.error
+    ? upcomingQuery.error instanceof TransactionApiError
+      ? upcomingQuery.error.message
+      : "Failed to load upcoming transactions."
+    : undefined;
+
+  const grouped = useMemo(
+    () => groupUpcomingByDate(data?.recurring_transactions ?? []),
+    [data?.recurring_transactions],
+  );
+
+  if (error !== undefined) {
+    return (
+      <div className="rounded-xl border border-destructive bg-container p-5" role="alert">
+        <p className="font-medium text-primary">Upcoming transactions unavailable</p>
+        <p className="mt-1 text-sm text-secondary">{error}</p>
+        <button
+          className="mt-4 text-sm font-medium text-link hover:underline"
+          onClick={() => void upcomingQuery.refetch()}
+          type="button"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (data === undefined) return <UpcomingSkeleton />;
+
+  if (data.recurring_transactions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl bg-container px-6 py-40 shadow-border-xs text-center">
+        <p className="mb-2 font-medium text-secondary">No recurring transactions found</p>
+        <p className="max-w-xs text-sm text-subdued">
+          Recurring transactions will appear here once patterns are identified from your transaction
+          history.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="group relative flex flex-col rounded-xl bg-container px-3 py-4 shadow-border-xs lg:p-4"
+      id="upcoming"
+      role="tabpanel"
+    >
+      <div className="mb-4 grid grid-cols-12 items-center rounded-xl bg-container-inset px-5 py-3 text-xs font-medium uppercase text-secondary">
+        <div className="col-span-8 flex items-center gap-4 pl-0.5">
+          <p>Transaction</p>
+        </div>
+        <p className="col-span-2 hidden md:block">Type</p>
+        <p className="col-span-2 col-start-11 justify-self-end md:col-start-auto md:block">
+          Amount
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {grouped.map(([date, items]) => (
+          <div
+            className="w-full rounded-xl bg-container-inset p-1"
+            id={`upcoming-group-${date}`}
+            key={date}
+          >
+            <div className="flex items-center justify-between px-4 py-2 text-xs font-medium text-secondary">
+              <p className="space-x-1.5 uppercase">
+                <span>{formatUpcomingGroupDate(date)}</span>
+                <span>&middot;</span>
+                <span>{items.length}</span>
+              </p>
+            </div>
+            <div className="divide-y divide-tertiary rounded-lg bg-container shadow-border-xs">
+              {items.map((item) => (
+                <UpcomingRow item={item} key={item.id} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UpcomingRow({ item }: { item: UpcomingRecurringTransaction }) {
+  const displayName = item.merchant?.name ?? item.name ?? "Recurring transaction";
+  const amountInfo = formatUpcomingAmount(item);
+
+  return (
+    <div className="group flex items-center p-3 text-sm font-medium text-primary lg:grid lg:grid-cols-12 lg:p-4">
+      <div className="col-span-8 flex min-w-0 items-center gap-3 pr-4 lg:gap-4 lg:pr-10">
+        <div className="max-w-full">
+          <div className="flex items-center gap-3 lg:gap-4">
+            {typeof item.merchant?.logo_url === "string" && item.merchant.logo_url.length > 0 ? (
+              <img
+                alt={displayName}
+                className="size-9 shrink-0 rounded-full"
+                loading="lazy"
+                src={item.merchant.logo_url}
+              />
+            ) : (
+              <div
+                aria-hidden="true"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-container-inset text-sm font-semibold text-secondary"
+              >
+                {displayName.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+
+            <div className="truncate">
+              <div className="space-y-0.5">
+                <div className="flex min-w-0 items-center gap-1">
+                  <div className="truncate shrink font-medium text-primary">{displayName}</div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span className="inline-flex items-center rounded-full bg-blue-tint-10 px-2 py-0.5 text-xs font-medium text-link">
+                      Projected
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-xs font-normal text-secondary">
+                  {formatExpectedIn(item.next_expected_date)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="col-span-2 hidden items-center gap-1 lg:flex">
+        <span className="text-xs text-secondary">Recurring</span>
+      </div>
+
+      <div className="col-span-2 ml-auto shrink-0 text-right">
+        <p className={`privacy-sensitive font-medium tabular-nums ${amountInfo.className}`}>
+          {amountInfo.text}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function UpcomingSkeleton() {
+  return (
+    <output className="flex flex-col rounded-xl bg-container p-4 shadow-border-xs">
+      <span className="sr-only">Loading upcoming transactions...</span>
+      <div className="mb-4 h-10 w-full animate-pulse rounded-xl bg-container-inset" />
+      <div className="space-y-6">
+        {[1, 2].map((group) => (
+          <div className="w-full rounded-xl bg-container-inset p-1" key={group}>
+            <div className="mb-2 h-6 w-32 animate-pulse rounded-sm bg-container" />
+            <div className="space-y-2 rounded-lg bg-container p-3">
+              {[1, 2, 3].map((row) => (
+                <div className="flex items-center justify-between py-2" key={row}>
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 animate-pulse rounded-full bg-container-inset" />
+                    <div className="space-y-1">
+                      <div className="h-4 w-32 animate-pulse rounded-sm bg-container-inset" />
+                      <div className="h-3 w-20 animate-pulse rounded-sm bg-container-inset" />
+                    </div>
+                  </div>
+                  <div className="h-4 w-16 animate-pulse rounded-sm bg-container-inset" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </output>
+  );
+}
+
+function formatUpcomingGroupDate(dateStr: string): string {
+  const parsedDate = new Date(`${dateStr}T00:00:00`);
+  return new Intl.DateTimeFormat(document.documentElement.lang || undefined, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsedDate);
+}
+
+function formatExpectedIn(dateStr: string): string {
+  const target = new Date(`${dateStr}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+  const diffTime = target.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) return "Expected today";
+  if (diffDays === 1) return "Expected in 1 day";
+  return `Expected in ${diffDays} days`;
+}
+
+function formatUpcomingAmount(item: UpcomingRecurringTransaction): {
+  text: string;
+  className: string;
+} {
+  const amountStr =
+    item.manual &&
+    typeof item.expected_amount_avg === "string" &&
+    item.expected_amount_avg.length > 0
+      ? item.expected_amount_avg
+      : item.amount;
+  if (item.transfer === true) {
+    return {
+      text: amountStr,
+      className: "text-secondary",
+    };
+  }
+  const isIncome = item.amount_cents < 0;
+  return {
+    text: amountStr,
+    className: isIncome ? "text-success" : "text-subdued",
+  };
+}
+
+function groupUpcomingByDate(
+  items: UpcomingRecurringTransaction[],
+): [string, UpcomingRecurringTransaction[]][] {
+  const groups: Record<string, UpcomingRecurringTransaction[]> = {};
+  for (const item of items) {
+    const key = item.next_expected_date;
+    const list = groups[key] ?? [];
+    list.push(item);
+    groups[key] = list;
+  }
+  return Object.entries(groups).toSorted(([a], [b]) => a.localeCompare(b));
 }
 
 function TransactionSummary({ data }: { data?: TransactionCollection }) {
@@ -333,6 +627,7 @@ function TransactionRow({
             <Link
               className="truncate text-sm font-medium text-primary hover:underline"
               params={{ transactionId: transaction.id }}
+              resetScroll={false}
               to="/transactions/$transactionId"
             >
               {transaction.name}
@@ -615,7 +910,7 @@ function Pagination({
   return (
     <nav
       aria-label="Transaction pages"
-      className="flex items-center justify-between border-t border-tertiary px-4 py-3"
+      className="flex shrink-0 items-center justify-between border-t border-tertiary px-4 py-3"
     >
       <button
         className="rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-container-hover disabled:cursor-not-allowed disabled:opacity-40"
