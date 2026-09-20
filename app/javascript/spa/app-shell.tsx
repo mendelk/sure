@@ -1,10 +1,12 @@
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useRouteContext, useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { type SummaryAccount, useSummaryQuery } from "./api/summary";
+import { readCsrfToken } from "./api/transactions";
 import type { SpaBootstrap } from "./bootstrap";
 import { Icon, type IconName } from "./icon";
+import { useDismiss } from "./use-dismiss";
 
 type NavItem = {
   label: string;
@@ -397,32 +399,13 @@ function UserMenu({ rail = false }: { rail?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function onPointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (ref.current === null || !(target instanceof Node)) {
-        setOpen(false);
-        return;
-      }
-      if (!ref.current.contains(target)) setOpen(false);
-    }
-
-    function onEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-
-    if (open) {
-      document.addEventListener("pointerdown", onPointerDown);
-      document.addEventListener("keydown", onEscape);
-    }
-
-    return () => {
-      if (open) {
-        document.removeEventListener("pointerdown", onPointerDown);
-        document.removeEventListener("keydown", onEscape);
-      }
-    };
-  }, [open]);
+  useDismiss(
+    ref,
+    () => {
+      setOpen(false);
+    },
+    open,
+  );
 
   return (
     <div className="relative" ref={ref}>
@@ -480,9 +463,7 @@ function UserMenu({ rail = false }: { rail?: boolean }) {
               void fetch(form.action, {
                 method: "DELETE",
                 headers: {
-                  "X-CSRF-Token":
-                    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ??
-                    "",
+                  "X-CSRF-Token": readCsrfToken(),
                 },
               }).then(() => {
                 window.location.assign("/sessions/new");
