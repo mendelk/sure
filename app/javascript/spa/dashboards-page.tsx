@@ -9,10 +9,12 @@ import "react-grid-layout/css/styles.css";
 import { Icon } from "./icon";
 import { readCsrfToken } from "./api/transactions";
 import { SureqlEditor } from "./sureql-editor";
-import { readDashboardSnapshot, writeDashboardSnapshot } from "./dashboard-storage";
-import type { DashboardSnapshot } from "./dashboard-storage";
-
-const DEFAULT_QUERY = "from transactions\nsort {-date}\ntake 10";
+import {
+  STARTER_QUERY,
+  loadOrInstallStarterSnapshot,
+  starterSnapshot,
+  writeDashboardSnapshot,
+} from "./dashboard-storage";
 
 const SureqlResultSchema = z.object({
   sql: z.string(),
@@ -62,21 +64,6 @@ function getRowKey(row: Record<string, unknown>, index: number): string {
   return `row-${index}-${JSON.stringify(row)}`;
 }
 
-// The live report card. Sizes are in grid units (12-col grid). minW/minH keep
-// the editor and table usable; the handle sits in the card header so editor
-// clicks never start a drag.
-const REPORT_LAYOUT: Layout = [
-  {
-    i: "sureql-report",
-    x: 0,
-    y: 0,
-    w: 12,
-    h: 4,
-    minW: 4,
-    minH: 3,
-  },
-];
-
 function ReportCardHeader() {
   return (
     <div
@@ -96,12 +83,10 @@ function ReportCardHeader() {
 
 export function DashboardsPage() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
-  const [initialSnapshot] = useState<DashboardSnapshot | undefined>(() =>
-    readDashboardSnapshot(bootstrap.currentUser.id),
-  );
-  const [query, setQuery] = useState(initialSnapshot?.query ?? DEFAULT_QUERY);
-  const [executedQuery, setExecutedQuery] = useState(initialSnapshot?.query ?? DEFAULT_QUERY);
-  const [layout, setLayout] = useState<Layout>(initialSnapshot?.layout ?? REPORT_LAYOUT);
+  const [initialSnapshot] = useState(() => loadOrInstallStarterSnapshot(bootstrap.currentUser.id));
+  const [query, setQuery] = useState(initialSnapshot.query);
+  const [executedQuery, setExecutedQuery] = useState(initialSnapshot.query);
+  const [layout, setLayout] = useState<Layout>(initialSnapshot.layout);
   const { width: gridWidth, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   });
@@ -147,12 +132,63 @@ export function DashboardsPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">Dashboards</h1>
-        <p className="mt-1 text-sm text-secondary">
-          Live SureQL query editor and real authorized query results.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">Dashboards</h1>
+          <p className="mt-1 text-sm text-secondary">
+            Live SureQL query editor and real authorized query results.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            document.querySelector<HTMLDialogElement>("#reset-starter-dialog")?.showModal();
+          }}
+          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
+        >
+          <Icon name="rotate-ccw" size="sm" />
+          <span>Reset starter dashboard</span>
+        </button>
       </header>
+      <dialog
+        id="reset-starter-dialog"
+        aria-labelledby="reset-starter-title"
+        className="w-full max-w-sm rounded-xl border border-secondary bg-container p-0 shadow-border-xs backdrop:bg-overlay"
+      >
+        <div className="space-y-3 p-4">
+          <h2 id="reset-starter-title" className="text-sm font-semibold text-primary">
+            Reset to the starter dashboard?
+          </h2>
+          <p className="text-sm text-secondary">
+            Your current query and layout will be replaced. This only affects your dashboard view in
+            this browser.
+          </p>
+          <div className="flex justify-end gap-2">
+            <form method="dialog">
+              <button
+                type="submit"
+                className="inline-flex min-h-8 items-center rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
+              >
+                Cancel
+              </button>
+            </form>
+            <button
+              type="button"
+              onClick={() => {
+                const starter = starterSnapshot();
+                writeDashboardSnapshot(bootstrap.currentUser.id, starter);
+                setQuery(starter.query);
+                setExecutedQuery(starter.query);
+                setLayout(starter.layout);
+                document.querySelector<HTMLDialogElement>("#reset-starter-dialog")?.close();
+              }}
+              className="inline-flex min-h-8 items-center rounded-lg button-bg-primary px-2.5 py-1.5 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover focus-ring"
+            >
+              Reset dashboard
+            </button>
+          </div>
+        </div>
+      </dialog>
 
       <div ref={containerRef} className="min-w-0">
         <GridLayout
@@ -174,7 +210,7 @@ export function DashboardsPage() {
             <div className="min-h-0 flex-1 overflow-y-auto">
               <SureqlEditor
                 value={query}
-                defaultValue={DEFAULT_QUERY}
+                defaultValue={STARTER_QUERY}
                 onChange={setQuery}
                 onRun={handleRun}
                 loading={loading}
