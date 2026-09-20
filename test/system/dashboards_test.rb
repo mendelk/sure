@@ -88,7 +88,7 @@ class DashboardsTest < ApplicationSystemTestCase
     visit dashboards_url
 
     within "header" do
-      click_button "Add report"
+      click_button "Add table"
     end
     within "#configure-report-dialog" do
       fill_in "Report name", with: "Account overview"
@@ -152,7 +152,7 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selected_dashboard("My dashboard")
 
     click_button "New dashboard"
-    assert_selector 'input[aria-label="dashboard-name"]', wait: 10
+    assert_selector "#dashboard-name", wait: 10
     fill_in "dashboard-name", with: "Money review"
     click_button "Save dashboard name"
 
@@ -164,7 +164,7 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_equal 2, dashboard_snapshot.fetch("dashboards").length
 
     within "header" do
-      click_button "Add report"
+      click_button "Add table"
     end
     within "#configure-report-dialog" do
       fill_in "Report name", with: "Account overview"
@@ -224,11 +224,56 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "p", text: "No dashboards yet"
 
     click_button "Create dashboard"
-    assert_selector 'input[aria-label="dashboard-name"]', wait: 10
+    assert_selector "#dashboard-name", wait: 10
     fill_in "dashboard-name", with: "Fresh start"
     click_button "Save dashboard name"
     assert_selected_dashboard("Fresh start")
     assert_selector "p", text: "No reports yet"
+  end
+
+  test "creates a chart widget alongside the table widget" do
+    visit dashboards_url
+    assert_selected_dashboard("My dashboard")
+    assert_selector "section[aria-label='Recent transactions results'] table"
+
+    within "header" do
+      click_button "Add chart"
+    end
+    within "#configure-report-dialog" do
+      fill_in "Report name", with: "Balance history"
+    end
+    set_query("from transactions\nsort {date}\ntake 10")
+    within "#configure-report-dialog" do
+      click_button "Save and run"
+    end
+
+    assert_selector "h2", text: /Balance history/i
+    assert_selector "[aria-label='Balance history chart']", wait: 10
+    assert_equal "chart", active_dashboard(dashboard_snapshot).fetch("reports").find { |r| r.fetch("name") == "Balance history" }.fetch("presentation")
+
+    visit dashboards_url
+    assert_selector "[aria-label='Balance history chart']", wait: 10
+    assert_selector "section[aria-label='Recent transactions results'] table"
+  end
+
+  test "configures a chart widget with fallback to table when unchartable" do
+    visit dashboards_url
+
+    within "header" do
+      click_button "Add chart"
+    end
+    within "#configure-report-dialog" do
+      fill_in "Report name", with: "Names only"
+    end
+    set_query("from transactions\nselect {name}")
+    within "#configure-report-dialog" do
+      click_button "Save and run"
+    end
+
+    assert_selector "h2", text: /Names only/i
+    assert_text "Chart needs a date column and a numeric column"
+    assert_selector "section[aria-label='Names only results'] table"
+    assert_equal "chart", active_dashboard(dashboard_snapshot).fetch("reports").find { |r| r.fetch("name") == "Names only" }.fetch("presentation")
   end
 
   test "edits SureQL query in Monaco and runs it to display updated results" do
