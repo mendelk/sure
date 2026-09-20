@@ -5,11 +5,11 @@ parentId:
 id: t_cd_interact_002
 title: Improve dashboard switching and management
 type: task
-status: todo
+status: "done"
 priority: high
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - frontend

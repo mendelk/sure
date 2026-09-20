@@ -5,11 +5,11 @@ parentId:
 id: t_cd_persist_006
 title: Verify the local persistence lifecycle
 type: task
-status: todo
+status: "done"
 priority: critical
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - verification

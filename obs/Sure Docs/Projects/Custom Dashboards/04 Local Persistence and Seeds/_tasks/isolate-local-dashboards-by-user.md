@@ -5,11 +5,11 @@ parentId:
 id: t_cd_persist_002
 title: Isolate local dashboards by user
 type: task
-status: todo
+status: "done"
 priority: critical
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - frontend

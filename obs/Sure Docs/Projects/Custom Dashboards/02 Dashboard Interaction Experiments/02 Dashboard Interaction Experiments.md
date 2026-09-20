@@ -22,7 +22,7 @@ Use the accepted first slice as the baseline. Experiments remain confined to das
 
 ## Tasks
 - [ ] [[experiment-with-view-and-edit-modes|Experiment with view and edit modes]]
-- [ ] [[improve-dashboard-switching-and-management|Improve dashboard switching and management]]
+- [x] [[improve-dashboard-switching-and-management|Improve dashboard switching and management]]
 - [ ] [[experiment-with-widget-placement-controls|Experiment with widget placement controls]]
 - [ ] [[test-responsive-dashboard-layouts|Test responsive dashboard layouts]]
 - [ ] [[review-and-select-dashboard-interactions|Review and select dashboard interactions]]
