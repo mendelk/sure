@@ -16,6 +16,9 @@ export default defineTransformer((document) => {
   if (!transactionPath?.get)
     throw new Error(`${TRANSACTION_PATH} GET is missing from the OpenAPI document`);
 
+  if (!transactionPath?.post)
+    throw new Error(`${TRANSACTION_PATH} POST is missing from the OpenAPI document`);
+
   if (!showPath?.get) throw new Error(`${SHOW_PATH} GET is missing from the OpenAPI document`);
 
   if (!showPath?.patch) throw new Error(`${SHOW_PATH} PATCH is missing from the OpenAPI document`);
@@ -29,6 +32,7 @@ export default defineTransformer((document) => {
     throw new Error(`${TRANSFER_SHOW_PATH} is missing from the OpenAPI document`);
 
   const transactionGet = transactionPath.get;
+  const transactionPost = transactionPath.post;
   const showGet = showPath.get;
   const showPatch = showPath.patch;
   const candidatesGet = candidatesPath.get;
@@ -40,6 +44,7 @@ export default defineTransformer((document) => {
     paths: {
       [TRANSACTION_PATH]: {
         get: transactionGet,
+        post: transactionPost,
       },
       [SHOW_PATH]: {
         ...(showPath.parameters && { parameters: showPath.parameters }),

@@ -20,7 +20,7 @@ import {
 
 import type { SpaBootstrap } from "./bootstrap";
 
-type Bootstrap = Pick<SpaBootstrap, "apiPaths" | "railsPaths">;
+export type Bootstrap = Pick<SpaBootstrap, "apiPaths" | "railsPaths">;
 
 type SaveState = "idle" | "saving" | "error";
 
@@ -338,7 +338,7 @@ function MerchantAvatar({ name, logoUrl }: { name: string; logoUrl?: string | nu
   );
 }
 
-function CategorySelect({
+export function CategorySelect({
   bootstrap,
   categories,
   disabled,
@@ -586,7 +586,7 @@ function CategorySelect({
   );
 }
 
-function MerchantSelect({
+export function MerchantSelect({
   bootstrap,
   disabled,
   initialMerchant,
@@ -844,7 +844,7 @@ function MerchantSelect({
   );
 }
 
-function TagSelect({
+export function TagSelect({
   bootstrap,
   disabled,
   initialTags,
