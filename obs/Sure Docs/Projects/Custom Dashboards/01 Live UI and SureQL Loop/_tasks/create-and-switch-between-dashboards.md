@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_live"
-parentId: null
-id: "t_cd_live_006"
-title: "Create and switch between dashboards"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Live UI and SureQL Loop|01 Live UI and SureQL Loop]]"
+parentId:
+id: t_cd_live_006
+title: Create and switch between dashboards
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "dashboard", "walking-slice"]
+tags:
+  - frontend
+  - dashboard
+  - walking-slice
 subtaskIds: []
-dependencies: ["t_cd_live_005"]
+dependencies:
+  - "[[add-and-remove-live-report-cards|Add and remove live report cards]]"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T16:04:47.621Z
 timeEstimate: 10
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
 ---
 
 Extend the working snapshot to multiple named dashboards and learn what users need to navigate them.
