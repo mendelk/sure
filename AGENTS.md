@@ -15,6 +15,17 @@
 - Lint/format JS/CSS: `npm run lint` and `npm run format` — uses oxlint + oxfmt.
 - Security scan: `bin/brakeman` — static analysis for common Rails issues.
 
+### Docker test environment (no local Ruby)
+Ruby is not installed on the host. Run Rails/Ruby commands inside the Orca
+`app` container instead (engine auto-detected via `ORCA_CONTAINER_ENGINE`,
+`docker`, or `podman` — see `scripts/orca-vm/common.sh`):
+- Container name follows `sure-<worktree>-<hash>_app_1`; list with
+  `podman ps --format '{{.Names}}'` (or `docker ps`).
+- Run tests: `podman exec <app_container> bash -c 'cd /workspace && bin/rails test test/models/account_test.rb'`
+- RuboCop: `podman exec <app_container> bash -c 'cd /workspace && bin/rubocop <path>'`
+- System tests need the container's Selenium: `SELENIUM_REMOTE_URL` is already
+  set inside the container (see `scripts/orca-vm/docker-compose.yml`).
+
 ## Coding Style & Naming Conventions
 - Ruby: 2-space indent, `snake_case` for methods/vars, `CamelCase` for classes/modules. Follow Rails conventions for folders and file names.
 - Views: ERB checked by `erb-lint` (see `.erb_lint.yml`). Avoid heavy logic in views; prefer helpers/components.
@@ -23,7 +34,7 @@
 
 ## Testing Guidelines
 - Framework: Minitest (Rails). Name files `*_test.rb` and mirror `app/` structure.
-- Run: `bin/rails test` locally and ensure green before pushing.
+- Run: `bin/rails test` locally and ensure green before pushing. No local Ruby on this host — run inside the Orca `app` container (see "Docker test environment" above).
 - Fixtures/VCR: Use `test/fixtures` and existing VCR cassettes for HTTP. Prefer unit tests plus focused integration tests.
 
 ## Commit & Pull Request Guidelines

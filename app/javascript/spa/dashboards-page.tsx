@@ -1,57 +1,26 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouteContext } from "@tanstack/react-router";
+import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { GridLayout, useContainerWidth } from "react-grid-layout";
 import type { EventCallback } from "react-grid-layout";
 import { useMemo, useState } from "react";
-import * as z from "zod/mini";
 // eslint-disable-next-line import/no-unassigned-import -- vendor stylesheet side-effect import
 import "react-grid-layout/css/styles.css";
 import { Icon } from "./icon";
 import { Modal } from "./modal";
-import { readCsrfToken } from "./api/transactions";
+import { executeSureqlQuery } from "./api/transactions";
+import { DashboardSwitcher } from "./dashboard-switcher";
 import { SureqlEditor } from "./sureql-editor";
 import {
   STARTER_QUERY,
+  generateDashboardId,
   loadOrInstallStarterSnapshot,
+  selectActiveDashboard,
   starterSnapshot,
   writeDashboardSnapshot,
+  type Dashboard,
   type DashboardReport,
   type DashboardSnapshot,
 } from "./dashboard-storage";
-
-const SureqlResultSchema = z.object({
-  sql: z.string(),
-  columns: z.array(z.string()),
-  rows: z.array(z.record(z.string(), z.unknown())),
-  row_count: z.number(),
-  truncated: z.boolean(),
-  html: z.optional(z.nullable(z.string())),
-});
-
-type SureqlResult = z.infer<typeof SureqlResultSchema>;
-
-async function executeSureqlQuery(endpoint: string, source: string): Promise<SureqlResult> {
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
-    body: JSON.stringify({ source }),
-  });
-
-  const data: unknown = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const errorMsg =
-      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
-        ? data.error
-        : `Request failed with status ${response.status}`;
-    throw new Error(errorMsg);
-  }
-
-  return SureqlResultSchema.parse(data);
-}
 
 function formatCellValue(value: unknown): React.ReactNode {
   if (value === null || value === undefined)
@@ -217,44 +186,104 @@ function ReportCard({
 export function DashboardsPage() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
+  const routeSearch = useSearch({ from: "/dashboards" });
+  const navigate = useNavigate({ from: "/dashboards" });
   const [initialSnapshot] = useState(() => loadOrInstallStarterSnapshot(bootstrap.currentUser.id));
   const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const [dashboardNameDraft, setDashboardNameDraft] = useState(initialSnapshot.dashboardName);
+  const activeDashboard = selectActiveDashboard(snapshot, routeSearch.dashboard);
   const [reportNameDraft, setReportNameDraft] = useState("");
   const [reportQueryDraft, setReportQueryDraft] = useState(STARTER_QUERY);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [reportPendingRemovalId, setReportPendingRemovalId] = useState<string | null>(null);
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [titleEditor, setTitleEditor] = useState<{ id: string; draft: string } | null>(null);
   const { width: gridWidth, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   });
-  const selectedReport = snapshot.reports.find((report) => report.id === selectedReportId);
-  const reportPendingRemoval = snapshot.reports.find(
+  const selectedReport = activeDashboard?.reports.find((report) => report.id === selectedReportId);
+  const reportPendingRemoval = activeDashboard?.reports.find(
     (report) => report.id === reportPendingRemovalId,
   );
 
   // Persist only on explicit saves and interaction stops — never on every
-  // keystroke or pointer move during editing, dragging, or resizing.
   const persistSnapshot = (nextSnapshot: DashboardSnapshot) => {
     setSnapshot(nextSnapshot);
     writeDashboardSnapshot(bootstrap.currentUser.id, nextSnapshot);
   };
 
-  const handleInteractionStop: EventCallback = (nextLayout) => {
-    persistSnapshot({ ...snapshot, layout: nextLayout });
+  const updateActiveDashboard = (update: (dashboard: Dashboard) => Dashboard) => {
+    if (activeDashboard === undefined) return;
+    persistSnapshot({
+      dashboards: snapshot.dashboards.map((dashboard) =>
+        dashboard.id === activeDashboard.id ? update(dashboard) : dashboard,
+      ),
+    });
   };
 
-  const openRenameDialog = () => {
-    setDashboardNameDraft(snapshot.dashboardName);
-    setRenameDialogOpen(true);
+  const switchDashboard = (dashboardId: string) => {
+    void navigate({ search: { dashboard: dashboardId } });
+  };
+
+  const handleInteractionStop: EventCallback = (nextLayout) => {
+    if (activeDashboard === undefined) return;
+    updateActiveDashboard((dashboard) => ({ ...dashboard, layout: nextLayout }));
+  };
+
+  const startEditingDashboardName = (dashboard: Dashboard) => {
+    setTitleEditor({ id: dashboard.id, draft: dashboard.name });
+  };
+
+  const cancelEditingDashboardName = () => {
+    setTitleEditor(null);
   };
 
   const saveDashboardName = () => {
-    const name = dashboardNameDraft.trim();
+    if (titleEditor === null || activeDashboard === undefined) return;
+    if (titleEditor.id !== activeDashboard.id) {
+      setTitleEditor(null);
+      return;
+    }
+    const name = titleEditor.draft.trim();
     if (name.length === 0) return;
-    persistSnapshot({ ...snapshot, dashboardName: name });
-    setRenameDialogOpen(false);
+    updateActiveDashboard((dashboard) => ({ ...dashboard, name }));
+    setTitleEditor(null);
+  };
+
+  const createDashboard = () => {
+    const count = snapshot.dashboards.length + 1;
+    const dashboard: Dashboard = {
+      id: generateDashboardId(),
+      name: `Untitled ${count}`,
+      reports: [],
+      layout: [],
+    };
+    persistSnapshot({ dashboards: [...snapshot.dashboards, dashboard] });
+    setTitleEditor({ id: dashboard.id, draft: dashboard.name });
+    switchDashboard(dashboard.id);
+  };
+
+  const deleteDashboard = () => {
+    if (activeDashboard === undefined) return;
+    const dashboardId = activeDashboard.id;
+    const remaining = snapshot.dashboards.filter((dashboard) => dashboard.id !== dashboardId);
+    const nextSnapshot = { dashboards: remaining };
+    setSnapshot(nextSnapshot);
+    writeDashboardSnapshot(bootstrap.currentUser.id, nextSnapshot);
+    for (const report of activeDashboard.reports)
+      queryClient.removeQueries({ queryKey: ["sureql", report.id] });
+    setDeleteDialogOpen(false);
+    setTitleEditor(null);
+    if (remaining.length > 0) switchDashboard(remaining[0].id);
+    else void navigate({ search: {} });
+  };
+
+  const resetStarterDashboard = () => {
+    const starter = starterSnapshot();
+    persistSnapshot(starter);
+    setResetDialogOpen(false);
+    setTitleEditor(null);
+    void navigate({ search: {} });
   };
 
   const openReportDialog = (report: DashboardReport) => {
@@ -264,17 +293,18 @@ export function DashboardsPage() {
   };
 
   const addReport = () => {
+    if (activeDashboard === undefined) return;
     const report: DashboardReport = {
       id: generateReportId(),
       name: "New report",
       query: STARTER_QUERY,
     };
-    const y = snapshot.layout.reduce((bottom, item) => Math.max(bottom, item.y + item.h), 0);
-    persistSnapshot({
-      ...snapshot,
-      reports: [...snapshot.reports, report],
+    const y = activeDashboard.layout.reduce((bottom, item) => Math.max(bottom, item.y + item.h), 0);
+    updateActiveDashboard((dashboard) => ({
+      ...dashboard,
+      reports: [...dashboard.reports, report],
       layout: [
-        ...snapshot.layout,
+        ...dashboard.layout,
         {
           i: report.id,
           x: 0,
@@ -285,7 +315,7 @@ export function DashboardsPage() {
           minH: 3,
         },
       ],
-    });
+    }));
     openReportDialog(report);
   };
 
@@ -295,12 +325,12 @@ export function DashboardsPage() {
     const query = reportQueryDraft.trim();
     if (report === undefined || name.length === 0 || query.length === 0) return;
 
-    persistSnapshot({
-      ...snapshot,
-      reports: snapshot.reports.map((candidate) =>
+    updateActiveDashboard((dashboard) => ({
+      ...dashboard,
+      reports: dashboard.reports.map((candidate) =>
         candidate.id === report.id ? { ...candidate, name, query } : candidate,
       ),
-    });
+    }));
     setSelectedReportId(null);
 
     if (query === report.query) {
@@ -314,11 +344,11 @@ export function DashboardsPage() {
   const removeReport = () => {
     const report = reportPendingRemoval;
     if (report === undefined) return;
-    persistSnapshot({
-      ...snapshot,
-      reports: snapshot.reports.filter((candidate) => candidate.id !== report.id),
-      layout: snapshot.layout.filter((item) => item.i !== report.id),
-    });
+    updateActiveDashboard((dashboard) => ({
+      ...dashboard,
+      reports: dashboard.reports.filter((candidate) => candidate.id !== report.id),
+      layout: dashboard.layout.filter((item) => item.i !== report.id),
+    }));
     queryClient.removeQueries({ queryKey: ["sureql", report.id] });
     setReportPendingRemovalId(null);
   };
@@ -326,37 +356,112 @@ export function DashboardsPage() {
   return (
     <div className="space-y-6 pb-12">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-secondary">
-            Dashboards
-          </p>
-          <div className="mt-1 flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-primary">
-              {snapshot.dashboardName}
-            </h1>
-            <button
-              aria-label="Rename dashboard"
-              className="inline-flex size-8 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-surface-hover hover:text-primary focus-ring"
-              onClick={openRenameDialog}
-              title="Rename dashboard"
-              type="button"
-            >
-              <Icon name="pencil" size="sm" />
-            </button>
+        {activeDashboard !== undefined && (
+          <div className="flex items-center gap-2">
+            {titleEditor !== null && titleEditor.id === activeDashboard.id ? (
+              <form
+                className="flex items-center gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  saveDashboardName();
+                }}
+              >
+                <div className="form-field w-64">
+                  <div className="form-field__body">
+                    <input
+                      aria-label="dashboard-name"
+                      autoComplete="off"
+                      id="dashboard-name"
+                      className="form-field__input w-full"
+                      maxLength={80}
+                      onChange={(event) => {
+                        setTitleEditor({ id: titleEditor.id, draft: event.currentTarget.value });
+                      }}
+                      onFocus={(event) => {
+                        event.currentTarget.select();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") cancelEditingDashboardName();
+                      }}
+                      ref={(element) => {
+                        element?.focus();
+                      }}
+                      required
+                      type="text"
+                      value={titleEditor.draft}
+                    />
+                  </div>
+                </div>
+                <button
+                  aria-label="Save dashboard name"
+                  className="inline-flex size-8 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-surface-hover hover:text-primary focus-ring"
+                  title="Save dashboard name"
+                  type="submit"
+                >
+                  <Icon name="check" size="sm" />
+                </button>
+                <button
+                  aria-label="Cancel renaming dashboard"
+                  className="inline-flex size-8 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-surface-hover hover:text-primary focus-ring"
+                  onClick={cancelEditingDashboardName}
+                  title="Cancel renaming dashboard"
+                  type="button"
+                >
+                  <Icon name="x" size="sm" />
+                </button>
+              </form>
+            ) : (
+              <>
+                <DashboardSwitcher
+                  activeDashboardId={activeDashboard.id}
+                  dashboards={snapshot.dashboards}
+                  onSelect={switchDashboard}
+                />
+                <button
+                  aria-label="Rename dashboard"
+                  className="inline-flex size-8 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-surface-hover hover:text-primary focus-ring"
+                  onClick={() => {
+                    startEditingDashboardName(activeDashboard);
+                  }}
+                  title="Rename dashboard"
+                  type="button"
+                >
+                  <Icon name="pencil" size="sm" />
+                </button>
+              </>
+            )}
           </div>
-          <p className="mt-1 text-sm text-secondary">
-            Authorized SureQL reports using your live data.
-          </p>
-        </div>
+        )}
         <div className="flex items-center gap-2">
           <button
             className="inline-flex min-h-8 items-center gap-1.5 rounded-lg button-bg-primary px-2.5 py-1.5 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover focus-ring"
-            onClick={addReport}
+            onClick={createDashboard}
             type="button"
           >
             <Icon name="plus" size="sm" />
-            <span>Add report</span>
+            <span>New dashboard</span>
           </button>
+          {activeDashboard !== undefined && (
+            <button
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-lg button-bg-primary px-2.5 py-1.5 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover focus-ring"
+              onClick={addReport}
+              type="button"
+            >
+              <Icon name="plus" size="sm" />
+              <span>Add report</span>
+            </button>
+          )}
+          {activeDashboard !== undefined && (
+            <button
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-destructive bg-container px-2.5 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-surface-hover focus-ring"
+              onClick={() => {
+                setDeleteDialogOpen(true);
+              }}
+              type="button"
+            >
+              <span>Delete dashboard</span>
+            </button>
+          )}
           <button
             className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
             onClick={() => {
@@ -371,63 +476,42 @@ export function DashboardsPage() {
       </header>
 
       <Modal
-        ariaLabelledby="rename-dashboard-title"
+        ariaLabelledby="delete-dashboard-title"
+        id="delete-dashboard-dialog"
         onClose={() => {
-          setRenameDialogOpen(false);
+          setDeleteDialogOpen(false);
         }}
-        open={renameDialogOpen}
+        open={deleteDialogOpen}
         panelClassName="w-full max-w-sm rounded-xl border border-secondary bg-container p-0 shadow-border-xs"
       >
-        <form
-          className="space-y-4 p-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            saveDashboardName();
-          }}
-        >
-          <div>
-            <h2 id="rename-dashboard-title" className="text-base font-semibold text-primary">
-              Rename dashboard
-            </h2>
-            <p className="mt-1 text-sm text-secondary">
-              Give this dashboard a name that describes its purpose.
-            </p>
-          </div>
-          <div className="form-field__body">
-            <label className="form-field__label" htmlFor="dashboard-name">
-              Name
-            </label>
-            <input
-              autoComplete="off"
-              className="form-field__input"
-              id="dashboard-name"
-              maxLength={80}
-              onChange={(event) => {
-                setDashboardNameDraft(event.currentTarget.value);
-              }}
-              required
-              type="text"
-              value={dashboardNameDraft}
-            />
-          </div>
+        <div className="space-y-3 p-4">
+          <h2 id="delete-dashboard-title" className="text-sm font-semibold text-primary">
+            Delete dashboard?
+          </h2>
+          <p className="text-sm text-secondary">
+            {activeDashboard === undefined
+              ? "This dashboard and its report cards will be removed."
+              : `${activeDashboard.name}, its report cards, and layouts will be removed.`}
+          </p>
           <div className="flex justify-end gap-2">
             <button
               className="inline-flex min-h-8 items-center rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
               onClick={() => {
-                setRenameDialogOpen(false);
+                setDeleteDialogOpen(false);
               }}
               type="button"
             >
               Cancel
             </button>
             <button
-              className="inline-flex min-h-8 items-center rounded-lg button-bg-primary px-2.5 py-1.5 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover focus-ring"
-              type="submit"
+              className="inline-flex min-h-8 items-center rounded-lg bg-destructive px-2.5 py-1.5 text-xs font-medium text-inverse transition-opacity hover:opacity-90 focus-ring"
+              onClick={deleteDashboard}
+              type="button"
             >
-              Save name
+              Delete dashboard
             </button>
           </div>
-        </form>
+        </div>
       </Modal>
 
       <Modal
@@ -575,7 +659,7 @@ export function DashboardsPage() {
             Reset to the starter dashboard?
           </h2>
           <p className="text-sm text-secondary">
-            Your dashboard name, report cards, and layouts will be replaced. This only affects your
+            Your dashboards, report cards, and layouts will be replaced. This only affects your
             dashboard view in this browser.
           </p>
           <div className="flex justify-end gap-2">
@@ -590,11 +674,7 @@ export function DashboardsPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                const starter = starterSnapshot();
-                persistSnapshot(starter);
-                setResetDialogOpen(false);
-              }}
+              onClick={resetStarterDashboard}
               className="inline-flex min-h-8 items-center rounded-lg button-bg-primary px-2.5 py-1.5 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover focus-ring"
             >
               Reset dashboard
@@ -604,7 +684,22 @@ export function DashboardsPage() {
       </Modal>
 
       <div ref={containerRef} className="min-w-0">
-        {snapshot.reports.length === 0 ? (
+        {activeDashboard === undefined ? (
+          <section className="flex flex-col items-center justify-center rounded-xl bg-container px-6 py-24 text-center shadow-border-xs">
+            <p className="font-medium text-primary">No dashboards yet</p>
+            <p className="mt-1 max-w-sm text-sm text-secondary">
+              Create a dashboard to run SureQL queries against your live data.
+            </p>
+            <button
+              className="mt-4 inline-flex min-h-8 items-center gap-1.5 rounded-lg button-bg-primary px-2.5 py-1.5 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover focus-ring"
+              onClick={createDashboard}
+              type="button"
+            >
+              <Icon name="plus" size="sm" />
+              Create dashboard
+            </button>
+          </section>
+        ) : activeDashboard.reports.length === 0 ? (
           <section className="flex flex-col items-center justify-center rounded-xl bg-container px-6 py-24 text-center shadow-border-xs">
             <p className="font-medium text-primary">No reports yet</p>
             <p className="mt-1 max-w-sm text-sm text-secondary">
@@ -622,9 +717,15 @@ export function DashboardsPage() {
         ) : (
           <GridLayout
             width={gridWidth}
-            layout={snapshot.layout}
+            layout={activeDashboard.layout}
             onLayoutChange={(nextLayout) => {
-              setSnapshot((current) => ({ ...current, layout: nextLayout }));
+              setSnapshot((current) => ({
+                dashboards: current.dashboards.map((dashboard) =>
+                  dashboard.id === activeDashboard.id
+                    ? { ...dashboard, layout: nextLayout }
+                    : dashboard,
+                ),
+              }));
             }}
             onDragStop={handleInteractionStop}
             onResizeStop={handleInteractionStop}
@@ -632,7 +733,7 @@ export function DashboardsPage() {
             dragConfig={{ enabled: true, handle: "[data-report-drag-handle]" }}
             resizeConfig={{ enabled: true, handles: ["se"] }}
           >
-            {snapshot.reports.map((report) => (
+            {activeDashboard.reports.map((report) => (
               <div key={report.id}>
                 <ReportCard
                   endpoint={bootstrap.apiPaths.sureqlRun}
