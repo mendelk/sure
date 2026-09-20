@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_interactions"
-parentId: null
-id: "t_cd_interact_005"
-title: "Review and select dashboard interactions"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[02 Dashboard Interaction Experiments|02 Dashboard Interaction Experiments]]"
+parentId:
+id: t_cd_interact_005
+title: Review and select dashboard interactions
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["product-review", "grid", "checkpoint"]
+tags:
+  - product-review
+  - grid
+  - checkpoint
 subtaskIds: []
-dependencies: ["t_cd_interact_004"]
+dependencies:
+  - "[[test-responsive-dashboard-layouts|Test responsive dashboard layouts]]"
 timeEstimate: 4
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Select the dashboard and grid interactions to keep before shared code is extracted.

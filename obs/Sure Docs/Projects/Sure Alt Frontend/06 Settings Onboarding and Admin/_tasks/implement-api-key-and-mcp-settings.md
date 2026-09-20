@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_006"
-title: "Implement API key and MCP settings"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_006
+title: Implement API key and MCP settings
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["settings", "api-keys", "mcp"]
+tags:
+  - settings
+  - api-keys
+  - mcp
 subtaskIds: []
-dependencies: ["t_alt_set_001", "t_alt_fnd_010", "t_alt_fnd_012"]
+dependencies:
+  - "[[define-identity-capabilities-and-settings-contract|Define identity capabilities and settings contract]]"
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 API-enable and implement user API-key lifecycle and MCP token/connection settings.

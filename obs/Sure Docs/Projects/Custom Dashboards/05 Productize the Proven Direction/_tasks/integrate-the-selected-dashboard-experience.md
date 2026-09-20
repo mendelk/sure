@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_productize"
-parentId: null
-id: "t_cd_product_002"
-title: "Integrate the selected dashboard experience"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[05 Productize the Proven Direction|05 Productize the Proven Direction]]"
+parentId:
+id: t_cd_product_002
+title: Integrate the selected dashboard experience
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "integration", "dashboard"]
+tags:
+  - frontend
+  - integration
+  - dashboard
 subtaskIds: []
-dependencies: ["t_cd_product_001"]
+dependencies:
+  - "[[remove-discarded-dashboard-experiments|Remove discarded dashboard experiments]]"
 timeEstimate: 10
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Compose the selected dashboard navigation, grid interactions, report editing, presentations, and local persistence into one coherent product flow.

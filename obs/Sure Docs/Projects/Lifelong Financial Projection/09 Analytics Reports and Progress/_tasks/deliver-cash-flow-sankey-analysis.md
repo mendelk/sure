@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_09"
-parentId: null
-id: "t_lfp_802"
-title: "Deliver cash-flow Sankey analysis"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[09 Analytics Reports and Progress|09 Analytics Reports and Progress]]"
+parentId:
+id: t_lfp_802
+title: Deliver cash-flow Sankey analysis
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["analytics", "cash-flow"]
+tags:
+  - analytics
+  - cash-flow
 subtaskIds: []
-dependencies: ["t_lfp_801", "t_lfp_301", "t_lfp_303"]
+dependencies:
+  - "[[deliver-yearly-summary-and-core-plan-metrics|Deliver yearly summary and core plan metrics]]"
+  - "[[implement-ordered-cash-flow-allocation|Implement ordered cash-flow allocation]]"
+  - "[[support-transfers-routing-and-multi-account-funding|Support transfers, routing, and multi-account funding]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Provide an annual flow-of-funds analysis that explains where money came from and where it went.

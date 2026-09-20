@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_014"
-title: "Implement guarded reset and account deletion"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_014
+title: Implement guarded reset and account deletion
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["settings", "destructive", "security"]
+tags:
+  - settings
+  - destructive
+  - security
 subtaskIds: []
-dependencies: ["t_alt_set_001", "t_alt_fnd_006", "t_alt_fnd_012"]
+dependencies:
+  - "[[define-identity-capabilities-and-settings-contract|Define identity capabilities and settings contract]]"
+  - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Complete family data reset/status, reset-with-sample-data where supported, and user account deletion with strong safeguards.

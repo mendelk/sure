@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_cd_productize"
-parentId: null
-id: "t_cd_product_001"
-title: "Remove discarded dashboard experiments"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[05 Productize the Proven Direction|05 Productize the Proven Direction]]"
+parentId:
+id: t_cd_product_001
+title: Remove discarded dashboard experiments
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "cleanup", "productization"]
+tags:
+  - frontend
+  - cleanup
+  - productization
 subtaskIds: []
-dependencies: ["t_cd_interact_005", "t_cd_present_005", "t_cd_persist_006"]
+dependencies:
+  - "[[review-and-select-dashboard-interactions|Review and select dashboard interactions]]"
+  - "[[review-and-select-report-presentations|Review and select report presentations]]"
+  - "[[verify-the-local-persistence-lifecycle|Verify the local persistence lifecycle]]"
 timeEstimate: 8
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Start productization by deleting every interaction and presentation path rejected at the review checkpoints.

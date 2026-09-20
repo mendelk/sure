@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_cd_productize"
-parentId: null
-id: "t_cd_product_005"
-title: "Prepare the local data for a future database"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[05 Productize the Proven Direction|05 Productize the Proven Direction]]"
+parentId:
+id: t_cd_product_005
+title: Prepare the local data for a future database
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["storage", "database-handoff", "architecture"]
+tags:
+  - storage
+  - database-handoff
+  - architecture
 subtaskIds: []
-dependencies: ["t_cd_product_003", "t_cd_persist_006"]
+dependencies:
+  - "[[extract-only-the-proven-feature-seams|Extract only the proven feature seams]]"
+  - "[[verify-the-local-persistence-lifecycle|Verify the local persistence lifecycle]]"
 timeEstimate: 8
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Make the proven local data replaceable later without choosing database tables before product behavior settles further.

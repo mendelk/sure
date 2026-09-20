@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_08"
-parentId: "t_lfp_704"
-id: "t_lfp_704_3"
-title: "Filter and inspect Monte Carlo trials"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[08 Scenarios Risk and Optimization|08 Scenarios Risk and Optimization]]"
+parentId: "[[define-and-analyze-chance-of-success|Define and analyze chance of success]]"
+id: t_lfp_704_3
+title: Filter and inspect Monte Carlo trials
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["risk", "explainability"]
+tags:
+  - risk
+  - explainability
 subtaskIds: []
-dependencies: ["t_lfp_704_2"]
+dependencies:
+  - "[[aggregate-trial-distributions-and-milestone-timing|Aggregate trial distributions and milestone timing]]"
 timeEstimate: 20
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Find trials by outcome, value range, and milestone behavior and inspect each one as a complete plan run.

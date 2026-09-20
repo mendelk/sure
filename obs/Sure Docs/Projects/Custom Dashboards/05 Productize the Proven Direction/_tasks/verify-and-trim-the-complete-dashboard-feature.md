@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_cd_productize"
-parentId: null
-id: "t_cd_product_006"
-title: "Verify and trim the complete dashboard feature"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[05 Productize the Proven Direction|05 Productize the Proven Direction]]"
+parentId:
+id: t_cd_product_006
+title: Verify and trim the complete dashboard feature
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["verification", "performance", "release"]
+tags:
+  - verification
+  - performance
+  - release
 subtaskIds: []
-dependencies: ["t_cd_product_004", "t_cd_product_005"]
+dependencies:
+  - "[[complete-accessibility-theme-and-privacy-behavior|Complete accessibility, theme, and privacy behavior]]"
+  - "[[prepare-the-local-data-for-a-future-database|Prepare the local data for a future database]]"
 timeEstimate: 10
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Prove the selected local-first feature end to end and remove avoidable runtime and maintenance cost.

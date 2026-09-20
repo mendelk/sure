@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
-parentId: null
-id: "t_alt_beta_005"
-title: "Build transaction browsing route"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[02 Beta Dashboard and Transactions|02 Beta Dashboard and Transactions]]"
+parentId:
+id: t_alt_beta_005
+title: Build transaction browsing route
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "transactions", "tanstack"]
+tags:
+  - frontend
+  - transactions
+  - tanstack
 subtaskIds: []
-dependencies: ["t_alt_fnd_010", "t_alt_fnd_012", "t_alt_beta_004"]
+dependencies:
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
+  - "[[complete-transaction-list-contract|Complete transaction list contract]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Build responsive transaction list and detail routes with TanStack Query, Router, Table, and Virtual where data size warrants it.

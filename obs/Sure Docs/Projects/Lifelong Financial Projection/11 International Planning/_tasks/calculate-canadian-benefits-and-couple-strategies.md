@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: "t_lfp_1002"
-id: "t_lfp_1002_3"
-title: "Calculate Canadian benefits and couple strategies"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId: "[[deliver-canada-planning-rules|Deliver Canada planning rules]]"
+id: t_lfp_1002_3
+title: Calculate Canadian benefits and couple strategies
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["canada", "benefits", "couples"]
+tags:
+  - canada
+  - benefits
+  - couples
 subtaskIds: []
-dependencies: ["t_lfp_1002_2"]
+dependencies:
+  - "[[calculate-canadian-income-and-dividend-taxes|Calculate Canadian income and dividend taxes]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Project CPP, OAS, GIS, survivor benefits, pension-income splitting, CPP sharing, and RRSP meltdown strategies.

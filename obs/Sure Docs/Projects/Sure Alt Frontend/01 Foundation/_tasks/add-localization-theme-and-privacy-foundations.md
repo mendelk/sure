@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_011"
-title: "Add localization theme and privacy foundations"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_011
+title: Add localization theme and privacy foundations
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "i18n", "privacy"]
+tags:
+  - frontend
+  - i18n
+  - privacy
 subtaskIds: []
-dependencies: ["t_alt_fnd_008", "t_alt_fnd_009", "t_alt_fnd_010"]
+dependencies:
+  - "[[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]"
+  - "[[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]"
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
 timeEstimate: 28
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Create cross-cutting presentation foundations for English-first localization, light/dark/system themes, and sensitive-value masking.

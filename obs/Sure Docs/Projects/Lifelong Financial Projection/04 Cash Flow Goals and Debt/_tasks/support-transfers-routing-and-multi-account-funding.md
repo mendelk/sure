@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_04"
-parentId: null
-id: "t_lfp_303"
-title: "Support transfers, routing, and multi-account funding"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Cash Flow Goals and Debt|04 Cash Flow Goals and Debt]]"
+parentId:
+id: t_lfp_303
+title: Support transfers, routing, and multi-account funding
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["cash-flow", "transfers"]
+tags:
+  - cash-flow
+  - transfers
 subtaskIds: []
-dependencies: ["t_lfp_301", "t_lfp_102"]
+dependencies:
+  - "[[implement-ordered-cash-flow-allocation|Implement ordered cash-flow allocation]]"
+  - "[[complete-planning-account-taxonomy|Complete planning account taxonomy]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Move simulated money intentionally between accounts and route events without misclassifying internal transfers as income or spending.

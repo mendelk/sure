@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: "t_lfp_601"
-id: "t_lfp_601_2"
-title: "Calculate filing units and composed jurisdictions"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId: "[[build-jurisdiction-aware-tax-engine|Build jurisdiction-aware tax engine]]"
+id: t_lfp_601_2
+title: Calculate filing units and composed jurisdictions
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "household"]
+tags:
+  - tax
+  - household
 subtaskIds: []
-dependencies: ["t_lfp_601_1"]
+dependencies:
+  - "[[define-versioned-jurisdiction-ruleset-contract|Define versioned jurisdiction ruleset contract]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Apply year-specific filing status and location to owned income, deductions, credits, and account activity.

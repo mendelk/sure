@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_02"
-parentId: null
-id: "t_lfp_105"
-title: "Reconcile live and manual planning inputs"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[02 Household and Current Finances|02 Household and Current Finances]]"
+parentId:
+id: t_lfp_105
+title: Reconcile live and manual planning inputs
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["baseline", "sync", "imports"]
+tags:
+  - baseline
+  - sync
+  - imports
 subtaskIds: []
-dependencies: ["t_lfp_104"]
+dependencies:
+  - "[[compose-versioned-current-finance-snapshots|Compose versioned current-finance snapshots]]"
 timeEstimate: 20
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Let households maintain accurate planning facts whether accounts are synced, manually valued, imported, or intentionally unlinked.

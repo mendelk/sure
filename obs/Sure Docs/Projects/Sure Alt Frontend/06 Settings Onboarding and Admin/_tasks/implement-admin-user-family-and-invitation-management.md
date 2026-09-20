@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_011"
-title: "Implement admin user family and invitation management"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_011
+title: Implement admin user family and invitation management
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["admin", "frontend", "api"]
+tags:
+  - admin
+  - frontend
+  - api
 subtaskIds: []
-dependencies: ["t_alt_set_010", "t_alt_fnd_012"]
+dependencies:
+  - "[[define-super-admin-api-and-authorization|Define super-admin API and authorization]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Implement super-admin user, deletion review, family, pending invitation, invite-code, and supported role/status management.

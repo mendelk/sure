@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_cd_persistence"
-parentId: null
-id: "t_cd_persist_005"
-title: "Handle local storage failures and conflicts"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Local Persistence and Seeds|04 Local Persistence and Seeds]]"
+parentId:
+id: t_cd_persist_005
+title: Handle local storage failures and conflicts
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "local-storage", "resilience"]
+tags:
+  - frontend
+  - local-storage
+  - resilience
 subtaskIds: []
-dependencies: ["t_cd_persist_002", "t_cd_persist_003"]
+dependencies:
+  - "[[isolate-local-dashboards-by-user|Isolate local dashboards by user]]"
+  - "[[add-versioned-non-destructive-seeds|Add versioned non-destructive seeds]]"
 timeEstimate: 10
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Keep the accepted dashboard usable when browser storage is blocked, malformed, full, or changed in another tab.

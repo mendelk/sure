@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_lfp_04"
-parentId: null
-id: "t_lfp_305"
-title: "Model flexible spending behavior"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[04 Cash Flow Goals and Debt|04 Cash Flow Goals and Debt]]"
+parentId:
+id: t_lfp_305
+title: Model flexible spending behavior
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["cash-flow", "risk", "optimization"]
+tags:
+  - cash-flow
+  - risk
+  - optimization
 subtaskIds: []
-dependencies: ["t_lfp_203", "t_lfp_301", "t_lfp_205"]
+dependencies:
+  - "[[model-expense-and-giving-events|Model expense and giving events]]"
+  - "[[implement-ordered-cash-flow-allocation|Implement ordered cash-flow allocation]]"
+  - "[[build-conditional-milestone-system|Build conditional milestone system]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Allow planned spending to respond to portfolio performance while protecting obligations users cannot flex.

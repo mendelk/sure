@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: "t_lfp_1005"
-id: "t_lfp_1005_1"
-title: "Deliver Germany and Netherlands presets"
-type: "task"
-status: "todo"
-priority: "low"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId: "[[deliver-european-and-global-tax-presets|Deliver European and global tax presets]]"
+id: t_lfp_1005_1
+title: Deliver Germany and Netherlands presets
+type: task
+status: todo
+priority: low
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["international", "germany", "netherlands"]
+tags:
+  - international
+  - germany
+  - netherlands
 subtaskIds: []
 dependencies: []
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Deliver documented planning-grade account and tax presets for Germany and the Netherlands.

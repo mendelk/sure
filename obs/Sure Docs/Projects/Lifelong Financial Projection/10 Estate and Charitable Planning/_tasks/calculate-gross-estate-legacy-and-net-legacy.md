@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_10"
-parentId: null
-id: "t_lfp_902"
-title: "Calculate gross estate, legacy, and net legacy"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[10 Estate and Charitable Planning|10 Estate and Charitable Planning]]"
+parentId:
+id: t_lfp_902
+title: Calculate gross estate, legacy, and net legacy
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["estate", "metrics"]
+tags:
+  - estate
+  - metrics
 subtaskIds: []
-dependencies: ["t_lfp_901", "t_lfp_504", "t_lfp_604"]
+dependencies:
+  - "[[model-partner-death-and-survivor-transitions|Model partner death and survivor transitions]]"
+  - "[[implement-account-liquidity-and-drawdown-order|Implement account liquidity and drawdown order]]"
+  - "[[reconcile-withholding-refunds-and-tax-balances|Reconcile withholding, refunds, and tax balances]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Calculate what remains at plan end from gross assets through obligations to the amount available for heirs and charity.

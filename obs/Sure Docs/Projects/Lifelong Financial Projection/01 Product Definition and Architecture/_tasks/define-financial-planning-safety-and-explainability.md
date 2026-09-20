@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_01"
-parentId: null
-id: "t_lfp_005"
-title: "Define financial-planning safety and explainability"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[01 Product Definition and Architecture|01 Product Definition and Architecture]]"
+parentId:
+id: t_lfp_005
+title: Define financial-planning safety and explainability
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["safety", "explainability"]
+tags:
+  - safety
+  - explainability
 subtaskIds: []
-dependencies: ["t_lfp_003", "t_lfp_004"]
+dependencies:
+  - "[[define-current-data-and-plan-boundaries|Define current-data and plan boundaries]]"
+  - "[[define-calculation-versioning-and-reproducibility|Define calculation versioning and reproducibility]]"
 timeEstimate: 16
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Define how Sure communicates assumptions, uncertainty, stale rules, unsupported cases, and calculation limitations while targeting planning-grade estimates rather than tax-filing precision or individualized financial advice.

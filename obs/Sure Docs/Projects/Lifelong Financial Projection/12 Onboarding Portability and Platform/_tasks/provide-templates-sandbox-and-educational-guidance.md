@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_12"
-parentId: null
-id: "t_lfp_1102"
-title: "Provide templates, sandbox, and educational guidance"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[12 Onboarding Portability and Platform|12 Onboarding Portability and Platform]]"
+parentId:
+id: t_lfp_1102
+title: Provide templates, sandbox, and educational guidance
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["onboarding", "education"]
+tags:
+  - onboarding
+  - education
 subtaskIds: []
-dependencies: ["t_lfp_1101", "t_lfp_005"]
+dependencies:
+  - "[[guide-users-from-current-finances-to-first-plan|Guide users from current finances to first plan]]"
+  - "[[define-financial-planning-safety-and-explainability|Define financial-planning safety and explainability]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Let users learn projection concepts safely through fictional plans and contextual explanations.

@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_ingestion"
-parentId: null
-id: "t_alt_ing_007"
-title: "Implement SimpleFIN connection"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[03 Data Ingestion and Providers|03 Data Ingestion and Providers]]"
+parentId:
+id: t_alt_ing_007
+title: Implement SimpleFIN connection
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["providers", "frontend", "api"]
+tags:
+  - providers
+  - frontend
+  - api
 subtaskIds: []
-dependencies: ["t_alt_ing_003", "t_alt_ing_004"]
+dependencies:
+  - "[[build-provider-catalog-and-settings-ui|Build provider catalog and settings UI]]"
+  - "[[define-reusable-provider-connection-api-contract|Define reusable provider connection API contract]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 API-enable and implement the SimpleFIN setup-token flow through account selection, linking, sync, reconnect, and disconnect.

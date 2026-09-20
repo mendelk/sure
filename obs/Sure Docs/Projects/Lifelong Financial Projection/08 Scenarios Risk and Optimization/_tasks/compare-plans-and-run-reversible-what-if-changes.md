@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_08"
-parentId: null
-id: "t_lfp_701"
-title: "Compare plans and run reversible what-if changes"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[08 Scenarios Risk and Optimization|08 Scenarios Risk and Optimization]]"
+parentId:
+id: t_lfp_701
+title: Compare plans and run reversible what-if changes
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["scenarios", "compare"]
+tags:
+  - scenarios
+  - compare
 subtaskIds: []
-dependencies: ["t_lfp_201", "t_lfp_405"]
+dependencies:
+  - "[[manage-independent-scenario-plans|Manage independent scenario plans]]"
+  - "[[make-simulation-results-auditable-and-repeatable|Make simulation results auditable and repeatable]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Compare saved plans or test temporary changes against an immutable baseline without losing either state.

@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_lfp_05"
-parentId: null
-id: "t_lfp_404"
-title: "Resolve time bindings and partial years"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[05 Deterministic Simulation Engine|05 Deterministic Simulation Engine]]"
+parentId:
+id: t_lfp_404
+title: Resolve time bindings and partial years
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["simulation", "time", "milestones"]
+tags:
+  - simulation
+  - time
+  - milestones
 subtaskIds: []
-dependencies: ["t_lfp_205", "t_lfp_206", "t_lfp_402"]
+dependencies:
+  - "[[build-conditional-milestone-system|Build conditional milestone system]]"
+  - "[[support-recurring-and-variable-events|Support recurring and variable events]]"
+  - "[[support-calendar-rolling-and-fiscal-year-alignment|Support calendar, rolling, and fiscal-year alignment]]"
 timeEstimate: 40
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Resolve fixed dates, age-relative dates, milestone-relative offsets, recurrence, and past/current-year activity into annual effects.
