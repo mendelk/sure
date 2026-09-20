@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_release"
-parentId: null
-id: "t_alt_rel_011"
-title: "Publish V2 providers release"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Release and Parity|07 Release and Parity]]"
+parentId:
+id: t_alt_rel_011
+title: Publish V2 providers release
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["release", "providers", "milestone", "v2"]
+tags:
+  - release
+  - providers
+  - milestone
+  - v2
 subtaskIds: []
-dependencies: ["t_alt_v2p_010", "t_alt_rel_007"]
+dependencies:
+  - "[[verify-v2-provider-quality-gate|Verify V2 provider quality gate]]"
+  - "[[publish-automation-settings-and-admin-release|Publish automation settings and admin release]]"
 timeEstimate: 24
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Publish the V2 release adding every supported provider connection other than SimpleFIN.

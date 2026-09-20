@@ -1,22 +1,29 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
-parentId: null
-id: "t_alt_beta_011"
-title: "Harden beta offline error and session behavior"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[02 Beta Dashboard and Transactions|02 Beta Dashboard and Transactions]]"
+parentId:
+id: t_alt_beta_011
+title: Harden beta offline error and session behavior
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["beta", "pwa", "reliability"]
+tags:
+  - beta
+  - pwa
+  - reliability
 subtaskIds: []
-dependencies: ["t_alt_beta_008", "t_alt_beta_010", "t_alt_fnd_013", "t_alt_fnd_014"]
+dependencies:
+  - "[[implement-transaction-split-workflow|Implement transaction split workflow]]"
+  - "[[compose-responsive-core-dashboard|Compose responsive core dashboard]]"
+  - "[[add-installable-resilient-pwa-foundation|Add installable resilient PWA foundation]]"
+  - "[[add-structured-logging-health-and-error-handling|Add structured logging health and error handling]]"
 timeEstimate: 28
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Make the complete beta slice behave coherently through connectivity changes, expired sessions, API failures, and updates.

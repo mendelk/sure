@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_02"
-parentId: null
-id: "t_lfp_104"
-title: "Compose versioned current-finance snapshots"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[02 Household and Current Finances|02 Household and Current Finances]]"
+parentId:
+id: t_lfp_104
+title: Compose versioned current-finance snapshots
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["baseline", "snapshots"]
+tags:
+  - baseline
+  - snapshots
 subtaskIds: []
-dependencies: ["t_lfp_101", "t_lfp_103"]
+dependencies:
+  - "[[model-household-members-and-life-expectancy|Model household members and life expectancy]]"
+  - "[[capture-planning-basis-and-account-rules|Capture planning basis and account rules]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Produce an immutable, dated planning snapshot from household profile, accessible accounts, balances, holdings, liabilities, and planning metadata.

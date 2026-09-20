@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_release"
-parentId: null
-id: "t_alt_rel_001"
-title: "Containerize the TanStack Start frontend"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Release and Parity|07 Release and Parity]]"
+parentId:
+id: t_alt_rel_001
+title: Containerize the TanStack Start frontend
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["docker", "deployment", "frontend"]
+tags:
+  - docker
+  - deployment
+  - frontend
 subtaskIds: []
-dependencies: ["t_alt_fnd_002", "t_alt_fnd_014", "t_alt_fnd_017"]
+dependencies:
+  - "[[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]"
+  - "[[add-structured-logging-health-and-error-handling|Add structured logging health and error handling]]"
+  - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
 timeEstimate: 28
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Build a production container for the TanStack Start server as a separate self-hosted service.

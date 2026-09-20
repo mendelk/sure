@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_13"
-parentId: "t_lfp_1202"
-id: "t_lfp_1202_3"
-title: "Enforce cross-output equivalence invariants"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[13 Validation and Rollout|13 Validation and Rollout]]"
+parentId: "[[validate-cross-feature-financial-invariants|Validate cross-feature financial invariants]]"
+id: t_lfp_1202_3
+title: Enforce cross-output equivalence invariants
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["quality", "invariants", "reports"]
+tags:
+  - quality
+  - invariants
+  - reports
 subtaskIds: []
-dependencies: ["t_lfp_1202_2"]
+dependencies:
+  - "[[enforce-ownership-tax-and-timing-invariants|Enforce ownership, tax, and timing invariants]]"
 timeEstimate: 20
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Prove that presentation, export, API, comparison, and stochastic wrappers preserve the same underlying financial result.

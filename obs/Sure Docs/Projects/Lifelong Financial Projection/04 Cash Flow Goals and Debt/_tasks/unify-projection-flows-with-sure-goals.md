@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_04"
-parentId: null
-id: "t_lfp_302"
-title: "Unify projection flows with Sure goals"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Cash Flow Goals and Debt|04 Cash Flow Goals and Debt]]"
+parentId:
+id: t_lfp_302
+title: Unify projection flows with Sure goals
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["cash-flow", "goals", "integration"]
+tags:
+  - cash-flow
+  - goals
+  - integration
 subtaskIds: []
-dependencies: ["t_lfp_301"]
+dependencies:
+  - "[[implement-ordered-cash-flow-allocation|Implement ordered cash-flow allocation]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Reuse Sure goals as factual progress inputs while allowing plan-specific future funding strategies.

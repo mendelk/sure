@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
-parentId: null
-id: "t_alt_beta_003"
-title: "Build net worth and balance trends"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[02 Beta Dashboard and Transactions|02 Beta Dashboard and Transactions]]"
+parentId:
+id: t_alt_beta_003
+title: Build net worth and balance trends
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "charts", "dashboard"]
+tags:
+  - frontend
+  - charts
+  - dashboard
 subtaskIds: []
-dependencies: ["t_alt_beta_001", "t_alt_fnd_016"]
+dependencies:
+  - "[[define-core-dashboard-api-contract|Define core dashboard API contract]]"
+  - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Visualize net worth and asset/liability trends using the chart library selected by the foundation spike.

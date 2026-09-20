@@ -1,22 +1,31 @@
 ---
 pm-task: true
-projectId: "p_lfp_05"
-parentId: null
-id: "t_lfp_401"
-title: "Implement the annual simulation ledger"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[05 Deterministic Simulation Engine|05 Deterministic Simulation Engine]]"
+parentId:
+id: t_lfp_401
+title: Implement the annual simulation ledger
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["simulation", "ledger"]
-subtaskIds: ["t_lfp_401_1", "t_lfp_401_2", "t_lfp_401_3"]
-dependencies: ["t_lfp_206", "t_lfp_301", "t_lfp_303", "t_lfp_304"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - simulation
+  - ledger
+subtaskIds:
+  - "[[specify-simulation-processing-order|Specify simulation processing order]]"
+  - "[[calculate-balanced-yearly-account-ledger|Calculate balanced yearly account ledger]]"
+  - "[[resolve-shortfall-liquidity-and-insolvency|Resolve shortfall, liquidity, and insolvency]]"
+dependencies:
+  - "[[support-recurring-and-variable-events|Support recurring and variable events]]"
+  - "[[implement-ordered-cash-flow-allocation|Implement ordered cash-flow allocation]]"
+  - "[[support-transfers-routing-and-multi-account-funding|Support transfers, routing, and multi-account funding]]"
+  - "[[model-debt-repayment-and-forgiveness|Model debt repayment and forgiveness]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Calculate each simulated year as a balanced ledger of starting balances, inflows, withholding, expenses, contributions, transfers, debt, taxes, growth, withdrawals, and ending balances.

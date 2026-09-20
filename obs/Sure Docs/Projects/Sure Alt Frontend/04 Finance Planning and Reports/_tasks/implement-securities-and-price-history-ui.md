@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_finance"
-parentId: null
-id: "t_alt_fin_008"
-title: "Implement securities and price history UI"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[04 Finance Planning and Reports|04 Finance Planning and Reports]]"
+parentId:
+id: t_alt_fin_008
+title: Implement securities and price history UI
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["investments", "securities", "frontend"]
+tags:
+  - investments
+  - securities
+  - frontend
 subtaskIds: []
-dependencies: ["t_alt_fin_005", "t_alt_fnd_016"]
+dependencies:
+  - "[[implement-holdings-management-parity|Implement holdings management parity]]"
+  - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Build securities discovery/detail and price-history views from securities and security-prices APIs.

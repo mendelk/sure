@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: "t_lfp_1002"
-id: "t_lfp_1002_2"
-title: "Calculate Canadian income and dividend taxes"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId: "[[deliver-canada-planning-rules|Deliver Canada planning rules]]"
+id: t_lfp_1002_2
+title: Calculate Canadian income and dividend taxes
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["canada", "tax"]
+tags:
+  - canada
+  - tax
 subtaskIds: []
-dependencies: ["t_lfp_1002_1"]
+dependencies:
+  - "[[model-canadian-accounts-and-contributions|Model Canadian accounts and contributions]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Calculate federal and maintained provincial income, contribution, capital-gain, and dividend taxes.

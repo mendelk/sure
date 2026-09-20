@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: "t_lfp_607"
-id: "t_lfp_607_1"
-title: "Model Roth conversions"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId: "[[model-roth-sepp-and-tax-advantaged-strategies|Model Roth, SEPP, and tax-advantaged strategies]]"
+id: t_lfp_607_1
+title: Model Roth conversions
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "roth", "conversions"]
+tags:
+  - tax
+  - roth
+  - conversions
 subtaskIds: []
 dependencies: []
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Convert eligible tax-deferred balances to Roth accounts using fixed amounts or tax-aware ceilings.

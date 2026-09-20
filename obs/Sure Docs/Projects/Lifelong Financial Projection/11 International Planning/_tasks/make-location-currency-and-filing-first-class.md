@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: null
-id: "t_lfp_1001"
-title: "Make location, currency, and filing first-class"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId:
+id: t_lfp_1001
+title: Make location, currency, and filing first-class
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["international", "location", "currency"]
+tags:
+  - international
+  - location
+  - currency
 subtaskIds: []
-dependencies: ["t_lfp_403", "t_lfp_601", "t_lfp_101"]
+dependencies:
+  - "[[model-real-and-nominal-currency-values|Model real and nominal currency values]]"
+  - "[[build-jurisdiction-aware-tax-engine|Build jurisdiction-aware tax engine]]"
+  - "[[model-household-members-and-life-expectancy|Model household members and life expectancy]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Treat residence, locality, filing system, display currency, and locale as planning facts rather than presentation-only preferences.

@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_03"
-parentId: null
-id: "t_lfp_202"
-title: "Model income and benefit events"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[03 Plans Events and Milestones|03 Plans Events and Milestones]]"
+parentId:
+id: t_lfp_202
+title: Model income and benefit events
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["events", "income"]
+tags:
+  - events
+  - income
 subtaskIds: []
-dependencies: ["t_lfp_201", "t_lfp_101"]
+dependencies:
+  - "[[manage-independent-scenario-plans|Manage independent scenario plans]]"
+  - "[[model-household-members-and-life-expectancy|Model household members and life expectancy]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Model all expected inflows across a lifetime with ownership, timing, growth, tax, withholding, and routing behavior.

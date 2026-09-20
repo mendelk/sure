@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: "t_lfp_602"
-id: "t_lfp_602_1"
-title: "Calculate US federal ordinary and payroll taxes"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId: "[[implement-us-income-and-payroll-taxes|Implement US income and payroll taxes]]"
+id: t_lfp_602_1
+title: Calculate US federal ordinary and payroll taxes
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "us", "federal"]
+tags:
+  - tax
+  - us
+  - federal
 subtaskIds: []
 dependencies: []
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Calculate US federal ordinary income, taxable Social Security, FICA, self-employment tax, and Additional Medicare tax.

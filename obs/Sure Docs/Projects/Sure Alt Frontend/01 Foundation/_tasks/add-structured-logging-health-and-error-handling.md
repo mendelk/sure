@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_014"
-title: "Add structured logging health and error handling"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_014
+title: Add structured logging health and error handling
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["observability", "operations", "privacy"]
+tags:
+  - observability
+  - operations
+  - privacy
 subtaskIds: []
-dependencies: ["t_alt_fnd_005", "t_alt_fnd_010"]
+dependencies:
+  - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
 timeEstimate: 20
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Add production diagnostics that help self-hosters without logging financial data or credentials.

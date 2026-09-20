@@ -1,22 +1,29 @@
 ---
 pm-task: true
-projectId: "p_lfp_05"
-parentId: null
-id: "t_lfp_405"
-title: "Make simulation results auditable and repeatable"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[05 Deterministic Simulation Engine|05 Deterministic Simulation Engine]]"
+parentId:
+id: t_lfp_405
+title: Make simulation results auditable and repeatable
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["simulation", "audit", "performance"]
+tags:
+  - simulation
+  - audit
+  - performance
 subtaskIds: []
-dependencies: ["t_lfp_401", "t_lfp_403", "t_lfp_404", "t_lfp_005"]
+dependencies:
+  - "[[implement-the-annual-simulation-ledger|Implement the annual simulation ledger]]"
+  - "[[model-real-and-nominal-currency-values|Model real and nominal currency values]]"
+  - "[[resolve-time-bindings-and-partial-years|Resolve time bindings and partial years]]"
+  - "[[define-financial-planning-safety-and-explainability|Define financial-planning safety and explainability]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Expose enough structured detail to explain any result and rerun large plans reliably as inputs change.

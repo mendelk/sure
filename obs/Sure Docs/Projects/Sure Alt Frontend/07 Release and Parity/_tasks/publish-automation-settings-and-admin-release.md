@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_release"
-parentId: null
-id: "t_alt_rel_007"
-title: "Publish automation settings and admin release"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Release and Parity|07 Release and Parity]]"
+parentId:
+id: t_alt_rel_007
+title: Publish automation settings and admin release
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["release", "admin", "milestone"]
+tags:
+  - release
+  - admin
+  - milestone
 subtaskIds: []
-dependencies: ["t_alt_auto_007", "t_alt_set_015", "t_alt_rel_006"]
+dependencies:
+  - "[[verify-automation-and-ai-quality-gate|Verify automation and AI quality gate]]"
+  - "[[verify-settings-onboarding-and-admin-quality-gate|Verify settings onboarding and admin quality gate]]"
+  - "[[publish-finance-and-planning-release|Publish finance and planning release]]"
 timeEstimate: 24
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Publish the staged release adding automation, AI, security/auth, family, onboarding, operational settings, and super-admin workflows.

@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_04"
-parentId: null
-id: "t_lfp_304"
-title: "Model debt repayment and forgiveness"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Cash Flow Goals and Debt|04 Cash Flow Goals and Debt]]"
+parentId:
+id: t_lfp_304
+title: Model debt repayment and forgiveness
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["debt", "cash-flow"]
+tags:
+  - debt
+  - cash-flow
 subtaskIds: []
-dependencies: ["t_lfp_204", "t_lfp_301"]
+dependencies:
+  - "[[model-real-asset-life-cycles|Model real-asset life cycles]]"
+  - "[[implement-ordered-cash-flow-allocation|Implement ordered cash-flow allocation]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Project amortizing and non-amortizing liabilities, normal payments, accelerated payoff, refinancing effects, and forgiveness.

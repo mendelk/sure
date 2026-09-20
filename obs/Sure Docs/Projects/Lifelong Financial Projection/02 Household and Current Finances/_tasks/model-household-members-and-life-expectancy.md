@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_lfp_02"
-parentId: null
-id: "t_lfp_101"
-title: "Model household members and life expectancy"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[02 Household and Current Finances|02 Household and Current Finances]]"
+parentId:
+id: t_lfp_101
+title: Model household members and life expectancy
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["household", "baseline"]
+tags:
+  - household
+  - baseline
 subtaskIds: []
-dependencies: ["t_lfp_003"]
+dependencies:
+  - "[[define-current-data-and-plan-boundaries|Define current-data and plan boundaries]]"
 timeEstimate: 24
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Extend household planning facts beyond login users so a plan can represent the primary person, spouse or partner, dependents, and other supported beneficiaries.

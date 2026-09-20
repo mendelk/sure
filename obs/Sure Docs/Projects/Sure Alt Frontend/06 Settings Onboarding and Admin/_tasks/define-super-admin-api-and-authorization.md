@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_010"
-title: "Define super-admin API and authorization"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_010
+title: Define super-admin API and authorization
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["admin", "api", "security"]
+tags:
+  - admin
+  - api
+  - security
 subtaskIds: []
-dependencies: ["t_alt_set_001", "t_alt_fnd_006"]
+dependencies:
+  - "[[define-identity-capabilities-and-settings-contract|Define identity capabilities and settings contract]]"
+  - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Define a versioned admin API with explicit super-admin authorization for users, families, invitations, SSO providers/blocks, health, and queue tooling.

@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_release"
-parentId: null
-id: "t_alt_rel_002"
-title: "Integrate the frontend service with Docker Compose"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Release and Parity|07 Release and Parity]]"
+parentId:
+id: t_alt_rel_002
+title: Integrate the frontend service with Docker Compose
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["docker", "self-hosting", "operations"]
+tags:
+  - docker
+  - self-hosting
+  - operations
 subtaskIds: []
-dependencies: ["t_alt_rel_001", "t_alt_fnd_015"]
+dependencies:
+  - "[[containerize-the-tanstack-start-frontend|Containerize the TanStack Start frontend]]"
+  - "[[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]"
 timeEstimate: 28
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Add the separate frontend service to example self-hosted Compose topology with an internal/configurable Rails API origin.

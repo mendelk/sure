@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_008"
-title: "Generate StyleX themes from Sure design tokens"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_008
+title: Generate StyleX themes from Sure design tokens
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["design-system", "stylex", "tooling"]
+tags:
+  - design-system
+  - stylex
+  - tooling
 subtaskIds: []
-dependencies: ["t_alt_fnd_002"]
+dependencies:
+  - "[[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]"
 timeEstimate: 24
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Make `design/tokens/sure.tokens.json` the canonical source for typed StyleX variables and light/dark themes.

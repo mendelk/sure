@@ -1,22 +1,24 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: "t_lfp_603"
-id: "t_lfp_603_1"
-title: "Select standard or itemized deductions"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId: "[[model-deductions-credits-and-property-tax|Model deductions, credits, and property tax]]"
+id: t_lfp_603_1
+title: Select standard or itemized deductions
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "deductions"]
+tags:
+  - tax
+  - deductions
 subtaskIds: []
 dependencies: []
 timeEstimate: 24
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Choose the applicable standard deduction or calculated itemized deductions for each filing unit and year.

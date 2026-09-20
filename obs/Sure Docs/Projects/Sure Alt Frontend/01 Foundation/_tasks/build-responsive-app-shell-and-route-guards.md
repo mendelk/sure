@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_010"
-title: "Build responsive app shell and route guards"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_010
+title: Build responsive app shell and route guards
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "routing", "accessibility"]
+tags:
+  - frontend
+  - routing
+  - accessibility
 subtaskIds: []
-dependencies: ["t_alt_fnd_007", "t_alt_fnd_009"]
+dependencies:
+  - "[[implement-secure-login-refresh-and-logout-sessions|Implement secure login refresh and logout sessions]]"
+  - "[[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Build the shared authenticated route shell for desktop and mobile layouts.

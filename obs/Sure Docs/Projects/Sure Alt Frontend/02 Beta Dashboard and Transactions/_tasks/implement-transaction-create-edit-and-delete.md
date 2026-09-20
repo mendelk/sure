@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_alt_beta"
-parentId: null
-id: "t_alt_beta_006"
-title: "Implement transaction create edit and delete"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[02 Beta Dashboard and Transactions|02 Beta Dashboard and Transactions]]"
+parentId:
+id: t_alt_beta_006
+title: Implement transaction create edit and delete
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "transactions", "forms"]
+tags:
+  - frontend
+  - transactions
+  - forms
 subtaskIds: []
-dependencies: ["t_alt_beta_005"]
+dependencies:
+  - "[[build-transaction-browsing-route|Build transaction browsing route]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Implement accessible transaction create, update, and delete workflows using TanStack Form and the generated contract.

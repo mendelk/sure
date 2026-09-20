@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: null
-id: "t_lfp_604"
-title: "Reconcile withholding, refunds, and tax balances"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId:
+id: t_lfp_604
+title: Reconcile withholding, refunds, and tax balances
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "cash-flow"]
+tags:
+  - tax
+  - cash-flow
 subtaskIds: []
-dependencies: ["t_lfp_601", "t_lfp_202", "t_lfp_401"]
+dependencies:
+  - "[[build-jurisdiction-aware-tax-engine|Build jurisdiction-aware tax engine]]"
+  - "[[model-income-and-benefit-events|Model income and benefit events]]"
+  - "[[implement-the-annual-simulation-ledger|Implement the annual simulation ledger]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Separate accrued tax liability from cash remitted during the year and reconcile the difference in the following period.

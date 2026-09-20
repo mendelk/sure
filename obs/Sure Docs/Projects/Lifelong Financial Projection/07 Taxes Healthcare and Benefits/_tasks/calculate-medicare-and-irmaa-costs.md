@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: "t_lfp_605"
-id: "t_lfp_605_3"
-title: "Calculate Medicare and IRMAA costs"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId: "[[estimate-social-security-pensions-and-medicare|Estimate Social Security, pensions, and Medicare]]"
+id: t_lfp_605_3
+title: Calculate Medicare and IRMAA costs
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["healthcare", "medicare", "irmaa"]
+tags:
+  - healthcare
+  - medicare
+  - irmaa
 subtaskIds: []
-dependencies: ["t_lfp_605_2"]
+dependencies:
+  - "[[calculate-defined-benefit-pensions|Calculate defined-benefit pensions]]"
 timeEstimate: 24
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Project owner-specific Medicare premiums and IRMAA surcharges using enrollment and lookback-income rules.

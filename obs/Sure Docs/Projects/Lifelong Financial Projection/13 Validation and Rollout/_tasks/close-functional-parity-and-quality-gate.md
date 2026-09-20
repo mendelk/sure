@@ -1,22 +1,38 @@
 ---
 pm-task: true
-projectId: "p_lfp_13"
-parentId: null
-id: "t_lfp_1205"
-title: "Close functional parity and quality gate"
-type: "milestone"
-status: "todo"
-priority: "critical"
+projectId: "[[13 Validation and Rollout|13 Validation and Rollout]]"
+parentId:
+id: t_lfp_1205
+title: Close functional parity and quality gate
+type: milestone
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["release", "parity", "quality-gate"]
+tags:
+  - release
+  - parity
+  - quality-gate
 subtaskIds: []
-dependencies: ["t_lfp_005", "t_lfp_105", "t_lfp_305", "t_lfp_506", "t_lfp_705", "t_lfp_805", "t_lfp_905", "t_lfp_1006", "t_lfp_1105", "t_lfp_1107", "t_lfp_1108", "t_lfp_1109", "t_lfp_1204"]
+dependencies:
+  - "[[define-financial-planning-safety-and-explainability|Define financial-planning safety and explainability]]"
+  - "[[reconcile-live-and-manual-planning-inputs|Reconcile live and manual planning inputs]]"
+  - "[[model-flexible-spending-behavior|Model flexible spending behavior]]"
+  - "[[support-retirement-withdrawal-strategies-and-annuities|Support retirement withdrawal strategies and annuities]]"
+  - "[[optimize-multi-year-tax-strategies|Optimize multi-year tax strategies]]"
+  - "[[track-actual-progress-against-fixed-date-plans|Track actual progress against fixed-date plans]]"
+  - "[[compare-and-optimize-legacy-outcomes|Compare and optimize legacy outcomes]]"
+  - "[[operate-a-versioned-annual-rules-update-program|Operate a versioned annual rules-update program]]"
+  - "[[provide-complete-plan-portability-and-plugin-contracts|Provide complete plan portability and plugin contracts]]"
+  - "[[protect-and-synchronize-planning-data|Protect and synchronize planning data]]"
+  - "[[expose-complete-planning-api|Expose complete planning API]]"
+  - "[[coordinate-contracts-with-sure-alt-frontend|Coordinate contracts with Sure Alt Frontend]]"
+  - "[[release-capabilities-in-usable-stages|Release capabilities in usable stages]]"
 timeEstimate: 40
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Declare the lifelong projection program complete only after the approved planning capability set and Sure-specific quality requirements are accounted for.

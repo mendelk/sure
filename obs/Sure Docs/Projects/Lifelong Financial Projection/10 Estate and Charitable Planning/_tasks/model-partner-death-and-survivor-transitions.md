@@ -1,22 +1,31 @@
 ---
 pm-task: true
-projectId: "p_lfp_10"
-parentId: null
-id: "t_lfp_901"
-title: "Model partner death and survivor transitions"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[10 Estate and Charitable Planning|10 Estate and Charitable Planning]]"
+parentId:
+id: t_lfp_901
+title: Model partner death and survivor transitions
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["estate", "household"]
-subtaskIds: ["t_lfp_901_1", "t_lfp_901_2", "t_lfp_901_3"]
-dependencies: ["t_lfp_101", "t_lfp_205", "t_lfp_605", "t_lfp_401"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - estate
+  - household
+subtaskIds:
+  - "[[end-person-specific-events-at-death|End person-specific events at death]]"
+  - "[[transfer-ownership-and-account-benefits-at-death|Transfer ownership and account benefits at death]]"
+  - "[[apply-survivor-tax-benefit-and-healthcare-rules|Apply survivor tax, benefit, and healthcare rules]]"
+dependencies:
+  - "[[model-household-members-and-life-expectancy|Model household members and life expectancy]]"
+  - "[[build-conditional-milestone-system|Build conditional milestone system]]"
+  - "[[estimate-social-security-pensions-and-medicare|Estimate Social Security, pensions, and Medicare]]"
+  - "[[implement-the-annual-simulation-ledger|Implement the annual simulation ledger]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Model either partner outliving the other and the household transition at each life-expectancy milestone.

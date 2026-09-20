@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_02"
-parentId: null
-id: "t_lfp_103"
-title: "Capture planning basis and account rules"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[02 Household and Current Finances|02 Household and Current Finances]]"
+parentId:
+id: t_lfp_103
+title: Capture planning basis and account rules
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["accounts", "tax", "baseline"]
+tags:
+  - accounts
+  - tax
+  - baseline
 subtaskIds: []
-dependencies: ["t_lfp_102"]
+dependencies:
+  - "[[complete-planning-account-taxonomy|Complete planning account taxonomy]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Capture account-level planning facts not derivable from balance history or holdings.

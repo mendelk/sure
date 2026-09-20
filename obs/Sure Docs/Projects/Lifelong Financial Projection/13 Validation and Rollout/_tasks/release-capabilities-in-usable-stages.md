@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_13"
-parentId: null
-id: "t_lfp_1204"
-title: "Release capabilities in usable stages"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[13 Validation and Rollout|13 Validation and Rollout]]"
+parentId:
+id: t_lfp_1204
+title: Release capabilities in usable stages
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["release", "roadmap"]
+tags:
+  - release
+  - roadmap
 subtaskIds: []
-dependencies: ["t_lfp_1201", "t_lfp_1202", "t_lfp_1203"]
+dependencies:
+  - "[[build-reference-scenarios-and-calculation-fixtures|Build reference scenarios and calculation fixtures]]"
+  - "[[validate-cross-feature-financial-invariants|Validate cross-feature financial invariants]]"
+  - "[[deliver-safe-plan-migrations-and-recovery|Deliver safe plan migrations and recovery]]"
 timeEstimate: 28
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Sequence delivery so every release provides a coherent planning workflow rather than isolated calculators or unusable model fragments.

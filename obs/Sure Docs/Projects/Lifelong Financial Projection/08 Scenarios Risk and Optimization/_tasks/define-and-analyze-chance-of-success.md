@@ -1,22 +1,30 @@
 ---
 pm-task: true
-projectId: "p_lfp_08"
-parentId: null
-id: "t_lfp_704"
-title: "Define and analyze chance of success"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[08 Scenarios Risk and Optimization|08 Scenarios Risk and Optimization]]"
+parentId:
+id: t_lfp_704
+title: Define and analyze chance of success
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["risk", "analytics"]
-subtaskIds: ["t_lfp_704_1", "t_lfp_704_2", "t_lfp_704_3"]
-dependencies: ["t_lfp_703", "t_lfp_205", "t_lfp_305"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - risk
+  - analytics
+subtaskIds:
+  - "[[configure-success-objectives-and-outcome-bands|Configure success objectives and outcome bands]]"
+  - "[[aggregate-trial-distributions-and-milestone-timing|Aggregate trial distributions and milestone timing]]"
+  - "[[filter-and-inspect-monte-carlo-trials|Filter and inspect Monte Carlo trials]]"
+dependencies:
+  - "[[run-configurable-monte-carlo-simulations|Run configurable Monte Carlo simulations]]"
+  - "[[build-conditional-milestone-system|Build conditional milestone system]]"
+  - "[[model-flexible-spending-behavior|Model flexible spending behavior]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Summarize the full distribution of plan outcomes without reducing success to a single opaque percentage.

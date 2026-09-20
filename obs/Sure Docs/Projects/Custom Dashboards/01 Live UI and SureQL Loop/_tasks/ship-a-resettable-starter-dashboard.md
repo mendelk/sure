@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_live"
-parentId: null
-id: "t_cd_live_004"
-title: "Ship a resettable starter dashboard"
-type: "task"
-status: "done"
-priority: "high"
+projectId: "[[01 Live UI and SureQL Loop|01 Live UI and SureQL Loop]]"
+parentId:
+id: t_cd_live_004
+title: Ship a resettable starter dashboard
+type: task
+status: done
+priority: high
 start: ""
 due: ""
 progress: 100
 assignees: []
-tags: ["frontend", "seeds", "walking-slice"]
+tags:
+  - frontend
+  - seeds
+  - walking-slice
 subtaskIds: []
-dependencies: ["t_cd_live_003"]
+dependencies:
+  - "[[remember-one-dashboard-in-local-storage|Remember one dashboard in local storage]]"
 timeEstimate: 6
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Make first use and repeated design review deterministic with one source-controlled starter dashboard.

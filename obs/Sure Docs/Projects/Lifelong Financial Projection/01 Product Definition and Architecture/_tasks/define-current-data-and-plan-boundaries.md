@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_lfp_01"
-parentId: null
-id: "t_lfp_003"
-title: "Define current-data and plan boundaries"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Product Definition and Architecture|01 Product Definition and Architecture]]"
+parentId:
+id: t_lfp_003
+title: Define current-data and plan boundaries
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["architecture", "integration"]
+tags:
+  - architecture
+  - integration
 subtaskIds: []
-dependencies: ["t_lfp_001", "t_lfp_002"]
+dependencies:
+  - "[[establish-functional-parity-catalog|Establish functional parity catalog]]"
+  - "[[define-planning-domain-language|Define planning domain language]]"
 timeEstimate: 20
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Define how live Sure financial data becomes plan starting conditions while preserving plans as editable scenarios rather than forecasts that mutate with every sync.

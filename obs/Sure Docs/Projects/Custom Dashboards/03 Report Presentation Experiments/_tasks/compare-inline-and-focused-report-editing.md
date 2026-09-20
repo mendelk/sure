@@ -1,22 +1,29 @@
 ---
 pm-task: true
-projectId: "p_cd_presentations"
-parentId: null
-id: "t_cd_present_004"
-title: "Compare inline and focused report editing"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[03 Report Presentation Experiments|03 Report Presentation Experiments]]"
+parentId:
+id: t_cd_present_004
+title: Compare inline and focused report editing
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "reports", "editor", "experiment"]
+tags:
+  - frontend
+  - reports
+  - editor
+  - experiment
 subtaskIds: []
-dependencies: ["t_cd_present_001", "t_cd_present_002", "t_cd_present_003"]
+dependencies:
+  - "[[improve-the-live-sureql-editing-loop|Improve the live SureQL editing loop]]"
+  - "[[exercise-the-table-with-real-result-shapes|Exercise the table with real result shapes]]"
+  - "[[experiment-with-a-single-value-presentation|Experiment with a single-value presentation]]"
 timeEstimate: 8
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Compare editing directly inside report cards with a focused dialog or drawer using the proven query and presentation controls.

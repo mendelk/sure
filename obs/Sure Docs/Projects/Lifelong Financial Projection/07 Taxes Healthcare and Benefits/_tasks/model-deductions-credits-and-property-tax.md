@@ -1,22 +1,31 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: null
-id: "t_lfp_603"
-title: "Model deductions, credits, and property tax"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId:
+id: t_lfp_603
+title: Model deductions, credits, and property tax
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "deductions", "assets"]
-subtaskIds: ["t_lfp_603_1", "t_lfp_603_2", "t_lfp_603_3"]
-dependencies: ["t_lfp_602", "t_lfp_203", "t_lfp_204"]
-timeEstimate: null
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+tags:
+  - tax
+  - deductions
+  - assets
+subtaskIds:
+  - "[[select-standard-or-itemized-deductions|Select standard or itemized deductions]]"
+  - "[[calculate-credits-and-carryforwards|Calculate credits and carryforwards]]"
+  - "[[calculate-property-rental-and-home-sale-tax|Calculate property, rental, and home-sale tax]]"
+dependencies:
+  - "[[implement-us-income-and-payroll-taxes|Implement US income and payroll taxes]]"
+  - "[[model-expense-and-giving-events|Model expense and giving events]]"
+  - "[[model-real-asset-life-cycles|Model real-asset life cycles]]"
+timeEstimate:
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Estimate standard and itemized deductions, tax credits, rental deductions, capital-loss carryforwards, and property taxes.

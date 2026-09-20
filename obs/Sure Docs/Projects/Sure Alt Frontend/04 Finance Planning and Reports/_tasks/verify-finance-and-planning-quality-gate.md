@@ -1,22 +1,37 @@
 ---
 pm-task: true
-projectId: "p_alt_finance"
-parentId: null
-id: "t_alt_fin_017"
-title: "Verify finance and planning quality gate"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[04 Finance Planning and Reports|04 Finance Planning and Reports]]"
+parentId:
+id: t_alt_fin_017
+title: Verify finance and planning quality gate
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["milestone", "finance", "quality"]
+tags:
+  - milestone
+  - finance
+  - quality
 subtaskIds: []
-dependencies: ["t_alt_fin_002", "t_alt_fin_003", "t_alt_fin_004", "t_alt_fin_005", "t_alt_fin_006", "t_alt_fin_007", "t_alt_fin_008", "t_alt_fin_009", "t_alt_fin_010", "t_alt_fin_011", "t_alt_fin_016", "t_alt_fnd_017"]
+dependencies:
+  - "[[build-manual-account-forms-for-all-account-types|Build manual account forms for all account types]]"
+  - "[[build-account-detail-activity-and-balance-history|Build account detail activity and balance history]]"
+  - "[[implement-account-statement-workflows|Implement account statement workflows]]"
+  - "[[implement-holdings-management-parity|Implement holdings management parity]]"
+  - "[[implement-trade-management-ui|Implement trade management UI]]"
+  - "[[implement-valuation-management-parity|Implement valuation management parity]]"
+  - "[[implement-securities-and-price-history-ui|Implement securities and price history UI]]"
+  - "[[implement-transfer-management-parity|Implement transfer management parity]]"
+  - "[[implement-reports-and-export-tools|Implement reports and export tools]]"
+  - "[[complete-category-tag-and-merchant-management|Complete category tag and merchant management]]"
+  - "[[compose-plan-hub|Compose plan hub]]"
+  - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Verify accounts, investments, transfers, reports, classification, budgets, goals, and planning satisfy their parity rows and release gates.

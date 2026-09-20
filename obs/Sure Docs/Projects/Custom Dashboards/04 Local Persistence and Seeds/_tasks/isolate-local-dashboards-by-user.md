@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_persistence"
-parentId: null
-id: "t_cd_persist_002"
-title: "Isolate local dashboards by user"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[04 Local Persistence and Seeds|04 Local Persistence and Seeds]]"
+parentId:
+id: t_cd_persist_002
+title: Isolate local dashboards by user
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "local-storage", "privacy"]
+tags:
+  - frontend
+  - local-storage
+  - privacy
 subtaskIds: []
-dependencies: ["t_cd_persist_001"]
+dependencies:
+  - "[[capture-the-proven-local-dashboard-shape|Capture the proven local dashboard shape]]"
 timeEstimate: 6
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Harden current-user isolation for the validated local dashboard snapshot.

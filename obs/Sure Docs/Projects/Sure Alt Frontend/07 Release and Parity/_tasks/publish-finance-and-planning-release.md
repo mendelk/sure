@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_release"
-parentId: null
-id: "t_alt_rel_006"
-title: "Publish finance and planning release"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Release and Parity|07 Release and Parity]]"
+parentId:
+id: t_alt_rel_006
+title: Publish finance and planning release
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["release", "finance", "milestone"]
+tags:
+  - release
+  - finance
+  - milestone
 subtaskIds: []
-dependencies: ["t_alt_fin_017", "t_alt_rel_005"]
+dependencies:
+  - "[[verify-finance-and-planning-quality-gate|Verify finance and planning quality gate]]"
+  - "[[publish-ingestion-and-simplefin-release|Publish ingestion and SimpleFIN release]]"
 timeEstimate: 24
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Publish the staged release adding complete account, investment, transfer, report, budget, goal, and planning workflows.

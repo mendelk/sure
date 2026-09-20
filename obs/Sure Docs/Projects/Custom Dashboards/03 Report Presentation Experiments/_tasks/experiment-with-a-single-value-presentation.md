@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_cd_presentations"
-parentId: null
-id: "t_cd_present_003"
-title: "Experiment with a single-value presentation"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[03 Report Presentation Experiments|03 Report Presentation Experiments]]"
+parentId:
+id: t_cd_present_003
+title: Experiment with a single-value presentation
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "reports", "metric", "experiment"]
+tags:
+  - frontend
+  - reports
+  - metric
+  - experiment
 subtaskIds: []
-dependencies: ["t_cd_live_008"]
+dependencies:
+  - "[[refine-the-selected-first-slice|Refine the selected first slice]]"
 timeEstimate: 8
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Test whether a small single-value report provides useful dashboard information beyond tables.

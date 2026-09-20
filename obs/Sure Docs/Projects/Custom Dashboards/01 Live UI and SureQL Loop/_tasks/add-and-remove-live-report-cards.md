@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_live"
-parentId: null
-id: "t_cd_live_005"
-title: "Add and remove live report cards"
-type: "task"
-status: "done"
-priority: "critical"
+projectId: "[[01 Live UI and SureQL Loop|01 Live UI and SureQL Loop]]"
+parentId:
+id: t_cd_live_005
+title: Add and remove live report cards
+type: task
+status: done
+priority: critical
 start: ""
 due: ""
 progress: 100
 assignees: []
-tags: ["frontend", "reports", "walking-slice"]
+tags:
+  - frontend
+  - reports
+  - walking-slice
 subtaskIds: []
-dependencies: ["t_cd_live_004"]
+dependencies:
+  - "[[ship-a-resettable-starter-dashboard|Ship a resettable starter dashboard]]"
 timeEstimate: 10
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T15:24:15.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T15:24:15.000Z
 ---
 
 Learn how multiple reports should feel by duplicating the proven live card before designing report entities.

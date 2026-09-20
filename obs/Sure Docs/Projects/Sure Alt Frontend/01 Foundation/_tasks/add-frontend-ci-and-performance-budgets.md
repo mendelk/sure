@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_017"
-title: "Add frontend CI and performance budgets"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_017
+title: Add frontend CI and performance budgets
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["ci", "performance", "security"]
+tags:
+  - ci
+  - performance
+  - security
 subtaskIds: []
-dependencies: ["t_alt_fnd_003", "t_alt_fnd_004", "t_alt_fnd_012"]
+dependencies:
+  - "[[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript lint formatting and workspace scripts]]"
+  - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 24
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Make frontend correctness, contract drift, security, accessibility, and explicit performance budgets required CI checks.

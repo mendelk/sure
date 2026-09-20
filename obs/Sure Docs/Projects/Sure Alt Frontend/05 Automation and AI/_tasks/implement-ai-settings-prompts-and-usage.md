@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_automation"
-parentId: null
-id: "t_alt_auto_005"
-title: "Implement AI settings prompts and usage"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[05 Automation and AI|05 Automation and AI]]"
+parentId:
+id: t_alt_auto_005
+title: Implement AI settings prompts and usage
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["ai", "settings", "api"]
+tags:
+  - ai
+  - settings
+  - api
 subtaskIds: []
-dependencies: ["t_alt_fnd_001", "t_alt_fnd_010", "t_alt_fnd_012"]
+dependencies:
+  - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 API-enable and implement AI availability/enablement, user rule-prompt settings, prompt inspection, usage, and safe self-hosted guidance.

@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_005"
-title: "Implement signup recovery and SSO entry flows"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_005
+title: Implement signup recovery and SSO entry flows
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["auth", "sso", "onboarding"]
+tags:
+  - auth
+  - sso
+  - onboarding
 subtaskIds: []
-dependencies: ["t_alt_set_003", "t_alt_set_004"]
+dependencies:
+  - "[[implement-password-email-and-session-management|Implement password email and session management]]"
+  - "[[implement-mfa-and-passkey-management|Implement MFA and passkey management]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Complete signup/invite code, password reset, passwordless passkey, configured OIDC SSO, identity linking, and JIT account entry flows through the BFF.

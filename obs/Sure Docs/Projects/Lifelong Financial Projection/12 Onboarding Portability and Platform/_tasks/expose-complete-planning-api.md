@@ -1,22 +1,30 @@
 ---
 pm-task: true
-projectId: "p_lfp_12"
-parentId: null
-id: "t_lfp_1108"
-title: "Expose complete planning API"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[12 Onboarding Portability and Platform|12 Onboarding Portability and Platform]]"
+parentId:
+id: t_lfp_1108
+title: Expose complete planning API
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["api", "platform", "portability"]
+tags:
+  - api
+  - platform
+  - portability
 subtaskIds: []
-dependencies: ["t_lfp_004", "t_lfp_201", "t_lfp_405", "t_lfp_801", "t_lfp_1105"]
+dependencies:
+  - "[[define-calculation-versioning-and-reproducibility|Define calculation versioning and reproducibility]]"
+  - "[[manage-independent-scenario-plans|Manage independent scenario plans]]"
+  - "[[make-simulation-results-auditable-and-repeatable|Make simulation results auditable and repeatable]]"
+  - "[[deliver-yearly-summary-and-core-plan-metrics|Deliver yearly summary and core plan metrics]]"
+  - "[[provide-complete-plan-portability-and-plugin-contracts|Provide complete plan portability and plugin contracts]]"
 timeEstimate: 40
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Make every supported planning workflow available through a stable, documented Rails API rather than limiting capabilities to server-rendered web interactions.

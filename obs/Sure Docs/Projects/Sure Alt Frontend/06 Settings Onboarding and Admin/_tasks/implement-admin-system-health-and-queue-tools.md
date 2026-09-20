@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_013"
-title: "Implement admin system health and queue tools"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_013
+title: Implement admin system health and queue tools
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["admin", "operations", "api"]
+tags:
+  - admin
+  - operations
+  - api
 subtaskIds: []
-dependencies: ["t_alt_set_010", "t_alt_fnd_012", "t_alt_fnd_014"]
+dependencies:
+  - "[[define-super-admin-api-and-authorization|Define super-admin API and authorization]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
+  - "[[add-structured-logging-health-and-error-handling|Add structured logging health and error handling]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Implement super-admin system health and required Sidekiq/background-queue parity without embedding the Sidekiq HTML application.

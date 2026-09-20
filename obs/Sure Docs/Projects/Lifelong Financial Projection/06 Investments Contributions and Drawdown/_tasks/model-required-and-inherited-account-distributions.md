@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_06"
-parentId: null
-id: "t_lfp_505"
-title: "Model required and inherited-account distributions"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Investments Contributions and Drawdown|06 Investments Contributions and Drawdown]]"
+parentId:
+id: t_lfp_505
+title: Model required and inherited-account distributions
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["investments", "rmd", "inheritance"]
+tags:
+  - investments
+  - rmd
+  - inheritance
 subtaskIds: []
-dependencies: ["t_lfp_504", "t_lfp_101"]
+dependencies:
+  - "[[implement-account-liquidity-and-drawdown-order|Implement account liquidity and drawdown order]]"
+  - "[[model-household-members-and-life-expectancy|Model household members and life expectancy]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Model mandatory retirement-account distributions for owners, spouses, and inherited accounts.

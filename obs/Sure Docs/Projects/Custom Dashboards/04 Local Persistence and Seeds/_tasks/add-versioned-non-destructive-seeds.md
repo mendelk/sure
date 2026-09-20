@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_persistence"
-parentId: null
-id: "t_cd_persist_003"
-title: "Add versioned non-destructive seeds"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[04 Local Persistence and Seeds|04 Local Persistence and Seeds]]"
+parentId:
+id: t_cd_persist_003
+title: Add versioned non-destructive seeds
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "seeds", "local-storage"]
+tags:
+  - frontend
+  - seeds
+  - local-storage
 subtaskIds: []
-dependencies: ["t_cd_persist_001"]
+dependencies:
+  - "[[capture-the-proven-local-dashboard-shape|Capture the proven local dashboard shape]]"
 timeEstimate: 10
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Evolve the proven starter dashboard without overwriting user changes.

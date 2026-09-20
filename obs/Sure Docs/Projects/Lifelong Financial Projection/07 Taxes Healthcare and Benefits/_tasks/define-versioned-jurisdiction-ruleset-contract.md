@@ -1,22 +1,24 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: "t_lfp_601"
-id: "t_lfp_601_1"
-title: "Define versioned jurisdiction ruleset contract"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId: "[[build-jurisdiction-aware-tax-engine|Build jurisdiction-aware tax engine]]"
+id: t_lfp_601_1
+title: Define versioned jurisdiction ruleset contract
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["tax", "rulesets"]
+tags:
+  - tax
+  - rulesets
 subtaskIds: []
 dependencies: []
 timeEstimate: 24
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Define the common contract for tax bases, brackets, rates, deductions, credits, limits, phaseouts, effective dates, and citations.

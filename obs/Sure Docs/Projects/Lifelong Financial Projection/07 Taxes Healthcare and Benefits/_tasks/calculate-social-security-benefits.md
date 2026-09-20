@@ -1,22 +1,24 @@
 ---
 pm-task: true
-projectId: "p_lfp_07"
-parentId: "t_lfp_605"
-id: "t_lfp_605_1"
-title: "Calculate Social Security benefits"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[07 Taxes Healthcare and Benefits|07 Taxes Healthcare and Benefits]]"
+parentId: "[[estimate-social-security-pensions-and-medicare|Estimate Social Security, pensions, and Medicare]]"
+id: t_lfp_605_1
+title: Calculate Social Security benefits
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["benefits", "social-security"]
+tags:
+  - benefits
+  - social-security
 subtaskIds: []
 dependencies: []
 timeEstimate: 24
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Project Social Security from statement values, claiming ages, COLA, and couple benefit interactions.

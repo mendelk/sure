@@ -1,22 +1,24 @@
 ---
 pm-task: true
-projectId: "p_lfp_08"
-parentId: "t_lfp_704"
-id: "t_lfp_704_1"
-title: "Configure success objectives and outcome bands"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[08 Scenarios Risk and Optimization|08 Scenarios Risk and Optimization]]"
+parentId: "[[define-and-analyze-chance-of-success|Define and analyze chance of success]]"
+id: t_lfp_704_1
+title: Configure success objectives and outcome bands
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["risk", "outcomes"]
+tags:
+  - risk
+  - outcomes
 subtaskIds: []
 dependencies: []
 timeEstimate: 20
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Let households define what success means and how completed trials are categorized.

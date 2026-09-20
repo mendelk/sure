@@ -1,22 +1,30 @@
 ---
 pm-task: true
-projectId: "p_lfp_11"
-parentId: null
-id: "t_lfp_1006"
-title: "Operate a versioned annual rules-update program"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[11 International Planning|11 International Planning]]"
+parentId:
+id: t_lfp_1006
+title: Operate a versioned annual rules-update program
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["international", "tax", "operations"]
+tags:
+  - international
+  - tax
+  - operations
 subtaskIds: []
-dependencies: ["t_lfp_1002", "t_lfp_1003", "t_lfp_1004", "t_lfp_1005", "t_lfp_004"]
+dependencies:
+  - "[[deliver-canada-planning-rules|Deliver Canada planning rules]]"
+  - "[[deliver-united-kingdom-planning-rules|Deliver United Kingdom planning rules]]"
+  - "[[deliver-australia-planning-rules|Deliver Australia planning rules]]"
+  - "[[deliver-european-and-global-tax-presets|Deliver European and global tax presets]]"
+  - "[[define-calculation-versioning-and-reproducibility|Define calculation versioning and reproducibility]]"
 timeEstimate: 32
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Create a recurring process for updating tax tables, contribution limits, benefits, exemptions, legislation sunsets, and historical market data.

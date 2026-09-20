@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_012"
-title: "Build frontend and Rails integration test harness"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_012
+title: Build frontend and Rails integration test harness
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["testing", "frontend", "rails"]
+tags:
+  - testing
+  - frontend
+  - rails
 subtaskIds: []
-dependencies: ["t_alt_fnd_002", "t_alt_fnd_003", "t_alt_fnd_005"]
+dependencies:
+  - "[[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]"
+  - "[[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript lint formatting and workspace scripts]]"
+  - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
 timeEstimate: 36
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Provide Vitest, React Testing Library, and Playwright infrastructure, including critical tests against a real Rails test API and database.

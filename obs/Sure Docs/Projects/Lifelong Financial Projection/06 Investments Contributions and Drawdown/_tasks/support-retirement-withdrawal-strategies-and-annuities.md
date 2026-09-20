@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_lfp_06"
-parentId: null
-id: "t_lfp_506"
-title: "Support retirement withdrawal strategies and annuities"
-type: "task"
-status: "todo"
-priority: "medium"
+projectId: "[[06 Investments Contributions and Drawdown|06 Investments Contributions and Drawdown]]"
+parentId:
+id: t_lfp_506
+title: Support retirement withdrawal strategies and annuities
+type: task
+status: todo
+priority: medium
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["retirement", "drawdown", "strategies"]
+tags:
+  - retirement
+  - drawdown
+  - strategies
 subtaskIds: []
-dependencies: ["t_lfp_504", "t_lfp_501", "t_lfp_205"]
+dependencies:
+  - "[[implement-account-liquidity-and-drawdown-order|Implement account liquidity and drawdown order]]"
+  - "[[model-investment-returns-dividends-and-fees|Model investment returns, dividends, and fees]]"
+  - "[[build-conditional-milestone-system|Build conditional milestone system]]"
 timeEstimate: 40
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Provide a separate strategy-analysis mode for textbook withdrawal rules and variable lifetime income annuities.

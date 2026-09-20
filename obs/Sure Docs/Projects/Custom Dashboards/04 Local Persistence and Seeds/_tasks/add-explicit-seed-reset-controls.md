@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_persistence"
-parentId: null
-id: "t_cd_persist_004"
-title: "Add explicit seed reset controls"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[04 Local Persistence and Seeds|04 Local Persistence and Seeds]]"
+parentId:
+id: t_cd_persist_004
+title: Add explicit seed reset controls
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "seeds", "recovery"]
+tags:
+  - frontend
+  - seeds
+  - recovery
 subtaskIds: []
-dependencies: ["t_cd_persist_003"]
+dependencies:
+  - "[[add-versioned-non-destructive-seeds|Add versioned non-destructive seeds]]"
 timeEstimate: 8
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T00:00:00.000Z
 ---
 
 Turn the prototype reset into deliberate current-seed and full-feature reset behavior.

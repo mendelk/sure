@@ -1,22 +1,25 @@
 ---
 pm-task: true
-projectId: "p_alt_foundation"
-parentId: null
-id: "t_alt_fnd_003"
-title: "Configure TypeScript lint formatting and workspace scripts"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[01 Foundation|01 Foundation]]"
+parentId:
+id: t_alt_fnd_003
+title: Configure TypeScript lint formatting and workspace scripts
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "tooling"]
+tags:
+  - frontend
+  - tooling
 subtaskIds: []
-dependencies: ["t_alt_fnd_002"]
+dependencies:
+  - "[[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]"
 timeEstimate: 12
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 Establish consistent TypeScript and source-quality rules for the pnpm workspace.

@@ -1,22 +1,28 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_007"
-title: "Implement family membership invitations and sharing"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_007
+title: Implement family membership invitations and sharing
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["family", "sharing", "api"]
+tags:
+  - family
+  - sharing
+  - api
 subtaskIds: []
-dependencies: ["t_alt_set_001", "t_alt_fnd_010", "t_alt_fnd_012"]
+dependencies:
+  - "[[define-identity-capabilities-and-settings-contract|Define identity capabilities and settings contract]]"
+  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
+  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 API-enable and implement family member/role management, invitations, invitation acceptance, default sharing, per-account sharing, and revocation.

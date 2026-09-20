@@ -1,22 +1,27 @@
 ---
 pm-task: true
-projectId: "p_lfp_10"
-parentId: null
-id: "t_lfp_903"
-title: "Estimate estate, inheritance, and settlement costs"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[10 Estate and Charitable Planning|10 Estate and Charitable Planning]]"
+parentId:
+id: t_lfp_903
+title: Estimate estate, inheritance, and settlement costs
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["estate", "tax"]
+tags:
+  - estate
+  - tax
 subtaskIds: []
-dependencies: ["t_lfp_902", "t_lfp_601", "t_lfp_603"]
+dependencies:
+  - "[[calculate-gross-estate-legacy-and-net-legacy|Calculate gross estate, legacy, and net legacy]]"
+  - "[[build-jurisdiction-aware-tax-engine|Build jurisdiction-aware tax engine]]"
+  - "[[model-deductions-credits-and-property-tax|Model deductions, credits, and property tax]]"
 timeEstimate: 36
-createdAt: "2026-09-07T12:00:00.000Z"
-updatedAt: "2026-09-07T12:00:00.000Z"
+createdAt: 2026-09-07T12:00:00.000Z
+updatedAt: 2026-09-07T12:00:00.000Z
 ---
 
 Estimate jurisdiction-specific estate/inheritance tax and the practical costs of settling and liquidating an estate.

@@ -1,22 +1,30 @@
 ---
 pm-task: true
-projectId: "p_alt_settings"
-parentId: null
-id: "t_alt_set_009"
-title: "Implement new-user onboarding"
-type: "task"
-status: "todo"
-priority: "high"
+projectId: "[[06 Settings Onboarding and Admin|06 Settings Onboarding and Admin]]"
+parentId:
+id: t_alt_set_009
+title: Implement new-user onboarding
+type: task
+status: todo
+priority: high
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["onboarding", "frontend", "api"]
+tags:
+  - onboarding
+  - frontend
+  - api
 subtaskIds: []
-dependencies: ["t_alt_set_002", "t_alt_set_005", "t_alt_set_007", "t_alt_fin_002", "t_alt_ing_003"]
+dependencies:
+  - "[[implement-profile-preferences-and-appearance|Implement profile preferences and appearance]]"
+  - "[[implement-signup-recovery-and-sso-entry-flows|Implement signup recovery and SSO entry flows]]"
+  - "[[implement-family-membership-invitations-and-sharing|Implement family membership invitations and sharing]]"
+  - "[[build-manual-account-forms-for-all-account-types|Build manual account forms for all account types]]"
+  - "[[build-provider-catalog-and-settings-ui|Build provider catalog and settings UI]]"
 timeEstimate: 40
-createdAt: "2026-09-07T01:09:35.000Z"
-updatedAt: "2026-09-07T01:09:35.000Z"
+createdAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-07T01:09:35.000Z
 ---
 
 API-enable and implement late-phase onboarding preferences, goals, account/provider choice, invitations, and completion for new users.
