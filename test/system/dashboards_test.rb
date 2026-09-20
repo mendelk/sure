@@ -66,6 +66,47 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "p", text: "No results found for this query."
   end
 
+  test "persists the saved query across reload for continued experimentation" do
+    visit dashboards_url
+
+    assert_selector "table td", text: "Dashboard Groceries Test"
+    set_query("from accounts\ntake 5")
+    click_button "Run"
+    assert_selector "table th", text: /classification/i
+
+    visit dashboards_url
+
+    assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), "from accounts"
+    assert_selector "table th", text: /classification/i
+  end
+
+  test "falls back to the starter screen when stored snapshot is malformed" do
+    visit dashboards_url
+
+    write_malformed_dashboard_snapshot
+
+    visit dashboards_url
+
+    assert_selector "table td", text: "Dashboard Groceries Test"
+  end
+
+  test "isolates persisted dashboards between users sharing one browser" do
+    visit dashboards_url
+
+    set_query("from accounts\ntake 5")
+    click_button "Run"
+    assert_selector "table th", text: /classification/i
+    user_menu = find("div[data-testid=user-menu]", match: :first, visible: :visible)
+    within user_menu do
+      find("[data-DS--popover-target='button']", match: :first).click
+      click_on "Log out", match: :first
+    end
+    sign_in users(:family_member)
+    visit dashboards_url
+
+    assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), "from transactions"
+  end
+
   test "displays truncation warning when query results are truncated" do
     51.times do |i|
       create_transaction("Truncated Tx #{i}", Date.current, 10 + i)
@@ -80,6 +121,15 @@ class DashboardsTest < ApplicationSystemTestCase
   end
 
   private
+    def write_malformed_dashboard_snapshot
+      page.execute_script(<<~JS)
+        (() => {
+          const bootstrap = JSON.parse(document.querySelector("#spa-bootstrap").textContent);
+          window.localStorage.setItem(`sure:dashboards:${bootstrap.currentUser.id}`, "{not-json");
+        })()
+      JS
+    end
+
     def set_query(query_text)
       assert_selector ".monaco-editor", wait: 10
       page.execute_script(<<~JS, query_text)
