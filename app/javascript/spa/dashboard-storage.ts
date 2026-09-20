@@ -9,11 +9,12 @@ import * as z from "zod/mini";
 export const STARTER_QUERY = "from transactions\nsort {-date}\ntake 10";
 
 export const STARTER_DASHBOARD_NAME = "My dashboard";
+export const STARTER_REPORT_ID = "sureql-report";
 export const STARTER_REPORT_NAME = "Recent transactions";
 
 export const STARTER_LAYOUT: Layout = [
   {
-    i: "sureql-report",
+    i: STARTER_REPORT_ID,
     x: 0,
     y: 0,
     w: 12,
@@ -24,9 +25,9 @@ export const STARTER_LAYOUT: Layout = [
 ];
 
 // Feature-local snapshot for the first /dashboards prototype only. It stores
-// the exact working screen — dashboard and report names, the saved report
-// source, and the report card's grid position/size — so iteration survives
-// refresh. Keep this shape minimal until the multiple-card slice needs an array.
+// a plain report array plus the grid positions needed to recreate the working
+// screen. Keep this shape local until the report-entity slice defines a durable
+// domain model.
 const DashboardLayoutItemSchema = z.object({
   i: z.string(),
   x: z.number(),
@@ -39,25 +40,42 @@ const DashboardLayoutItemSchema = z.object({
   maxH: z.optional(z.number()),
 });
 
+const DashboardReportSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  query: z.string(),
+});
+
 const DashboardSnapshotSchema = z.object({
   dashboardName: z.optional(z.string()),
+  reports: z.optional(z.array(DashboardReportSchema)),
   reportName: z.optional(z.string()),
-  query: z.string(),
+  query: z.optional(z.string()),
   layout: z.array(DashboardLayoutItemSchema),
 });
 
+export interface DashboardReport {
+  id: string;
+  name: string;
+  query: string;
+}
+
 export interface DashboardSnapshot {
   dashboardName: string;
-  reportName: string;
-  query: string;
+  reports: DashboardReport[];
   layout: Layout;
 }
 
 export function starterSnapshot(): DashboardSnapshot {
   return {
     dashboardName: STARTER_DASHBOARD_NAME,
-    reportName: STARTER_REPORT_NAME,
-    query: STARTER_QUERY,
+    reports: [
+      {
+        id: STARTER_REPORT_ID,
+        name: STARTER_REPORT_NAME,
+        query: STARTER_QUERY,
+      },
+    ],
     layout: structuredClone(STARTER_LAYOUT),
   };
 }
@@ -75,33 +93,74 @@ export function readDashboardSnapshot(userId: string): DashboardSnapshot | undef
     const parsed: unknown = JSON.parse(raw);
     const result = DashboardSnapshotSchema.safeParse(parsed);
     if (!result.success) return undefined;
-    const query = result.data.query;
+
     const storedDashboardName = result.data.dashboardName?.trim();
-    const storedReportName = result.data.reportName?.trim();
     const dashboardName =
       storedDashboardName === undefined || storedDashboardName.length === 0
         ? STARTER_DASHBOARD_NAME
         : storedDashboardName;
-    const reportName =
-      storedReportName === undefined || storedReportName.length === 0
-        ? STARTER_REPORT_NAME
-        : storedReportName;
-    if (query.trim().length === 0 || result.data.layout.length === 0) return undefined;
-    const layout: Layout = result.data.layout.map((item): LayoutItem => ({
-      i: item.i,
-      x: item.x,
-      y: item.y,
-      w: item.w,
-      h: item.h,
-      minW: item.minW,
-      minH: item.minH,
-      maxW: item.maxW,
-      maxH: item.maxH,
-    }));
-    return { dashboardName, reportName, query, layout };
+    const reports =
+      result.data.reports === undefined
+        ? migrateLegacyReport(result.data.reportName, result.data.query)
+        : normalizeReports(result.data.reports);
+    if (reports === undefined) return undefined;
+
+    const reportIds = new Set(reports.map((report) => report.id));
+    const layoutIds = new Set<string>();
+    const layout: LayoutItem[] = [];
+    for (const item of result.data.layout) {
+      if (!reportIds.has(item.i) || layoutIds.has(item.i)) return undefined;
+      layoutIds.add(item.i);
+      layout.push({
+        i: item.i,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        minW: item.minW,
+        minH: item.minH,
+        maxW: item.maxW,
+        maxH: item.maxH,
+      });
+    }
+    if (layoutIds.size !== reportIds.size) return undefined;
+
+    return { dashboardName, reports, layout };
   } catch {
     return undefined;
   }
+}
+
+function migrateLegacyReport(
+  storedName: string | undefined,
+  storedQuery: string | undefined,
+): DashboardReport[] | undefined {
+  const query = storedQuery?.trim();
+  if (query === undefined || query.length === 0) return undefined;
+  const name = storedName?.trim();
+  return [
+    {
+      id: STARTER_REPORT_ID,
+      name: name === undefined || name.length === 0 ? STARTER_REPORT_NAME : name,
+      query,
+    },
+  ];
+}
+
+function normalizeReports(
+  storedReports: z.infer<typeof DashboardReportSchema>[],
+): DashboardReport[] | undefined {
+  const ids = new Set<string>();
+  const reports: DashboardReport[] = [];
+  for (const storedReport of storedReports) {
+    const id = storedReport.id.trim();
+    const name = storedReport.name.trim();
+    const query = storedReport.query.trim();
+    if (id.length === 0 || name.length === 0 || query.length === 0 || ids.has(id)) return undefined;
+    ids.add(id);
+    reports.push({ id, name, query });
+  }
+  return reports;
 }
 
 // Best-effort write: private-mode/quota failures must never break the page.

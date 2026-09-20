@@ -5,18 +5,18 @@ parentId: null
 id: "t_cd_live_005"
 title: "Add and remove live report cards"
 type: "task"
-status: "todo"
+status: "done"
 priority: "critical"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["frontend", "reports", "walking-slice"]
 subtaskIds: []
 dependencies: ["t_cd_live_004"]
 timeEstimate: 10
 createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
+updatedAt: "2026-09-20T15:24:15.000Z"
 ---
 
 Learn how multiple reports should feel by duplicating the proven live card before designing report entities.
