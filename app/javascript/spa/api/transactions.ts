@@ -93,7 +93,7 @@ export function transactionDetailQueryOptions(basePath: string, id: string) {
   });
 }
 
-function csrfToken(): string {
+export function readCsrfToken(): string {
   return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? "";
 }
 
@@ -105,7 +105,6 @@ function extractApiError(payload: unknown, fallback: string): string[] {
     return record.errors.filter((item): item is string => typeof item === "string");
   return [fallback];
 }
-
 async function requestJson(url: string, method: string, body?: unknown): Promise<unknown> {
   const response = await fetch(url, {
     body: body === undefined ? null : JSON.stringify(body),
@@ -113,7 +112,7 @@ async function requestJson(url: string, method: string, body?: unknown): Promise
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "X-CSRF-Token": csrfToken(),
+      "X-CSRF-Token": readCsrfToken(),
     },
     method,
   });
@@ -123,7 +122,6 @@ async function requestJson(url: string, method: string, body?: unknown): Promise
   const errors = extractApiError(payload, `Request failed with status ${response.status}`);
   throw new TransactionApiError(errors[0] ?? "Request failed", response.status, errors);
 }
-
 export async function updateTransaction(
   basePath: string,
   id: string,
@@ -281,7 +279,6 @@ export async function createMerchant(
   }
   throw new TransactionApiError("Failed to create merchant", 500);
 }
-
 export async function createTag(tagsPath: string, name: string): Promise<ReferenceOption> {
   const payload = await requestJson(tagsPath, "POST", {
     tag: {
