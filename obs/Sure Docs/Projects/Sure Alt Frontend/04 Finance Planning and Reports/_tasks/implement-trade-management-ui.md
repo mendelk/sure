@@ -20,9 +20,9 @@ dependencies:
   - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:33.382Z
+timeEstimate: 36
 ---
 
 Build trade detail/create/edit/delete and unlock workflows from the existing trades API, extending only missing parity behavior.

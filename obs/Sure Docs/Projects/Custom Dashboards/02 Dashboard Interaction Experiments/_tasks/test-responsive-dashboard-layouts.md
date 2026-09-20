@@ -20,9 +20,9 @@ subtaskIds: []
 dependencies:
   - "[[improve-dashboard-switching-and-management|Improve dashboard switching and management]]"
   - "[[experiment-with-widget-placement-controls|Experiment with widget placement controls]]"
-timeEstimate: 8
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:30.806Z
+timeEstimate: 8
 ---
 
 Use the real dashboard to learn whether separate breakpoint layouts are worth their complexity.

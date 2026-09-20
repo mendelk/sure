@@ -28,9 +28,9 @@ dependencies:
   - "[[implement-sophtron-challenge-flow|Implement Sophtron challenge flow]]"
   - "[[implement-on-chain-wallet-connections|Implement on-chain wallet connections]]"
   - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:56.752Z
+timeEstimate: 40
 ---
 
 Verify every V2 provider meets API-only parity, security, accessibility, and release-quality requirements.

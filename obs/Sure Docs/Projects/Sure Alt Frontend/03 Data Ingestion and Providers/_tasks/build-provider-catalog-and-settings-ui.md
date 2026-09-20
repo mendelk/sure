@@ -20,9 +20,9 @@ dependencies:
   - "[[add-provider-management-api|Add provider management API]]"
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:29.238Z
+timeEstimate: 36
 ---
 
 Build the shared provider catalog and connection-management surface used by every provider flow.

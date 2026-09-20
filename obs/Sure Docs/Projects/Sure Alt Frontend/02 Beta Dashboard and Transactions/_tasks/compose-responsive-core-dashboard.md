@@ -21,9 +21,9 @@ dependencies:
   - "[[build-net-worth-and-balance-trends|Build net worth and balance trends]]"
   - "[[build-transaction-browsing-route|Build transaction browsing route]]"
   - "[[implement-sync-trigger-and-progress-ui|Implement sync trigger and progress UI]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:39.310Z
+timeEstimate: 36
 ---
 
 Compose the first Sure-inspired dashboard from the account summary, trends, recent transactions, and sync status.

@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[compare-inline-and-focused-report-editing|Compare inline and focused report editing]]"
-timeEstimate: 4
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:31.689Z
+timeEstimate: 4
 ---
 
 Choose the report editing and presentation behaviors worth productizing.

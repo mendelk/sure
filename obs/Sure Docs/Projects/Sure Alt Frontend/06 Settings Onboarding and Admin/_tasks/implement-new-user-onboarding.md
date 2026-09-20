@@ -22,9 +22,9 @@ dependencies:
   - "[[implement-family-membership-invitations-and-sharing|Implement family membership invitations and sharing]]"
   - "[[build-manual-account-forms-for-all-account-types|Build manual account forms for all account types]]"
   - "[[build-provider-catalog-and-settings-ui|Build provider catalog and settings UI]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:49.180Z
+timeEstimate: 40
 ---
 
 API-enable and implement late-phase onboarding preferences, goals, account/provider choice, invitations, and completion for new users.

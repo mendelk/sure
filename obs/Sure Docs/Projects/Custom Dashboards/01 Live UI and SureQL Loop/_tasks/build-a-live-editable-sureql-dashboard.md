@@ -17,9 +17,9 @@ tags:
   - walking-slice
 subtaskIds: []
 dependencies: []
-timeEstimate: 10
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:25.790Z
+timeEstimate: 10
 ---
 
 Make the first implementation visible and useful: `/dashboards` shows a raw SureQL editor, a Run action, and real authorized query results.

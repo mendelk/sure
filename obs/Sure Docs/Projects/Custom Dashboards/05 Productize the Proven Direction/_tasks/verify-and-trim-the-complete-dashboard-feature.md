@@ -17,11 +17,11 @@ tags:
   - release
 subtaskIds: []
 dependencies:
-  - "[[complete-accessibility-theme-and-privacy-behavior|Complete accessibility, theme, and privacy behavior]]"
+  - "[[complete-accessibility,-theme,-and-privacy-behavior|Complete accessibility, theme, and privacy behavior]]"
   - "[[prepare-the-local-data-for-a-future-database|Prepare the local data for a future database]]"
-timeEstimate: 10
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:41.656Z
+timeEstimate: 10
 ---
 
 Prove the selected local-first feature end to end and remove avoidable runtime and maintenance cost.

@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[refine-the-selected-first-slice|Refine the selected first slice]]"
-timeEstimate: 8
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:25.856Z
+timeEstimate: 8
 ---
 
 Improve raw SureQL authoring from observed use without choosing a general report API.

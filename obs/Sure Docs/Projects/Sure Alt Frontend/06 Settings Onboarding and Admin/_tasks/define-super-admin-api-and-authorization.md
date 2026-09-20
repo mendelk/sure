@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[define-identity-capabilities-and-settings-contract|Define identity capabilities and settings contract]]"
   - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:50.748Z
+timeEstimate: 36
 ---
 
 Define a versioned admin API with explicit super-admin authorization for users, families, invitations, SSO providers/blocks, health, and queue tooling.

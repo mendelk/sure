@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
-timeEstimate: 20
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:45.336Z
+timeEstimate: 20
 ---
 
 Add production diagnostics that help self-hosters without logging financial data or credentials.

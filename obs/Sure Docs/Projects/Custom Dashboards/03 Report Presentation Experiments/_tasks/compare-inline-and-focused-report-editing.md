@@ -21,9 +21,9 @@ dependencies:
   - "[[improve-the-live-sureql-editing-loop|Improve the live SureQL editing loop]]"
   - "[[exercise-the-table-with-real-result-shapes|Exercise the table with real result shapes]]"
   - "[[experiment-with-a-single-value-presentation|Experiment with a single-value presentation]]"
-timeEstimate: 8
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:30.277Z
+timeEstimate: 8
 ---
 
 Compare editing directly inside report cards with a focused dialog or drawer using the proven query and presentation controls.

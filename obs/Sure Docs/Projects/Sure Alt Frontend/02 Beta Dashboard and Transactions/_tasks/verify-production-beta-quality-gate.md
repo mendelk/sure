@@ -20,9 +20,9 @@ dependencies:
   - "[[harden-beta-offline-error-and-session-behavior|Harden beta offline error and session behavior]]"
   - "[[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]"
   - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
-timeEstimate: 32
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:42.198Z
+timeEstimate: 32
 ---
 
 Prove the login, dashboard, transactions, sync, and PWA slice meets the agreed production-beta definition of done.

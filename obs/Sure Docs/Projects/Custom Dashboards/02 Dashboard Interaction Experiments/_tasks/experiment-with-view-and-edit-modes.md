@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[refine-the-selected-first-slice|Refine the selected first slice]]"
-timeEstimate: 8
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:25.953Z
+timeEstimate: 8
 ---
 
 Try an explicit layout-editing mode against the accepted live dashboard and compare it with always-draggable cards.

@@ -18,9 +18,9 @@ subtaskIds: []
 dependencies:
   - "[[build-responsive-budget-planning-ui|Build responsive budget planning UI]]"
   - "[[build-goals-planning-ui|Build goals planning UI]]"
-timeEstimate: 20
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:49.513Z
+timeEstimate: 20
 ---
 
 Compose budgets and goals into one responsive planning entry point matching the intent of the existing `/plan` hub.

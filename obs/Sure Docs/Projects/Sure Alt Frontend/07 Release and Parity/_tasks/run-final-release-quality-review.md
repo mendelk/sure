@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[close-the-route-and-workflow-parity-matrix|Close the route and workflow parity matrix]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:52.330Z
+timeEstimate: 40
 ---
 
 Run final full-product regression, threat-control verification, WCAG 2.2 AA review, browser matrix, and performance-budget audit.

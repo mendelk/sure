@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[implement-password-email-and-session-management|Implement password email and session management]]"
   - "[[implement-mfa-and-passkey-management|Implement MFA and passkey management]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:41.974Z
+timeEstimate: 40
 ---
 
 Complete signup/invite code, password reset, passwordless passkey, configured OIDC SSO, identity linking, and JIT account entry flows through the BFF.

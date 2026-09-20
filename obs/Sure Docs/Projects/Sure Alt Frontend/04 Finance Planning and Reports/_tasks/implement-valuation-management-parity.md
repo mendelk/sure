@@ -20,9 +20,9 @@ dependencies:
   - "[[complete-account-management-api|Complete account management API]]"
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 32
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:34.941Z
+timeEstimate: 32
 ---
 
 Complete valuation show/create/update/delete and confirmation behavior for manually valued accounts.

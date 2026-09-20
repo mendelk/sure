@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[refine-the-selected-first-slice|Refine the selected first slice]]"
-timeEstimate: 8
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:25.912Z
+timeEstimate: 8
 ---
 
 Replace the prototype's loose JSON handling with validation for only the fields used by the accepted first slice.

@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[build-a-live-editable-sureql-dashboard|Build a live editable SureQL dashboard]]"
-timeEstimate: 8
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:27.629Z
+timeEstimate: 8
 ---
 
 Put the working SureQL report inside React Grid Layout so dashboard composition can be felt before its model is designed.

@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[implement-holdings-management-parity|Implement holdings management parity]]"
   - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:36.200Z
+timeEstimate: 36
 ---
 
 Build securities discovery/detail and price-history views from securities and security-prices APIs.

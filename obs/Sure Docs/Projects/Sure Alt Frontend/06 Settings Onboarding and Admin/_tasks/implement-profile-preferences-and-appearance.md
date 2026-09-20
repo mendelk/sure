@@ -21,9 +21,9 @@ dependencies:
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[add-localization-theme-and-privacy-foundations|Add localization theme and privacy foundations]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:36.294Z
+timeEstimate: 40
 ---
 
 API-enable and implement profile, family preferences, budget sharing, and appearance settings.

@@ -21,9 +21,9 @@ dependencies:
   - "[[compose-responsive-core-dashboard|Compose responsive core dashboard]]"
   - "[[add-installable-resilient-pwa-foundation|Add installable resilient PWA foundation]]"
   - "[[add-structured-logging-health-and-error-handling|Add structured logging health and error handling]]"
-timeEstimate: 28
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:40.624Z
+timeEstimate: 28
 ---
 
 Make the complete beta slice behave coherently through connectivity changes, expired sessions, API failures, and updates.

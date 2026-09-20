@@ -20,9 +20,9 @@ dependencies:
   - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:39.538Z
+timeEstimate: 36
 ---
 
 API-enable and implement AI availability/enablement, user rule-prompt settings, prompt inspection, usage, and safe self-hosted guidance.

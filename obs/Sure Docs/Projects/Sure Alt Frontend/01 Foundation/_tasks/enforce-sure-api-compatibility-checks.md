@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
   - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
-timeEstimate: 20
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:47.094Z
+timeEstimate: 20
 ---
 
 Give the BFF a reliable way to reject an incompatible Sure API before users encounter arbitrary request failures.

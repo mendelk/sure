@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
   - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:33.505Z
+timeEstimate: 40
 ---
 
 Complete the import API state machine needed for parity with upload, configuration, cleaning, mapping, review, publish, cancel, revert, and templates.

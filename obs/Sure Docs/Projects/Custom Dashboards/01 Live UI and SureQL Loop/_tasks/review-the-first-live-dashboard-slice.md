@@ -17,9 +17,9 @@ tags:
   - checkpoint
 subtaskIds: []
 dependencies:
-  - "[[Projects/Custom Dashboards/01 Live UI and SureQL Loop/_tasks/create-and-switch-between-dashboards|Create and switch between dashboards]]"
+  - "[[create-and-switch-between-dashboards|Create and switch between dashboards]]"
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T16:04:49.871Z
+updatedAt: 2026-09-20T17:55:49.454Z
 timeEstimate: 4
 ---
 

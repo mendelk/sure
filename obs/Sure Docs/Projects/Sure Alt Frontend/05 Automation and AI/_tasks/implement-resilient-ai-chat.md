@@ -21,9 +21,9 @@ dependencies:
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
   - "[[add-structured-logging-health-and-error-handling|Add structured logging health and error handling]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:37.980Z
+timeEstimate: 40
 ---
 
 Implement chat list/detail/create/rename/delete, message submission, retry, tool-call presentation, timeout recovery, and responsive conversation UI.

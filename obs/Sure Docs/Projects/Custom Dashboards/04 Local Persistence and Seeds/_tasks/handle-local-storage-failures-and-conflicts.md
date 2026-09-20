@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[isolate-local-dashboards-by-user|Isolate local dashboards by user]]"
   - "[[add-versioned-non-destructive-seeds|Add versioned non-destructive seeds]]"
-timeEstimate: 10
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:32.270Z
+timeEstimate: 10
 ---
 
 Keep the accepted dashboard usable when browser storage is blocked, malformed, full, or changed in another tab.

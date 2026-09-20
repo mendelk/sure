@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[build-transaction-browsing-route|Build transaction browsing route]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:33.198Z
+timeEstimate: 40
 ---
 
 Implement accessible transaction create, update, and delete workflows using TanStack Form and the generated contract.
