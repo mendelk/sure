@@ -1,24 +1,18 @@
 ---
 pm-project: true
-id: p_cd_interactions
-title: 02 Dashboard Interaction Experiments
-description: Explore dashboard switching, layout editing, placement controls, and responsive behavior after the first live slice establishes actual UI. Own dashboard and grid interaction files only; consume report cards and persistence callbacks as they exist rather than redesigning them. Keep only the interaction patterns accepted at the review checkpoint.
+id: "p_cd_interactions"
+title: "02 Dashboard Interaction Experiments"
 color: "#0f766e"
-icon: lucide-mouse-pointer-2
-taskIds:
-  - "[[experiment-with-view-and-edit-modes|Experiment with view and edit modes]]"
-  - "[[improve-dashboard-switching-and-management|Improve dashboard switching and management]]"
-  - "[[experiment-with-widget-placement-controls|Experiment with widget placement controls]]"
-  - "[[test-responsive-dashboard-layouts|Test responsive dashboard layouts]]"
-  - "[[review-and-select-dashboard-interactions|Review and select dashboard interactions]]"
-parent: "[[Custom Dashboards]]"
+icon: "lucide-mouse-pointer-2"
+taskIds: ["[[experiment-with-view-and-edit-modes|Experiment with view and edit modes]]", "[[improve-dashboard-switching-and-management|Improve dashboard switching and management]]", "[[experiment-with-widget-placement-controls|Experiment with widget placement controls]]", "[[test-responsive-dashboard-layouts|Test responsive dashboard layouts]]", "[[review-and-select-dashboard-interactions|Review and select dashboard interactions]]"]
+parent: "[[Projects/Custom Dashboards/Custom Dashboards]]"
 customFields: []
 teamMembers: []
 savedViews: []
-createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+createdAt: "2026-09-20T00:00:00.000Z"
+updatedAt: "2026-09-20T17:56:32.267Z"
 config:
-  defaultView: table
+  defaultView: "table"
   autoSchedule: false
 ---
 

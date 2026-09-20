@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[remember-one-dashboard-in-local-storage|Remember one dashboard in local storage]]"
-timeEstimate: 6
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:30.655Z
+timeEstimate: 6
 ---
 
 Make first use and repeated design review deterministic with one source-controlled starter dashboard.

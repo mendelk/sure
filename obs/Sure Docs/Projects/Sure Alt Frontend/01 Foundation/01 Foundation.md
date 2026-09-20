@@ -1,36 +1,18 @@
 ---
 pm-project: true
-id: p_alt_foundation
-title: 01 Foundation
-description: Establish the architecture, security, generated API client, design system, application shell, PWA baseline, test harness, observability, and CI required by every feature workstream.
+id: "p_alt_foundation"
+title: "01 Foundation"
 color: "#6b8afd"
-icon: lucide-blocks
-taskIds:
-  - "[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]"
-  - "[[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]"
-  - "[[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript lint formatting and workspace scripts]]"
-  - "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]"
-  - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
-  - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
-  - "[[implement-secure-login-refresh-and-logout-sessions|Implement secure login refresh and logout sessions]]"
-  - "[[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]"
-  - "[[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]"
-  - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
-  - "[[add-localization-theme-and-privacy-foundations|Add localization theme and privacy foundations]]"
-  - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-  - "[[add-installable-resilient-pwa-foundation|Add installable resilient PWA foundation]]"
-  - "[[add-structured-logging-health-and-error-handling|Add structured logging health and error handling]]"
-  - "[[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]"
-  - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
-  - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
-parent: "[[Sure Alt Frontend]]"
+icon: "lucide-blocks"
+taskIds: ["[[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]", "[[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]", "[[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript lint formatting and workspace scripts]]", "[[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]", "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]", "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]", "[[implement-secure-login-refresh-and-logout-sessions|Implement secure login refresh and logout sessions]]", "[[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]", "[[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]", "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]", "[[add-localization-theme-and-privacy-foundations|Add localization theme and privacy foundations]]", "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]", "[[add-installable-resilient-pwa-foundation|Add installable resilient PWA foundation]]", "[[add-structured-logging-health-and-error-handling|Add structured logging health and error handling]]", "[[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]", "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]", "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"]
+parent: "[[Projects/Sure Alt Frontend/Sure Alt Frontend]]"
 customFields: []
 teamMembers: []
 savedViews: []
-createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+createdAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-20T17:56:50.460Z"
 config:
-  defaultView: table
+  defaultView: "table"
   autoSchedule: false
 ---
 
@@ -41,18 +23,18 @@ Establish the architecture, security, generated API client, design system, appli
 ## Tasks
 - [ ] [[audit-web-parity-surface-and-api-gap-matrix|Audit web parity surface and API gap matrix]]
 - [ ] [[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]
-- [ ] [[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript, lint, formatting, and workspace scripts]]
+- [ ] [[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript lint formatting and workspace scripts]]
 - [ ] [[generate-openapi-types-and-typed-fetch-client|Generate OpenAPI types and typed fetch client]]
 - [ ] [[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]
 - [ ] [[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]
-- [ ] [[implement-secure-login-refresh-and-logout-sessions|Implement secure login, refresh, and logout sessions]]
+- [ ] [[implement-secure-login-refresh-and-logout-sessions|Implement secure login refresh and logout sessions]]
 - [ ] [[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]
 - [ ] [[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]
 - [ ] [[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]
-- [ ] [[add-localization-theme-and-privacy-foundations|Add localization, theme, and privacy foundations]]
+- [ ] [[add-localization-theme-and-privacy-foundations|Add localization theme and privacy foundations]]
 - [ ] [[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]
 - [ ] [[add-installable-resilient-pwa-foundation|Add installable resilient PWA foundation]]
-- [ ] [[add-structured-logging-health-and-error-handling|Add structured logging, health, and error handling]]
+- [ ] [[add-structured-logging-health-and-error-handling|Add structured logging health and error handling]]
 - [ ] [[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]
 - [ ] [[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]
 - [ ] [[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]

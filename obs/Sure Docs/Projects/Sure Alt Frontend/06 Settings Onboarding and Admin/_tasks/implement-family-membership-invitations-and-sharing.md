@@ -20,9 +20,9 @@ dependencies:
   - "[[define-identity-capabilities-and-settings-contract|Define identity capabilities and settings contract]]"
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:45.327Z
+timeEstimate: 40
 ---
 
 API-enable and implement family member/role management, invitations, invitation acceptance, default sharing, per-account sharing, and revocation.

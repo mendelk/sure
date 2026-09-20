@@ -1,31 +1,18 @@
 ---
 pm-project: true
-id: p_alt_beta
-title: 02 Beta Dashboard and Transactions
-description: "Deliver the first production-quality staged release for existing users: login, responsive core dashboard, full transaction editing, sync visibility, and resilient PWA behavior."
+id: "p_alt_beta"
+title: "02 Beta Dashboard and Transactions"
 color: "#4d9d8d"
-icon: lucide-layout-dashboard
-taskIds:
-  - "[[define-core-dashboard-api-contract|Define core dashboard API contract]]"
-  - "[[implement-account-summary-navigation|Implement account summary navigation]]"
-  - "[[build-net-worth-and-balance-trends|Build net worth and balance trends]]"
-  - "[[complete-transaction-list-contract|Complete transaction list contract]]"
-  - "[[build-transaction-browsing-route|Build transaction browsing route]]"
-  - "[[implement-transaction-create-edit-and-delete|Implement transaction create edit and delete]]"
-  - "[[implement-transaction-category-tag-and-merchant-editing|Implement transaction category tag and merchant editing]]"
-  - "[[implement-transaction-split-workflow|Implement transaction split workflow]]"
-  - "[[implement-sync-trigger-and-progress-ui|Implement sync trigger and progress UI]]"
-  - "[[compose-responsive-core-dashboard|Compose responsive core dashboard]]"
-  - "[[harden-beta-offline-error-and-session-behavior|Harden beta offline error and session behavior]]"
-  - "[[verify-production-beta-quality-gate|Verify production beta quality gate]]"
-parent: "[[Sure Alt Frontend]]"
+icon: "lucide-layout-dashboard"
+taskIds: ["[[define-core-dashboard-api-contract|Define core dashboard API contract]]", "[[implement-account-summary-navigation|Implement account summary navigation]]", "[[build-net-worth-and-balance-trends|Build net worth and balance trends]]", "[[complete-transaction-list-contract|Complete transaction list contract]]", "[[build-transaction-browsing-route|Build transaction browsing route]]", "[[implement-transaction-create-edit-and-delete|Implement transaction create edit and delete]]", "[[implement-transaction-category-tag-and-merchant-editing|Implement transaction category tag and merchant editing]]", "[[implement-transaction-split-workflow|Implement transaction split workflow]]", "[[implement-sync-trigger-and-progress-ui|Implement sync trigger and progress UI]]", "[[compose-responsive-core-dashboard|Compose responsive core dashboard]]", "[[harden-beta-offline-error-and-session-behavior|Harden beta offline error and session behavior]]", "[[verify-production-beta-quality-gate|Verify production beta quality gate]]"]
+parent: "[[Projects/Sure Alt Frontend/Sure Alt Frontend]]"
 customFields: []
 teamMembers: []
 savedViews: []
-createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+createdAt: "2026-09-07T01:09:35.000Z"
+updatedAt: "2026-09-20T17:56:42.198Z"
 config:
-  defaultView: table
+  defaultView: "table"
   autoSchedule: false
 ---
 
@@ -39,10 +26,10 @@ Deliver the first production-quality staged release for existing users: login, r
 - [ ] [[build-net-worth-and-balance-trends|Build net worth and balance trends]]
 - [ ] [[complete-transaction-list-contract|Complete transaction list contract]]
 - [ ] [[build-transaction-browsing-route|Build transaction browsing route]]
-- [ ] [[implement-transaction-create-edit-and-delete|Implement transaction create, edit, and delete]]
-- [ ] [[implement-transaction-category-tag-and-merchant-editing|Implement transaction category, tag, and merchant editing]]
+- [ ] [[implement-transaction-create-edit-and-delete|Implement transaction create edit and delete]]
+- [ ] [[implement-transaction-category-tag-and-merchant-editing|Implement transaction category tag and merchant editing]]
 - [ ] [[implement-transaction-split-workflow|Implement transaction split workflow]]
 - [ ] [[implement-sync-trigger-and-progress-ui|Implement sync trigger and progress UI]]
 - [ ] [[compose-responsive-core-dashboard|Compose responsive core dashboard]]
-- [ ] [[harden-beta-offline-error-and-session-behavior|Harden beta offline, error, and session behavior]]
+- [ ] [[harden-beta-offline-error-and-session-behavior|Harden beta offline error and session behavior]]
 - [ ] [[verify-production-beta-quality-gate|Verify production beta quality gate]]

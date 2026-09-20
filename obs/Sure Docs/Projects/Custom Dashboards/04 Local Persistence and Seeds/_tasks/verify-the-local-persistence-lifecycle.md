@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[add-explicit-seed-reset-controls|Add explicit seed reset controls]]"
   - "[[handle-local-storage-failures-and-conflicts|Handle local storage failures and conflicts]]"
-timeEstimate: 6
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:33.500Z
+timeEstimate: 6
 ---
 
 Prove the local-first lifecycle protects real dashboard customizations before final integration.

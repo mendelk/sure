@@ -20,9 +20,9 @@ dependencies:
   - "[[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]"
   - "[[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript lint formatting and workspace scripts]]"
   - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:42.033Z
+timeEstimate: 36
 ---
 
 Provide Vitest, React Testing Library, and Playwright infrastructure, including critical tests against a real Rails test API and database.

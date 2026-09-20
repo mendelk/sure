@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
   - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
-timeEstimate: 36
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:34.699Z
+timeEstimate: 36
 ---
 
 Allow existing non-MFA users to log in and maintain a secure BFF session for the first release.

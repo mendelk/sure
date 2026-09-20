@@ -19,7 +19,7 @@ subtaskIds: []
 dependencies:
   - "[[review-the-first-live-dashboard-slice|Review the first live dashboard slice]]"
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T16:05:08.995Z
+updatedAt: 2026-09-20T17:56:35.168Z
 timeEstimate: 10
 ---
 

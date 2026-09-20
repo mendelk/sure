@@ -20,9 +20,9 @@ dependencies:
   - "[[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]"
   - "[[add-structured-logging-health-and-error-handling|Add structured logging health and error handling]]"
   - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
-timeEstimate: 28
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:36.713Z
+timeEstimate: 28
 ---
 
 Build a production container for the TanStack Start server as a separate self-hosted service.

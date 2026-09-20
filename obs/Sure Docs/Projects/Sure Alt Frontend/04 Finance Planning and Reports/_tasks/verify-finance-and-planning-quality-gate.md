@@ -29,9 +29,9 @@ dependencies:
   - "[[complete-category-tag-and-merchant-management|Complete category tag and merchant management]]"
   - "[[compose-plan-hub|Compose plan hub]]"
   - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:51.027Z
+timeEstimate: 40
 ---
 
 Verify accounts, investments, transfers, reports, classification, budgets, goals, and planning satisfy their parity rows and release gates.

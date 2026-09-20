@@ -21,9 +21,9 @@ dependencies:
   - "[[build-resumable-import-wizard|Build resumable import wizard]]"
   - "[[build-family-export-ui|Build family export UI]]"
   - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:40.072Z
+timeEstimate: 40
 ---
 
 Verify SimpleFIN plus import/export meets API-only parity, security, accessibility, and release-quality requirements.

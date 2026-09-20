@@ -31,9 +31,9 @@ dependencies:
   - "[[implement-guarded-reset-and-account-deletion|Implement guarded reset and account deletion]]"
   - "[[implement-admin-impersonation-sessions|Implement admin impersonation sessions]]"
   - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:58.893Z
+timeEstimate: 40
 ---
 
 Verify user, family, auth/security, onboarding, hosting, and super-admin workflows meet parity and release gates.

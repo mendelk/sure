@@ -21,9 +21,9 @@ dependencies:
   - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
   - "[[implement-secure-login-refresh-and-logout-sessions|Implement secure login refresh and logout sessions]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:38.384Z
+timeEstimate: 40
 ---
 
 API-enable and implement password change, email-confirmation status/resend, active session listing, session revocation, and current-session updates.

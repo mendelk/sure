@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[complete-budget-write-api|Complete budget write API]]"
   - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:44.605Z
+timeEstimate: 40
 ---
 
 Build month navigation, budget summaries, allocation editing, category grouping/movement, owner switching, sharing, and copy-previous UI.

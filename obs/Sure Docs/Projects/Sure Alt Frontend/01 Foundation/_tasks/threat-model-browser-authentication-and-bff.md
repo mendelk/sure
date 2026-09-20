@@ -17,9 +17,9 @@ tags:
   - auth
 subtaskIds: []
 dependencies: []
-timeEstimate: 16
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:33.099Z
+timeEstimate: 16
 ---
 
 Document the security architecture for browser sessions backed by Sure OAuth access and refresh tokens.

@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[ship-a-resettable-starter-dashboard|Ship a resettable starter dashboard]]"
-timeEstimate: 10
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T15:24:15.000Z
+updatedAt: 2026-09-20T17:56:32.080Z
+timeEstimate: 10
 ---
 
 Learn how multiple reports should feel by duplicating the proven live card before designing report entities.

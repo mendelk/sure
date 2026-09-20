@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[configure-typescript-lint-formatting-and-workspace-scripts|Configure TypeScript lint formatting and workspace scripts]]"
   - "[[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:37.613Z
+timeEstimate: 40
 ---
 
 Create the first reusable React Aria and StyleX primitives needed by authentication, navigation, forms, tables, overlays, and feedback.

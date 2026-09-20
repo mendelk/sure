@@ -21,9 +21,9 @@ dependencies:
   - "[[implement-admin-user-family-and-invitation-management|Implement admin user family and invitation management]]"
   - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:57.933Z
+timeEstimate: 40
 ---
 
 API-enable and implement impersonation request, approval, rejection, join, leave, and completion with unmistakable session state.

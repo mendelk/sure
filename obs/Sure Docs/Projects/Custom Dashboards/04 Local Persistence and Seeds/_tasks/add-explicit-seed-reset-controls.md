@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[add-versioned-non-destructive-seeds|Add versioned non-destructive seeds]]"
-timeEstimate: 8
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:30.788Z
+timeEstimate: 8
 ---
 
 Turn the prototype reset into deliberate current-seed and full-feature reset behavior.

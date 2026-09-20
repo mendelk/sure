@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[place-the-live-report-on-a-draggable-grid|Place the live report on a draggable grid]]"
-timeEstimate: 6
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:29.308Z
+timeEstimate: 6
 ---
 
 Persist the exact working screen so iteration survives refresh, without predicting the final storage model.

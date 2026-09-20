@@ -20,9 +20,9 @@ dependencies:
   - "[[inventory-provider-connection-state-machines|Inventory provider connection state machines]]"
   - "[[implement-hardened-sure-api-bff-transport|Implement hardened Sure API BFF transport]]"
   - "[[threat-model-browser-authentication-and-bff|Threat-model browser authentication and BFF]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:30.677Z
+timeEstimate: 40
 ---
 
 Define provider connection resources and transition responses that support diverse workflows without exposing Rails HTML or arbitrary dispatch.

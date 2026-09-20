@@ -20,9 +20,9 @@ dependencies:
   - "[[define-identity-capabilities-and-settings-contract|Define identity capabilities and settings contract]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
   - "[[add-structured-logging-health-and-error-handling|Add structured logging health and error handling]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:47.573Z
+timeEstimate: 40
 ---
 
 API-enable and implement self-hosted configuration status, safe debug logs, background jobs, cache clearing, external-assistant disconnect, guides, and changelog/feedback/legal links.

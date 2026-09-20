@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[containerize-the-tanstack-start-frontend|Containerize the TanStack Start frontend]]"
   - "[[enforce-sure-api-compatibility-checks|Enforce Sure API compatibility checks]]"
-timeEstimate: 28
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:38.142Z
+timeEstimate: 28
 ---
 
 Add the separate frontend service to example self-hosted Compose topology with an internal/configurable Rails API origin.

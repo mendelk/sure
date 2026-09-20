@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[scaffold-pnpm-and-tanstack-start-web-app|Scaffold pnpm and TanStack Start web app]]"
-timeEstimate: 24
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:36.095Z
+timeEstimate: 24
 ---
 
 Make `design/tokens/sure.tokens.json` the canonical source for typed StyleX variables and light/dark themes.

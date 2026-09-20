@@ -20,9 +20,9 @@ dependencies:
   - "[[complete-account-management-api|Complete account management API]]"
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:28.921Z
+timeEstimate: 40
 ---
 
 Turn the beta account placeholder into complete account overview, balance history, and activity routes.

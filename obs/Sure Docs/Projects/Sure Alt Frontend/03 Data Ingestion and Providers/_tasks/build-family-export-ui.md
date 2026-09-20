@@ -20,9 +20,9 @@ dependencies:
   - "[[complete-family-export-lifecycle-api|Complete family export lifecycle API]]"
   - "[[build-responsive-app-shell-and-route-guards|Build responsive app shell and route guards]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 24
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:38.304Z
+timeEstimate: 24
 ---
 
 Build family export history and lifecycle controls with secure download behavior.

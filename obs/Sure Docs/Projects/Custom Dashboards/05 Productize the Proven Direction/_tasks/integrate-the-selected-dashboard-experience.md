@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[remove-discarded-dashboard-experiments|Remove discarded dashboard experiments]]"
-timeEstimate: 10
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:35.252Z
+timeEstimate: 10
 ---
 
 Compose the selected dashboard navigation, grid interactions, report editing, presentations, and local persistence into one coherent product flow.

@@ -20,9 +20,9 @@ dependencies:
   - "[[generate-stylex-themes-from-sure-design-tokens|Generate StyleX themes from Sure design tokens]]"
   - "[[build-accessible-ui-primitives-and-storybook|Build accessible UI primitives and Storybook]]"
   - "[[build-frontend-and-rails-integration-test-harness|Build frontend and Rails integration test harness]]"
-timeEstimate: 20
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:48.834Z
+timeEstimate: 20
 ---
 
 Time-box a decision on the Alpha TanStack Charts library using representative Sure financial charts, with Recharts as the fallback.

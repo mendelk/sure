@@ -24,9 +24,9 @@ dependencies:
   - "[[implement-ai-settings-prompts-and-usage|Implement AI settings prompts and usage]]"
   - "[[add-web-push-notifications|Add web push notifications]]"
   - "[[add-frontend-ci-and-performance-budgets|Add frontend CI and performance budgets]]"
-timeEstimate: 32
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:42.777Z
+timeEstimate: 32
 ---
 
 Verify recurring, rules, insights, chat, AI settings, and push workflows meet parity and safety gates.

@@ -18,9 +18,9 @@ tags:
 subtaskIds: []
 dependencies:
   - "[[test-responsive-dashboard-layouts|Test responsive dashboard layouts]]"
-timeEstimate: 4
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T17:56:32.267Z
+timeEstimate: 4
 ---
 
 Select the dashboard and grid interactions to keep before shared code is extracted.

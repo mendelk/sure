@@ -19,9 +19,9 @@ subtaskIds: []
 dependencies:
   - "[[add-goals-and-pledges-api|Add goals and pledges API]]"
   - "[[evaluate-tanstack-charts-for-sure-visualizations|Evaluate TanStack Charts for Sure visualizations]]"
-timeEstimate: 40
 createdAt: 2026-09-07T01:09:35.000Z
-updatedAt: 2026-09-07T01:09:35.000Z
+updatedAt: 2026-09-20T17:56:47.972Z
+timeEstimate: 40
 ---
 
 Build goal list/detail/forms, funding breakdown, projection, consumption, lifecycle, and pledge workflows.
