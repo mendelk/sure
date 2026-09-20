@@ -49,6 +49,22 @@ class TransactionsTest < ApplicationSystemTestCase
     end
   end
 
+  test "opens transactions menu with options matching main" do
+    visit transactions_url
+
+    find("[data-testid='transactions-menu-button']").click
+
+    assert_selector "[data-testid='transactions-menu-content']"
+    assert_link "New rule"
+    assert_link "Edit rules"
+    assert_link "Edit categories"
+    assert_link "Edit tags"
+    assert_link "Edit merchants"
+    assert_link "Edit imports"
+    assert_link "Import"
+    assert_link "Categorize (2)"
+  end
+
   test "opens transaction details without moving the ledger" do
     40.times do |index|
       create_transaction(

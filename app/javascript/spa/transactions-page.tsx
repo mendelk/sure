@@ -1,4 +1,13 @@
-import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/react";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxOption,
+  ComboboxOptions,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuItems,
+} from "@headlessui/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
@@ -13,7 +22,8 @@ import {
   type TransactionQuery,
   type UpcomingRecurringTransaction,
 } from "./api/transactions";
-import { Icon } from "./icon";
+import type { SpaBootstrap } from "./bootstrap";
+import { Icon, type IconName } from "./icon";
 import { useDismiss } from "./use-dismiss";
 
 type TransactionType = "income" | "expense" | "transfer";
@@ -180,12 +190,36 @@ export function TransactionsPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <TransactionsMenu
+            bootstrap={bootstrap}
+            uncategorizedCount={bootstrap.uncategorizedCount ?? 0}
+          />
+
+          <a
+            className="focus-ring hidden md:inline-flex items-center gap-1.5 rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
+            data-turbo-frame="modal"
+            href={bootstrap.railsPaths.newImport}
+          >
+            <Icon name="download" size="sm" />
+            Import
+          </a>
+
           <Link
-            className="inline-flex min-h-10 items-center justify-center rounded-lg button-bg-primary px-4 text-sm font-medium text-inverse transition-colors hover:button-bg-primary-hover"
+            className="focus-ring hidden md:inline-flex items-center gap-1.5 rounded-lg button-bg-primary px-4 py-2 text-sm font-medium text-inverse transition-colors hover:button-bg-primary-hover"
             search={{ account_id: undefined, nature: undefined }}
             to="/transactions/new"
           >
+            <Icon className="text-inverse" name="plus" size="sm" />
             New transaction
+          </Link>
+
+          <Link
+            aria-label="New transaction"
+            className="focus-ring inline-flex md:hidden h-9 w-9 items-center justify-center rounded-full button-bg-primary text-inverse transition-colors hover:button-bg-primary-hover"
+            search={{ account_id: undefined, nature: undefined }}
+            to="/transactions/new"
+          >
+            <Icon className="text-inverse" name="plus" size="sm" />
           </Link>
         </div>
       </header>
@@ -893,6 +927,115 @@ function MerchantMenu({
         •
       </span>
     </span>
+  );
+}
+
+function TransactionsMenu({
+  bootstrap,
+  uncategorizedCount,
+}: {
+  bootstrap: SpaBootstrap;
+  uncategorizedCount: number;
+}) {
+  const newRuleHref = `${bootstrap.railsPaths.newRule}?resource_type=transaction`;
+  const rulesHref = bootstrap.railsPaths.rules ?? "/rules";
+  const categoriesHref = bootstrap.railsPaths.categories ?? "/categories";
+  const tagsHref = bootstrap.railsPaths.tags ?? "/tags";
+  const merchantsHref = bootstrap.railsPaths.familyMerchants;
+  const importsHref = bootstrap.railsPaths.imports;
+  const newImportHref = bootstrap.railsPaths.newImport;
+  const categorizeHref = bootstrap.railsPaths.transactionsCategorize ?? "/transactions/categorize";
+
+  const menuItems: {
+    icon: IconName;
+    label: string;
+    href: string;
+    frame?: string;
+  }[] = [
+    {
+      icon: "plus",
+      label: "New rule",
+      href: newRuleHref,
+      frame: "modal",
+    },
+    {
+      icon: "git-branch",
+      label: "Edit rules",
+      href: rulesHref,
+      frame: "_top",
+    },
+    {
+      icon: "shapes",
+      label: "Edit categories",
+      href: categoriesHref,
+      frame: "_top",
+    },
+    {
+      icon: "tags",
+      label: "Edit tags",
+      href: tagsHref,
+      frame: "_top",
+    },
+    {
+      icon: "store",
+      label: "Edit merchants",
+      href: merchantsHref,
+      frame: "_top",
+    },
+    {
+      icon: "hard-drive-upload",
+      label: "Edit imports",
+      href: importsHref,
+      frame: "_top",
+    },
+    {
+      icon: "download",
+      label: "Import",
+      href: newImportHref,
+      frame: "modal",
+    },
+  ];
+
+  if (uncategorizedCount > 0) {
+    menuItems.push({
+      icon: "tag",
+      label: `Categorize (${uncategorizedCount})`,
+      href: categorizeHref,
+      frame: "_top",
+    });
+  }
+
+  return (
+    <Menu as="div" className="relative shrink-0">
+      <MenuButton
+        aria-label="Transactions menu"
+        className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-container-inset-hover"
+        data-testid="transactions-menu-button"
+      >
+        <Icon name="more-horizontal" size="md" />
+      </MenuButton>
+
+      <MenuItems
+        className="shadow-border-lg absolute right-0 top-full z-50 mt-1.5 min-w-[200px] w-max max-w-xs whitespace-normal rounded-lg bg-container py-1 focus:outline-none transition duration-100 ease-out data-closed:scale-95 data-closed:opacity-0"
+        data-testid="transactions-menu-content"
+        transition
+      >
+        {menuItems.map((item) => (
+          <div className="px-1" key={item.label} role="none">
+            <MenuItem>
+              <a
+                className="focus-ring flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-primary transition-colors hover:bg-container-hover data-focus:bg-container-hover"
+                data-turbo-frame={item.frame}
+                href={item.href}
+              >
+                <Icon name={item.icon} size="md" />
+                <span className="min-w-0 wrap-break-word text-sm text-primary">{item.label}</span>
+              </a>
+            </MenuItem>
+          </div>
+        ))}
+      </MenuItems>
+    </Menu>
   );
 }
 
