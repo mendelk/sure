@@ -107,6 +107,27 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), "from transactions"
   end
 
+  test "installs the starter on first use and restores it after confirmed reset" do
+    visit dashboards_url
+
+    assert_selector "table td", text: "Dashboard Groceries Test"
+
+    set_query("from accounts\ntake 5")
+    click_button "Run"
+    assert_selector "table th", text: /classification/i
+
+    visit dashboards_url
+    assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), "from accounts"
+
+    click_button "Reset starter dashboard"
+    within "#reset-starter-dialog" do
+      click_button "Reset dashboard"
+    end
+
+    assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), "from transactions"
+    assert_selector "table td", text: "Dashboard Groceries Test"
+  end
+
   test "displays truncation warning when query results are truncated" do
     51.times do |i|
       create_transaction("Truncated Tx #{i}", Date.current, 10 + i)
