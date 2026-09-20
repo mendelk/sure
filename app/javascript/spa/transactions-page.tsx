@@ -153,7 +153,7 @@ export function TransactionsPage() {
   return (
     <section
       aria-labelledby="transactions-title"
-      className="flex min-h-0 h-full flex-1 flex-col gap-4 overflow-hidden pb-6 lg:pb-12"
+      className="flex flex-1 flex-col gap-4 pb-6 lg:pb-12"
     >
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -183,7 +183,7 @@ export function TransactionsPage() {
       <TransactionSummary data={data} />
 
       <div
-        className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-container shadow-border-xs"
+        className="relative flex flex-col rounded-xl bg-container shadow-border-xs"
         data-controller="drag-and-drop-import"
         id="transactions"
       >
@@ -248,7 +248,7 @@ export function TransactionsPage() {
           ) : null}
         </div>
 
-        <div className="h-0 min-h-0 flex-1 overflow-y-auto" id="transactions-scroll">
+        <div id="transactions-scroll">
           {error !== undefined ? (
             <div className="m-4 rounded-xl border border-destructive bg-container p-5" role="alert">
               <p className="font-medium text-primary">Transactions unavailable</p>
