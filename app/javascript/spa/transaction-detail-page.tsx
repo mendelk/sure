@@ -1,3 +1,4 @@
+import { useEventListener } from "usehooks-ts";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
@@ -17,8 +18,8 @@ import {
   type ReferenceOption,
   type SpaTransactionDetail,
 } from "./api/transactions";
-
 import type { SpaBootstrap } from "./bootstrap";
+import { useDismiss } from "./use-dismiss";
 
 export type Bootstrap = Pick<SpaBootstrap, "apiPaths" | "railsPaths">;
 
@@ -70,14 +71,8 @@ export function TransactionDetailDrawer() {
     void navigate({ to: "/transactions" });
   }
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") close();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-    };
+  useEventListener("keydown", (event) => {
+    if (event.key === "Escape") close();
   });
 
   return (
@@ -358,37 +353,18 @@ export function CategorySelect({
   const [query, setQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-
   const containerRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      const isOutside =
-        containerRef.current !== null &&
-        event.target instanceof Node &&
-        !containerRef.current.contains(event.target);
-      if (isOutside) setIsOpen(false);
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("pointerdown", handlePointerDown);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
+  useDismiss(
+    containerRef,
+    () => {
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    },
+    isOpen,
+  );
 
   useEffect(() => {
     if (isOpen) searchInputRef.current?.focus();
@@ -611,32 +587,14 @@ export function MerchantSelect({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      const isOutside =
-        containerRef.current !== null &&
-        event.target instanceof Node &&
-        !containerRef.current.contains(event.target);
-      if (isOutside) setIsOpen(false);
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("pointerdown", handlePointerDown);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
+  useDismiss(
+    containerRef,
+    () => {
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    },
+    isOpen,
+  );
 
   useEffect(() => {
     if (isOpen) searchInputRef.current?.focus();
@@ -869,32 +827,14 @@ export function TagSelect({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      const isOutside =
-        containerRef.current !== null &&
-        event.target instanceof Node &&
-        !containerRef.current.contains(event.target);
-      if (isOutside) setIsOpen(false);
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("pointerdown", handlePointerDown);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
+  useDismiss(
+    containerRef,
+    () => {
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    },
+    isOpen,
+  );
 
   useEffect(() => {
     if (isOpen) searchInputRef.current?.focus();

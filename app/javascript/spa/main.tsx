@@ -18,7 +18,6 @@ const queryClient = new QueryClient({
 });
 
 const router = createSpaRouter(readSpaBootstrap());
-
 createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

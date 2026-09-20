@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./icon";
+import { useDismiss } from "./use-dismiss";
 import {
   TransactionApiError,
   createTransaction,
@@ -434,27 +435,13 @@ function AccountSelect({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    function onPointerDown(event: PointerEvent) {
-      if (
-        containerRef.current !== null &&
-        event.target instanceof Node &&
-        !containerRef.current.contains(event.target)
-      )
-        setIsOpen(false);
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setIsOpen(false);
-    }
-    if (isOpen) {
-      document.addEventListener("pointerdown", onPointerDown);
-      document.addEventListener("keydown", onKeyDown);
-    }
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [isOpen]);
+  useDismiss(
+    containerRef,
+    () => {
+      setIsOpen(false);
+    },
+    isOpen,
+  );
 
   useEffect(() => {
     if (isOpen) searchInputRef.current?.focus();

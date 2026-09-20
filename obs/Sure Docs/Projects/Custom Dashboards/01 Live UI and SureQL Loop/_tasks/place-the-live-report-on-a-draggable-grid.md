@@ -5,11 +5,11 @@ parentId: null
 id: "t_cd_live_002"
 title: "Place the live report on a draggable grid"
 type: "task"
-status: "todo"
+status: "done"
 priority: "critical"
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags: ["frontend", "grid", "walking-slice"]
 subtaskIds: []
