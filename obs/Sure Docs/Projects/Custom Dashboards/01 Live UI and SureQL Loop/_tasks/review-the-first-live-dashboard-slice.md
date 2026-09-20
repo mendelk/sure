@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_live"
-parentId: null
-id: "t_cd_live_007"
-title: "Review the first live dashboard slice"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Live UI and SureQL Loop|01 Live UI and SureQL Loop]]"
+parentId:
+id: t_cd_live_007
+title: Review the first live dashboard slice
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["product-review", "dashboard", "checkpoint"]
+tags:
+  - product-review
+  - dashboard
+  - checkpoint
 subtaskIds: []
-dependencies: ["t_cd_live_006"]
+dependencies:
+  - "[[Projects/Custom Dashboards/01 Live UI and SureQL Loop/_tasks/create-and-switch-between-dashboards|Create and switch between dashboards]]"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T16:04:49.871Z
 timeEstimate: 4
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
 ---
 
 Use the working browser experience to decide the next direction before hardening architecture or storage.

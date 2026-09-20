@@ -1,22 +1,26 @@
 ---
 pm-task: true
-projectId: "p_cd_live"
-parentId: null
-id: "t_cd_live_008"
-title: "Refine the selected first slice"
-type: "task"
-status: "todo"
-priority: "critical"
+projectId: "[[01 Live UI and SureQL Loop|01 Live UI and SureQL Loop]]"
+parentId:
+id: t_cd_live_008
+title: Refine the selected first slice
+type: task
+status: todo
+priority: critical
 start: ""
 due: ""
 progress: 0
 assignees: []
-tags: ["frontend", "dashboard", "checkpoint"]
+tags:
+  - frontend
+  - dashboard
+  - checkpoint
 subtaskIds: []
-dependencies: ["t_cd_live_007"]
+dependencies:
+  - "[[review-the-first-live-dashboard-slice|Review the first live dashboard slice]]"
+createdAt: 2026-09-20T00:00:00.000Z
+updatedAt: 2026-09-20T16:05:08.995Z
 timeEstimate: 10
-createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T00:00:00.000Z"
 ---
 
 Apply the first review's product decisions while the implementation is still intentionally local and inexpensive to reshape.
