@@ -1,6 +1,25 @@
 import type { Layout, LayoutItem } from "react-grid-layout";
 import * as z from "zod/mini";
 
+// One source-controlled starter screen for first use and repeated design
+// review: a useful transactions table sized for the editor plus results.
+// Independent of fixture IDs, current dates, random values, and
+// developer-local data — plain literals only. Editable after install like
+// any saved snapshot.
+export const STARTER_QUERY = "from transactions\nsort {-date}\ntake 10";
+
+export const STARTER_LAYOUT: Layout = [
+  {
+    i: "sureql-report",
+    x: 0,
+    y: 0,
+    w: 12,
+    h: 4,
+    minW: 4,
+    minH: 3,
+  },
+];
+
 // Feature-local snapshot for the first /dashboards prototype only. It stores
 // the exact working screen — the saved report source plus the report card's
 // grid position/size — so iteration survives refresh. Titles are not stored:
@@ -26,6 +45,10 @@ const DashboardSnapshotSchema = z.object({
 export interface DashboardSnapshot {
   query: string;
   layout: Layout;
+}
+
+export function starterSnapshot(): DashboardSnapshot {
+  return { query: STARTER_QUERY, layout: structuredClone(STARTER_LAYOUT) };
 }
 
 export function dashboardStorageKey(userId: string): string {
@@ -67,4 +90,15 @@ export function writeDashboardSnapshot(userId: string, snapshot: DashboardSnapsh
   } catch {
     // Storage unavailable — the session still works, persistence is skipped.
   }
+}
+
+// Install the starter only when the current user's key is absent, so first
+// use and design review are deterministic but customizations are never
+// overwritten. Returns the snapshot the page should boot with.
+export function loadOrInstallStarterSnapshot(userId: string): DashboardSnapshot {
+  const existing = readDashboardSnapshot(userId);
+  if (existing !== undefined) return existing;
+  const starter = starterSnapshot();
+  writeDashboardSnapshot(userId, starter);
+  return starter;
 }
