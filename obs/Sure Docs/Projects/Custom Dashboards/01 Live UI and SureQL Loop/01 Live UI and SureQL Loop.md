@@ -30,7 +30,7 @@ config:
 Every task changes something visible or directly usable. No general dashboard domain model, repository abstraction, renderer registry, or migration framework is created in this workstream.
 
 ## Tasks
-- [ ] [[build-a-live-editable-sureql-dashboard|Build a live editable SureQL dashboard]]
+- [x] [[build-a-live-editable-sureql-dashboard|Build a live editable SureQL dashboard]]
 - [ ] [[place-the-live-report-on-a-draggable-grid|Place the live report on a draggable grid]]
 - [ ] [[remember-one-dashboard-in-local-storage|Remember one dashboard in local storage]]
 - [ ] [[ship-a-resettable-starter-dashboard|Ship a resettable starter dashboard]]

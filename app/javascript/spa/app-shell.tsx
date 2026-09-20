@@ -10,14 +10,20 @@ type NavItem = {
   label: string;
   path: keyof SpaBootstrap["railsPaths"];
   icon: IconName;
-  spaPath?: "/transactions";
+  spaPath?: "/transactions" | "/dashboards";
 };
 
 // Matches the desktop nav of the Rails layout (layouts/application.html.erb):
-// Home, Transactions, Reports, Budgets. Plan/insights previews stay on the
+// Home, Dashboards, Transactions, Reports, Budgets. Plan/insights previews stay on the
 // Rails side until they gain SPA routes.
 const NAV_ITEMS: NavItem[] = [
   { label: "Home", path: "home", icon: "pie-chart" },
+  {
+    label: "Dashboards",
+    path: "dashboards",
+    icon: "layout-dashboard",
+    spaPath: "/dashboards",
+  },
   {
     label: "Transactions",
     path: "transactions",
@@ -694,7 +700,12 @@ function BreadcrumbBar({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const queryClient = useQueryClient();
 
-  const pageName = pathname === "/transactions" ? "Transactions" : "Home";
+  const pageName =
+    pathname === "/transactions"
+      ? "Transactions"
+      : pathname.startsWith("/dashboards")
+        ? "Dashboards"
+        : "Home";
 
   return (
     <div className="hidden lg:flex items-center justify-between gap-2 mb-6 sticky top-0 z-10 -mx-3 lg:-mx-10 px-3 lg:px-10 py-4 bg-surface border-b border-tertiary">
