@@ -48,6 +48,37 @@ class Api::V1::RecurringTransactionsControllerTest < ActionDispatch::Integration
     assert response_data.key?("pagination")
     assert_includes response_data["recurring_transactions"].map { |item| item["id"] }, @recurring_transaction.id
   end
+  test "should filter upcoming recurring transactions" do
+    upcoming_item = @family.recurring_transactions.create!(
+      account: @account,
+      merchant: @merchant,
+      amount: 49.99,
+      currency: "USD",
+      expected_day_of_month: Date.current.day,
+      last_occurrence_date: Date.current - 1.month,
+      next_expected_date: Date.current + 3.days,
+      manual: true
+    )
+    far_future_item = @family.recurring_transactions.create!(
+      account: @account,
+      merchant: @merchant,
+      amount: 99.99,
+      currency: "USD",
+      expected_day_of_month: Date.current.day,
+      last_occurrence_date: Date.current - 1.month,
+      next_expected_date: Date.current + 45.days,
+      manual: true
+    )
+
+    get api_v1_recurring_transactions_url(upcoming: true), headers: api_headers(@api_key)
+
+    assert_response :success
+    response_data = JSON.parse(response.body)
+    ids = response_data["recurring_transactions"].map { |item| item["id"] }
+    assert_includes ids, upcoming_item.id
+    refute_includes ids, far_future_item.id
+  end
+
 
   test "should require authentication when listing recurring transactions" do
     get api_v1_recurring_transactions_url

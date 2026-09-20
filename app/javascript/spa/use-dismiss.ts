@@ -12,7 +12,7 @@ export function useDismiss<T extends HTMLElement>(
   active = true,
 ): void {
   useEventListener("pointerdown", (event) => {
-    if (ref.current === null || !(event.target instanceof Node)) return;
+    if (!active || ref.current === null || !(event.target instanceof Node)) return;
     if (!ref.current.contains(event.target)) onDismiss();
   });
 

@@ -8,8 +8,10 @@ const SpaBootstrapSchema = z.object({
     email: z.string(),
   }),
   embedded: z.optional(z.nullable(z.boolean())),
+  recurringTransactionsDisabled: z.optional(z.nullable(z.boolean())),
   apiPaths: z.object({
     transactions: z.string(),
+    recurringTransactions: z.optional(z.string()),
     summary: z.string(),
     accounts: z.string(),
     categories: z.string(),
@@ -34,6 +36,7 @@ const SpaBootstrapSchema = z.object({
     transactions: z.string(),
     familyMerchants: z.string(),
     newRule: z.string(),
+    recurringTransactions: z.optional(z.string()),
   }),
 });
 
