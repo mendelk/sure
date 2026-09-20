@@ -170,13 +170,13 @@ export function TransactionsPage() {
           >
             Import
           </a>
-          <a
+          <Link
             className="inline-flex min-h-10 items-center justify-center rounded-lg button-bg-primary px-4 text-sm font-medium text-inverse transition-colors hover:button-bg-primary-hover"
-            data-turbo-frame="modal"
-            href={bootstrap.railsPaths.newTransaction}
+            search={{ account_id: undefined, nature: undefined }}
+            to="/transactions/new"
           >
             New transaction
-          </a>
+          </Link>
         </div>
       </header>
 

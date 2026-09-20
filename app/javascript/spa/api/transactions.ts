@@ -7,6 +7,8 @@ import {
   GetApiV1TransactionsQueryParams,
   PatchApiV1TransactionsIdBody,
   PatchApiV1TransactionsIdParams,
+  PostApiV1Transactions201Response,
+  PostApiV1TransactionsBody,
   GetApiV1TransactionsTransactionIdTransferMatchCandidates200Response,
   GetApiV1TransactionsTransactionIdTransferMatchCandidatesParams,
   PostApiV1TransactionsTransactionIdTransferMatchBody,
@@ -18,8 +20,9 @@ import {
 export type TransactionCollection = z.infer<typeof GetApiV1Transactions200Response>;
 export type TransactionQuery = z.input<typeof GetApiV1TransactionsQueryParams>;
 export type SpaTransaction = TransactionCollection["transactions"][number];
-export type SpaTransactionDetail = z.infer<typeof GetApiV1TransactionsId200Response>;
 export type TransactionUpdateInput = z.input<typeof PatchApiV1TransactionsIdBody>["transaction"];
+export type TransactionCreateInput = z.input<typeof PostApiV1TransactionsBody>["transaction"];
+export type SpaTransactionDetail = z.infer<typeof GetApiV1TransactionsId200Response>;
 export type TransferMatchCandidates = z.infer<
   typeof GetApiV1TransactionsTransactionIdTransferMatchCandidates200Response
 >;
@@ -135,6 +138,14 @@ export async function updateTransaction(
     transaction: normalizedInput,
   });
   return GetApiV1TransactionsId200Response.parse(payload);
+}
+export async function createTransaction(
+  basePath: string,
+  input: NonNullable<TransactionCreateInput>,
+): Promise<z.infer<typeof PostApiV1Transactions201Response>> {
+  PostApiV1TransactionsBody.parse({ transaction: input });
+  const payload = await requestJson(basePath, "POST", { transaction: input });
+  return PostApiV1Transactions201Response.parse(payload);
 }
 
 export async function updateTransferStatus(
