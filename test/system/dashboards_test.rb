@@ -26,6 +26,41 @@ class DashboardsTest < ApplicationSystemTestCase
     end
   end
 
+  test "suggests SureQL sources while typing" do
+    visit dashboards_url
+    click_button "Configure"
+    assert_selector ".monaco-editor", wait: 10
+
+    page.execute_script(<<~JS)
+      const editor = window.sureqlEditor;
+      editor.setValue("from tran");
+      editor.setPosition({ lineNumber: 1, column: 10 });
+      editor.focus();
+      editor.getAction("editor.action.triggerSuggest").run();
+    JS
+
+    assert_selector ".suggest-widget.visible .monaco-list-row", text: /transactions/i
+  end
+
+  test "moves the SureQL cursor by word with Option and arrow keys" do
+    visit dashboards_url
+    click_button "Configure"
+    assert_selector ".monaco-editor", wait: 10
+
+    page.execute_script(<<~JS)
+      const editor = window.sureqlEditor;
+      editor.setValue("from transactions");
+      editor.setPosition({ lineNumber: 1, column: 18 });
+      editor.focus();
+    JS
+
+    page.driver.browser.action.key_down(:alt).send_keys(:left).key_up(:alt).perform
+    assert_equal 6, page.evaluate_script("window.sureqlEditor.getPosition().column")
+
+    page.driver.browser.action.key_down(:alt).send_keys(:right).key_up(:alt).perform
+    assert_equal 18, page.evaluate_script("window.sureqlEditor.getPosition().column")
+  end
+
   test "persists dashboard and report names configured in dialogs" do
     visit dashboards_url
 
