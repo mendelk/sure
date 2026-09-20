@@ -13,6 +13,8 @@ import { Icon } from "./icon";
 import { Modal } from "./modal";
 import { executeSureqlQuery } from "./api/transactions";
 import { DashboardSwitcher } from "./dashboard-switcher";
+import { ReportChart } from "./report-chart";
+import { chartMappingForResult } from "./report-chart-mapping";
 import { SureqlEditor } from "./sureql-editor";
 import {
   STARTER_QUERY,
@@ -75,6 +77,44 @@ function ReportCardHeader({ name, onConfigure }: { name: string; onConfigure: ()
   );
 }
 
+function ReportTable({
+  columns,
+  rows,
+  visibleColumns,
+}: {
+  columns: string[];
+  rows: Record<string, unknown>[];
+  visibleColumns?: string[];
+}) {
+  const shown = visibleColumns ?? columns;
+  return (
+    <div className="overflow-x-auto rounded-xl border border-secondary bg-container shadow-border-xs">
+      <table className="w-full text-left text-sm">
+        <thead className="border-b border-secondary bg-surface-inset text-xs font-semibold uppercase tracking-wider text-secondary">
+          <tr>
+            {shown.map((column) => (
+              <th key={column} scope="col" className="px-4 py-3 whitespace-nowrap">
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-tertiary font-mono text-xs text-primary">
+          {rows.map((row, index) => (
+            <tr key={getRowKey(row, index)} className="hover:bg-surface-hover">
+              {shown.map((column) => (
+                <td key={column} className="px-4 py-2.5 whitespace-nowrap">
+                  {formatCellValue(row[column])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ReportCard({
   endpoint,
   onConfigure,
@@ -97,6 +137,10 @@ function ReportCard({
     if (data.rows.length > 0) return Object.keys(data.rows[0]);
     return [];
   }, [data]);
+  const chartMapping = useMemo(
+    () => (data === undefined ? undefined : chartMappingForResult(data)),
+    [data],
+  );
 
   return (
     <div className="flex size-full flex-col overflow-hidden rounded-xl border border-secondary bg-container shadow-border-xs">
@@ -157,32 +201,46 @@ function ReportCard({
           </div>
         )}
 
-        {!loading && error === null && data !== undefined && data.rows.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-secondary bg-container shadow-border-xs">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-secondary bg-surface-inset text-xs font-semibold uppercase tracking-wider text-secondary">
-                <tr>
-                  {columns.map((column) => (
-                    <th key={column} scope="col" className="px-4 py-3 whitespace-nowrap">
-                      {column}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-tertiary font-mono text-xs text-primary">
-                {data.rows.map((row, index) => (
-                  <tr key={getRowKey(row, index)} className="hover:bg-surface-hover">
-                    {columns.map((column) => (
-                      <td key={column} className="px-4 py-2.5 whitespace-nowrap">
-                        {formatCellValue(row[column])}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {!loading &&
+          error === null &&
+          data !== undefined &&
+          data.rows.length > 0 &&
+          report.presentation === "chart" &&
+          chartMapping !== undefined && (
+            <div className="space-y-4">
+              <ReportChart mapping={chartMapping} reportName={report.name} />
+              <details className="rounded-xl border border-secondary bg-container shadow-border-xs">
+                <summary className="cursor-pointer px-4 py-2.5 text-xs font-medium text-secondary">
+                  View data table ({chartMapping.xColumn}, {chartMapping.yColumn})
+                </summary>
+                <div className="overflow-x-auto border-t border-secondary">
+                  <ReportTable
+                    columns={columns}
+                    rows={data.rows}
+                    visibleColumns={[chartMapping.xColumn, chartMapping.yColumn]}
+                  />
+                </div>
+              </details>
+            </div>
+          )}
+        {!loading &&
+          error === null &&
+          data !== undefined &&
+          data.rows.length > 0 &&
+          report.presentation === "chart" &&
+          chartMapping === undefined && (
+            <div className="space-y-4">
+              <p className="rounded-lg border border-secondary bg-surface-inset px-3 py-2 text-xs text-secondary">
+                Chart needs a date column and a numeric column — showing the table instead.
+              </p>
+              <ReportTable columns={columns} rows={data.rows} />
+            </div>
+          )}
+        {!loading &&
+          error === null &&
+          data !== undefined &&
+          data.rows.length > 0 &&
+          report.presentation !== "chart" && <ReportTable columns={columns} rows={data.rows} />}
       </section>
     </div>
   );
@@ -198,6 +256,9 @@ export function DashboardsPage() {
   const activeDashboard = selectActiveDashboard(snapshot, routeSearch.dashboard);
   const [reportNameDraft, setReportNameDraft] = useState("");
   const [reportQueryDraft, setReportQueryDraft] = useState(STARTER_QUERY);
+  const [reportPresentationDraft, setReportPresentationDraft] = useState<"table" | "chart">(
+    "table",
+  );
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [reportPendingRemovalId, setReportPendingRemovalId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -294,15 +355,17 @@ export function DashboardsPage() {
   const openReportDialog = (report: DashboardReport) => {
     setReportNameDraft(report.name);
     setReportQueryDraft(report.query);
+    setReportPresentationDraft(report.presentation);
     setSelectedReportId(report.id);
   };
 
-  const addReport = () => {
+  const addReport = (presentation: "table" | "chart" = "table") => {
     if (activeDashboard === undefined) return;
     const report: DashboardReport = {
       id: generateReportId(),
       name: "New report",
       query: STARTER_QUERY,
+      presentation,
     };
     const y = activeDashboard.layout.reduce((bottom, item) => Math.max(bottom, item.y + item.h), 0);
     updateActiveDashboard((dashboard) => ({
@@ -333,7 +396,9 @@ export function DashboardsPage() {
     updateActiveDashboard((dashboard) => ({
       ...dashboard,
       reports: dashboard.reports.map((candidate) =>
-        candidate.id === report.id ? { ...candidate, name, query } : candidate,
+        candidate.id === report.id
+          ? { ...candidate, name, query, presentation: reportPresentationDraft }
+          : candidate,
       ),
     }));
     setSelectedReportId(null);
@@ -425,15 +490,27 @@ export function DashboardsPage() {
             New dashboard
           </Button>
           {activeDashboard !== undefined && (
-            <Button
-              iconProps={{ name: "plus", size: "sm" }}
-              onClick={() => {
-                addReport();
-              }}
-              size="sm"
-            >
-              Add report
-            </Button>
+            <>
+              <Button
+                iconProps={{ name: "plus", size: "sm" }}
+                onClick={() => {
+                  addReport("table");
+                }}
+                size="sm"
+              >
+                Add table
+              </Button>
+              <Button
+                iconProps={{ name: "chart-bar", size: "sm" }}
+                onClick={() => {
+                  addReport("chart");
+                }}
+                size="sm"
+                variant="secondary"
+              >
+                Add chart
+              </Button>
+            </>
           )}
           {activeDashboard !== undefined && (
             <Button
@@ -542,6 +619,32 @@ export function DashboardsPage() {
               value={reportQueryDraft}
             />
           </div>
+
+          <fieldset>
+            <legend className="mb-1.5 text-xs font-medium text-secondary">Presentation</legend>
+            <div className="flex gap-2">
+              <Button
+                aria-pressed={reportPresentationDraft === "table"}
+                onClick={() => {
+                  setReportPresentationDraft("table");
+                }}
+                size="sm"
+                variant={reportPresentationDraft === "table" ? "primary" : "secondary"}
+              >
+                Table
+              </Button>
+              <Button
+                aria-pressed={reportPresentationDraft === "chart"}
+                onClick={() => {
+                  setReportPresentationDraft("chart");
+                }}
+                size="sm"
+                variant={reportPresentationDraft === "chart" ? "primary" : "secondary"}
+              >
+                Chart
+              </Button>
+            </div>
+          </fieldset>
 
           <div className="flex items-center justify-between gap-2">
             <Button
@@ -676,16 +779,27 @@ export function DashboardsPage() {
           <section className="flex flex-col items-center justify-center rounded-xl bg-container px-6 py-24 text-center shadow-border-xs">
             <p className="font-medium text-primary">No reports yet</p>
             <p className="mt-1 max-w-sm text-sm text-secondary">
-              Add a report to run a SureQL query against your live data.
+              Add a table or chart report to run a SureQL query against your live data.
             </p>
-            <button
-              className="mt-4 inline-flex min-h-8 items-center gap-1.5 rounded-lg button-bg-primary px-2.5 py-1.5 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover focus-ring"
-              onClick={addReport}
-              type="button"
-            >
-              <Icon name="plus" size="sm" />
-              Add report
-            </button>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <Button
+                onClick={() => {
+                  addReport("table");
+                }}
+                size="sm"
+              >
+                Add table
+              </Button>
+              <Button
+                onClick={() => {
+                  addReport("chart");
+                }}
+                size="sm"
+                variant="secondary"
+              >
+                Add chart
+              </Button>
+            </div>
           </section>
         ) : (
           <GridLayout

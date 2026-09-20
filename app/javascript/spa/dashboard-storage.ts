@@ -45,6 +45,7 @@ const DashboardReportSchema = z.object({
   id: z.string(),
   name: z.string(),
   query: z.string(),
+  presentation: z.optional(z.enum(["table", "chart"])),
 });
 
 const DashboardSchema = z.object({
@@ -63,11 +64,11 @@ const DashboardSnapshotSchema = z.object({
   query: z.optional(z.string()),
   layout: z.optional(z.array(DashboardLayoutItemSchema)),
 });
-
 export interface DashboardReport {
   id: string;
   name: string;
   query: string;
+  presentation: "table" | "chart";
 }
 
 export interface Dashboard {
@@ -95,6 +96,7 @@ export function starterDashboard(): Dashboard {
         id: STARTER_REPORT_ID,
         name: STARTER_REPORT_NAME,
         query: STARTER_QUERY,
+        presentation: "table",
       },
     ],
     layout: structuredClone(STARTER_LAYOUT),
@@ -212,6 +214,7 @@ function migrateLegacyReport(
       id: STARTER_REPORT_ID,
       name: name === undefined || name.length === 0 ? STARTER_REPORT_NAME : name,
       query,
+      presentation: "table",
     },
   ];
 }
@@ -227,7 +230,12 @@ function normalizeReports(
     const query = storedReport.query.trim();
     if (id.length === 0 || name.length === 0 || query.length === 0 || ids.has(id)) return undefined;
     ids.add(id);
-    reports.push({ id, name, query });
+    reports.push({
+      id,
+      name,
+      query,
+      presentation: storedReport.presentation === "chart" ? "chart" : "table",
+    });
   }
   return reports;
 }
