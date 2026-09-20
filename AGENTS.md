@@ -18,6 +18,17 @@
 - Run `bin/rails test` and ensure it is green before pushing. Before opening a PR, run **all** checks in the [pre-PR checklist](docs/llm-guides/development.md#before-opening-a-pull-request): full Rails tests, applicable system tests, Ruby and ERB lint, oxlint and oxfmt, and Brakeman. Only create the PR when all required checks pass.
 - Commits use imperative subjects of at most 72 characters, with rationale and issue references where relevant. Target `main` with small, cohesive changes.
 - PRs explain the problem, resulting behavior and validation; link issues and include screenshots for UI changes and migration notes when applicable. Ensure CI passes and the branch is up to date before requesting review; see [CONTRIBUTING.md](CONTRIBUTING.md).
+### Docker test environment (no local Ruby)
+Ruby is not installed on the host. Run Rails/Ruby commands inside the Orca
+`app` container instead (engine auto-detected via `ORCA_CONTAINER_ENGINE`,
+`docker`, or `podman` — see `scripts/orca-vm/common.sh`):
+- Container name follows `sure-<worktree>-<hash>_app_1`; list with
+  `podman ps --format '{{.Names}}'` (or `docker ps`).
+- Run tests: `podman exec <app_container> bash -c 'cd /workspace && bin/rails test test/models/account_test.rb'`
+- RuboCop: `podman exec <app_container> bash -c 'cd /workspace && bin/rubocop <path>'`
+- System tests need the container's Selenium: `SELENIUM_REMOTE_URL` is already
+  set inside the container (see `scripts/orca-vm/docker-compose.yml`).
+
 
 ## UI changes
 

@@ -93,6 +93,40 @@ export function transactionDetailQueryOptions(basePath: string, id: string) {
   });
 }
 
+export const SureqlResultSchema = z.object({
+  sql: z.string(),
+  columns: z.array(z.string()),
+  rows: z.array(z.record(z.string(), z.unknown())),
+  row_count: z.number(),
+  truncated: z.boolean(),
+  html: z.optional(z.nullable(z.string())),
+});
+
+export type SureqlResult = z.infer<typeof SureqlResultSchema>;
+
+export async function executeSureqlQuery(endpoint: string, source: string): Promise<SureqlResult> {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": readCsrfToken(),
+    },
+    body: JSON.stringify({ source }),
+  });
+
+  const data: unknown = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const errorMsg =
+      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+        ? data.error
+        : `Request failed with status ${response.status}`;
+    throw new Error(errorMsg);
+  }
+
+  return SureqlResultSchema.parse(data);
+}
+
 export function readCsrfToken(): string {
   return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? "";
 }
