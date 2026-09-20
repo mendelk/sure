@@ -19,6 +19,7 @@
     sureqlRun: dashboard_monarch_run_path
   },
   recurringTransactionsDisabled: Current.family.recurring_transactions_disabled?,
+  uncategorizedCount: @uncategorized_count,
   railsPaths: {
     home: root_path,
     logo: image_path("logomark-color.svg"),
@@ -35,7 +36,11 @@
     transactions: transactions_path,
     familyMerchants: family_merchants_path,
     newRule: new_rule_path,
-    recurringTransactions: recurring_transactions_path
+    recurringTransactions: recurring_transactions_path,
+    rules: rules_path,
+    categories: categories_path,
+    tags: tags_path,
+    transactionsCategorize: transactions_categorize_path
   }
 } %>
 
