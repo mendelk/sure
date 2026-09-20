@@ -6,25 +6,55 @@ class DashboardsTest < ApplicationSystemTestCase
     @entry = create_transaction("Dashboard Groceries Test", Date.current, 42.50)
   end
 
-  test "renders /dashboards with Monaco SureQL editor and live query results" do
+  test "renders /dashboards with a configured report and hides the editor by default" do
     visit dashboards_url
 
-    assert_selector "h1", text: "Dashboards"
-    assert_selector "label", text: "Language"
-    assert_selector "select#query-language-select"
-    assert_selector "select#query-theme-select"
-
-    assert_selector "[role='application'][aria-label='SureQL Query Editor']"
-    assert_selector ".monaco-editor", text: "from transactions", wait: 10
-
+    assert_selector "h1", text: "My dashboard"
+    assert_selector "h2", text: /Recent transactions/i
+    assert_no_selector "[role='application'][aria-label='SureQL Query Editor']"
     assert_selector "table th", text: /name/i
     assert_selector "table td", text: "Dashboard Groceries Test"
+
+    click_button "Configure"
+
+    within "#configure-report-dialog" do
+      assert_selector "label", text: "Report name"
+      assert_selector "label", text: "Language"
+      assert_selector "select#query-language-select"
+      assert_selector "[role='application'][aria-label='SureQL Query Editor']"
+      assert_selector ".monaco-editor", text: "from transactions", wait: 10
+    end
+  end
+
+  test "persists dashboard and report names configured in dialogs" do
+    visit dashboards_url
+
+    click_button "Rename dashboard"
+    within "[aria-labelledby='rename-dashboard-title']" do
+      fill_in "Name", with: "Monthly review"
+      click_button "Save name"
+    end
+    assert_selector "h1", text: "Monthly review"
+
+    click_button "Configure"
+    within "#configure-report-dialog" do
+      fill_in "Report name", with: "Account overview"
+      click_button "Save and run"
+    end
+
+    assert_selector "h2", text: /Account overview/i
+    assert_no_selector "[role='application'][aria-label='SureQL Query Editor']"
+
+    visit dashboards_url
+
+    assert_selector "h1", text: "Monthly review"
+    assert_selector "h2", text: /Account overview/i
   end
 
   test "edits SureQL query in Monaco and runs it to display updated results" do
     visit dashboards_url
 
-    assert_selector "h1", text: "Dashboards"
+    assert_selector "h1", text: "My dashboard"
     assert_selector "table td", text: "Dashboard Groceries Test"
 
     set_query("from accounts\ntake 5")
@@ -48,7 +78,7 @@ class DashboardsTest < ApplicationSystemTestCase
   test "displays server error for invalid SureQL query" do
     visit dashboards_url
 
-    assert_selector "h1", text: "Dashboards"
+    assert_selector "h1", text: "My dashboard"
     set_query("from secrets")
     click_button "Run"
 
@@ -59,7 +89,7 @@ class DashboardsTest < ApplicationSystemTestCase
   test "displays empty state when query returns no rows" do
     visit dashboards_url
 
-    assert_selector "h1", text: "Dashboards"
+    assert_selector "h1", text: "My dashboard"
     set_query("from transactions\nfilter amount == -999999")
     click_button "Run"
 
@@ -76,7 +106,7 @@ class DashboardsTest < ApplicationSystemTestCase
 
     visit dashboards_url
 
-    assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), "from accounts"
+    assert_saved_query("from accounts")
     assert_selector "table th", text: /classification/i
   end
 
@@ -96,15 +126,12 @@ class DashboardsTest < ApplicationSystemTestCase
     set_query("from accounts\ntake 5")
     click_button "Run"
     assert_selector "table th", text: /classification/i
-    user_menu = find("div[data-testid=user-menu]", match: :first, visible: :visible)
-    within user_menu do
-      find("[data-DS--popover-target='button']", match: :first).click
-      click_on "Log out", match: :first
-    end
+    find("button[aria-label='Open account menu']", match: :first, visible: :visible).click
+    click_button "Log out", match: :first
     sign_in users(:family_member)
     visit dashboards_url
 
-    assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), "from transactions"
+    assert_saved_query("from transactions")
   end
 
   test "installs the starter on first use and restores it after confirmed reset" do
@@ -117,14 +144,14 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "table th", text: /classification/i
 
     visit dashboards_url
-    assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), "from accounts"
+    assert_saved_query("from accounts")
 
     click_button "Reset starter dashboard"
     within "#reset-starter-dialog" do
       click_button "Reset dashboard"
     end
 
-    assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), "from transactions"
+    assert_saved_query("from transactions")
     assert_selector "table td", text: "Dashboard Groceries Test"
   end
 
@@ -152,6 +179,7 @@ class DashboardsTest < ApplicationSystemTestCase
     end
 
     def set_query(query_text)
+      click_button "Configure" unless page.has_selector?("#configure-report-dialog", visible: :visible)
       assert_selector ".monaco-editor", wait: 10
       page.execute_script(<<~JS, query_text)
         const editor = window.sureqlEditor || (window.monaco && window.monaco.editor.getModels()[0]);
@@ -159,6 +187,13 @@ class DashboardsTest < ApplicationSystemTestCase
           editor.setValue(arguments[0]);
         }
       JS
+    end
+
+    def assert_saved_query(query_text)
+      click_button "Configure"
+      assert_selector ".monaco-editor", wait: 10
+      assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), query_text
+      find("button[aria-label='Close report configuration']").click
     end
 
     def create_transaction(name, date, amount)

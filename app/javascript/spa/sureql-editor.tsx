@@ -187,14 +187,7 @@ function isLanguage(val: string): val is "sureql" | "prql" {
   return val === "sureql" || val === "prql";
 }
 
-function isTheme(val: string): val is "system" | "light" | "dark" {
-  return val === "system" || val === "light" || val === "dark";
-}
-
-function resolveMonacoTheme(preference: "system" | "light" | "dark" = "system"): string {
-  if (preference === "dark") return "vs-dark";
-  if (preference === "light") return "vs";
-
+function resolveMonacoTheme(): string {
   const appTheme = document.documentElement.dataset.theme;
   if (appTheme === "dark") return "vs-dark";
   if (appTheme === "light") return "vs";
@@ -234,17 +227,10 @@ export function SureqlEditor({
   const monacoRef = useRef<Monaco | null>(null);
 
   const [language, setLanguage] = useState<"sureql" | "prql">("sureql");
-  const [themePreference, setThemePreference] = useState<"system" | "light" | "dark">("system");
   const [cursorPos, setCursorPos] = useState({ line: 1, column: 1 });
   const [copied, setCopied] = useState(false);
 
-  const systemTheme = useSyncExternalStore(
-    subscribeTheme,
-    () => resolveMonacoTheme("system"),
-    () => "vs",
-  );
-  const activeTheme =
-    themePreference === "system" ? systemTheme : resolveMonacoTheme(themePreference);
+  const activeTheme = useSyncExternalStore(subscribeTheme, resolveMonacoTheme, () => "vs");
 
   const onRunRef = useRef(onRun);
   useEffect(() => {
@@ -357,26 +343,6 @@ export function SureqlEditor({
             >
               <option value="sureql">sureql (app dialect)</option>
               <option value="prql">PRQL</option>
-            </select>
-          </label>
-
-          <label
-            htmlFor="query-theme-select"
-            className="flex items-center gap-2 text-sm text-secondary"
-          >
-            <span>Theme</span>
-            <select
-              id="query-theme-select"
-              value={themePreference}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (isTheme(val)) setThemePreference(val);
-              }}
-              className="rounded-lg border border-primary bg-container-inset px-2 py-1 text-xs text-primary focus-ring"
-            >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
             </select>
           </label>
         </div>

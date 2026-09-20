@@ -8,6 +8,9 @@ import * as z from "zod/mini";
 // any saved snapshot.
 export const STARTER_QUERY = "from transactions\nsort {-date}\ntake 10";
 
+export const STARTER_DASHBOARD_NAME = "My dashboard";
+export const STARTER_REPORT_NAME = "Recent transactions";
+
 export const STARTER_LAYOUT: Layout = [
   {
     i: "sureql-report",
@@ -21,10 +24,9 @@ export const STARTER_LAYOUT: Layout = [
 ];
 
 // Feature-local snapshot for the first /dashboards prototype only. It stores
-// the exact working screen — the saved report source plus the report card's
-// grid position/size — so iteration survives refresh. Titles are not stored:
-// the page has no editable dashboard or report titles yet, and later slices
-// own naming. Keep this shape minimal; do not extend it speculatively.
+// the exact working screen — dashboard and report names, the saved report
+// source, and the report card's grid position/size — so iteration survives
+// refresh. Keep this shape minimal until the multiple-card slice needs an array.
 const DashboardLayoutItemSchema = z.object({
   i: z.string(),
   x: z.number(),
@@ -38,17 +40,26 @@ const DashboardLayoutItemSchema = z.object({
 });
 
 const DashboardSnapshotSchema = z.object({
+  dashboardName: z.optional(z.string()),
+  reportName: z.optional(z.string()),
   query: z.string(),
   layout: z.array(DashboardLayoutItemSchema),
 });
 
 export interface DashboardSnapshot {
+  dashboardName: string;
+  reportName: string;
   query: string;
   layout: Layout;
 }
 
 export function starterSnapshot(): DashboardSnapshot {
-  return { query: STARTER_QUERY, layout: structuredClone(STARTER_LAYOUT) };
+  return {
+    dashboardName: STARTER_DASHBOARD_NAME,
+    reportName: STARTER_REPORT_NAME,
+    query: STARTER_QUERY,
+    layout: structuredClone(STARTER_LAYOUT),
+  };
 }
 
 export function dashboardStorageKey(userId: string): string {
@@ -65,6 +76,16 @@ export function readDashboardSnapshot(userId: string): DashboardSnapshot | undef
     const result = DashboardSnapshotSchema.safeParse(parsed);
     if (!result.success) return undefined;
     const query = result.data.query;
+    const storedDashboardName = result.data.dashboardName?.trim();
+    const storedReportName = result.data.reportName?.trim();
+    const dashboardName =
+      storedDashboardName === undefined || storedDashboardName.length === 0
+        ? STARTER_DASHBOARD_NAME
+        : storedDashboardName;
+    const reportName =
+      storedReportName === undefined || storedReportName.length === 0
+        ? STARTER_REPORT_NAME
+        : storedReportName;
     if (query.trim().length === 0 || result.data.layout.length === 0) return undefined;
     const layout: Layout = result.data.layout.map((item): LayoutItem => ({
       i: item.i,
@@ -77,7 +98,7 @@ export function readDashboardSnapshot(userId: string): DashboardSnapshot | undef
       maxW: item.maxW,
       maxH: item.maxH,
     }));
-    return { query, layout };
+    return { dashboardName, reportName, query, layout };
   } catch {
     return undefined;
   }
