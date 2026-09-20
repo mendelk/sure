@@ -54,6 +54,8 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       message: e.message,
       errors: [ e.message ]
     }, status: :unprocessable_entity
+  rescue InvalidFilterError => e
+    render_validation_error(e.message)
   rescue => e
     Rails.logger.error "TransactionsController#index error: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
@@ -161,8 +163,14 @@ class Api::V1::TransactionsController < Api::V1::BaseController
           @entry.transaction.lock_attr!(:tag_ids) if @entry.transaction.tags.any?
         end
 
+        if excluded_provided?
+          @entry.update!(excluded: transaction_params[:excluded])
+          @entry.lock_attr!(:excluded)
+        end
+
         @entry.sync_account_later
         @entry.lock_saved_attributes!
+        @entry.mark_user_modified! if user_modified_requested?
 
         @transaction = @entry.transaction
         render :show
@@ -237,12 +245,14 @@ class Api::V1::TransactionsController < Api::V1::BaseController
 
     # Maps query params onto Transaction::Search filter attributes so the API
     # uses the same filter semantics as the rest of the app (name- and ID-based
-    # filters, transfer-aware type filtering, pending/confirmed status).
+    # filters, transfer-aware type filtering, pending/confirmed status,
+    # single-value amount filtering, and slack-style exclusions).
     def search_filters
       filters = {}
       filters[:search] = params[:search] if params[:search].present?
       filters[:start_date] = validate_date!(:start_date) if params[:start_date].present?
       filters[:end_date] = validate_date!(:end_date) if params[:end_date].present?
+      filters.merge!(amount_filters)
 
       filters[:account_ids] = array_param(:account_ids) | array_param(:account_id)
       filters[:accounts] = array_param(:accounts)
@@ -258,7 +268,51 @@ class Api::V1::TransactionsController < Api::V1::BaseController
 
       filters[:types] = array_param(:types) | array_param(:type)
       filters[:status] = array_param(:status)
+      filters.merge!(exclusion_filters)
       filters
+    end
+
+    # Slack-style negative filters (e.g. `-category:House`). Mirrors the
+    # classic search box: only faceted filters are negatable, and ID-based
+    # params resolve to names like their positive counterparts.
+    def exclusion_filters
+      family = current_resource_owner.family
+      excluded_category_ids = array_param(:excluded_category_ids) | array_param(:excluded_category_id)
+      excluded_merchant_ids = array_param(:excluded_merchant_ids) | array_param(:excluded_merchant_id)
+      excluded_tag_ids = array_param(:excluded_tag_ids)
+      {
+        excluded_categories: array_param(:excluded_categories) | names_for_ids(family.categories, excluded_category_ids),
+        excluded_merchants: array_param(:excluded_merchants) | names_for_ids(family.merchants, excluded_merchant_ids),
+        excluded_tags: array_param(:excluded_tags) | names_for_ids(family.tags, excluded_tag_ids),
+        excluded_accounts: array_param(:excluded_accounts),
+        excluded_account_ids: array_param(:excluded_account_ids) | array_param(:excluded_account_id),
+        excluded_types: array_param(:excluded_types) | array_param(:excluded_type),
+        excluded_status: array_param(:excluded_status)
+      }.reject { |_, value| value.blank? }
+    end
+
+    # Classic single-value amount filter (EntrySearch): one amount plus an
+    # equal/greater/less operator. `min_amount`/`max_amount` remain documented
+    # legacy aliases; explicit amount/amount_operator wins when both present.
+    def amount_filters
+      amount = params[:amount].presence || params[:min_amount].presence || params[:max_amount].presence
+      return {} if amount.blank?
+
+      operator = params[:amount_operator].presence ||
+        (params[:min_amount].present? ? "greater" : params[:max_amount].present? ? "less" : "equal")
+      unless %w[equal greater less].include?(operator)
+        raise InvalidFilterError, "amount_operator must be one of: equal, greater, less"
+      end
+      raise InvalidFilterError, "amount must be a number" unless numeric?(amount)
+
+      { amount: amount, amount_operator: operator }
+    end
+
+    def numeric?(value)
+      Float(value)
+      true
+    rescue ArgumentError, TypeError
+      false
     end
 
     def names_for_ids(scope, ids)
@@ -281,7 +335,8 @@ class Api::V1::TransactionsController < Api::V1::BaseController
     def transaction_params
       params.require(:transaction).permit(
         :date, :amount, :name, :description, :notes, :currency,
-        :category_id, :merchant_id, :nature, :user_modified, tag_ids: []
+        :category_id, :merchant_id, :nature, :user_modified,
+        :excluded, tag_ids: []
       )
     end
 
@@ -325,15 +380,17 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       entry_params = {
         name: transaction_params[:name] || transaction_params[:description],
         date: transaction_params[:date],
-        notes: transaction_params[:notes],
-        entryable_attributes: {
-          id: @entry.entryable_id,
-          category_id: transaction_params[:category_id],
-          merchant_id: transaction_params[:merchant_id]
-          # Note: tag_ids handled separately in update action to distinguish
-          # "not provided" from "explicitly set to empty"
-        }.compact_blank
+        notes: transaction_params[:notes]
       }
+
+      entryable_attrs = { id: @entry.entryable_id }
+      if transaction_params.key?(:category_id)
+        entryable_attrs[:category_id] = transaction_params[:category_id].presence
+      end
+      if transaction_params.key?(:merchant_id)
+        entryable_attrs[:merchant_id] = transaction_params[:merchant_id].presence
+      end
+      entry_params[:entryable_attributes] = entryable_attrs if entryable_attrs.size > 1
 
       # Only update amount if provided
       if transaction_params[:amount].present?
@@ -347,6 +404,11 @@ class Api::V1::TransactionsController < Api::V1::BaseController
     # This distinguishes between "user wants to update tags" vs "user didn't specify tags".
     def tags_provided?
       params[:transaction].key?(:tag_ids)
+    end
+
+    # Check if excluded was explicitly provided in the request.
+    def excluded_provided?
+      params[:transaction].key?(:excluded)
     end
 
     def split_financial_fields_changed?

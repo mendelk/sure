@@ -107,10 +107,15 @@ RSpec.describe 'API V1 Transactions', type: :request do
       parameter name: :end_date, in: :query, required: false,
                 description: 'Filter transactions until this date',
                 schema: { type: :string, format: :date }
+      parameter name: :amount, in: :query, type: :number, required: false,
+                description: 'Filter by absolute amount (use with amount_operator)'
+      parameter name: :amount_operator, in: :query, required: false,
+                description: 'Amount comparison operator (requires amount)',
+                schema: { type: :string, enum: %w[equal greater less] }
       parameter name: :min_amount, in: :query, type: :number, required: false,
-                description: 'Filter by minimum amount'
+                description: 'Legacy alias for amount with greater operator'
       parameter name: :max_amount, in: :query, type: :number, required: false,
-                description: 'Filter by maximum amount'
+                description: 'Legacy alias for amount with less operator'
       parameter name: :type, in: :query, required: false,
                 description: 'Filter by transaction type',
                 schema: { type: :string, enum: %w[income expense] }
@@ -151,6 +156,34 @@ RSpec.describe 'API V1 Transactions', type: :request do
       parameter name: :tags, in: :query, required: false,
                 description: 'Filter by multiple tag names',
                 schema: { type: :array, items: { type: :string } },
+                style: :form, explode: false
+      parameter name: :excluded_categories, in: :query, required: false,
+                description: 'Exclude matching category names (slack-style negative filter)',
+                schema: { type: :array, items: { type: :string } },
+                style: :form, explode: false
+      parameter name: :excluded_merchants, in: :query, required: false,
+                description: 'Exclude matching merchant names (slack-style negative filter)',
+                schema: { type: :array, items: { type: :string } },
+                style: :form, explode: false
+      parameter name: :excluded_tags, in: :query, required: false,
+                description: 'Exclude matching tag names (slack-style negative filter)',
+                schema: { type: :array, items: { type: :string } },
+                style: :form, explode: false
+      parameter name: :excluded_accounts, in: :query, required: false,
+                description: 'Exclude matching account names (slack-style negative filter)',
+                schema: { type: :array, items: { type: :string } },
+                style: :form, explode: false
+      parameter name: :excluded_account_ids, in: :query, required: false,
+                description: 'Exclude matching account IDs (slack-style negative filter)',
+                schema: { type: :array, items: { type: :string } },
+                style: :form, explode: false
+      parameter name: :excluded_types, in: :query, required: false,
+                description: 'Exclude transaction types (slack-style negative filter)',
+                schema: { type: :array, items: { type: :string, enum: %w[income expense transfer] } },
+                style: :form, explode: false
+      parameter name: :excluded_status, in: :query, required: false,
+                description: 'Exclude transaction statuses (slack-style negative filter)',
+                schema: { type: :array, items: { type: :string, enum: %w[pending confirmed] } },
                 style: :form, explode: false
 
       response '200', 'transactions listed' do
@@ -352,13 +385,17 @@ RSpec.describe 'API V1 Transactions', type: :request do
               description: { type: :string, description: 'Alternative to name field' },
               notes: { type: :string },
               currency: { type: :string, description: 'Currency code' },
-              category_id: { type: :string, format: :uuid },
-              merchant_id: { type: :string, format: :uuid },
+              category_id: { type: :string, format: :uuid, nullable: true },
+              merchant_id: { type: :string, format: :uuid, nullable: true },
               nature: { type: :string, enum: %w[income expense inflow outflow] },
               tag_ids: {
                 type: :array,
                 items: { type: :string, format: :uuid },
                 description: 'Array of tag IDs to assign. Omit to preserve existing tags; use [] to clear all tags.'
+              },
+              excluded: {
+                type: :boolean,
+                description: 'Exclude the transaction from reports and budgets. Omit to preserve the current value.'
               }
             }
           }

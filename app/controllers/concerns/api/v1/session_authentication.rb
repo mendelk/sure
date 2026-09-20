@@ -1,13 +1,15 @@
 # Session-cookie authentication for first-party browser clients calling the
 # /api/v1 namespace. Complements API-key/OAuth auth in Api::V1::BaseController:
 # a signed-in browser session authenticates without an API key, while external
-# clients keep using their credentials. Read-only by design — the browser SPA
-# has no need to mutate financial data through the v1 API, and session cookies
-# must never carry write scope.
+# clients keep using their credentials.
 #
-# CSRF: the SPA fetches with `credentials: "same-origin"` and standard
-# form/JSON requests, so Rails' forgery protection still applies to any
-# non-GET request. These endpoints are GET-only.
+# Writes: unsafe-method session requests keep Rails forgery protection
+# (Api::V1::BaseController#session_write_request?), so the SPA must present
+# the standard CSRF token; scope checks then admit read_write. External
+# token-based clients are unaffected.
+#
+# CSRF: the SPA fetches with `credentials: "same-origin"` and sends the
+# `X-CSRF-Token` header on non-GET requests.
 module Api::V1::SessionAuthentication
   extend ActiveSupport::Concern
 

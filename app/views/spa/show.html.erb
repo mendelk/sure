@@ -8,7 +8,12 @@
   },
   apiPaths: {
     transactions: api_v1_transactions_path,
-    summary: api_v1_balance_sheet_path
+    summary: api_v1_balance_sheet_path,
+    accounts: api_v1_accounts_path,
+    categories: api_v1_categories_path,
+    merchants: api_v1_merchants_path,
+    tags: api_v1_tags_path,
+    transfers: api_v1_transfers_path
   },
   railsPaths: {
     home: root_path,
@@ -22,7 +27,9 @@
     settings: settings_profile_path,
     changelog: changelog_path,
     signOut: session_path(Current.session),
-    transactions: transactions_path
+    transactions: transactions_path,
+    familyMerchants: family_merchants_path,
+    newRule: new_rule_path
   }
 } %>
 

@@ -68,15 +68,35 @@ class Api::V1::BalanceSheetControllerTest < ActionDispatch::IntegrationTest
     assert JSON.parse(response.body).key?("net_worth")
   end
 
-  test "session auth should not grant write access" do
+  test "session auth grants write access with CSRF protection enforced" do
+    sign_in @user
+
+    # Forgery protection is disabled for the bulk of the suite; enable it here
+    # to prove session writes require a valid CSRF token. The instance copies
+    # the class attribute at request time, so toggling before the request works.
+    # Rails maps ActionController::InvalidAuthenticityToken to 422
+    # (Unprocessable Content) via its default rescue_responses table.
+    original = ActionController::Base.allow_forgery_protection
+    ActionController::Base.allow_forgery_protection = true
+    begin
+      post "/api/v1/transactions",
+        params: { transaction: { account_id: @family.accounts.first.id, name: "x", date: Date.current, amount: 1 } },
+        as: :json
+
+      assert_response :unprocessable_content
+    ensure
+      ActionController::Base.allow_forgery_protection = original
+    end
+  end
+
+  test "session auth grants write access when CSRF protection disabled (test helper clients)" do
     sign_in @user
 
     post "/api/v1/transactions",
-      params: { transaction: { account_id: @family.accounts.first.id, name: "x", date: Date.current, amount: 1 } },
+      params: { transaction: { account_id: @family.accounts.first.id, name: "session test", date: Date.current, amount: 1 } },
       as: :json
 
-    assert_response :forbidden
-    assert_equal "insufficient_scope", JSON.parse(response.body).fetch("error")
+    assert_response :created
   end
 
   private

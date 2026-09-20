@@ -2,94 +2,70 @@ import {
   ArrowLeftRight,
   Box,
   ChartBar,
+  Check,
+  ChevronDown,
   ChevronRight,
+  CircleAlert,
   Clock,
   CreditCard,
+  Download,
   Eye,
   EyeOff,
+  Filter,
+  icons,
   List,
+  LoaderCircle,
   LogOut,
   Map as MapIcon,
   MessageCircleQuestion,
+  MoreHorizontal,
   PanelLeft,
   PanelRight,
+  Pencil,
   PieChart,
+  Plus,
+  ReceiptText,
   RefreshCcw,
+  Search,
+  SlidersHorizontal,
+  Store,
+  Tag,
   User,
   X,
 } from "lucide-react";
-import type { ComponentType, ReactNode, SVGProps } from "react";
-
-function createIcon(children: ReactNode): ComponentType<SVGProps<SVGSVGElement>> {
-  return function RawIcon(props: SVGProps<SVGSVGElement>) {
-    return (
-      // biome-ignore lint/a11y/noSvgWithoutTitle: decorative icon, hidden from a11y tree by consumer
-      <svg
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-        {...props}
-      >
-        {children}
-      </svg>
-    );
-  };
-}
+import type { ComponentType, SVGProps } from "react";
 
 const ICONS = {
   "arrow-left-right": ArrowLeftRight,
   box: Box,
   "chart-bar": ChartBar,
+  check: Check,
+  "chevron-down": ChevronDown,
   "chevron-right": ChevronRight,
-  "credit-card": CreditCard,
+  "circle-alert": CircleAlert,
   clock: Clock,
-  download: createIcon(
-    <>
-      <path d="M12 15V3" />
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <path d="m7 10 5 5 5-5" />
-    </>,
-  ),
+  "credit-card": CreditCard,
+  download: Download,
   eye: Eye,
   "eye-off": EyeOff,
-  filter: createIcon(
-    <>
-      <path d="M3 6h18" />
-      <path d="M7 12h10" />
-      <path d="M10 18h4" />
-    </>,
-  ),
+  filter: Filter,
   list: List,
+  "loader-circle": LoaderCircle,
   "log-out": LogOut,
   map: MapIcon,
   "message-circle-question": MessageCircleQuestion,
-  "more-horizontal": createIcon(
-    <>
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="19" cy="12" r="1" />
-      <circle cx="5" cy="12" r="1" />
-    </>,
-  ),
+  "more-horizontal": MoreHorizontal,
   "panel-left": PanelLeft,
   "panel-right": PanelRight,
+  pencil: Pencil,
   "pie-chart": PieChart,
-  plus: createIcon(
-    <>
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </>,
-  ),
+  plus: Plus,
+  "receipt-text": ReceiptText,
   "refresh-ccw": RefreshCcw,
-  search: createIcon(
-    <>
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.34-4.34" />
-    </>,
-  ),
+  search: Search,
+  "sliders-horizontal": SlidersHorizontal,
+  store: Store,
+  tag: Tag,
   user: User,
   x: X,
 } satisfies Record<string, ComponentType<SVGProps<SVGSVGElement>>>;
@@ -115,4 +91,20 @@ export function Icon({
       {...restProps}
     />
   );
+}
+
+export function CategoryIcon({
+  name,
+  className = "size-4 shrink-0",
+}: {
+  name?: string;
+  className?: string;
+}) {
+  const pascal = (name ?? "shapes")
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("");
+  const IconComponent = (icons as Record<string, (typeof icons)["Shapes"]>)[pascal] ?? icons.Shapes;
+
+  return <IconComponent aria-hidden="true" className={className} />;
 }

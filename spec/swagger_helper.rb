@@ -868,12 +868,54 @@ RSpec.configure do |config|
           },
           Transfer: {
             type: :object,
-            required: %w[id amount currency],
+            required: %w[id amount currency status],
             properties: {
               id: { type: :string, format: :uuid },
               amount: { type: :string },
               currency: { type: :string },
+              status: { type: :string, enum: %w[pending confirmed], description: 'Match status. pending transfers can be confirmed or rejected.' },
               other_account: { '$ref' => '#/components/schemas/Account', nullable: true }
+            }
+          },
+          TransferMatchCandidateSide: {
+            type: :object,
+            required: %w[id name date amount signed_amount_cents currency account],
+            properties: {
+              id: { type: :string, format: :uuid, description: 'Transaction ID' },
+              name: { type: :string },
+              date: { type: :string, format: :date },
+              amount: { type: :string, description: 'Absolute amount, formatted' },
+              signed_amount_cents: { type: :integer, description: 'Signed amount in currency minor units (negative = inflow)' },
+              currency: { type: :string },
+              account: {
+                type: :object,
+                required: %w[id name],
+                properties: {
+                  id: { type: :string, format: :uuid },
+                  name: { type: :string }
+                }
+              }
+            }
+          },
+          TransferMatchCandidate: {
+            type: :object,
+            required: %w[inflow_transaction_id outflow_transaction_id date_diff inflow_transaction outflow_transaction],
+            properties: {
+              inflow_transaction_id: { type: :string, format: :uuid },
+              outflow_transaction_id: { type: :string, format: :uuid },
+              date_diff: { type: :integer, minimum: 0, description: 'Days between the two entries' },
+              inflow_transaction: { '$ref' => '#/components/schemas/TransferMatchCandidateSide' },
+              outflow_transaction: { '$ref' => '#/components/schemas/TransferMatchCandidateSide' }
+            }
+          },
+          TransferMatchCandidateCollection: {
+            type: :object,
+            required: %w[candidates],
+            properties: {
+              candidates: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/TransferMatchCandidate' }
+              }
             }
           },
           RecurringTransaction: {

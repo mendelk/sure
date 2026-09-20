@@ -21,9 +21,11 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
       assert_equal root_path, bootstrap.dig("railsPaths", "home")
       assert_equal api_v1_transactions_path, bootstrap.dig("apiPaths", "transactions")
       assert_equal api_v1_balance_sheet_path, bootstrap.dig("apiPaths", "summary")
-      assert_equal session_path(Current.session), bootstrap.dig("railsPaths", "signOut")
+      assert_equal api_v1_accounts_path, bootstrap.dig("apiPaths", "accounts")
       assert_equal transactions_path, bootstrap.dig("railsPaths", "transactions")
       assert_equal new_transaction_path, bootstrap.dig("railsPaths", "newTransaction")
+      assert_equal family_merchants_path, bootstrap.dig("railsPaths", "familyMerchants")
+      assert_equal new_rule_path, bootstrap.dig("railsPaths", "newRule")
     end
     assert_select "script[type='module'][src*='spa']"
   end

@@ -673,10 +673,12 @@ Rails.application.routes.draw do
 
       resources :transactions, only: [ :index, :show, :create, :update, :destroy ] do
         resource :split, only: :create, controller: "transaction_splits"
+        get :transfer_match_candidates, on: :member, controller: :transaction_transfer_matches
+        resource :transfer_match, only: :create, controller: "transaction_transfer_matches"
       end
       resources :trades, only: [ :index, :show, :create, :update, :destroy ]
       resources :holdings, only: [ :index, :show ]
-      resources :transfers, only: [ :index, :show ]
+      resources :transfers, only: [ :index, :show, :update ]
       resources :rejected_transfers, only: [ :index, :show ]
       resources :valuations, only: [ :index, :create, :update, :show ]
       resources :recurring_transactions, only: [ :index, :show, :create, :update, :destroy ]
@@ -721,7 +723,6 @@ Rails.application.routes.draw do
         get "test_multiple_scopes_required", to: "test#multiple_scopes_required"
       end
     end
-
   end
 
 

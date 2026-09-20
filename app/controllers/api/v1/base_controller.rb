@@ -15,7 +15,9 @@ class Api::V1::BaseController < ApplicationController
   # Skip regular session-based authentication for API
   skip_authentication
 
-  # Skip CSRF protection for API endpoints
+  # CSRF protection is enforced per-request: token-authenticated clients
+  # (API key / OAuth) are exempt, while browser-session requests to unsafe
+  # methods must present a valid CSRF token just like the HTML app.
   skip_before_action :verify_authenticity_token
 
   # Skip onboarding requirements for API endpoints
@@ -25,6 +27,8 @@ class Api::V1::BaseController < ApplicationController
   before_action :force_json_format
   # Use our custom authentication that supports both OAuth and API keys
   before_action :authenticate_request!
+  # Session writes carry CSRF protection once the auth method is known
+  before_action :verify_session_write_csrf
   before_action :check_api_key_rate_limit
   before_action :log_api_access
 
@@ -48,8 +52,22 @@ class Api::V1::BaseController < ApplicationController
       request.format = :json
     end
 
+    # A browser-session request to an unsafe method. Such requests keep Rails'
+    # forgery protection: the SPA must present the CSRF token, exactly like
+    # the classic HTML forms. Token-authenticated requests (API key / OAuth)
+    # carry their credential in a header and are exempt.
+    def session_write_request?
+      !request.get? && !request.head? && @authentication_method == :session
+    end
+
+    def verify_session_write_csrf
+      return unless session_write_request?
+
+      verify_authenticity_token
+    end
+
     # Authenticate using either OAuth or API key. As a final fallback, accept
-    # an authenticated browser session (first-party SPA), read-only.
+    # an authenticated browser session (first-party SPA).
     def authenticate_request!
       return if authenticate_oauth
       return if authenticate_api_key
@@ -188,7 +206,10 @@ class Api::V1::BaseController < ApplicationController
       when :api_key
         @api_key&.scopes || []
       when :session
-        %w[read]
+        # Session writes are verified by Rails forgery protection before the
+        # action runs (see session_write_request?); a request that reaches
+        # this point passed the CSRF check, so it may act with write scope.
+        (request.get? || request.head?) ? %w[read] : %w[read read_write]
       else
         []
       end
@@ -221,6 +242,10 @@ class Api::V1::BaseController < ApplicationController
 
     def ensure_read_scope
       authorize_scope!(:read)
+    end
+
+    def ensure_write_scope
+      authorize_scope!(:write)
     end
 
     # Consistent JSON response method
