@@ -22,7 +22,7 @@ Learn from real query results before choosing reusable report APIs.
 
 ## Tasks
 - [ ] [[improve-the-live-sureql-editing-loop|Improve the live SureQL editing loop]]
-- [ ] [[exercise-the-table-with-real-result-shapes|Exercise the table with real result shapes]]
+- [x] [[exercise-the-table-with-real-result-shapes|Exercise the table with real result shapes]]
 - [ ] [[experiment-with-a-single-value-presentation|Experiment with a single-value presentation]]
-- [ ] [[compare-inline-and-focused-report-editing|Compare inline and focused report editing]]
+- [x] [[compare-inline-and-focused-report-editing|Compare inline and focused report editing]]
 - [ ] [[review-and-select-report-presentations|Review and select report presentations]]

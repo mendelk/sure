@@ -22,8 +22,8 @@ Shape storage around the accepted live data, not a predicted database schema.
 
 ## Tasks
 - [ ] [[capture-the-proven-local-dashboard-shape|Capture the proven local dashboard shape]]
-- [ ] [[isolate-local-dashboards-by-user|Isolate local dashboards by user]]
+- [x] [[isolate-local-dashboards-by-user|Isolate local dashboards by user]]
 - [ ] [[add-versioned-non-destructive-seeds|Add versioned non-destructive seeds]]
-- [ ] [[add-explicit-seed-reset-controls|Add explicit seed reset controls]]
+- [x] [[add-explicit-seed-reset-controls|Add explicit seed reset controls]]
 - [ ] [[handle-local-storage-failures-and-conflicts|Handle local storage failures and conflicts]]
-- [ ] [[verify-the-local-persistence-lifecycle|Verify the local persistence lifecycle]]
+- [x] [[verify-the-local-persistence-lifecycle|Verify the local persistence lifecycle]]

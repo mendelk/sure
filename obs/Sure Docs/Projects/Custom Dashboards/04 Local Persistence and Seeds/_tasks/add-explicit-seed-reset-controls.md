@@ -5,11 +5,11 @@ parentId:
 id: t_cd_persist_004
 title: Add explicit seed reset controls
 type: task
-status: todo
+status: "done"
 priority: high
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - frontend

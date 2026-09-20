@@ -5,11 +5,11 @@ parentId:
 id: t_cd_live_008
 title: Refine the selected first slice
 type: task
-status: todo
+status: "done"
 priority: critical
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - frontend
