@@ -1,7 +1,7 @@
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   referenceDataQueryOptions,
   TransactionApiError,
@@ -12,10 +12,10 @@ import {
   type TransactionQuery,
 } from "./api/transactions";
 import { Icon } from "./icon";
+import { useDismiss } from "./use-dismiss";
 
 type TransactionType = "income" | "expense" | "transfer";
 type AmountOperator = "equal" | "greater" | "less";
-
 export type TransactionRouteSearch = {
   page?: number;
   search?: string;
@@ -120,8 +120,6 @@ export function TransactionsPage() {
     [data?.transactions],
   );
   const activeFilterCount = countActiveFilters(routeSearch);
-  const csrfToken =
-    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? "";
   const [filterOpen, setFilterOpen] = useState(false);
   const [columns, setColumns] = useState({
     merchant: true,
@@ -163,13 +161,6 @@ export function TransactionsPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <a
-            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-secondary bg-container px-4 text-sm font-medium text-primary transition-colors hover:bg-container-hover"
-            data-turbo-frame="modal"
-            href={bootstrap.railsPaths.newImport}
-          >
-            Import
-          </a>
           <Link
             className="inline-flex min-h-10 items-center justify-center rounded-lg button-bg-primary px-4 text-sm font-medium text-inverse transition-colors hover:button-bg-primary-hover"
             search={{ account_id: undefined, nature: undefined }}
@@ -184,36 +175,8 @@ export function TransactionsPage() {
 
       <div
         className="relative flex flex-col rounded-xl bg-container shadow-border-xs"
-        data-controller="drag-and-drop-import"
         id="transactions"
       >
-        <form
-          action={bootstrap.railsPaths.imports}
-          className="hidden"
-          data-turbo="false"
-          data-drag-and-drop-import-target="form"
-          encType="multipart/form-data"
-          method="post"
-        >
-          <input name="authenticity_token" type="hidden" value={csrfToken} />
-          <input name="import[type]" type="hidden" value="TransactionImport" />
-          <input
-            accept=".csv"
-            className="hidden"
-            data-drag-and-drop-import-target="input"
-            name="import[import_file]"
-            type="file"
-          />
-        </form>
-        <div
-          className="pointer-events-none fixed inset-0 z-50 hidden items-center justify-center bg-overlay backdrop-blur-sm"
-          data-drag-and-drop-import-target="overlay"
-        >
-          <div className="mx-4 w-full max-w-sm rounded-xl bg-container p-6 text-center shadow-border-xs">
-            <p className="font-medium text-primary">Drop your CSV here</p>
-            <p className="mt-1 text-sm text-secondary">Release to start importing transactions.</p>
-          </div>
-        </div>
         <div className="space-y-4 border-b border-tertiary p-4">
           <div className="flex gap-2">
             <TransactionSearchBox
@@ -478,26 +441,14 @@ function MerchantMenu({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function onPointerDown(event: PointerEvent) {
-      if (containerRef.current === null || !(event.target instanceof Node)) return;
-      if (!containerRef.current.contains(event.target)) setOpen(false);
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    }
-    if (open) {
-      document.addEventListener("pointerdown", onPointerDown);
-      document.addEventListener("keydown", onKeyDown);
-    }
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
+  useDismiss(
+    containerRef,
+    () => {
+      setOpen(false);
+      buttonRef.current?.focus();
+    },
+    open,
+  );
 
   const handleMenuKeyDown = (event: React.KeyboardEvent) => {
     if (!open || !menuRef.current) return;
@@ -1279,21 +1230,9 @@ function TransactionColumnsPopover({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function onPointerDown(event: PointerEvent) {
-      if (ref.current === null || !(event.target instanceof Node)) return;
-      if (!ref.current.contains(event.target)) setOpen(false);
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, []);
+  useDismiss(ref, () => {
+    setOpen(false);
+  });
 
   const entries = [
     ["tags", "Tags", "tag"],
