@@ -16,8 +16,8 @@ class TransactionsTest < ApplicationSystemTestCase
     assert_selector "##{dom_id(@groceries)}"
     assert_selector "##{dom_id(@paycheck)}"
 
-    fill_in "Merchant, note, or transaction", with: @groceries.name
-    click_button "Search"
+    find("input[role='combobox']").fill_in(with: @groceries.name)
+    find("input[role='combobox']").send_keys(:enter)
 
     assert_current_path(/search=Weekly(?:\+|%20)groceries/, wait: 5)
     assert_selector "##{dom_id(@groceries)}"
@@ -25,11 +25,28 @@ class TransactionsTest < ApplicationSystemTestCase
   end
 
   test "filters transactions by type" do
-    click_button "Income"
+    click_button "Filter"
+    click_button "Type"
+    check "Income"
 
     assert_current_path(/types=/, wait: 5)
     assert_selector "##{dom_id(@paycheck)}"
     assert_no_selector "##{dom_id(@groceries)}"
+  end
+
+  test "opens merchant menu with options matching main" do
+    merchant = merchants(:netflix)
+    category = categories(:food_and_drink)
+    entry = create_transaction("Netflix subscription", Date.current, 15, merchant: merchant, category: category)
+
+    visit transactions_url
+
+    within "##{dom_id(entry)}" do
+      find("[data-testid='merchant-rule-menu-#{entry.entryable.id}-desktop'] button").click
+      assert_text "View #{merchant.name} transactions"
+      assert_text "Edit #{merchant.name}"
+      assert_text "Always categorize #{merchant.name} as #{category.name}"
+    end
   end
 
   test "opens transaction details in the drawer" do
@@ -68,13 +85,13 @@ class TransactionsTest < ApplicationSystemTestCase
   end
 
   private
-    def create_transaction(name, date, amount)
+    def create_transaction(name, date, amount, merchant: nil, category: nil)
       accounts(:depository).entries.create!(
         name: name,
         date: date,
         amount: amount,
         currency: "USD",
-        entryable: Transaction.new
+        entryable: Transaction.new(merchant: merchant, category: category)
       )
     end
 end

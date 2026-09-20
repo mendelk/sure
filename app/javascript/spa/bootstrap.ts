@@ -11,6 +11,11 @@ const SpaBootstrapSchema = z.object({
   apiPaths: z.object({
     transactions: z.string(),
     summary: z.string(),
+    accounts: z.string(),
+    categories: z.string(),
+    merchants: z.string(),
+    tags: z.string(),
+    transfers: z.string(),
   }),
   railsPaths: z.object({
     home: z.string(),
@@ -25,6 +30,8 @@ const SpaBootstrapSchema = z.object({
     changelog: z.string(),
     signOut: z.string(),
     transactions: z.string(),
+    familyMerchants: z.string(),
+    newRule: z.string(),
   }),
 });
 
