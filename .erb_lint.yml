@@ -1,5 +1,7 @@
 EnableDefaultLinters: true
 linters:
+  AllowedScriptType:
+    enabled: false
   Rubocop:
     enabled: true
     only: [Style/StringLiterals]

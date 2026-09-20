@@ -9,7 +9,7 @@ WORKDIR /rails
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY vite.config.ts tsconfig.spa.json ./
+COPY vite.config.ts tsconfig.json ./
 COPY app/javascript/spa ./app/javascript/spa
 RUN npm run spa:build
 
@@ -48,6 +48,7 @@ RUN bundle install \
 # Copy application code
 COPY . .
 COPY --from=frontend /rails/app/assets/builds/spa.js /rails/app/assets/builds/spa.js
+COPY --from=frontend /rails/app/assets/builds/sure.css /rails/app/assets/builds/sure.css
 
 # Precompile bootsnap code for faster boot times
 RUN bundle exec bootsnap precompile -j 0 app/ lib/
