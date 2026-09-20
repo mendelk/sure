@@ -1,3 +1,7 @@
+// eslint-disable-next-line import/no-unassigned-import -- Monaco suggestion UI registers by side effect
+import "monaco-editor/editor/contrib/suggest/browser/suggestController.js";
+// eslint-disable-next-line import/no-unassigned-import -- Monaco word-navigation commands register by side effect
+import "monaco-editor/editor/contrib/wordOperations/browser/wordOperations.js";
 import * as monacoEditor from "monaco-editor/editor.js";
 import { Editor, loader } from "@monaco-editor/react";
 import type * as MonacoType from "monaco-editor";
@@ -11,9 +15,9 @@ type Monaco = typeof MonacoType;
 const CUSTOM_LANGUAGE_ID = "sureql";
 const PRQL_LANGUAGE_ID = "prql";
 
-// Monaco is bundled from the npm package (editor.api core, no built-in
-// languages — sureql/prql are registered locally) and injected into the
-// loader so it never fetches a CDN script.
+// Monaco is bundled from the npm package with only the suggestion and
+// word-navigation contributions needed by this editor. SureQL and PRQL remain
+// the only registered languages, and the loader never fetches a CDN script.
 loader.config({
   monaco: monacoEditor,
 });
@@ -61,7 +65,31 @@ const SUREQL_BRIDGE_COLUMNS: Record<string, string[]> = {
   transactions: ["transfer_id", "category_id", "merchant_id", "kind"],
 };
 
+let optionWordNavigationRegistered = false;
 let sureqlCompletionsRegistered = false;
+
+function registerOptionWordNavigation(monaco: Monaco) {
+  if (optionWordNavigationRegistered) return;
+  optionWordNavigationRegistered = true;
+  monaco.editor.addKeybindingRules([
+    {
+      keybinding: monaco.KeyMod.Alt | monaco.KeyCode.LeftArrow,
+      command: "cursorWordLeft",
+    },
+    {
+      keybinding: monaco.KeyMod.Alt | monaco.KeyCode.RightArrow,
+      command: "cursorWordEndRight",
+    },
+    {
+      keybinding: monaco.KeyMod.Alt | monaco.KeyMod.Shift | monaco.KeyCode.LeftArrow,
+      command: "cursorWordLeftSelect",
+    },
+    {
+      keybinding: monaco.KeyMod.Alt | monaco.KeyMod.Shift | monaco.KeyCode.RightArrow,
+      command: "cursorWordEndRightSelect",
+    },
+  ]);
+}
 
 function registerPrqlLanguage(monaco: Monaco, id: string, extraKeywords: string[] = []) {
   if (monaco.languages.getLanguages().some((l: languages.ILanguageExtensionPoint) => l.id === id))
@@ -258,6 +286,7 @@ export function SureqlEditor({
   const handleBeforeMount = (monaco: Monaco) => {
     registerSureql(monaco);
     registerPrqlLanguage(monaco, PRQL_LANGUAGE_ID);
+    registerOptionWordNavigation(monaco);
   };
 
   const handleOnMount = (editorInstance: editor.IStandaloneCodeEditor, monaco: Monaco) => {
@@ -422,6 +451,8 @@ export function SureqlEditor({
             renderLineHighlight: "all",
             stickyScroll: { enabled: false },
             automaticLayout: true,
+            quickSuggestions: { other: true, comments: false, strings: false },
+            suggestOnTriggerCharacters: true,
           }}
           loading={
             <div className="flex size-full items-center justify-center gap-2 bg-surface-inset text-sm text-secondary">
