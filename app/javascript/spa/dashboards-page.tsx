@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { GridLayout, useContainerWidth } from "react-grid-layout";
-import type { Layout } from "react-grid-layout";
+import type { EventCallback, Layout } from "react-grid-layout";
 import { useMemo, useState } from "react";
 import * as z from "zod/mini";
 // eslint-disable-next-line import/no-unassigned-import -- vendor stylesheet side-effect import
@@ -9,6 +9,8 @@ import "react-grid-layout/css/styles.css";
 import { Icon } from "./icon";
 import { readCsrfToken } from "./api/transactions";
 import { SureqlEditor } from "./sureql-editor";
+import { readDashboardSnapshot, writeDashboardSnapshot } from "./dashboard-storage";
+import type { DashboardSnapshot } from "./dashboard-storage";
 
 const DEFAULT_QUERY = "from transactions\nsort {-date}\ntake 10";
 
@@ -94,9 +96,12 @@ function ReportCardHeader() {
 
 export function DashboardsPage() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
-  const [query, setQuery] = useState(DEFAULT_QUERY);
-  const [executedQuery, setExecutedQuery] = useState(DEFAULT_QUERY);
-  const [layout, setLayout] = useState<Layout>(REPORT_LAYOUT);
+  const [initialSnapshot] = useState<DashboardSnapshot | undefined>(() =>
+    readDashboardSnapshot(bootstrap.currentUser.id),
+  );
+  const [query, setQuery] = useState(initialSnapshot?.query ?? DEFAULT_QUERY);
+  const [executedQuery, setExecutedQuery] = useState(initialSnapshot?.query ?? DEFAULT_QUERY);
+  const [layout, setLayout] = useState<Layout>(initialSnapshot?.layout ?? REPORT_LAYOUT);
   const { width: gridWidth, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   });
@@ -110,11 +115,27 @@ export function DashboardsPage() {
 
   const loading = isLoading || isFetching;
 
+  // Persist only on explicit saves and interaction stops — never on every
+  // keystroke or pointer move during editing, dragging, or resizing.
+  const persistSnapshot = (nextQuery: string, nextLayout: Layout) => {
+    writeDashboardSnapshot(bootstrap.currentUser.id, { query: nextQuery, layout: nextLayout });
+  };
+
+  const handleInteractionStop: EventCallback = (nextLayout) => {
+    setLayout(nextLayout);
+    persistSnapshot(executedQuery, nextLayout);
+  };
+
   const handleRun = () => {
     const trimmed = query.trim();
     if (trimmed.length === 0) return;
-    if (trimmed === executedQuery) void refetch();
-    else setExecutedQuery(trimmed);
+    if (trimmed === executedQuery) {
+      persistSnapshot(executedQuery, layout);
+      void refetch();
+    } else {
+      setExecutedQuery(trimmed);
+      persistSnapshot(trimmed, layout);
+    }
   };
 
   const columns = useMemo(() => {
@@ -138,6 +159,8 @@ export function DashboardsPage() {
           width={gridWidth}
           layout={layout}
           onLayoutChange={setLayout}
+          onDragStop={handleInteractionStop}
+          onResizeStop={handleInteractionStop}
           gridConfig={{ cols: 12, rowHeight: 80, margin: [12, 12] }}
           dragConfig={{ enabled: true, handle: "[data-report-drag-handle]" }}
           resizeConfig={{ enabled: true, handles: ["se"] }}

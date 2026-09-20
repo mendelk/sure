@@ -32,7 +32,7 @@ Every task changes something visible or directly usable. No general dashboard do
 ## Tasks
 - [x] [[build-a-live-editable-sureql-dashboard|Build a live editable SureQL dashboard]]
 - [x] [[place-the-live-report-on-a-draggable-grid|Place the live report on a draggable grid]]
-- [ ] [[remember-one-dashboard-in-local-storage|Remember one dashboard in local storage]]
+- [x] [[remember-one-dashboard-in-local-storage|Remember one dashboard in local storage]]
 - [ ] [[ship-a-resettable-starter-dashboard|Ship a resettable starter dashboard]]
 - [ ] [[add-and-remove-live-report-cards|Add and remove live report cards]]
 - [ ] [[create-and-switch-between-dashboards|Create and switch between dashboards]]
