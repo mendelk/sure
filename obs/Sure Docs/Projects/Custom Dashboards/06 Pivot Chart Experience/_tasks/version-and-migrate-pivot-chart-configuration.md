@@ -5,7 +5,7 @@ parentId:
 id: t_cd_pivot_004
 title: Version and migrate pivot chart configuration
 type: task
-status: todo
+status: "done"
 priority: high
 start: ""
 due: ""
