@@ -340,4 +340,119 @@ class LifetimeProjectionTest < ApplicationSystemTestCase
       assert_text "$2,200,241"
     end
   end
+
+  test "shows baseline capture date and synced badge when current finances match baseline" do
+    visit lifetime_projection_url
+
+    assert_text "Saved baseline captured"
+    assert_selector "span", text: "Synced"
+    assert_no_selector "button", text: "Review changes"
+  end
+
+  test "detects when current finances differ, previews additions removals and balance changes, rejects once, and accepts once preserving assumptions" do
+    visit lifetime_projection_url
+    key = "sure:lifetime-projection:#{@user.id}"
+
+    # Customize assumptions and save
+    fill_in "Projection horizon", with: "20"
+    fill_in "Annual income", with: "115000"
+    fill_in "Annual spending", with: "55000"
+    click_button "Apply changes"
+    assert_text "Plan saved in this browser."
+
+    # Modify accounts in the database:
+    # 1. Change existing depository account balance by +$10,000
+    depository = accounts(:depository)
+    depository.update!(balance: depository.balance + 10_000)
+
+    # 2. Add a new account with $3,000
+    @user.family.accounts.create!(
+      name: "High Yield Growth",
+      accountable_type: "Depository",
+      accountable: depository.accountable,
+      balance: 3000,
+      currency: "USD",
+      status: "active"
+    )
+
+    # Revisit the projection page
+    visit lifetime_projection_url
+
+    # Baseline difference detected!
+    assert_selector "span", text: "Differs"
+    assert_text "Current live balance:"
+    assert_text "Difference:"
+    assert_selector "button", text: "Review changes"
+
+    # The projection still uses the saved assumptions
+    assert_field "Projection horizon", with: "20"
+    assert_field "Annual income", with: "115000"
+    assert_field "Annual spending", with: "55000"
+
+    # Open preview modal
+    click_button "Review changes"
+
+    within "[role='dialog']" do
+      assert_selector "h2", text: "Refresh projection baseline?"
+      assert_text(/Saved baseline/i)
+      assert_text(/Current live finances/i)
+      assert_text "High Yield Growth"
+      assert_text "Checking Account"
+      assert_text "Your projection horizon, annual income, annual spending, inflation, and return rate assumptions will be preserved."
+
+      # Reject once: Keep current baseline
+      click_button "Keep current baseline"
+    end
+
+    assert_no_selector "[role='dialog']"
+    # Unchanged: still differs, still 20-year horizon
+    assert_selector "span", text: "Differs"
+    assert_field "Projection horizon", with: "20"
+    assert_field "Annual income", with: "115000"
+
+    # Re-open preview and accept this time
+    click_button "Review changes"
+    within "[role='dialog']" do
+      click_button "Update baseline"
+    end
+
+    assert_no_selector "[role='dialog']"
+
+    # Now synced with updated baseline
+    assert_selector "span", text: "Synced"
+    assert_no_selector "button", text: "Review changes"
+
+    # Assumptions are preserved!
+    assert_field "Projection horizon", with: "20"
+    assert_field "Annual income", with: "115000"
+    assert_field "Annual spending", with: "55000"
+
+    # Check localStorage updated baseline
+    raw_stored = page.evaluate_script("window.localStorage.getItem('#{key}')")
+    stored = JSON.parse(raw_stored)
+    assert_equal 20, stored["assumptions"]["horizonYears"]
+    assert_equal 115_000, stored["assumptions"]["annualIncome"]
+    assert stored["baseline"]["netWorth"] > 0
+  end
+
+  test "previews removed accounts when an account is closed or deleted" do
+    visit lifetime_projection_url
+
+    # Ensure starter plan is seeded with current accounts
+    assert_selector "span", text: "Synced"
+
+    # Delete an account
+    accounts(:other_asset).destroy!
+
+    # Revisit page
+    visit lifetime_projection_url
+    assert_selector "span", text: "Differs"
+
+    click_button "Review changes"
+
+    within "[role='dialog']" do
+      assert_text(/Removed or closed accounts/i)
+      assert_text "Collectable Account"
+    end
+  end
 end

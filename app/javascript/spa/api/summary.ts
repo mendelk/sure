@@ -46,6 +46,7 @@ export type Summary = {
     classification: "asset" | "liability";
     account_type: string;
     balance: string;
+    balance_amount: number;
     currency: string;
     path: string;
   }>;
@@ -89,6 +90,7 @@ async function requestSummary(path: string, signal?: AbortSignal): Promise<Summa
       classification: account.classification,
       account_type: account.account_type,
       balance: account.balance.formatted,
+      balance_amount: Number(account.balance.amount),
       currency: account.currency,
       path: account.path,
     })),
