@@ -5,7 +5,7 @@ parentId:
 id: t_cd_pivot_002
 title: Return typed SureQL field metadata
 type: task
-status: todo
+status: "done"
 priority: high
 start: ""
 due: ""

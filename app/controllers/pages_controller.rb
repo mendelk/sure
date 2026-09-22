@@ -136,7 +136,8 @@ class PagesController < ApplicationController
       rows: result.rows,
       row_count: result.row_count,
       truncated: result.truncated,
-      html: html
+      html: html,
+      fields: result.fields.map(&:to_h)
     }
   rescue Sureql::UnknownSourceError, Sureql::CompileError => e
     render json: { error: e.message }, status: :unprocessable_entity
