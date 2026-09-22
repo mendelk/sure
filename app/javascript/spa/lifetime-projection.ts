@@ -24,13 +24,27 @@ export const LifetimeProjectionInputsSchema = z.object({
   startYear: CalendarYearSchema,
 });
 
-const LifetimeProjectionAssumptionsSchema = z.object({
+export const LifetimeProjectionAssumptionsSchema = z.object({
   annualIncome: NonnegativeProjectionAmountSchema,
   annualSpending: NonnegativeProjectionAmountSchema,
   inflationPercent: PercentagePointsSchema,
   annualReturnPercent: PercentagePointsSchema,
   horizonYears: HorizonYearsSchema,
 });
+
+export type LifetimeProjectionAssumptions = z.infer<typeof LifetimeProjectionAssumptionsSchema>;
+
+export const LifetimeProjectionAssumptionValuesSchema = z.object({
+  annualIncome: NonnegativeProjectionAmountValueSchema,
+  annualSpending: NonnegativeProjectionAmountValueSchema,
+  inflationPercent: PercentagePointsValueSchema,
+  annualReturnPercent: PercentagePointsValueSchema,
+  horizonYears: HorizonYearsValueSchema,
+});
+
+export type LifetimeProjectionAssumptionValues = z.infer<
+  typeof LifetimeProjectionAssumptionValuesSchema
+>;
 
 const LifetimeProjectionInputValuesSchema = z.object({
   startingBalance: ProjectionAmountValueSchema,
