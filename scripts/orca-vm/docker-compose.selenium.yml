@@ -1,0 +1,15 @@
+# Opt-in Selenium for system tests. Only loaded when ORCA_WITH_SELENIUM=1.
+# Usage: compose -f docker-compose.yml -f docker-compose.selenium.yml up
+services:
+  app:
+    environment:
+      SELENIUM_REMOTE_URL: http://selenium:4444
+    depends_on:
+      - selenium
+
+  selenium:
+    image: docker.io/selenium/standalone-chromium:latest
+    environment:
+      SE_NODE_MAX_SESSIONS: 2
+      SE_NODE_OVERRIDE_MAX_SESSIONS: "true"
+    shm_size: 1gb

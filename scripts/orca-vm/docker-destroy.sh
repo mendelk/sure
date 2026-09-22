@@ -31,7 +31,8 @@ if [[ -n "$proxy_route_id" ]]; then
   rm -f "$proxy_config_dir/$proxy_route_id.yml"
 fi
 
-compose --project-name "$project_name" --file "$compose_file" down --volumes >&2
+# shellcheck disable=SC2086
+compose --project-name "$project_name" $(compose_files_args) down --volumes >&2
 if [[ -n "$ssh_port" ]]; then
   ssh-keygen -R "[$publish_host]:$ssh_port" >/dev/null 2>&1 || true
 fi

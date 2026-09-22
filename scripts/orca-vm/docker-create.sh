@@ -67,13 +67,15 @@ export ORCA_WORKTREE_PATH="$worktree_path"
 export ORCA_PUBLISH_HOST="$publish_host"
 export ORCA_PROXY_CONFIG_DIR="$proxy_config_dir"
 export ORCA_PROXY_PORT="$proxy_port"
+export ORCA_SKIP_YJIT="${ORCA_SKIP_YJIT:-1}"
 mkdir -p "$proxy_config_dir"
 compose --project-name "$proxy_project_name" --file "$proxy_compose_file" up --detach >&2
 
 cleanup_on_error() {
   if [[ "$?" -ne 0 ]]; then
     rm -f "$proxy_route_file"
-    compose --project-name "$project_name" --file "$compose_file" down --volumes >/dev/null 2>&1 || true
+    # shellcheck disable=SC2086
+    compose --project-name "$project_name" $(compose_files_args) down --volumes >/dev/null 2>&1 || true
   fi
 }
 trap cleanup_on_error EXIT
@@ -101,8 +103,8 @@ if [[ "$db_ready" -ne 1 ]]; then
   container logs --tail 100 "$db_container_id" >&2 || true
   exit 1
 fi
-
-compose --project-name "$project_name" --file "$compose_file" up --detach >&2
+    # shellcheck disable=SC2086
+    compose --project-name "$project_name" $(compose_files_args) up --detach >&2
 
 container_id="$(compose_container_id "$project_name" app || true)"
 [[ -n "$container_id" ]] || {

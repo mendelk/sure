@@ -1,0 +1,2 @@
+web: bundle exec ${DEBUG:+rdbg -O -n -c --} bin/rails server
+spa: npm run spa:watch
