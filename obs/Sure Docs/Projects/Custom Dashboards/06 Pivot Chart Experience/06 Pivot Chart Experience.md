@@ -41,7 +41,7 @@ Replace the current first-date/first-number chart guess with an explicit, saved 
 
 - [x] [[define-the-pivot-chart-contract|Define the pivot chart contract]]
 - [x] [[return-typed-sureql-field-metadata|Return typed SureQL field metadata]]
-- [ ] [[execute-pivot-aggregations-on-the-server|Execute pivot aggregations on the server]]
+- [x] [[execute-pivot-aggregations-on-the-server|Execute pivot aggregations on the server]]
 - [ ] [[version-and-migrate-pivot-chart-configuration|Version and migrate pivot chart configuration]]
 - [ ] [[build-the-pivot-chart-configurator|Build the pivot chart configurator]]
 - [ ] [[render-pivot-chart-presentations|Render pivot chart presentations]]
