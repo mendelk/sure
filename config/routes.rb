@@ -514,6 +514,7 @@ Rails.application.routes.draw do
   get "transactions", to: "spa#show", as: :transactions
   get "transactions/:id", to: "spa#show", as: :spa_transaction, constraints: { id: /[0-9a-f-]{36}/i }
   get "dashboards", to: "spa#show", as: :dashboards
+  get "plan/projection", to: "spa#show", as: :lifetime_projection
   post "transactions", to: "transactions#create"
 
   resources :transactions, only: %i[new update destroy] do

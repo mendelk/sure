@@ -5,11 +5,11 @@ parentId:
 id: t_lfp_live_001
 title: Build the first live lifetime projection
 type: task
-status: todo
+status: done
 priority: critical
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - frontend
@@ -18,7 +18,7 @@ tags:
 subtaskIds: []
 dependencies: []
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T18:06:11.755Z
+updatedAt: 2026-09-20T18:56:05.000Z
 timeEstimate: 12
 ---
 

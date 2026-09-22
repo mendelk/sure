@@ -51,6 +51,20 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
     assert_select "script[type='module'][src*='spa']"
   end
 
+  test "serves lifetime projection through the React SPA shell" do
+    get lifetime_projection_path
+
+    assert_response :success
+    assert_select "#spa-root"
+    assert_select "script#spa-bootstrap[type='application/json']" do |elements|
+      bootstrap = JSON.parse(elements.first.text)
+
+      assert_equal lifetime_projection_path, bootstrap.dig("railsPaths", "lifetimeProjection")
+      assert_equal api_v1_balance_sheet_path, bootstrap.dig("apiPaths", "summary")
+    end
+    assert_select "script[type='module'][src*='spa']"
+  end
+
   test "serves transaction detail through the React SPA shell" do
     transaction = @user.family.transactions.first
 
@@ -69,6 +83,9 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
 
     get dashboards_path
+    assert_redirected_to new_session_path
+
+    get lifetime_projection_path
     assert_redirected_to new_session_path
   end
 end

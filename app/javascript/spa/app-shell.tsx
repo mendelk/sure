@@ -12,12 +12,11 @@ type NavItem = {
   label: string;
   path: keyof SpaBootstrap["railsPaths"];
   icon: IconName;
-  spaPath?: "/transactions" | "/dashboards";
+  spaPath?: "/transactions" | "/dashboards" | "/plan/projection";
 };
 
-// Matches the desktop nav of the Rails layout (layouts/application.html.erb):
-// Home, Dashboards, Transactions, Reports, Budgets. Plan/insights previews stay on the
-// Rails side until they gain SPA routes.
+// Matches the desktop nav of the Rails layout while exposing the first lifetime
+// projection walking slice inside the SPA.
 const NAV_ITEMS: NavItem[] = [
   { label: "Home", path: "home", icon: "pie-chart" },
   {
@@ -31,6 +30,12 @@ const NAV_ITEMS: NavItem[] = [
     path: "transactions",
     icon: "credit-card",
     spaPath: "/transactions",
+  },
+  {
+    label: "Projection",
+    path: "lifetimeProjection",
+    icon: "chart-bar",
+    spaPath: "/plan/projection",
   },
   { label: "Reports", path: "reports", icon: "chart-bar" },
   { label: "Budgets", path: "budgets", icon: "map" },
@@ -686,7 +691,9 @@ function BreadcrumbBar({
       ? "Transactions"
       : pathname.startsWith("/dashboards")
         ? "Dashboards"
-        : "Home";
+        : pathname === "/plan/projection"
+          ? "Lifetime projection"
+          : "Home";
 
   return (
     <div className="hidden lg:flex items-center justify-between gap-2 mb-6 sticky top-0 z-10 -mx-3 lg:-mx-10 px-3 lg:px-10 py-4 bg-surface border-b border-tertiary">

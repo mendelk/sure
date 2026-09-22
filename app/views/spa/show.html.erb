@@ -1,4 +1,10 @@
-<% page_title = request.path.start_with?("/dashboards") ? "Dashboards" : "Transactions" %>
+<% page_title = if request.path == "/plan/projection"
+  "Lifetime projection"
+elsif request.path.start_with?("/dashboards")
+  "Dashboards"
+else
+  "Transactions"
+end %>
 <% content_for :title, "#{page_title} · #{product_name}" %>
 <% bootstrap = {
   currentUser: {
@@ -30,6 +36,7 @@
     newImport: new_import_path,
     newTransaction: new_transaction_path,
     reports: reports_path,
+    lifetimeProjection: lifetime_projection_path,
     settings: settings_profile_path,
     changelog: changelog_path,
     signOut: session_path(Current.session),

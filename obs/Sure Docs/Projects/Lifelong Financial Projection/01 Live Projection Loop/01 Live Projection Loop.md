@@ -10,7 +10,7 @@ customFields: []
 teamMembers: []
 savedViews: []
 createdAt: "2026-09-20T00:00:00.000Z"
-updatedAt: "2026-09-20T18:06:13.845Z"
+updatedAt: "2026-09-20T18:56:05.000Z"
 config:
   defaultView: "table"
   autoSchedule: false
@@ -21,7 +21,7 @@ config:
 Start with a browser-verifiable projection, then improve only what the working slice proves necessary. Keep the plan and assumptions in localStorage and keep calculations local to the feature.
 
 ## Tasks
-- [ ] [[build-the-first-live-lifetime-projection|Build the first live lifetime projection]]
+- [x] [[build-the-first-live-lifetime-projection|Build the first live lifetime projection]]
 - [ ] [[make-core-projection-assumptions-editable|Make core projection assumptions editable]]
 - [ ] [[remember-one-plan-in-local-storage|Remember one plan in local storage]]
 - [ ] [[explain-one-projected-year|Explain one projected year]]

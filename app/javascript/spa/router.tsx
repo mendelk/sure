@@ -7,6 +7,7 @@ import {
 import type { SpaBootstrap } from "./bootstrap";
 import { AppShell } from "./app-shell";
 import { DashboardsPage } from "./dashboards-page";
+import { LifetimeProjectionPage } from "./lifetime-projection-page";
 import { validateDashboardSearch } from "./dashboard-storage";
 import { validateNewTransactionSearch, NewTransactionPage } from "./new-transaction-page";
 import { TransactionDetailDrawer } from "./transaction-detail-page";
@@ -47,9 +48,16 @@ const dashboardsRoute = createRoute({
   component: DashboardsPage,
 });
 
+const lifetimeProjectionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/plan/projection",
+  component: LifetimeProjectionPage,
+});
+
 const routeTree = rootRoute.addChildren([
   transactionsRoute.addChildren([transactionDetailRoute, newTransactionRoute]),
   dashboardsRoute,
+  lifetimeProjectionRoute,
 ]);
 export type SpaRouter = Router<typeof routeTree>;
 

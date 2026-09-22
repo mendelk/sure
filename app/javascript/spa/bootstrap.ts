@@ -30,6 +30,7 @@ const SpaBootstrapSchema = z.object({
     imports: z.string(),
     newImport: z.string(),
     newTransaction: z.string(),
+    lifetimeProjection: z.string(),
     reports: z.string(),
     settings: z.string(),
     changelog: z.string(),
