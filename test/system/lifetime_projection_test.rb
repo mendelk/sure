@@ -52,7 +52,102 @@ class LifetimeProjectionTest < ApplicationSystemTestCase
     assert_selector "table tbody tr", text: (start_year + 10).to_s
     assert_no_selector "table tbody tr", text: (start_year + 11).to_s
     assert_text "10-year horizon"
-    assert_text "Inputs reflect the active projection below."
+    assert_text "Plan saved in this browser."
+  end
+
+  test "preserves edited plan across page reloads" do
+    visit lifetime_projection_url
+    fill_in "Projection horizon", with: "20"
+    fill_in "Annual income", with: "135000"
+    fill_in "Annual spending", with: "55000"
+    fill_in "Inflation rate", with: "3.5"
+    fill_in "Investment return", with: "6.5"
+    click_button "Apply changes"
+
+    assert_text "20-year horizon"
+    assert_text "Plan saved in this browser."
+
+    # Reload page
+    visit lifetime_projection_url
+
+    assert_field "Projection horizon", with: "20"
+    assert_field "Annual income", with: "135000"
+    assert_field "Annual spending", with: "55000"
+    assert_field "Inflation rate", with: "3.5"
+    assert_field "Investment return", with: "6.5"
+    assert_text "20-year horizon"
+    assert_text "Plan saved in this browser."
+  end
+
+  test "isolates saved plans across users in localStorage" do
+    visit lifetime_projection_url
+    fill_in "Projection horizon", with: "12"
+    fill_in "Annual income", with: "110000"
+    click_button "Apply changes"
+    assert_text "12-year horizon"
+
+    # Switch user to family_member
+    find("button[aria-label='Open account menu']", match: :first, visible: :visible).click
+    click_button "Log out", match: :first
+    sign_in users(:family_member)
+    visit lifetime_projection_url
+
+    # Second user sees default 30-year horizon, NOT the first user's 12-year horizon
+    assert_field "Projection horizon", with: "30"
+    assert_field "Annual income", with: "80000"
+    assert_text "30-year horizon"
+
+    # Switch back to first user
+    find("button[aria-label='Open account menu']", match: :first, visible: :visible).click
+    click_button "Log out", match: :first
+    sign_in @user
+    visit lifetime_projection_url
+
+    # First user's saved plan is restored
+    assert_field "Projection horizon", with: "12"
+    assert_field "Annual income", with: "110000"
+    assert_text "12-year horizon"
+  end
+
+  test "recovers safely to defaults when local storage contains malformed or corrupt data" do
+    visit lifetime_projection_url
+    key = "sure:lifetime-projection:#{@user.id}"
+
+    # Corrupt with invalid JSON string
+    page.execute_script("window.localStorage.setItem('#{key}', 'INVALID_CORRUPTED_JSON{{{')")
+    visit lifetime_projection_url
+
+    assert_field "Projection horizon", with: "30"
+    assert_field "Annual income", with: "80000"
+    assert_text "30-year horizon"
+
+    # Corrupt with invalid schema payload (negative income, invalid horizon)
+    corrupted_data = {
+      baseline: { netWorth: 10000, capturedAt: "now" },
+      assumptions: { annualIncome: -500, horizonYears: 999 }
+    }.to_json
+    page.execute_script("window.localStorage.setItem('#{key}', '#{corrupted_data}')")
+    visit lifetime_projection_url
+
+    assert_field "Projection horizon", with: "30"
+    assert_field "Annual income", with: "80000"
+    assert_text "30-year horizon"
+  end
+
+  test "never writes projection values back to accounts, transactions, or family records" do
+    accounts_before = @user.family.accounts.order(:id).pluck(:updated_at, :balance)
+    transactions_count_before = @user.family.transactions.count
+
+    visit lifetime_projection_url
+    fill_in "Projection horizon", with: "15"
+    fill_in "Annual income", with: "250000"
+    click_button "Apply changes"
+
+    accounts_after = @user.family.accounts.order(:id).pluck(:updated_at, :balance)
+    transactions_count_after = @user.family.transactions.count
+
+    assert_equal accounts_before, accounts_after
+    assert_equal transactions_count_before, transactions_count_after
   end
 
   test "displays inline validation beside invalid inputs without recalculating" do
