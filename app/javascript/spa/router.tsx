@@ -19,6 +19,7 @@ import { HomePage } from "./home-page";
 import { validateHomeSearch } from "./home/home-search";
 import { AccountDetailPage, validateAccountSearch } from "./account-detail-page";
 import { DashboardsPage } from "./dashboards-page";
+import { LifetimeProjectionPage } from "./lifetime-projection-page";
 import { validateDashboardSearch } from "./dashboard-storage";
 import { DashboardWorkspaceProvider } from "./dashboard-workspace";
 import {
@@ -498,6 +499,12 @@ const dashboardsIndexRoute = createRoute({
   getParentRoute: () => dashboardsRoute,
   path: "/",
   component: DashboardsPage,
+});
+
+const lifetimeProjectionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/plan/projection",
+  component: LifetimeProjectionPage,
 });
 
 const sourcesRoute = createRoute({
@@ -1137,6 +1144,7 @@ const routeTree = rootRoute.addChildren([
   standaloneTransferRoute,
   newValuationRoute,
   valuationRoute,
+  lifetimeProjectionRoute,
 ]);
 export type SpaRouter = Router<typeof routeTree>;
 

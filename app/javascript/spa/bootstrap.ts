@@ -82,6 +82,7 @@ const SpaBootstrapSchema = z.object({
     newBulkUpdate: z.optional(z.string()),
     bulkDelete: z.optional(z.string()),
     exchangeRate: z.string(),
+    lifetimeProjection: z.string(),
     reports: z.string(),
     settings: z.string(),
     changelog: z.string(),

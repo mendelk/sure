@@ -25,6 +25,7 @@ type NavItem = SpaBootstrap["navItems"][number];
 const SPA_PREFIXES = [
   "/transactions",
   "/dashboards",
+  "/plan/projection",
   "/sources",
   "/accounts",
   "/statements",
@@ -689,6 +690,8 @@ function BreadcrumbBar({
       ? "Transactions"
       : pathname.startsWith("/dashboards")
         ? "Dashboards"
+        : pathname === "/plan/projection"
+          ? "Lifetime projection"
         : pathname.startsWith("/sources")
           ? "Sources"
           : pathname === "/accounts" ||
