@@ -288,6 +288,72 @@ export function ProjectionYearBreakdown({
             </p>
           </div>
 
+          {selectedPoint.goalEvaluations && selectedPoint.goalEvaluations.length > 0 ? (
+            <div
+              className="space-y-3 rounded-lg border border-secondary bg-container-inset/50 p-3.5"
+              data-testid="year-goals-breakdown"
+            >
+              <div className="flex items-center justify-between gap-2 border-b border-secondary pb-2">
+                <div className="flex items-center gap-2">
+                  <Icon className="text-secondary" name="target" size="sm" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-secondary">
+                    Goals and milestones evaluated in {selectedPoint.year}
+                  </span>
+                </div>
+                <span className="text-xs text-secondary">
+                  {selectedPoint.goalEvaluations.length}{" "}
+                  {selectedPoint.goalEvaluations.length === 1 ? "goal" : "goals"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {selectedPoint.goalEvaluations.map((ev) => {
+                  let badgeColor = "bg-container-inset text-secondary";
+                  if (ev.status === "funded") badgeColor = "bg-success/15 text-success";
+                  else if (ev.status === "partially_funded")
+                    badgeColor = "bg-warning/15 text-warning";
+                  else if (ev.status === "missed")
+                    badgeColor = "bg-destructive/15 text-destructive";
+
+                  return (
+                    <div
+                      className="flex flex-col justify-between gap-2 rounded-lg border border-secondary bg-container p-3 text-xs"
+                      key={ev.goalId}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="font-semibold text-primary">{ev.goal.name}</span>
+                            <span className="ml-1.5 rounded-full bg-container-inset px-1.5 py-0.5 text-[10px] text-secondary">
+                              {ev.goal.type === "target_balance"
+                                ? "Target balance"
+                                : "Dated spending"}
+                            </span>
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${badgeColor}`}
+                          >
+                            {ev.statusLabel}
+                            {ev.status === "partially_funded" ? ` (${ev.fundedPercentage}%)` : ""}
+                          </span>
+                        </div>
+
+                        <p className="text-secondary">{ev.explanation}</p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-tertiary pt-2 text-[11px] text-secondary">
+                        <span>Target: {money.format(ev.effectiveAmount)}</span>
+                        <span className="font-medium text-primary">
+                          {ev.determiningFlowsSummary}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
           {selectedPoint.eventStatuses && selectedPoint.eventStatuses.length > 0 ? (
             <div
               className="space-y-3 rounded-lg border border-secondary bg-container-inset/50 p-3.5"

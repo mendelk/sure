@@ -45,6 +45,47 @@ export const ProjectionEventSchema = z.object({
 export type ProjectionEvent = z.infer<typeof ProjectionEventSchema>;
 export type CashFlowMode = "flat" | "events";
 
+export const ShortfallExperimentSchema = z.object({
+  enabled: z.boolean().default(false),
+  strategy: z.enum(["none", "reduce", "defer"]).default("none"),
+  reducedAmount: z.number().nonnegative().optional(),
+  deferredYears: z.number().int().min(0).max(50).optional(),
+});
+
+export const ProjectionGoalSchema = z.object({
+  id: z.string(),
+  name: z.string().trim().min(1),
+  type: z.enum(["target_balance", "dated_spending"]),
+  targetYear: z.number().int().min(1900).max(2150),
+  targetAmount: z.number().nonnegative(),
+  memberId: z.string().default("household"),
+  isFlexible: z.boolean().default(false),
+  shortfallExperiment: ShortfallExperimentSchema.default({ enabled: false, strategy: "none" }),
+  enabled: z.boolean().default(true),
+});
+
+export type ProjectionGoal = z.infer<typeof ProjectionGoalSchema>;
+export type ShortfallExperiment = z.infer<typeof ShortfallExperimentSchema>;
+export type GoalOutcomeStatus = "funded" | "partially_funded" | "missed" | "not_yet_evaluable";
+
+export type GoalEvaluation = {
+  goalId: string;
+  goal: ProjectionGoal;
+  status: GoalOutcomeStatus;
+  statusLabel: string;
+  effectiveYear: number;
+  effectiveAmount: number;
+  targetAmount: number;
+  originalYear: number;
+  fundedAmount: number;
+  shortfallAmount: number;
+  fundedPercentage: number;
+  isExperimentActive: boolean;
+  explanation: string;
+  determiningFlowsSummary: string;
+  projectedNetWorthAtYear?: number;
+};
+
 export type EventYearStatus = {
   eventId: string;
   name: string;
@@ -257,6 +298,7 @@ export const LifetimeProjectionInputsSchema = z.object({
   household: z.optional(HouseholdSchema),
   cashFlowMode: z.optional(z.enum(["flat", "events"])),
   events: z.optional(z.array(ProjectionEventSchema)),
+  goals: z.optional(z.array(ProjectionGoalSchema)),
 });
 
 export const LifetimeProjectionAssumptionsSchema = z.object({
@@ -292,6 +334,7 @@ const LifetimeProjectionInputValuesSchema = z.object({
   household: z.optional(HouseholdSchema),
   cashFlowMode: z.optional(z.enum(["flat", "events"])),
   events: z.optional(z.array(ProjectionEventSchema)),
+  goals: z.optional(z.array(ProjectionGoalSchema)),
 });
 
 export const DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS = LifetimeProjectionAssumptionsSchema.parse({
@@ -317,8 +360,11 @@ export type LifetimeProjectionPoint = {
   incomeInflation: number | null;
   spendingInflation: number | null;
   inflationEffect: number | null;
+  regularSpending?: number | null;
+  goalSpending?: number | null;
   memberStates?: MemberYearState[];
   eventStatuses?: EventYearStatus[];
+  goalEvaluations?: GoalEvaluation[];
 };
 
 export class LifetimeProjectionCalculationError extends Error {}
@@ -337,6 +383,228 @@ export function parseLifetimeProjectionInputs(
   });
 }
 
+function formatGoalCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+export function evaluateGoal(
+  goal: ProjectionGoal,
+  points: LifetimeProjectionPoint[],
+  startYear: number,
+  horizonYears: number,
+): GoalEvaluation {
+  const horizonEndYear = startYear + horizonYears;
+  const isExp =
+    goal.isFlexible &&
+    goal.shortfallExperiment.enabled &&
+    goal.shortfallExperiment.strategy !== "none";
+
+  const effectiveYear =
+    isExp && goal.shortfallExperiment.strategy === "defer"
+      ? goal.targetYear + (goal.shortfallExperiment.deferredYears ?? 0)
+      : goal.targetYear;
+
+  const effectiveAmount =
+    isExp && goal.shortfallExperiment.strategy === "reduce"
+      ? (goal.shortfallExperiment.reducedAmount ?? goal.targetAmount)
+      : goal.targetAmount;
+
+  const isExperimentActive = isExp;
+
+  if (effectiveYear > horizonEndYear || effectiveYear < startYear) {
+    return {
+      goalId: goal.id,
+      goal,
+      status: "not_yet_evaluable",
+      statusLabel: "Not yet evaluable",
+      effectiveYear,
+      effectiveAmount,
+      targetAmount: goal.targetAmount,
+      originalYear: goal.targetYear,
+      fundedAmount: 0,
+      shortfallAmount: effectiveAmount,
+      fundedPercentage: 0,
+      isExperimentActive,
+      explanation: `Target year ${effectiveYear} is beyond the ${horizonYears}-year projection horizon (ends in ${horizonEndYear}).`,
+      determiningFlowsSummary: `Outside projection horizon (${startYear}–${horizonEndYear})`,
+    };
+  }
+
+  const point = points.find((p) => p.year === effectiveYear);
+  if (!point) {
+    return {
+      goalId: goal.id,
+      goal,
+      status: "not_yet_evaluable",
+      statusLabel: "Not yet evaluable",
+      effectiveYear,
+      effectiveAmount,
+      targetAmount: goal.targetAmount,
+      originalYear: goal.targetYear,
+      fundedAmount: 0,
+      shortfallAmount: effectiveAmount,
+      fundedPercentage: 0,
+      isExperimentActive,
+      explanation: `No projection data available for year ${effectiveYear}.`,
+      determiningFlowsSummary: "No data",
+    };
+  }
+
+  let experimentSuffix = "";
+  if (isExperimentActive) {
+    if (goal.shortfallExperiment.strategy === "defer")
+      experimentSuffix = ` (deferred +${goal.shortfallExperiment.deferredYears ?? 0} yrs from ${goal.targetYear})`;
+    else if (goal.shortfallExperiment.strategy === "reduce")
+      experimentSuffix = ` (reduced from ${formatGoalCurrency(goal.targetAmount)})`;
+  }
+
+  if (goal.type === "target_balance") {
+    const projectedNetWorth = point.netWorth;
+    if (projectedNetWorth >= effectiveAmount) {
+      const surplus = projectedNetWorth - effectiveAmount;
+      return {
+        goalId: goal.id,
+        goal,
+        status: "funded",
+        statusLabel: "Funded",
+        effectiveYear,
+        effectiveAmount,
+        targetAmount: goal.targetAmount,
+        originalYear: goal.targetYear,
+        fundedAmount: effectiveAmount,
+        shortfallAmount: 0,
+        fundedPercentage: 100,
+        isExperimentActive,
+        projectedNetWorthAtYear: projectedNetWorth,
+        explanation: `Projected net worth is ${formatGoalCurrency(projectedNetWorth)} (surplus of +${formatGoalCurrency(surplus)} above ${formatGoalCurrency(effectiveAmount)} target)${experimentSuffix}.`,
+        determiningFlowsSummary: `Year ${effectiveYear} ending net worth: ${formatGoalCurrency(projectedNetWorth)}`,
+      };
+    }
+    if (projectedNetWorth > 0) {
+      const shortfall = effectiveAmount - projectedNetWorth;
+      const pct = Math.round((projectedNetWorth / effectiveAmount) * 100);
+      return {
+        goalId: goal.id,
+        goal,
+        status: "partially_funded",
+        statusLabel: "Partially funded",
+        effectiveYear,
+        effectiveAmount,
+        targetAmount: goal.targetAmount,
+        originalYear: goal.targetYear,
+        fundedAmount: projectedNetWorth,
+        shortfallAmount: shortfall,
+        fundedPercentage: pct,
+        isExperimentActive,
+        projectedNetWorthAtYear: projectedNetWorth,
+        explanation: `Projected net worth is ${formatGoalCurrency(projectedNetWorth)} (${formatGoalCurrency(shortfall)} shortfall from ${formatGoalCurrency(effectiveAmount)} target, ${pct}% funded)${experimentSuffix}.`,
+        determiningFlowsSummary: `Year ${effectiveYear} ending net worth: ${formatGoalCurrency(projectedNetWorth)}`,
+      };
+    }
+    const firstDepleted = points.find((p) => p.netWorth < 0);
+    const depletedNote =
+      firstDepleted && firstDepleted.year < effectiveYear
+        ? ` (plan depleted in ${firstDepleted.year})`
+        : "";
+    return {
+      goalId: goal.id,
+      goal,
+      status: "missed",
+      statusLabel: "Missed",
+      effectiveYear,
+      effectiveAmount,
+      targetAmount: goal.targetAmount,
+      originalYear: goal.targetYear,
+      fundedAmount: 0,
+      shortfallAmount: effectiveAmount,
+      fundedPercentage: 0,
+      isExperimentActive,
+      projectedNetWorthAtYear: projectedNetWorth,
+      explanation: `Projected net worth is ${formatGoalCurrency(projectedNetWorth)} in ${effectiveYear}${depletedNote} vs ${formatGoalCurrency(effectiveAmount)} target${experimentSuffix}.`,
+      determiningFlowsSummary: `Year ${effectiveYear} balance depleted (${formatGoalCurrency(projectedNetWorth)})`,
+    };
+  }
+
+  // dated_spending goal
+  const regularSpending = (point.annualSpending ?? 0) - (point.goalSpending ?? 0);
+  const availableBeforeGoals =
+    point.startingNetWorth +
+    (point.investmentGrowth ?? 0) +
+    (point.annualIncome ?? 0) -
+    regularSpending;
+
+  if (availableBeforeGoals >= effectiveAmount) {
+    return {
+      goalId: goal.id,
+      goal,
+      status: "funded",
+      statusLabel: "Funded",
+      effectiveYear,
+      effectiveAmount,
+      targetAmount: goal.targetAmount,
+      originalYear: goal.targetYear,
+      fundedAmount: effectiveAmount,
+      shortfallAmount: 0,
+      fundedPercentage: 100,
+      isExperimentActive,
+      projectedNetWorthAtYear: point.netWorth,
+      explanation: `Fully funded ${formatGoalCurrency(effectiveAmount)} spending in ${effectiveYear} (${formatGoalCurrency(point.netWorth)} remaining balance)${experimentSuffix}.`,
+      determiningFlowsSummary: `Available funds before goal: ${formatGoalCurrency(availableBeforeGoals)} vs ${formatGoalCurrency(effectiveAmount)} spending`,
+    };
+  }
+  if (availableBeforeGoals > 0) {
+    const shortfall = effectiveAmount - availableBeforeGoals;
+    const pct = Math.round((availableBeforeGoals / effectiveAmount) * 100);
+    return {
+      goalId: goal.id,
+      goal,
+      status: "partially_funded",
+      statusLabel: "Partially funded",
+      effectiveYear,
+      effectiveAmount,
+      targetAmount: goal.targetAmount,
+      originalYear: goal.targetYear,
+      fundedAmount: availableBeforeGoals,
+      shortfallAmount: shortfall,
+      fundedPercentage: pct,
+      isExperimentActive,
+      projectedNetWorthAtYear: point.netWorth,
+      explanation: `Available net worth was ${formatGoalCurrency(availableBeforeGoals)} vs ${formatGoalCurrency(effectiveAmount)} target spending (${formatGoalCurrency(shortfall)} shortfall, ${pct}% funded)${experimentSuffix}.`,
+      determiningFlowsSummary: `Available funds before goal: ${formatGoalCurrency(availableBeforeGoals)} (${formatGoalCurrency(shortfall)} shortfall)`,
+    };
+  }
+  return {
+    goalId: goal.id,
+    goal,
+    status: "missed",
+    statusLabel: "Missed",
+    effectiveYear,
+    effectiveAmount,
+    targetAmount: goal.targetAmount,
+    originalYear: goal.targetYear,
+    fundedAmount: 0,
+    shortfallAmount: effectiveAmount,
+    fundedPercentage: 0,
+    isExperimentActive,
+    projectedNetWorthAtYear: point.netWorth,
+    explanation: `Plan had no available assets to fund ${formatGoalCurrency(effectiveAmount)} in ${effectiveYear} (net worth was ${formatGoalCurrency(availableBeforeGoals)})${experimentSuffix}.`,
+    determiningFlowsSummary: `Plan had no available funds in ${effectiveYear} (${formatGoalCurrency(availableBeforeGoals)})`,
+  };
+}
+
+export function evaluateAllGoals(
+  goals: ProjectionGoal[],
+  points: LifetimeProjectionPoint[],
+  startYear: number,
+  horizonYears: number,
+): GoalEvaluation[] {
+  return goals.map((goal) => evaluateGoal(goal, points, startYear, horizonYears));
+}
+
 export function calculateLifetimeProjection(
   inputs: LifetimeProjectionInputs,
 ): LifetimeProjectionPoint[] {
@@ -344,6 +612,8 @@ export function calculateLifetimeProjection(
   const initialMemberStates = calculateMemberYearStates(members, inputs.startYear);
   const isEventsMode = inputs.cashFlowMode === "events";
   const events = inputs.events ?? [];
+  const goals = inputs.goals ?? [];
+  const enabledGoals = goals.filter((g) => g.enabled);
 
   const initialEventStatuses = isEventsMode
     ? calculateEventYearStatuses(events, inputs.startYear, inputs.startYear, inputs.inflationRate)
@@ -363,8 +633,11 @@ export function calculateLifetimeProjection(
       incomeInflation: null,
       spendingInflation: null,
       inflationEffect: null,
+      regularSpending: null,
+      goalSpending: null,
       memberStates: initialMemberStates,
       eventStatuses: initialEventStatuses,
+      goalEvaluations: undefined,
     },
   ];
   const inflationFactor = 1 + inputs.inflationRate;
@@ -404,6 +677,32 @@ export function calculateLifetimeProjection(
       baseSpending = inputs.annualSpending;
     }
 
+    // Process dated spending goals for currentYear
+    const activeSpendingGoals = enabledGoals.filter((g) => {
+      if (g.type !== "dated_spending") return false;
+      const isExp =
+        g.isFlexible && g.shortfallExperiment.enabled && g.shortfallExperiment.strategy === "defer";
+      const effYear = isExp
+        ? g.targetYear + (g.shortfallExperiment.deferredYears ?? 0)
+        : g.targetYear;
+      return effYear === currentYear;
+    });
+
+    const goalSpending = activeSpendingGoals.reduce((sum, g) => {
+      const isExp =
+        g.isFlexible &&
+        g.shortfallExperiment.enabled &&
+        g.shortfallExperiment.strategy === "reduce";
+      const effAmount = isExp
+        ? (g.shortfallExperiment.reducedAmount ?? g.targetAmount)
+        : g.targetAmount;
+      return sum + effAmount;
+    }, 0);
+
+    const regularSpending = annualSpending;
+    annualSpending += goalSpending;
+    baseSpending += goalSpending;
+
     const annualSavings = annualIncome - annualSpending;
     const incomeInflation = annualIncome - baseIncome;
     const spendingInflation = annualSpending - baseSpending;
@@ -427,10 +726,23 @@ export function calculateLifetimeProjection(
       incomeInflation,
       spendingInflation,
       inflationEffect,
+      regularSpending,
+      goalSpending,
       memberStates: calculateMemberYearStates(members, currentYear),
       eventStatuses: currentEventStatuses,
+      goalEvaluations: undefined,
     });
   }
+
+  // Populate goalEvaluations for all points
+  const allEvaluations = evaluateAllGoals(
+    enabledGoals,
+    projection,
+    inputs.startYear,
+    inputs.horizonYears,
+  );
+  for (const point of projection)
+    point.goalEvaluations = allEvaluations.filter((ev) => ev.effectiveYear === point.year);
 
   return projection;
 }

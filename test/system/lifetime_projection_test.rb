@@ -829,4 +829,164 @@ class LifetimeProjectionTest < ApplicationSystemTestCase
     assert_field "Annual income", with: "80000"
     assert_field "Annual spending", with: "60000"
   end
+
+  test "adds dated spending goals and target balance milestones and evaluates funded, partially funded, missed, and not yet evaluable states" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+
+    # Verify initial goals section empty state
+    within "[data-testid='goals-milestones-section']" do
+      assert_text "Goals and milestones (0)"
+      assert_text "No goals or milestones added yet"
+    end
+
+    # 1. Add an achievable Target-balance milestone in year start_year + 15 ($500,000) -> Funded
+    click_button "Add goal", match: :first
+    within "[aria-label='Goal and milestone form']" do
+      fill_in "Name", with: "Mid-career nest egg"
+      fill_in "Target year", with: (start_year + 15).to_s
+      fill_in "Target net worth", with: "500000"
+      click_button "Add goal"
+    end
+
+    within "[data-testid='goals-milestones-section']" do
+      assert_text "Mid-career nest egg"
+      assert_text "Target balance milestone"
+      assert_text "Funded"
+      assert_text(/Year #{start_year + 15} ending net worth:/)
+      find("button", text: "Inspect year #{start_year + 15}").click
+    end
+
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "Year #{start_year + 15} breakdown"
+      within "[data-testid='year-goals-breakdown']" do
+        assert_text(/Goals and milestones evaluated in #{start_year + 15}/i)
+        assert_text "Mid-career nest egg"
+        assert_text "Target balance"
+        assert_text "Funded"
+      end
+    end
+
+    # 2. Add an out-of-horizon Target-balance milestone in start_year + 45 -> Not yet evaluable
+    click_button "Add goal", match: :first
+    within "[aria-label='Goal and milestone form']" do
+      fill_in "Name", with: "Centennial legacy"
+      fill_in "Target year", with: (start_year + 45).to_s
+      fill_in "Target net worth", with: "2000000"
+      click_button "Add goal"
+    end
+
+    within "[data-testid='goals-milestones-section']" do
+      assert_text "Centennial legacy"
+      assert_text "Not yet evaluable"
+      assert_text "Target year #{start_year + 45} is beyond the 30-year projection horizon"
+    end
+
+    # 3. Add a large dated spending goal in year start_year + 2 ($400,000) that exceeds available funds -> Partially funded or Missed
+    click_button "Add goal", match: :first
+    within "[aria-label='Goal and milestone form']" do
+      fill_in "Name", with: "Dream Vacation Villa"
+      click_button "Dated spending goal"
+      fill_in "Target year", with: (start_year + 2).to_s
+      fill_in "Target spending amount", with: "400000"
+      click_button "Add goal"
+    end
+
+    within "[data-testid='goals-milestones-section']" do
+      assert_text "Dream Vacation Villa"
+      assert_text "Dated spending goal"
+      assert_selector "[data-testid^='goal-card-']", text: /Partially funded|Missed/
+      find("button", text: "Inspect year #{start_year + 2}").click
+    end
+
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "Year #{start_year + 2} breakdown"
+      within "[data-testid='year-goals-breakdown']" do
+        assert_text(/Goals and milestones evaluated in #{start_year + 2}/i)
+        assert_text "Dream Vacation Villa"
+        assert_text "Dated spending"
+      end
+    end
+  end
+
+  test "runs explicit shortfall experiments on flexible goals to defer timing or reduce amount and verifies linked yearly explanation" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+
+    # Add a flexible dated spending goal in year start_year + 3 ($350,000) that triggers a shortfall
+    click_button "Add goal", match: :first
+    within "[aria-label='Goal and milestone form']" do
+      fill_in "Name", with: "Luxury Motorhome"
+      click_button "Dated spending goal"
+      fill_in "Target year", with: (start_year + 3).to_s
+      fill_in "Target spending amount", with: "350000"
+      click_button "Add goal"
+    end
+
+    # Goal is initially underfunded / partially funded
+    within "[data-testid='goals-milestones-section']" do
+      assert_text "Luxury Motorhome"
+      assert_selector "[data-testid^='goal-card-']", text: /Partially funded|Missed/
+      assert_selector "[data-testid^='shortfall-experiment-']"
+      assert_text "Shortfall experiment"
+
+      # Experiment 1: Defer timing by +2 years
+      click_button "Defer +2 years (#{start_year + 5})"
+      assert_text "Experiment active"
+      assert_text "Deferred to #{start_year + 5}"
+
+      # Inspect deferred year breakdown
+      find("button", text: "Inspect year #{start_year + 5}").click
+    end
+
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "Year #{start_year + 5} breakdown"
+      within "[data-testid='year-goals-breakdown']" do
+        assert_text "Luxury Motorhome"
+        assert_text "Dated spending"
+      end
+    end
+
+    # Experiment 2: Reduce target amount
+    within "[data-testid='goals-milestones-section']" do
+      click_button "Reduce target amount", match: :first
+      assert_text "Experiment active"
+      assert_text(/Reduced to \$[0-9,]+/)
+
+      # Revert back to original target
+      click_button "Original target"
+      assert_no_text "Experiment active"
+    end
+  end
+
+  test "preserves goals across page reload and resets goals on reset to defaults" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+
+    within "[data-testid='goals-milestones-section']" do
+      click_button "Pre-fill starter goals"
+      assert_text "Retirement nest egg"
+      assert_text "College fund"
+    end
+
+    # Reload page to verify persistence
+    visit lifetime_projection_url
+    within "[data-testid='goals-milestones-section']" do
+      assert_text "Retirement nest egg"
+      assert_text "College fund"
+    end
+
+    # Reset to defaults
+    click_button "Reset to defaults"
+    within "[role='dialog']" do
+      assert_text "Goals and milestones (reset to empty)"
+      click_button "Reset plan"
+    end
+
+    # Goals reset to empty
+    within "[data-testid='goals-milestones-section']" do
+      assert_text "Goals and milestones (0)"
+      assert_text "No goals or milestones added yet"
+    end
+  end
 end
