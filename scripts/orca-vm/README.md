@@ -2,23 +2,26 @@
 
 This recipe creates one Compose project per Git worktree using Docker or rootless Podman. Each app
 bind-mounts its worktree at `/workspace`, so Ruby, ERB, JavaScript, and CSS changes are reflected
-without rebuilding the image. Worktrees have isolated app, Redis, Selenium, and bundle services
-while sharing one persistent Postgres database and its data.
+without rebuilding the image. Slim boot runs Rails plus the SPA watcher; Tailwind is built once at
+startup (`bin/rails tailwindcss:build`), Sidekiq and Selenium stay off, and YJIT is skipped by
+default. Worktrees have isolated app, Redis, and bundle services while sharing one persistent
+Postgres database and its data.
 
-The app container runs `bin/setup` and starts `bin/dev` automatically, including Rails development
-reloading and the Tailwind watcher. During setup it loads a deterministic sample dataset when
-`user@example.com` is absent; sign in with `user@example.com` and `Password1!`. Re-running setup
-preserves existing data and skips sample generation once that demo user exists. Workspace creation
-waits for Rails to respond before reporting success. The create hook reports the browser address as
-`railsUrl`. Ports bind to `127.0.0.1` for local execution; over SSH they bind to the SSH server
-address. Override that interface with `ORCA_PUBLISH_HOST`. Destroying a workspace removes its
-isolated services and volumes but leaves the shared Postgres service and
+The app container runs `bin/setup`, builds Tailwind once, and starts Rails plus the SPA watcher
+automatically, including Rails development reloading. During setup it loads a deterministic sample
+dataset when `user@example.com` is absent; sign in with `user@example.com` and `Password1!`.
+Re-running setup preserves existing data and skips sample generation once that demo user exists.
+Workspace creation waits for Rails to respond before reporting success. The create hook reports the
+browser address as `railsUrl`. Ports bind to `127.0.0.1` for local execution; over SSH they bind to
+the SSH server address. Override that interface with `ORCA_PUBLISH_HOST`. Destroying a workspace
+removes its isolated services and volumes but leaves the shared Postgres service and
 `sure-orca-shared-postgres` volume intact.
 
-On the gradual frontend branch, `bin/dev` also runs `npm run spa:watch`. Vite rebuilds
-`app/assets/builds/spa.js` whenever React or TypeScript source under `app/javascript/spa` changes,
-and Rails serves the rebuilt bundle from the same `railsUrl`.
+Low-memory notes:
 
+* `ORCA_WITH_SELENIUM=1 ./scripts/orca-vm/docker-create.sh` adds standalone Chromium for system tests.
+* `ORCA_SKIP_YJIT=0` re-enables YJIT when RAM allows (needs `bin/setup` + container rebuild path).
+* CSS changes need `bin/rails tailwindcss:build`; SPA changes rebuild automatically via the watcher.
 ## First-time setup
 
 1. Start Docker/OrbStack, or install rootless Podman with Podman Compose.

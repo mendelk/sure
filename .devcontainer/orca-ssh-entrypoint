@@ -22,9 +22,9 @@ start_workspace() {
   [[ -f .env.test ]] || cp .env.test.example .env.test
   bin/setup
   rm -f tmp/pids/server.pid
-  bin/dev
+  bin/rails tailwindcss:build
+  bundle exec foreman start -f Procfile.orca
 }
-
 rm -f /tmp/sure-workspace.exit
 (
   trap 'printf "%s\n" "$?" > /tmp/sure-workspace.exit' EXIT

@@ -39,7 +39,6 @@ export ORCA_SSH_PUBLIC_KEY="unused-during-cleanup"
 export ORCA_WORKTREE_PATH="$worktree_path"
 export ORCA_PUBLISH_HOST="$(resolve_publish_host)"
 
-
-
-compose --project-name "$project_name" --file "$compose_file" down --volumes >&2 || true
+# shellcheck disable=SC2086
+compose --project-name "$project_name" $(compose_files_args) down --volumes >&2 || true
 echo "Cleaned $container_engine Compose project $project_name (shared Postgres left intact)" >&2

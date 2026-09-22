@@ -83,6 +83,13 @@ compose() {
   fi
 }
 
+compose_files_args() {
+  printf '%s' "--file $compose_file"
+  if [[ "${ORCA_WITH_SELENIUM:-0}" == "1" ]]; then
+    printf '%s' " --file $script_dir/docker-compose.selenium.yml"
+  fi
+}
+
 resolve_publish_host() {
   local configured_host="${ORCA_PUBLISH_HOST:-$(state_value publishHost)}"
   local _client_ip _client_port ssh_server_ip _server_port
