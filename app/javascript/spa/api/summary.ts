@@ -35,6 +35,7 @@ const BalanceSheetResponseSchema = z.object({
 
 export type Summary = {
   net_worth: string;
+  net_worth_amount: number;
   assets: string;
   liabilities: string;
   currency: string;
@@ -77,6 +78,7 @@ async function requestSummary(path: string, signal?: AbortSignal): Promise<Summa
   const raw = BalanceSheetResponseSchema.parse(payload);
   return {
     net_worth: raw.net_worth.formatted,
+    net_worth_amount: Number(raw.net_worth.amount),
     assets: raw.assets.formatted,
     liabilities: raw.liabilities.formatted,
     currency: raw.currency,

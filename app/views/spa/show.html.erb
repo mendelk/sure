@@ -1,5 +1,7 @@
 <% page_title = if request.path == "/"
      t("pages.dashboard.new", default: "Home")
+   elsif request.path == "/plan/projection"
+     "Lifetime projection"
    elsif request.path.start_with?("/sources")
      "Sources"
    elsif request.path.start_with?("/account_statements") || request.path.start_with?("/statements")
@@ -38,6 +40,7 @@
   { name: t("layouts.application.nav.home"), path: root_path, icon: "pie-chart" },
   { name: t("layouts.application.nav.dashboards"), path: dashboards_path, icon: "layout-dashboard" },
   { name: t("layouts.application.nav.transactions"), path: transactions_path, icon: "credit-card" },
+  { name: "Projection", path: lifetime_projection_path, icon: "chart-bar" },
   bills_nav_item,
   { name: t("layouts.application.nav.reports"), path: reports_path, icon: "chart-bar" },
   plan_nav_item,
@@ -156,6 +159,7 @@
     bulkDelete: transactions_bulk_deletion_path,
     exchangeRate: exchange_rate_path,
     reports: reports_path,
+    lifetimeProjection: lifetime_projection_path,
     settings: settings_profile_path,
     changelog: changelog_path,
     signOut: session_path(Current.session),

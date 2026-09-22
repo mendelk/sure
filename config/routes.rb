@@ -596,6 +596,7 @@ Rails.application.routes.draw do
     end
   end
 
+  get "plan/projection", to: "spa#show", as: :lifetime_projection
   post "transactions", to: "transactions#create"
 
   resources :transactions, only: %i[update destroy] do
