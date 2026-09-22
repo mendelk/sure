@@ -18,7 +18,7 @@ config:
 
 # lucide-badge-check 05 Productize the Proven Direction
 
-Architecture is an output of observed repetition and accepted behavior in this final workstream, not an entry requirement.
+Architecture is an output of observed repetition and accepted behavior in this productization workstream, not an entry requirement.
 
 ## Tasks
 - [ ] [[remove-discarded-dashboard-experiments|Remove discarded dashboard experiments]]
