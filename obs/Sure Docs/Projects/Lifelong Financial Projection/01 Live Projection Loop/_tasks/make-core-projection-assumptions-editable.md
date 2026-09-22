@@ -5,11 +5,11 @@ parentId:
 id: t_lfp_live_002
 title: Make core projection assumptions editable
 type: task
-status: todo
+status: done
 priority: critical
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - frontend
