@@ -1,5 +1,6 @@
 import type { Layout, LayoutItem } from "react-grid-layout";
 import * as z from "zod/mini";
+import { PivotChartConfigSchema, type PivotChartConfig } from "./pivot-chart-contract";
 
 // One source-controlled starter screen for first use and repeated design
 // review: a useful transactions table sized for the editor plus results.
@@ -46,6 +47,7 @@ const DashboardReportSchema = z.object({
   name: z.string(),
   query: z.string(),
   presentation: z.optional(z.enum(["table", "chart"])),
+  pivot: z.optional(PivotChartConfigSchema),
 });
 
 const DashboardSchema = z.object({
@@ -69,6 +71,7 @@ export interface DashboardReport {
   name: string;
   query: string;
   presentation: "table" | "chart";
+  pivot?: PivotChartConfig;
 }
 
 export interface Dashboard {
@@ -230,14 +233,29 @@ function normalizeReports(
     const query = storedReport.query.trim();
     if (id.length === 0 || name.length === 0 || query.length === 0 || ids.has(id)) return undefined;
     ids.add(id);
+    const pivot = normalizePivotConfig(storedReport.pivot);
+    // Legacy automatic charts lose no data: without a valid explicit pivot
+    // they open as tables until the user previews and saves a new chart.
+    const presentation =
+      pivot !== undefined && storedReport.presentation === "chart" ? "chart" : "table";
     reports.push({
       id,
       name,
       query,
-      presentation: storedReport.presentation === "chart" ? "chart" : "table",
+      presentation,
+      ...(pivot === undefined ? {} : { pivot }),
     });
   }
   return reports;
+}
+
+function normalizePivotConfig(
+  storedPivot: z.infer<typeof PivotChartConfigSchema> | undefined,
+): PivotChartConfig | undefined {
+  if (storedPivot === undefined) return undefined;
+  const parsed = PivotChartConfigSchema.safeParse(storedPivot);
+  if (!parsed.success) return undefined;
+  return parsed.data;
 }
 
 function normalizeLayout(
