@@ -5,11 +5,11 @@ parentId:
 id: t_lfp_timeline_001
 title: Add a household planning horizon
 type: task
-status: todo
+status: done
 priority: high
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - household

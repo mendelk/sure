@@ -476,4 +476,131 @@ class LifetimeProjectionTest < ApplicationSystemTestCase
     assert_selector "table tbody tr", text: start_year.to_s
     assert_selector "table tbody tr", text: (start_year + 30).to_s
   end
+
+  test "renders default single-person household with birth year, retirement age, and longevity, showing ages in table and breakdown" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+
+    assert_text "Household planning horizon"
+    assert_selector "button[aria-pressed='true']", text: "Single"
+    assert_field "member-primary-name", with: "You"
+    assert_field "member-primary-birth-year", with: (start_year - 35).to_s
+    assert_field "member-primary-retirement-age", with: "65"
+    assert_field "member-primary-end-age", with: "85"
+
+    assert_selector "th", text: /Age\(s\)/i
+
+    # Base year row has age 35
+    row_0 = find("table tbody tr", text: start_year.to_s)
+    within row_0 do
+      assert_text "35"
+    end
+
+    # Year 30 row has age 65 and retirement badge
+    row_30 = find("table tbody tr", text: (start_year + 30).to_s)
+    within row_30 do
+      assert_text "65"
+      assert_text "Retirement"
+    end
+
+    # Clicking year 30 shows retirement breakdown
+    row_30.click
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text(/Household in #{start_year + 30}/i)
+      assert_text "You"
+      assert_text "(Age 65)"
+      assert_text "Retiring this year (Age 65)"
+      assert_text "Transitions to retirement in #{start_year + 30}"
+    end
+  end
+
+  test "configures couple household with different retirement and longevity assumptions per person" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+
+    click_button "Couple"
+
+    fill_in "member-primary-birth-year", with: (start_year - 36).to_s
+    fill_in "member-primary-retirement-age", with: "60"
+    fill_in "member-primary-end-age", with: "80"
+
+    fill_in "member-partner-name", with: "Jordan"
+    fill_in "member-partner-birth-year", with: (start_year - 34).to_s
+    fill_in "member-partner-retirement-age", with: "66"
+    fill_in "member-partner-end-age", with: "90"
+
+    click_button "Apply changes"
+
+    # Year 0 has ages 36 / 34
+    row_0 = find("table tbody tr", text: start_year.to_s)
+    within row_0 do
+      assert_text "36 / 34"
+    end
+
+    # Primary retires in start_year + 24 (age 60)
+    primary_retire_year = start_year + 24
+    row_retire = find("table tbody tr", text: primary_retire_year.to_s)
+    within row_retire do
+      assert_text "60 / 58"
+      assert_text "Retirement"
+    end
+
+    row_retire.click
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "You"
+      assert_text "(Age 60)"
+      assert_text "Retiring this year (Age 60)"
+      assert_text "Jordan"
+      assert_text "(Age 58)"
+      assert_text "Working"
+    end
+  end
+
+  test "explains household milestones that fall outside the projection horizon and allows extending horizon" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+
+    fill_in "Projection horizon", with: "10"
+    click_button "Apply changes"
+
+    # Banner explains milestones outside horizon
+    assert_selector "[aria-label='Milestones outside projection horizon']"
+    assert_text "Milestones outside the 10-year projection horizon"
+    assert_text "You reaches retirement age (65) in #{start_year + 30} (20 years beyond the 10-year horizon)."
+    assert_text "You reaches planning end age (85) in #{start_year + 50} (40 years beyond the 10-year horizon)."
+
+    # Extend horizon button sets horizon to cover all milestones (50 years)
+    click_button "Extend horizon to 50 years to cover all milestones"
+    assert_field "Projection horizon", with: "50"
+
+    click_button "Apply changes"
+    assert_no_selector "[aria-label='Milestones outside projection horizon']"
+    assert_selector "table tbody tr", text: (start_year + 50).to_s
+  end
+
+  test "preserves household configuration across reload and resets to starter plan defaults" do
+    visit lifetime_projection_url
+
+    click_button "Couple"
+    fill_in "member-primary-name", with: "Alex"
+    fill_in "member-partner-name", with: "Sam"
+    click_button "Apply changes"
+
+    assert_text "Plan saved in this browser."
+
+    # Reload page
+    visit lifetime_projection_url
+    assert_field "member-primary-name", with: "Alex"
+    assert_field "member-partner-name", with: "Sam"
+
+    # Reset to defaults
+    click_button "Reset to defaults"
+    within "[role='dialog']" do
+      assert_text "Household planning horizon (reset to single member, age 35, retirement at 65)"
+      click_button "Reset plan"
+    end
+
+    assert_field "member-primary-name", with: "You"
+    assert_no_field "member-partner-name"
+  end
 end

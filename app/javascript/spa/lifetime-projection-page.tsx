@@ -7,9 +7,16 @@ import { FormField } from "./components/form-field";
 import { Icon } from "./icon";
 import {
   calculateLifetimeProjection,
+  createDefaultHousehold,
+  createDefaultPartner,
   DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS,
+  getHorizonToCoverAllMilestones,
+  getOutOfHorizonMilestones,
+  HouseholdSchema,
   LifetimeProjectionAssumptionsSchema,
   parseLifetimeProjectionInputs,
+  type Household,
+  type HouseholdMember,
   type LifetimeProjectionAssumptions,
   type LifetimeProjectionPoint,
 } from "./lifetime-projection";
@@ -30,23 +37,77 @@ import { ProjectionYearBreakdown } from "./projection-year-breakdown";
 
 const START_YEAR = new Date().getFullYear();
 
+export type HouseholdMemberFormValues = {
+  id: string;
+  name: string;
+  birthYear: string;
+  retirementAge: string;
+  planningEndAge: string;
+};
+
+export type HouseholdMemberFormErrors = {
+  name?: string;
+  birthYear?: string;
+  retirementAge?: string;
+  planningEndAge?: string;
+};
+
+export type HouseholdFormValues = {
+  isCouple: boolean;
+  primary: HouseholdMemberFormValues;
+  partner?: HouseholdMemberFormValues;
+};
+
 export type AssumptionFormValues = {
   annualIncome: string;
   annualSpending: string;
   inflationPercent: string;
   annualReturnPercent: string;
   horizonYears: string;
+  household: HouseholdFormValues;
 };
 
-export type AssumptionFormErrors = Partial<Record<keyof AssumptionFormValues, string>>;
+export type AssumptionFormErrors = {
+  annualIncome?: string;
+  annualSpending?: string;
+  inflationPercent?: string;
+  annualReturnPercent?: string;
+  horizonYears?: string;
+  primary?: HouseholdMemberFormErrors;
+  partner?: HouseholdMemberFormErrors;
+};
 
-function toFormValues(assumptions: LifetimeProjectionAssumptions): AssumptionFormValues {
+function toMemberFormValues(member: HouseholdMember): HouseholdMemberFormValues {
+  return {
+    id: member.id,
+    name: member.name,
+    birthYear: String(member.birthYear),
+    retirementAge: String(member.retirementAge),
+    planningEndAge: String(member.planningEndAge),
+  };
+}
+
+function toHouseholdFormValues(household: Household): HouseholdFormValues {
+  const primary = household.members[0] ?? createDefaultHousehold(START_YEAR).members[0];
+  const partner = household.members[1] ?? createDefaultPartner(START_YEAR);
+  return {
+    isCouple: household.members.length > 1,
+    primary: toMemberFormValues(primary),
+    partner: toMemberFormValues(partner),
+  };
+}
+
+function toFormValues(
+  assumptions: LifetimeProjectionAssumptions,
+  household: Household,
+): AssumptionFormValues {
   return {
     annualIncome: String(assumptions.annualIncome),
     annualSpending: String(assumptions.annualSpending),
     inflationPercent: String(assumptions.inflationPercent),
     annualReturnPercent: String(assumptions.annualReturnPercent),
     horizonYears: String(assumptions.horizonYears),
+    household: toHouseholdFormValues(household),
   };
 }
 
@@ -94,9 +155,60 @@ function validateReturn(raw: string): string | undefined {
   return undefined;
 }
 
-export function validateAssumptionForm(values: AssumptionFormValues): {
+function validateMemberName(raw: string): string | undefined {
+  if (raw.trim().length === 0) return "Enter a name.";
+  return undefined;
+}
+
+function validateBirthYear(raw: string, startYear: number): string | undefined {
+  if (raw.length === 0) return "Enter birth year.";
+  const num = Number(cleanNumericInput(raw));
+  if (!Number.isFinite(num) || !Number.isInteger(num)) return "Enter a valid year.";
+  if (num < 1900) return "Birth year must be 1900 or later.";
+  if (num > startYear) return "Birth year cannot be in the future.";
+  return undefined;
+}
+
+function validateRetirementAge(raw: string): string | undefined {
+  if (raw.length === 0) return "Enter retirement age.";
+  const num = Number(cleanNumericInput(raw));
+  if (!Number.isFinite(num) || !Number.isInteger(num) || num < 18 || num > 120)
+    return "Retirement age must be between 18 and 120.";
+  return undefined;
+}
+
+function validatePlanningEndAge(
+  raw: string,
+  retirementAgeRaw: string,
+  birthYearRaw: string,
+  startYear: number,
+): string | undefined {
+  if (raw.length === 0) return "Enter planning end age.";
+  const num = Number(cleanNumericInput(raw));
+  if (!Number.isFinite(num) || !Number.isInteger(num) || num < 18 || num > 120)
+    return "Planning end age must be between 18 and 120.";
+
+  const birthYearNum = Number(cleanNumericInput(birthYearRaw));
+  if (Number.isFinite(birthYearNum)) {
+    const currentAge = startYear - birthYearNum;
+    if (num < currentAge)
+      return `Planning end age cannot be less than current age (${currentAge}).`;
+  }
+
+  const retAgeNum = Number(cleanNumericInput(retirementAgeRaw));
+  if (Number.isFinite(retAgeNum) && num < retAgeNum)
+    return "Planning end age must be at or after retirement age.";
+
+  return undefined;
+}
+
+export function validateAssumptionForm(
+  values: AssumptionFormValues,
+  startYear = START_YEAR,
+): {
   errors: AssumptionFormErrors;
-  parsed?: LifetimeProjectionAssumptions;
+  parsedAssumptions?: LifetimeProjectionAssumptions;
+  parsedHousehold?: Household;
 } {
   const errors: AssumptionFormErrors = {};
 
@@ -115,17 +227,81 @@ export function validateAssumptionForm(values: AssumptionFormValues): {
   const returnError = validateReturn(cleanNumericInput(values.annualReturnPercent));
   if (returnError !== undefined) errors.annualReturnPercent = returnError;
 
+  const primaryErrors: HouseholdMemberFormErrors = {};
+  const primaryNameError = validateMemberName(values.household.primary.name);
+  if (primaryNameError !== undefined) primaryErrors.name = primaryNameError;
+
+  const primaryBirthYearError = validateBirthYear(values.household.primary.birthYear, startYear);
+  if (primaryBirthYearError !== undefined) primaryErrors.birthYear = primaryBirthYearError;
+
+  const primaryRetirementError = validateRetirementAge(values.household.primary.retirementAge);
+  if (primaryRetirementError !== undefined) primaryErrors.retirementAge = primaryRetirementError;
+
+  const primaryEndAgeError = validatePlanningEndAge(
+    values.household.primary.planningEndAge,
+    values.household.primary.retirementAge,
+    values.household.primary.birthYear,
+    startYear,
+  );
+  if (primaryEndAgeError !== undefined) primaryErrors.planningEndAge = primaryEndAgeError;
+
+  if (Object.keys(primaryErrors).length > 0) errors.primary = primaryErrors;
+
+  let partnerErrors: HouseholdMemberFormErrors | undefined;
+  if (values.household.isCouple && values.household.partner) {
+    partnerErrors = {};
+    const partnerNameError = validateMemberName(values.household.partner.name);
+    if (partnerNameError !== undefined) partnerErrors.name = partnerNameError;
+
+    const partnerBirthYearError = validateBirthYear(values.household.partner.birthYear, startYear);
+    if (partnerBirthYearError !== undefined) partnerErrors.birthYear = partnerBirthYearError;
+
+    const partnerRetirementError = validateRetirementAge(values.household.partner.retirementAge);
+    if (partnerRetirementError !== undefined) partnerErrors.retirementAge = partnerRetirementError;
+
+    const partnerEndAgeError = validatePlanningEndAge(
+      values.household.partner.planningEndAge,
+      values.household.partner.retirementAge,
+      values.household.partner.birthYear,
+      startYear,
+    );
+    if (partnerEndAgeError !== undefined) partnerErrors.planningEndAge = partnerEndAgeError;
+
+    if (Object.keys(partnerErrors).length > 0) errors.partner = partnerErrors;
+  }
+
   if (Object.keys(errors).length > 0) return { errors };
+
+  const members: HouseholdMember[] = [
+    {
+      id: values.household.primary.id || "primary",
+      name: values.household.primary.name.trim(),
+      birthYear: Number(cleanNumericInput(values.household.primary.birthYear)),
+      retirementAge: Number(cleanNumericInput(values.household.primary.retirementAge)),
+      planningEndAge: Number(cleanNumericInput(values.household.primary.planningEndAge)),
+    },
+  ];
+
+  if (values.household.isCouple && values.household.partner) {
+    members.push({
+      id: values.household.partner.id || "partner",
+      name: values.household.partner.name.trim(),
+      birthYear: Number(cleanNumericInput(values.household.partner.birthYear)),
+      retirementAge: Number(cleanNumericInput(values.household.partner.retirementAge)),
+      planningEndAge: Number(cleanNumericInput(values.household.partner.planningEndAge)),
+    });
+  }
 
   return {
     errors: {},
-    parsed: LifetimeProjectionAssumptionsSchema.parse({
+    parsedAssumptions: LifetimeProjectionAssumptionsSchema.parse({
       annualIncome: Number(cleanNumericInput(values.annualIncome)),
       annualSpending: Number(cleanNumericInput(values.annualSpending)),
       inflationPercent: Number(cleanNumericInput(values.inflationPercent)),
       annualReturnPercent: Number(cleanNumericInput(values.annualReturnPercent)),
       horizonYears: Number(cleanNumericInput(values.horizonYears)),
     }),
+    parsedHousehold: HouseholdSchema.parse({ members }),
   };
 }
 
@@ -202,7 +378,7 @@ function ProjectionResults({
   userId: string;
 }) {
   const initialPlan = useMemo(
-    () => loadInitialLifetimePlan(userId, startingBalance, accounts),
+    () => loadInitialLifetimePlan(userId, startingBalance, accounts, START_YEAR),
     [userId, startingBalance, accounts],
   );
 
@@ -212,8 +388,9 @@ function ProjectionResults({
   const [appliedAssumptions, setAppliedAssumptions] = useState<LifetimeProjectionAssumptions>(
     () => initialPlan.assumptions,
   );
+  const [appliedHousehold, setAppliedHousehold] = useState<Household>(() => initialPlan.household);
   const [formValues, setFormValues] = useState<AssumptionFormValues>(() =>
-    toFormValues(initialPlan.assumptions),
+    toFormValues(initialPlan.assumptions, initialPlan.household),
   );
   const [formErrors, setFormErrors] = useState<AssumptionFormErrors>({});
   const [isSavedPlan, setIsSavedPlan] = useState<boolean>(() => initialPlan.isSaved);
@@ -243,6 +420,7 @@ function ProjectionResults({
         startingBalance: activeBaseline.netWorth,
         ...appliedAssumptions,
         startYear: START_YEAR,
+        household: appliedHousehold,
       });
       return {
         points: calculateLifetimeProjection(inputs),
@@ -254,7 +432,7 @@ function ProjectionResults({
         error: "We could not calculate this projection with the selected assumptions.",
       };
     }
-  }, [activeBaseline.netWorth, appliedAssumptions]);
+  }, [activeBaseline.netWorth, appliedAssumptions, appliedHousehold]);
 
   const activeSelectedYear = useMemo(() => {
     const points = projectionResult.points;
@@ -263,6 +441,21 @@ function ProjectionResults({
     return points[Math.min(1, points.length - 1)].year;
   }, [projectionResult.points, selectedYear]);
 
+  const outOfHorizonMilestones = useMemo(
+    () =>
+      getOutOfHorizonMilestones(
+        appliedHousehold.members,
+        START_YEAR,
+        appliedAssumptions.horizonYears,
+      ),
+    [appliedHousehold.members, appliedAssumptions.horizonYears],
+  );
+
+  const recommendedHorizonYears = useMemo(
+    () => getHorizonToCoverAllMilestones(appliedHousehold.members, START_YEAR),
+    [appliedHousehold.members],
+  );
+
   const hasUnappliedChanges = useMemo(() => {
     const horizonNum = Number(cleanNumericInput(formValues.horizonYears));
     const incomeNum = Number(cleanNumericInput(formValues.annualIncome));
@@ -270,17 +463,59 @@ function ProjectionResults({
     const inflationNum = Number(cleanNumericInput(formValues.inflationPercent));
     const returnNum = Number(cleanNumericInput(formValues.annualReturnPercent));
 
-    return (
+    if (
       horizonNum !== appliedAssumptions.horizonYears ||
       incomeNum !== appliedAssumptions.annualIncome ||
       spendingNum !== appliedAssumptions.annualSpending ||
       inflationNum !== appliedAssumptions.inflationPercent ||
       returnNum !== appliedAssumptions.annualReturnPercent
-    );
-  }, [appliedAssumptions, formValues]);
+    )
+      return true;
 
-  const isDefaultAssumptions = useMemo(
-    () =>
+    const isCouple = formValues.household.isCouple;
+    if (isCouple !== appliedHousehold.members.length > 1) return true;
+
+    const primary = appliedHousehold.members[0];
+    if (
+      formValues.household.primary.name.trim() !== primary.name ||
+      Number(cleanNumericInput(formValues.household.primary.birthYear)) !== primary.birthYear ||
+      Number(cleanNumericInput(formValues.household.primary.retirementAge)) !==
+        primary.retirementAge ||
+      Number(cleanNumericInput(formValues.household.primary.planningEndAge)) !==
+        primary.planningEndAge
+    )
+      return true;
+
+    if (isCouple) {
+      const partner = appliedHousehold.members[1];
+      const partnerForm = formValues.household.partner;
+      if (partnerForm === undefined) return true;
+      if (
+        partnerForm.name.trim() !== partner.name ||
+        Number(cleanNumericInput(partnerForm.birthYear)) !== partner.birthYear ||
+        Number(cleanNumericInput(partnerForm.retirementAge)) !== partner.retirementAge ||
+        Number(cleanNumericInput(partnerForm.planningEndAge)) !== partner.planningEndAge
+      )
+        return true;
+    }
+
+    return false;
+  }, [appliedAssumptions, appliedHousehold, formValues]);
+
+  const isDefaultAssumptions = useMemo(() => {
+    const defaultHousehold = createDefaultHousehold(START_YEAR);
+    const primaryDefault = defaultHousehold.members[0];
+    const primaryCurrent = appliedHousehold.members[0];
+
+    const householdIsDefault =
+      appliedHousehold.members.length === 1 &&
+      primaryCurrent.name === primaryDefault.name &&
+      primaryCurrent.birthYear === primaryDefault.birthYear &&
+      primaryCurrent.retirementAge === primaryDefault.retirementAge &&
+      primaryCurrent.planningEndAge === primaryDefault.planningEndAge;
+
+    return (
+      householdIsDefault &&
       appliedAssumptions.annualIncome === DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualIncome &&
       appliedAssumptions.annualSpending ===
         DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualSpending &&
@@ -288,30 +523,101 @@ function ProjectionResults({
         DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.inflationPercent &&
       appliedAssumptions.annualReturnPercent ===
         DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualReturnPercent &&
-      appliedAssumptions.horizonYears === DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.horizonYears,
-    [appliedAssumptions],
-  );
+      appliedAssumptions.horizonYears === DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.horizonYears
+    );
+  }, [appliedAssumptions, appliedHousehold]);
 
   const handleFieldChange =
-    (field: keyof AssumptionFormValues) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    (field: keyof Omit<AssumptionFormValues, "household">) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value;
       setFormValues((prev) => ({ ...prev, [field]: value }));
       if (formErrors[field] !== undefined)
         setFormErrors((prev) => ({ ...prev, [field]: undefined }));
     };
 
+  const handleSetHouseholdMode = (mode: "single" | "couple") => {
+    setFormValues((prev) => ({
+      ...prev,
+      household: {
+        ...prev.household,
+        isCouple: mode === "couple",
+        partner: prev.household.partner ?? toMemberFormValues(createDefaultPartner(START_YEAR)),
+      },
+    }));
+  };
+
+  const handlePrimaryMemberChange =
+    (field: keyof HouseholdMemberFormValues) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setFormValues((prev) => ({
+        ...prev,
+        household: {
+          ...prev.household,
+          primary: {
+            ...prev.household.primary,
+            [field]: value,
+          },
+        },
+      }));
+      if (field !== "id" && formErrors.primary?.[field] !== undefined) {
+        setFormErrors((prev) => ({
+          ...prev,
+          primary: {
+            ...prev.primary,
+            [field]: undefined,
+          },
+        }));
+      }
+    };
+
+  const handlePartnerMemberChange =
+    (field: keyof HouseholdMemberFormValues) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setFormValues((prev) => ({
+        ...prev,
+        household: {
+          ...prev.household,
+          partner: prev.household.partner
+            ? {
+                ...prev.household.partner,
+                [field]: value,
+              }
+            : undefined,
+        },
+      }));
+      if (field !== "id" && formErrors.partner?.[field] !== undefined) {
+        setFormErrors((prev) => ({
+          ...prev,
+          partner: {
+            ...prev.partner,
+            [field]: undefined,
+          },
+        }));
+      }
+    };
+
+  const handleExtendHorizonToMilestones = () => {
+    setFormValues((prev) => ({
+      ...prev,
+      horizonYears: String(recommendedHorizonYears),
+    }));
+  };
+
   const handleFormSubmit = (event: SyntheticEvent) => {
     event.preventDefault();
-    const validation = validateAssumptionForm(formValues);
-    if (validation.parsed !== undefined) {
+    const validation = validateAssumptionForm(formValues, START_YEAR);
+    if (validation.parsedAssumptions !== undefined && validation.parsedHousehold !== undefined) {
       setFormErrors({});
-      setFormValues(toFormValues(validation.parsed));
-      setAppliedAssumptions(validation.parsed);
+      setFormValues(toFormValues(validation.parsedAssumptions, validation.parsedHousehold));
+      setAppliedAssumptions(validation.parsedAssumptions);
+      setAppliedHousehold(validation.parsedHousehold);
       writeLifetimePlanSnapshot(userId, {
         version: STARTER_LIFETIME_PLAN_VERSION,
         planType: "custom",
         baseline: activeBaseline,
-        assumptions: validation.parsed,
+        assumptions: validation.parsedAssumptions,
+        household: validation.parsedHousehold,
         updatedAt: new Date().toISOString(),
       });
       setPlanType("custom");
@@ -324,10 +630,12 @@ function ProjectionResults({
   };
 
   const handleConfirmReset = () => {
-    const starter = resetLifetimePlanToStarter(userId, startingBalance, accounts);
+    const starter = resetLifetimePlanToStarter(userId, startingBalance, accounts, START_YEAR);
+    const starterHousehold = starter.household ?? createDefaultHousehold(START_YEAR);
     setFormErrors({});
-    setFormValues(toFormValues(starter.assumptions));
+    setFormValues(toFormValues(starter.assumptions, starterHousehold));
     setAppliedAssumptions(starter.assumptions);
+    setAppliedHousehold(starterHousehold);
     setActiveBaseline(starter.baseline);
     setPlanType("starter");
     setIsSavedPlan(true);
@@ -441,10 +749,221 @@ function ProjectionResults({
 
           <form
             aria-label="Projection assumptions"
-            className="space-y-4 rounded-xl bg-container p-5 shadow-border-xs lg:col-span-3"
+            className="space-y-5 rounded-xl bg-container p-5 shadow-border-xs lg:col-span-3"
             noValidate
             onSubmit={handleFormSubmit}
           >
+            {/* Household Planning Horizon */}
+            <div className="space-y-4 rounded-xl border border-secondary bg-container-inset/40 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-secondary pb-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-primary">Household planning horizon</h3>
+                  <p className="text-xs text-secondary">
+                    Track milestones, retirement timing, and longevity for each person.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 rounded-lg border border-secondary bg-container p-0.5 text-xs font-medium">
+                  <button
+                    aria-pressed={!formValues.household.isCouple}
+                    className={`rounded-md px-3 py-1 transition-colors ${
+                      !formValues.household.isCouple
+                        ? "bg-container-inset font-medium text-primary shadow-xs"
+                        : "text-secondary hover:text-primary"
+                    }`}
+                    onClick={() => {
+                      handleSetHouseholdMode("single");
+                    }}
+                    type="button"
+                  >
+                    Single
+                  </button>
+                  <button
+                    aria-pressed={formValues.household.isCouple}
+                    className={`rounded-md px-3 py-1 transition-colors ${
+                      formValues.household.isCouple
+                        ? "bg-container-inset font-medium text-primary shadow-xs"
+                        : "text-secondary hover:text-primary"
+                    }`}
+                    onClick={() => {
+                      handleSetHouseholdMode("couple");
+                    }}
+                    type="button"
+                  >
+                    Couple
+                  </button>
+                </div>
+              </div>
+
+              {/* Primary Member */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium uppercase tracking-wide text-secondary">
+                    Primary member
+                  </span>
+                  <span className="text-xs text-secondary">
+                    Age{" "}
+                    {START_YEAR -
+                      (Number(cleanNumericInput(formValues.household.primary.birthYear)) || 0)}{" "}
+                    in {START_YEAR}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <FormField
+                    error={formErrors.primary?.name}
+                    id="member-primary-name"
+                    label="Name"
+                    name="primaryName"
+                    onChange={handlePrimaryMemberChange("name")}
+                    required
+                    value={formValues.household.primary.name}
+                  />
+                  <FormField
+                    actions={
+                      <span className="text-xs text-secondary">
+                        Age{" "}
+                        {START_YEAR -
+                          (Number(cleanNumericInput(formValues.household.primary.birthYear)) || 0)}
+                      </span>
+                    }
+                    error={formErrors.primary?.birthYear}
+                    id="member-primary-birth-year"
+                    inputMode="numeric"
+                    label="Birth year"
+                    name="primaryBirthYear"
+                    onChange={handlePrimaryMemberChange("birthYear")}
+                    required
+                    value={formValues.household.primary.birthYear}
+                  />
+                  <FormField
+                    actions={
+                      <span className="text-xs text-secondary">
+                        Year{" "}
+                        {(Number(cleanNumericInput(formValues.household.primary.birthYear)) || 0) +
+                          (Number(cleanNumericInput(formValues.household.primary.retirementAge)) ||
+                            0)}
+                      </span>
+                    }
+                    error={formErrors.primary?.retirementAge}
+                    id="member-primary-retirement-age"
+                    inputMode="numeric"
+                    label="Retirement age"
+                    name="primaryRetirementAge"
+                    onChange={handlePrimaryMemberChange("retirementAge")}
+                    required
+                    value={formValues.household.primary.retirementAge}
+                  />
+                  <FormField
+                    actions={
+                      <span className="text-xs text-secondary">
+                        Year{" "}
+                        {(Number(cleanNumericInput(formValues.household.primary.birthYear)) || 0) +
+                          (Number(cleanNumericInput(formValues.household.primary.planningEndAge)) ||
+                            0)}
+                      </span>
+                    }
+                    description="Longevity assumption"
+                    error={formErrors.primary?.planningEndAge}
+                    id="member-primary-end-age"
+                    inputMode="numeric"
+                    label="Planning end age"
+                    name="primaryPlanningEndAge"
+                    onChange={handlePrimaryMemberChange("planningEndAge")}
+                    required
+                    value={formValues.household.primary.planningEndAge}
+                  />
+                </div>
+              </div>
+
+              {/* Partner Member */}
+              {formValues.household.isCouple && formValues.household.partner ? (
+                <div className="space-y-2 border-t border-secondary pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium uppercase tracking-wide text-secondary">
+                      Partner
+                    </span>
+                    <span className="text-xs text-secondary">
+                      Age{" "}
+                      {START_YEAR -
+                        (Number(cleanNumericInput(formValues.household.partner.birthYear)) ||
+                          0)}{" "}
+                      in {START_YEAR}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <FormField
+                      error={formErrors.partner?.name}
+                      id="member-partner-name"
+                      label="Name"
+                      name="partnerName"
+                      onChange={handlePartnerMemberChange("name")}
+                      required
+                      value={formValues.household.partner.name}
+                    />
+                    <FormField
+                      actions={
+                        <span className="text-xs text-secondary">
+                          Age{" "}
+                          {START_YEAR -
+                            (Number(cleanNumericInput(formValues.household.partner.birthYear)) ||
+                              0)}
+                        </span>
+                      }
+                      error={formErrors.partner?.birthYear}
+                      id="member-partner-birth-year"
+                      inputMode="numeric"
+                      label="Birth year"
+                      name="partnerBirthYear"
+                      onChange={handlePartnerMemberChange("birthYear")}
+                      required
+                      value={formValues.household.partner.birthYear}
+                    />
+                    <FormField
+                      actions={
+                        <span className="text-xs text-secondary">
+                          Year{" "}
+                          {(Number(cleanNumericInput(formValues.household.partner.birthYear)) ||
+                            0) +
+                            (Number(
+                              cleanNumericInput(formValues.household.partner.retirementAge),
+                            ) || 0)}
+                        </span>
+                      }
+                      error={formErrors.partner?.retirementAge}
+                      id="member-partner-retirement-age"
+                      inputMode="numeric"
+                      label="Retirement age"
+                      name="partnerRetirementAge"
+                      onChange={handlePartnerMemberChange("retirementAge")}
+                      required
+                      value={formValues.household.partner.retirementAge}
+                    />
+                    <FormField
+                      actions={
+                        <span className="text-xs text-secondary">
+                          Year{" "}
+                          {(Number(cleanNumericInput(formValues.household.partner.birthYear)) ||
+                            0) +
+                            (Number(
+                              cleanNumericInput(formValues.household.partner.planningEndAge),
+                            ) || 0)}
+                        </span>
+                      }
+                      description="Longevity assumption"
+                      error={formErrors.partner?.planningEndAge}
+                      id="member-partner-end-age"
+                      inputMode="numeric"
+                      label="Planning end age"
+                      name="partnerPlanningEndAge"
+                      onChange={handlePartnerMemberChange("planningEndAge")}
+                      required
+                      value={formValues.household.partner.planningEndAge}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Financial assumptions inputs */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <FormField
                 actions={<span className="text-xs text-secondary">years</span>}
@@ -507,6 +1026,38 @@ function ProjectionResults({
                 value={formValues.annualReturnPercent}
               />
             </div>
+
+            {/* Out-of-horizon Milestones Notice */}
+            {outOfHorizonMilestones.length > 0 ? (
+              <div
+                aria-label="Milestones outside projection horizon"
+                className="space-y-1.5 rounded-lg border border-warning/30 bg-warning/10 p-3.5 text-xs"
+              >
+                <div className="flex items-start gap-2.5">
+                  <Icon className="mt-0.5 shrink-0 text-warning" name="clock" size="sm" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-primary">
+                      Milestones outside the {appliedAssumptions.horizonYears}-year projection
+                      horizon:
+                    </p>
+                    <ul className="list-disc space-y-0.5 pl-4 text-secondary">
+                      {outOfHorizonMilestones.map((m) => (
+                        <li key={`${m.memberId}-${m.type}-${m.year}`}>{m.description}</li>
+                      ))}
+                    </ul>
+                    <div className="pt-1">
+                      <button
+                        className="font-medium text-link hover:underline"
+                        onClick={handleExtendHorizonToMilestones}
+                        type="button"
+                      >
+                        Extend horizon to {recommendedHorizonYears} years to cover all milestones
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-secondary pt-3">
               <div className="text-xs text-secondary">
@@ -598,6 +1149,7 @@ function ProjectionResults({
               <thead className="bg-container-inset">
                 <tr>
                   <ProjectionHeading align="left">Year</ProjectionHeading>
+                  <ProjectionHeading align="left">Age(s)</ProjectionHeading>
                   <ProjectionHeading>Income (adjusted)</ProjectionHeading>
                   <ProjectionHeading>Spending (adjusted)</ProjectionHeading>
                   <ProjectionHeading>Income − spending</ProjectionHeading>
@@ -639,6 +1191,25 @@ function ProjectionResults({
                           <span>{point.year}</span>
                         </div>
                       </th>
+                      <td className="px-4 py-3 text-left text-sm tabular-nums text-secondary">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span>
+                            {point.memberStates && point.memberStates.length > 0
+                              ? point.memberStates.map((m) => `${m.age}`).join(" / ")
+                              : "—"}
+                          </span>
+                          {point.memberStates?.some((m) => m.isRetirementYear) === true ? (
+                            <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">
+                              Retirement
+                            </span>
+                          ) : null}
+                          {point.memberStates?.some((m) => m.isBeyondPlanningEndAge) === true ? (
+                            <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">
+                              Post-horizon
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
                       <ProjectionMoneyCell
                         money={money}
                         value={index === 0 ? null : point.annualIncome}
