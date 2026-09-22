@@ -179,7 +179,7 @@ class LifetimeProjectionTest < ApplicationSystemTestCase
     assert_selector "table tbody tr", text: (start_year + 30).to_s
   end
 
-  test "resets assumptions to defaults" do
+  test "requires confirmation before resetting and explains what local data will be replaced" do
     visit lifetime_projection_url
     start_year = Date.current.year
 
@@ -189,9 +189,31 @@ class LifetimeProjectionTest < ApplicationSystemTestCase
 
     assert_selector "table tbody tr", text: (start_year + 15).to_s
     assert_no_selector "table tbody tr", text: (start_year + 16).to_s
+    assert_text "Plan saved in this browser."
 
     click_button "Reset to defaults"
 
+    assert_selector "[role='dialog']", text: "Reset to starter plan?"
+    assert_text "This will replace your custom assumptions saved in this browser with the standard starter plan."
+    assert_text "Horizon (reset to 30 years)"
+    assert_text "Saved baseline balance and any unapplied edits in this browser"
+    assert_text "Your live accounts, transactions, and family finances will remain unchanged."
+
+    # Cancel leaves the custom plan untouched
+    click_button "Cancel"
+    assert_no_selector "[role='dialog']"
+    assert_field "Projection horizon", with: "15"
+    assert_field "Annual income", with: "95000"
+    assert_selector "table tbody tr", text: (start_year + 15).to_s
+    assert_text "Plan saved in this browser."
+
+    # Reopen and confirm reset
+    click_button "Reset to defaults"
+    within "[role='dialog']" do
+      click_button "Reset plan"
+    end
+
+    assert_no_selector "[role='dialog']"
     assert_field "Projection horizon", with: "30"
     assert_field "Annual income", with: "80000"
     assert_field "Annual spending", with: "60000"
@@ -199,6 +221,53 @@ class LifetimeProjectionTest < ApplicationSystemTestCase
     assert_field "Investment return", with: "5"
 
     assert_selector "table tbody tr", text: (start_year + 30).to_s
+    assert_text "Starter plan saved in this browser."
+  end
+
+  test "creates starter plan in local storage on first visit without overwriting" do
+    visit lifetime_projection_url
+    assert_text "Starter plan saved in this browser."
+
+    key = "sure:lifetime-projection:#{@user.id}"
+    raw_stored = page.evaluate_script("window.localStorage.getItem('#{key}')")
+    assert raw_stored.present?
+    stored = JSON.parse(raw_stored)
+    assert_equal "starter", stored["planType"]
+    assert_equal 30, stored["assumptions"]["horizonYears"]
+    assert_equal 80_000, stored["assumptions"]["annualIncome"]
+  end
+
+  test "never overwrites a locally edited plan during an application update or reload" do
+    visit lifetime_projection_url
+    key = "sure:lifetime-projection:#{@user.id}"
+
+    # Edit and save custom plan
+    fill_in "Projection horizon", with: "25"
+    fill_in "Annual income", with: "140000"
+    fill_in "Annual spending", with: "70000"
+    click_button "Apply changes"
+
+    assert_text "Plan saved in this browser."
+    raw_stored = page.evaluate_script("window.localStorage.getItem('#{key}')")
+    stored = JSON.parse(raw_stored)
+    assert_equal "custom", stored["planType"]
+    assert_equal 25, stored["assumptions"]["horizonYears"]
+    assert_equal 140_000, stored["assumptions"]["annualIncome"]
+
+    # Simulate application update/reload
+    visit lifetime_projection_url
+
+    # Saved custom plan is preserved and not overwritten with starter defaults
+    assert_field "Projection horizon", with: "25"
+    assert_field "Annual income", with: "140000"
+    assert_field "Annual spending", with: "70000"
+    assert_text "Plan saved in this browser."
+
+    raw_after = page.evaluate_script("window.localStorage.getItem('#{key}')")
+    stored_after = JSON.parse(raw_after)
+    assert_equal "custom", stored_after["planType"]
+    assert_equal 25, stored_after["assumptions"]["horizonYears"]
+    assert_equal 140_000, stored_after["assumptions"]["annualIncome"]
   end
 
   test "explains selected early and middle projected years with reconciled components" do
