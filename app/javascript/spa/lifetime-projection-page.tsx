@@ -12,6 +12,11 @@ import {
   type LifetimeProjectionAssumptions,
   type LifetimeProjectionPoint,
 } from "./lifetime-projection";
+import {
+  clearLifetimePlanSnapshot,
+  loadInitialLifetimePlan,
+  writeLifetimePlanSnapshot,
+} from "./lifetime-projection-storage";
 import { ProjectionChart } from "./projection-chart";
 
 const START_YEAR = new Date().getFullYear();
@@ -142,7 +147,9 @@ export function LifetimeProjectionPage() {
       <ProjectionResults
         currency={summary.data.currency}
         currentNetWorth={summary.data.net_worth}
+        key={bootstrap.currentUser.id}
         startingBalance={summary.data.net_worth_amount}
+        userId={bootstrap.currentUser.id}
       />
     );
   }
@@ -180,18 +187,26 @@ function ProjectionResults({
   currency,
   currentNetWorth,
   startingBalance,
+  userId,
 }: {
   currency: string;
   currentNetWorth: string;
   startingBalance: number;
+  userId: string;
 }) {
+  const initialPlan = useMemo(
+    () => loadInitialLifetimePlan(userId, startingBalance),
+    [userId, startingBalance],
+  );
+
   const [appliedAssumptions, setAppliedAssumptions] = useState<LifetimeProjectionAssumptions>(
-    DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS,
+    () => initialPlan.assumptions,
   );
   const [formValues, setFormValues] = useState<AssumptionFormValues>(() =>
-    toFormValues(DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS),
+    toFormValues(initialPlan.assumptions),
   );
   const [formErrors, setFormErrors] = useState<AssumptionFormErrors>({});
+  const [isSavedPlan, setIsSavedPlan] = useState<boolean>(() => initialPlan.isSaved);
 
   const money = useMemo(
     () =>
@@ -266,6 +281,14 @@ function ProjectionResults({
       setFormErrors({});
       setFormValues(toFormValues(validation.parsed));
       setAppliedAssumptions(validation.parsed);
+      writeLifetimePlanSnapshot(userId, {
+        baseline: {
+          netWorth: startingBalance,
+          capturedAt: new Date().toISOString(),
+        },
+        assumptions: validation.parsed,
+      });
+      setIsSavedPlan(true);
     } else setFormErrors(validation.errors);
   };
 
@@ -273,6 +296,8 @@ function ProjectionResults({
     setFormValues(toFormValues(DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS));
     setFormErrors({});
     setAppliedAssumptions(DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS);
+    clearLifetimePlanSnapshot(userId);
+    setIsSavedPlan(false);
   };
 
   const { points, error } = projectionResult;
@@ -390,13 +415,15 @@ function ProjectionResults({
                   <span className="font-medium text-primary">
                     You have unapplied assumption changes.
                   </span>
+                ) : isSavedPlan ? (
+                  <span>Plan saved in this browser.</span>
                 ) : (
                   <span>Inputs reflect the active projection below.</span>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 <Button
-                  disabled={isDefaultAssumptions && !hasUnappliedChanges}
+                  disabled={isDefaultAssumptions && !hasUnappliedChanges && !isSavedPlan}
                   onClick={handleResetDefaults}
                   size="sm"
                   type="button"
