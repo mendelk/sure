@@ -18,6 +18,7 @@ import {
   writeLifetimePlanSnapshot,
 } from "./lifetime-projection-storage";
 import { ProjectionChart } from "./projection-chart";
+import { ProjectionYearBreakdown } from "./projection-year-breakdown";
 
 const START_YEAR = new Date().getFullYear();
 
@@ -207,6 +208,7 @@ function ProjectionResults({
   );
   const [formErrors, setFormErrors] = useState<AssumptionFormErrors>({});
   const [isSavedPlan, setIsSavedPlan] = useState<boolean>(() => initialPlan.isSaved);
+  const [selectedYear, setSelectedYear] = useState<number>(() => START_YEAR + 1);
 
   const money = useMemo(
     () =>
@@ -236,6 +238,13 @@ function ProjectionResults({
       };
     }
   }, [startingBalance, appliedAssumptions]);
+
+  const activeSelectedYear = useMemo(() => {
+    const points = projectionResult.points;
+    if (points.some((p) => p.year === selectedYear)) return selectedYear;
+    if (points.length === 0) return START_YEAR;
+    return points[Math.min(1, points.length - 1)].year;
+  }, [projectionResult.points, selectedYear]);
 
   const hasUnappliedChanges = useMemo(() => {
     const horizonNum = Number(cleanNumericInput(formValues.horizonYears));
@@ -478,6 +487,19 @@ function ProjectionResults({
             </figcaption>
           </figure>
 
+          {points.length > 0 ? (
+            <div className="border-b border-secondary bg-container-inset/30 p-4 sm:p-5">
+              <ProjectionYearBreakdown
+                annualReturnPercent={appliedAssumptions.annualReturnPercent}
+                inflationPercent={appliedAssumptions.inflationPercent}
+                money={money}
+                onSelectYear={setSelectedYear}
+                points={points}
+                selectedYear={activeSelectedYear}
+              />
+            </div>
+          ) : null}
+
           <div className="overflow-x-auto">
             <table className="w-full min-w-180">
               <caption className="sr-only">Lifetime net worth projection by year</caption>
@@ -491,29 +513,56 @@ function ProjectionResults({
                 </tr>
               </thead>
               <tbody className="divide-y divide-tertiary">
-                {points.map((point, index) => (
-                  <tr className="hover:bg-surface-hover" key={point.year}>
-                    <th
-                      className="px-4 py-3 text-left text-sm font-medium tabular-nums text-primary"
-                      scope="row"
+                {points.map((point, index) => {
+                  const isSelected = point.year === activeSelectedYear;
+                  return (
+                    <tr
+                      aria-selected={isSelected}
+                      className={`cursor-pointer transition-colors hover:bg-surface-hover ${
+                        isSelected ? "bg-container-inset font-medium" : ""
+                      }`}
+                      key={point.year}
+                      onClick={() => {
+                        setSelectedYear(point.year);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedYear(point.year);
+                        }
+                      }}
+                      tabIndex={0}
                     >
-                      {point.year}
-                    </th>
-                    <ProjectionMoneyCell
-                      money={money}
-                      value={index === 0 ? null : point.annualIncome}
-                    />
-                    <ProjectionMoneyCell
-                      money={money}
-                      value={index === 0 ? null : point.annualSpending}
-                    />
-                    <ProjectionMoneyCell
-                      money={money}
-                      value={index === 0 ? null : point.annualSavings}
-                    />
-                    <ProjectionMoneyCell emphasis money={money} value={point.netWorth} />
-                  </tr>
-                ))}
+                      <th
+                        className="px-4 py-3 text-left text-sm font-medium tabular-nums text-primary"
+                        scope="row"
+                      >
+                        <div className="flex items-center gap-2">
+                          {isSelected ? (
+                            <span
+                              aria-hidden="true"
+                              className="size-1.5 rounded-full bg-current text-primary"
+                            />
+                          ) : null}
+                          <span>{point.year}</span>
+                        </div>
+                      </th>
+                      <ProjectionMoneyCell
+                        money={money}
+                        value={index === 0 ? null : point.annualIncome}
+                      />
+                      <ProjectionMoneyCell
+                        money={money}
+                        value={index === 0 ? null : point.annualSpending}
+                      />
+                      <ProjectionMoneyCell
+                        money={money}
+                        value={index === 0 ? null : point.annualSavings}
+                      />
+                      <ProjectionMoneyCell emphasis money={money} value={point.netWorth} />
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

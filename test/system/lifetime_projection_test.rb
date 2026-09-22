@@ -200,4 +200,75 @@ class LifetimeProjectionTest < ApplicationSystemTestCase
 
     assert_selector "table tbody tr", text: (start_year + 30).to_s
   end
+
+  test "explains selected early and middle projected years with reconciled components" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+    year_1 = start_year + 1
+    year_15 = start_year + 15
+
+    within "[data-testid='projection-year-breakdown']" do
+      assert_selector "h3", text: "Year #{year_1} breakdown"
+      assert_text(/Starting value/i)
+      assert_text(/Investment growth/i)
+      assert_text(/Annual income/i)
+      assert_text(/Annual spending/i)
+      assert_text(/Inflation effect/i)
+      assert_text(/Ending value/i)
+      assert_text "Ledger reconciliation formula:"
+    end
+
+    find("table tbody tr", text: year_15.to_s).click
+
+    within "[data-testid='projection-year-breakdown']" do
+      assert_selector "h3", text: "Year #{year_15} breakdown"
+      assert_text "Year 15 of 30"
+      assert_text(/Starting value/i)
+      assert_text(/Ending value/i)
+      assert_text "Ledger reconciliation formula:"
+    end
+  end
+
+  test "explains negative balances and depleted plans without hiding or clamping them" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+
+    fill_in "Annual income", with: "10000"
+    fill_in "Annual spending", with: "150000"
+    click_button "Apply changes"
+
+    year_5 = start_year + 5
+    find("table tbody tr", text: year_5.to_s).click
+
+    within "[data-testid='projection-year-breakdown']" do
+      assert_selector "h3", text: "Year #{year_5} breakdown"
+      assert_text "Plan depleted"
+      assert_text(/Plan depleted in #{year_5}/i)
+      assert_selector "span", text: /-\$/
+      assert_text "Annual spending has exceeded cumulative income and starting assets"
+      assert_text "Ledger reconciliation formula:"
+    end
+  end
+
+  test "reconciles final projected year exactly with chart and table" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+    final_year = start_year + 30
+
+    select "#{final_year} (Year 30)", from: "projection-year-select"
+
+    within "[data-testid='projection-year-breakdown']" do
+      assert_selector "h3", text: "Year #{final_year} breakdown"
+      assert_text "Year 30 of 30"
+      assert_text "Dec 31 balance"
+    end
+
+    final_row = find("table tbody tr", text: final_year.to_s)
+    within final_row do
+      assert_text "$2,200,241"
+    end
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "$2,200,241"
+    end
+  end
 end
