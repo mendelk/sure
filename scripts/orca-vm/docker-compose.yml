@@ -13,7 +13,8 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
       REDIS_URL: redis://redis:6379/1
-      SELENIUM_REMOTE_URL: http://selenium:4444
+      SELENIUM_REMOTE_URL: ${ORCA_SELENIUM_REMOTE_URL:-}
+      SURE_SKIP_YJIT: ${ORCA_SKIP_YJIT:-}
     volumes:
       - ${ORCA_WORKTREE_PATH:?ORCA_WORKTREE_PATH is required}:/workspace
       - bundle:/bundle
@@ -23,7 +24,6 @@ services:
       - ${ORCA_PUBLISH_HOST:-127.0.0.1}::3000
     depends_on:
       - redis
-      - selenium
     networks:
       - default
       - shared
@@ -32,13 +32,6 @@ services:
     image: docker.io/library/redis:latest
     volumes:
       - redis:/data
-
-  selenium:
-    image: docker.io/selenium/standalone-chromium:latest
-    environment:
-      SE_NODE_MAX_SESSIONS: 4
-      SE_NODE_OVERRIDE_MAX_SESSIONS: "true"
-    shm_size: 2gb
 
 volumes:
   bundle:
