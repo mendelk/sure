@@ -5,11 +5,11 @@ parentId:
 id: t_lfp_live_004
 title: Explain one projected year
 type: task
-status: todo
+status: done
 priority: high
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - explainability

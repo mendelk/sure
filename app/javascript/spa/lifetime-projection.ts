@@ -72,6 +72,13 @@ export type LifetimeProjectionPoint = {
   annualSpending: number | null;
   annualSavings: number | null;
   netWorth: number;
+  startingNetWorth: number;
+  investmentGrowth: number | null;
+  baseIncome: number | null;
+  baseSpending: number | null;
+  incomeInflation: number | null;
+  spendingInflation: number | null;
+  inflationEffect: number | null;
 };
 
 export class LifetimeProjectionCalculationError extends Error {}
@@ -100,17 +107,31 @@ export function calculateLifetimeProjection(
       annualSpending: null,
       annualSavings: null,
       netWorth: inputs.startingBalance,
+      startingNetWorth: inputs.startingBalance,
+      investmentGrowth: null,
+      baseIncome: null,
+      baseSpending: null,
+      incomeInflation: null,
+      spendingInflation: null,
+      inflationEffect: null,
     },
   ];
   const inflationFactor = 1 + inputs.inflationRate;
-  const returnFactor = 1 + inputs.annualReturnRate;
   let netWorth: number = inputs.startingBalance;
 
   for (let yearOffset = 1; yearOffset <= inputs.horizonYears; yearOffset += 1) {
+    const startingNetWorth = netWorth;
+    const investmentGrowth = startingNetWorth * inputs.annualReturnRate;
     const annualIncome = inputs.annualIncome * inflationFactor ** (yearOffset - 1);
     const annualSpending = inputs.annualSpending * inflationFactor ** (yearOffset - 1);
     const annualSavings = annualIncome - annualSpending;
-    netWorth = netWorth * returnFactor + annualSavings;
+    const baseIncome = inputs.annualIncome;
+    const baseSpending = inputs.annualSpending;
+    const incomeInflation = annualIncome - baseIncome;
+    const spendingInflation = annualSpending - baseSpending;
+    const inflationEffect = incomeInflation - spendingInflation;
+
+    netWorth = startingNetWorth + investmentGrowth + annualSavings;
 
     if (!Number.isFinite(netWorth))
       throw new LifetimeProjectionCalculationError("The projection produced a non-finite result.");
@@ -121,6 +142,13 @@ export function calculateLifetimeProjection(
       annualSpending,
       annualSavings,
       netWorth,
+      startingNetWorth,
+      investmentGrowth,
+      baseIncome,
+      baseSpending,
+      incomeInflation,
+      spendingInflation,
+      inflationEffect,
     });
   }
 
