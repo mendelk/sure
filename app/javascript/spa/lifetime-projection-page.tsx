@@ -12,6 +12,7 @@ import {
   DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS,
   getHorizonToCoverAllMilestones,
   getOutOfHorizonMilestones,
+  evaluateAllGoals,
   HouseholdSchema,
   LifetimeProjectionAssumptionsSchema,
   parseLifetimeProjectionInputs,
@@ -21,6 +22,7 @@ import {
   type LifetimeProjectionAssumptions,
   type LifetimeProjectionPoint,
   type ProjectionEvent,
+  type ProjectionGoal,
 } from "./lifetime-projection";
 import {
   computeBaselineDiff,
@@ -35,6 +37,7 @@ import {
 import { ProjectionBaselineRefreshModal } from "./projection-baseline-refresh-modal";
 import { ProjectionChart } from "./projection-chart";
 import { ProjectionEventDialog } from "./projection-event-dialog";
+import { ProjectionGoalDialog } from "./projection-goal-dialog";
 import { ProjectionResetDialog } from "./projection-reset-dialog";
 import { ProjectionYearBreakdown } from "./projection-year-breakdown";
 
@@ -394,8 +397,11 @@ function ProjectionResults({
   const [appliedHousehold, setAppliedHousehold] = useState<Household>(() => initialPlan.household);
   const [cashFlowMode, setCashFlowMode] = useState<CashFlowMode>(() => initialPlan.cashFlowMode);
   const [events, setEvents] = useState<ProjectionEvent[]>(() => initialPlan.events);
+  const [goals, setGoals] = useState<ProjectionGoal[]>(() => initialPlan.goals);
   const [isEventDialogOpen, setIsEventDialogOpen] = useState<boolean>(false);
   const [editingEvent, setEditingEvent] = useState<ProjectionEvent | null>(null);
+  const [isGoalDialogOpen, setIsGoalDialogOpen] = useState<boolean>(false);
+  const [editingGoal, setEditingGoal] = useState<ProjectionGoal | null>(null);
   const [formValues, setFormValues] = useState<AssumptionFormValues>(() =>
     toFormValues(initialPlan.assumptions, initialPlan.household),
   );
@@ -430,6 +436,7 @@ function ProjectionResults({
         household: appliedHousehold,
         cashFlowMode,
         events,
+        goals,
       });
       return {
         points: calculateLifetimeProjection(inputs),
@@ -441,7 +448,13 @@ function ProjectionResults({
         error: "We could not calculate this projection with the selected assumptions.",
       };
     }
-  }, [activeBaseline.netWorth, appliedAssumptions, appliedHousehold, cashFlowMode, events]);
+  }, [activeBaseline.netWorth, appliedAssumptions, appliedHousehold, cashFlowMode, events, goals]);
+
+  const allGoalEvaluations = useMemo(
+    () =>
+      evaluateAllGoals(goals, projectionResult.points, START_YEAR, appliedAssumptions.horizonYears),
+    [goals, projectionResult.points, appliedAssumptions.horizonYears],
+  );
 
   const activeSelectedYear = useMemo(() => {
     const points = projectionResult.points;
@@ -525,10 +538,12 @@ function ProjectionResults({
       primaryCurrent.planningEndAge === primaryDefault.planningEndAge;
 
     const eventsAreDefault = cashFlowMode === "flat" && events.length === 0;
+    const goalsAreDefault = goals.length === 0;
 
     return (
       householdIsDefault &&
       eventsAreDefault &&
+      goalsAreDefault &&
       appliedAssumptions.annualIncome === DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualIncome &&
       appliedAssumptions.annualSpending ===
         DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualSpending &&
@@ -538,7 +553,7 @@ function ProjectionResults({
         DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualReturnPercent &&
       appliedAssumptions.horizonYears === DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.horizonYears
     );
-  }, [appliedAssumptions, appliedHousehold, cashFlowMode, events]);
+  }, [appliedAssumptions, appliedHousehold, cashFlowMode, events, goals]);
 
   const handleFieldChange =
     (field: keyof Omit<AssumptionFormValues, "household">) =>
@@ -627,6 +642,7 @@ function ProjectionResults({
       household: appliedHousehold,
       cashFlowMode: newMode,
       events: newEvents,
+      goals,
       updatedAt: new Date().toISOString(),
     });
     setPlanType("custom");
@@ -643,6 +659,7 @@ function ProjectionResults({
       household: appliedHousehold,
       cashFlowMode: newMode,
       events,
+      goals,
       updatedAt: new Date().toISOString(),
     });
     setPlanType("custom");
@@ -713,6 +730,108 @@ function ProjectionResults({
     saveEvents(starterEvents);
   };
 
+  const saveGoals = (newGoals: ProjectionGoal[]) => {
+    setGoals(newGoals);
+    writeLifetimePlanSnapshot(userId, {
+      version: STARTER_LIFETIME_PLAN_VERSION,
+      planType: "custom",
+      baseline: activeBaseline,
+      assumptions: appliedAssumptions,
+      household: appliedHousehold,
+      cashFlowMode,
+      events,
+      goals: newGoals,
+      updatedAt: new Date().toISOString(),
+    });
+    setPlanType("custom");
+    setIsSavedPlan(true);
+  };
+
+  const handleOpenAddGoal = () => {
+    setEditingGoal(null);
+    setIsGoalDialogOpen(true);
+  };
+
+  const handleEditGoal = (goalToEdit: ProjectionGoal) => {
+    setEditingGoal(goalToEdit);
+    setIsGoalDialogOpen(true);
+  };
+
+  const handleSaveGoal = (savedGoal: ProjectionGoal) => {
+    const existingIndex = goals.findIndex((g) => g.id === savedGoal.id);
+    const nextGoals =
+      existingIndex >= 0
+        ? goals.map((g, idx) => (idx === existingIndex ? savedGoal : g))
+        : [...goals, savedGoal];
+    saveGoals(nextGoals);
+  };
+
+  const handleToggleGoal = (goalId: string) => {
+    const nextGoals = goals.map((g) => (g.id === goalId ? { ...g, enabled: !g.enabled } : g));
+    saveGoals(nextGoals);
+  };
+
+  const handleDeleteGoal = (goalId: string) => {
+    const nextGoals = goals.filter((g) => g.id !== goalId);
+    saveGoals(nextGoals);
+  };
+
+  const handlePrefillStarterGoals = () => {
+    const primaryMember = appliedHousehold.members[0];
+    const retirementYear = primaryMember.birthYear + primaryMember.retirementAge;
+
+    const starterGoals: ProjectionGoal[] = [
+      {
+        id: `goal-${Date.now()}-1`,
+        name: "Retirement nest egg",
+        type: "target_balance",
+        targetYear: retirementYear,
+        targetAmount: 1_000_000,
+        memberId: primaryMember.id,
+        isFlexible: true,
+        shortfallExperiment: { enabled: false, strategy: "none" },
+        enabled: true,
+      },
+      {
+        id: `goal-${Date.now()}-2`,
+        name: "College fund",
+        type: "dated_spending",
+        targetYear: START_YEAR + 10,
+        targetAmount: 80_000,
+        memberId: "household",
+        isFlexible: true,
+        shortfallExperiment: { enabled: false, strategy: "none" },
+        enabled: true,
+      },
+    ];
+
+    saveGoals(starterGoals);
+  };
+
+  const handleApplyShortfallExperiment = (
+    goalId: string,
+    strategy: "none" | "reduce" | "defer",
+    params?: { reducedAmount?: number; deferredYears?: number },
+  ) => {
+    const nextGoals = goals.map((g) => {
+      if (g.id !== goalId) return g;
+      return {
+        ...g,
+        shortfallExperiment: {
+          enabled: strategy !== "none",
+          strategy,
+          reducedAmount: params?.reducedAmount ?? g.shortfallExperiment.reducedAmount,
+          deferredYears: params?.deferredYears ?? g.shortfallExperiment.deferredYears ?? 2,
+        },
+      };
+    });
+    saveGoals(nextGoals);
+  };
+
+  const handleInspectYear = (year: number) => {
+    setSelectedYear(year);
+  };
+
   const handleFormSubmit = (event: SyntheticEvent) => {
     event.preventDefault();
     const validation = validateAssumptionForm(formValues, START_YEAR);
@@ -729,6 +848,7 @@ function ProjectionResults({
         household: validation.parsedHousehold,
         cashFlowMode,
         events,
+        goals,
         updatedAt: new Date().toISOString(),
       });
       setPlanType("custom");
@@ -750,6 +870,7 @@ function ProjectionResults({
     setActiveBaseline(starter.baseline);
     setCashFlowMode(starter.cashFlowMode ?? "flat");
     setEvents(starter.events ?? []);
+    setGoals(starter.goals ?? []);
     setPlanType("starter");
     setIsSavedPlan(true);
     setIsResetDialogOpen(false);
@@ -1380,6 +1501,340 @@ function ProjectionResults({
               )}
             </div>
 
+            {/* Goals and milestones section */}
+            <div
+              className="space-y-4 rounded-xl border border-secondary bg-container-inset/40 p-4"
+              data-testid="goals-milestones-section"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-secondary pb-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-primary">
+                      Goals and milestones ({goals.length})
+                    </h3>
+                  </div>
+                  <p className="text-xs text-secondary">
+                    Track target-balance milestones and dated spending goals, and experiment with
+                    shortfalls.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    id="add-goal-button"
+                    onClick={handleOpenAddGoal}
+                    size="sm"
+                    type="button"
+                    variant="primary"
+                  >
+                    <Icon className="mr-1.5" name="plus" size="sm" />
+                    Add goal
+                  </Button>
+                </div>
+              </div>
+
+              {goals.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                  <div className="rounded-lg border border-secondary bg-container p-2.5">
+                    <span className="font-medium text-secondary">Funded</span>
+                    <div className="mt-0.5 text-base font-semibold text-success">
+                      {
+                        allGoalEvaluations.filter((e) => e.goal.enabled && e.status === "funded")
+                          .length
+                      }
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-secondary bg-container p-2.5">
+                    <span className="font-medium text-secondary">Partially funded</span>
+                    <div className="mt-0.5 text-base font-semibold text-warning">
+                      {
+                        allGoalEvaluations.filter(
+                          (e) => e.goal.enabled && e.status === "partially_funded",
+                        ).length
+                      }
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-secondary bg-container p-2.5">
+                    <span className="font-medium text-secondary">Missed</span>
+                    <div className="mt-0.5 text-base font-semibold text-destructive">
+                      {
+                        allGoalEvaluations.filter((e) => e.goal.enabled && e.status === "missed")
+                          .length
+                      }
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-secondary bg-container p-2.5">
+                    <span className="font-medium text-secondary">Not yet evaluable</span>
+                    <div className="mt-0.5 text-base font-semibold text-secondary">
+                      {
+                        allGoalEvaluations.filter(
+                          (e) => e.goal.enabled && e.status === "not_yet_evaluable",
+                        ).length
+                      }
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {goals.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-secondary bg-container p-6 text-center text-xs text-secondary">
+                  <Icon className="mb-2 text-secondary" name="target" size="md" />
+                  <p className="font-medium text-primary">No goals or milestones added yet</p>
+                  <p className="mt-1 max-w-sm">
+                    Add target-balance milestones (e.g. $1M nest egg at retirement) or dated
+                    spending goals (e.g. college funding) to see if they are funded.
+                  </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button onClick={handleOpenAddGoal} size="sm" type="button" variant="primary">
+                      <Icon className="mr-1.5" name="plus" size="sm" />
+                      Add goal
+                    </Button>
+                    <Button
+                      onClick={handlePrefillStarterGoals}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      Pre-fill starter goals
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3" data-testid="goals-list">
+                  {allGoalEvaluations.map((ev) => {
+                    const goal = ev.goal;
+                    const memberName =
+                      goal.memberId === "household"
+                        ? "Household (Shared)"
+                        : (appliedHousehold.members.find((m) => m.id === goal.memberId)?.name ??
+                          "Member");
+
+                    let statusBadgeClass = "bg-container-inset text-secondary";
+                    if (ev.status === "funded") statusBadgeClass = "bg-success/15 text-success";
+                    else if (ev.status === "partially_funded")
+                      statusBadgeClass = "bg-warning/15 text-warning";
+                    else if (ev.status === "missed")
+                      statusBadgeClass = "bg-destructive/15 text-destructive";
+
+                    const hasShortfall = ev.status === "partially_funded" || ev.status === "missed";
+
+                    return (
+                      <div
+                        className={`rounded-lg border border-secondary bg-container p-3.5 text-xs transition-colors ${
+                          !goal.enabled ? "opacity-60" : ""
+                        }`}
+                        data-testid={`goal-card-${goal.id}`}
+                        key={goal.id}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2 border-b border-secondary pb-2.5">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold text-primary">
+                                {goal.name}
+                              </span>
+                              <span className="text-[11px] text-secondary">({memberName})</span>
+                              <span className="rounded-full bg-container-inset px-2 py-0.5 text-[10px] font-medium text-secondary">
+                                {goal.type === "target_balance"
+                                  ? "Target balance milestone"
+                                  : "Dated spending goal"}
+                              </span>
+                              {goal.isFlexible ? (
+                                <span className="rounded-full bg-container-inset px-1.5 py-0.5 text-[10px] text-secondary">
+                                  Flexible
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 text-secondary">
+                              <span>
+                                Target year:{" "}
+                                <strong className="font-medium text-primary">
+                                  {goal.targetYear}
+                                </strong>
+                                {ev.isExperimentActive &&
+                                goal.shortfallExperiment.strategy === "defer" ? (
+                                  <span className="ml-1 font-medium text-warning">
+                                    → Deferred to {ev.effectiveYear} (+
+                                    {goal.shortfallExperiment.deferredYears} yrs)
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                Target amount:{" "}
+                                <strong className="font-medium text-primary">
+                                  {money.format(goal.targetAmount)}
+                                </strong>
+                                {ev.isExperimentActive &&
+                                goal.shortfallExperiment.strategy === "reduce" ? (
+                                  <span className="ml-1 font-medium text-warning">
+                                    → Reduced to {money.format(ev.effectiveAmount)}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadgeClass}`}
+                            >
+                              {ev.statusLabel}
+                              {ev.status === "partially_funded" ? ` (${ev.fundedPercentage}%)` : ""}
+                            </span>
+                            <button
+                              aria-label={
+                                goal.enabled ? `Disable ${goal.name}` : `Enable ${goal.name}`
+                              }
+                              className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                                goal.enabled
+                                  ? "bg-success/15 text-success hover:bg-success/25"
+                                  : "bg-container-inset text-secondary hover:text-primary"
+                              }`}
+                              onClick={() => {
+                                handleToggleGoal(goal.id);
+                              }}
+                              type="button"
+                            >
+                              {goal.enabled ? "Enabled" : "Disabled"}
+                            </button>
+                            <button
+                              aria-label={`Edit ${goal.name}`}
+                              className="rounded-md p-1 text-secondary hover:bg-container-inset hover:text-primary"
+                              onClick={() => {
+                                handleEditGoal(goal);
+                              }}
+                              type="button"
+                            >
+                              <Icon name="pencil" size="sm" />
+                            </button>
+                            <button
+                              aria-label={`Delete ${goal.name}`}
+                              className="rounded-md p-1 text-secondary hover:bg-container-inset hover:text-destructive"
+                              onClick={() => {
+                                handleDeleteGoal(goal.id);
+                              }}
+                              type="button"
+                            >
+                              <Icon name="trash-2" size="sm" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Determining explanation & link */}
+                        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="space-y-0.5">
+                            <p className="text-secondary">{ev.explanation}</p>
+                            <p className="text-[11px] font-medium text-secondary">
+                              Determined by: {ev.determiningFlowsSummary}
+                            </p>
+                          </div>
+                          {ev.status !== "not_yet_evaluable" ? (
+                            <button
+                              className="inline-flex items-center gap-1 rounded-lg border border-secondary bg-container-inset px-2.5 py-1 text-xs font-medium text-primary hover:border-primary hover:bg-surface-hover"
+                              data-testid={`inspect-year-${goal.id}`}
+                              onClick={() => {
+                                handleInspectYear(ev.effectiveYear);
+                              }}
+                              type="button"
+                            >
+                              <Icon name="search" size="sm" />
+                              Inspect year {ev.effectiveYear}
+                            </button>
+                          ) : null}
+                        </div>
+
+                        {/* Explicit shortfall experiment controls for flexible goals */}
+                        {goal.isFlexible && (hasShortfall || ev.isExperimentActive) ? (
+                          <div
+                            className="mt-3 space-y-2 rounded-lg border border-warning/30 bg-warning/10 p-3"
+                            data-testid={`shortfall-experiment-${goal.id}`}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                                <Icon
+                                  className="text-warning"
+                                  name="sliders-horizontal"
+                                  size="sm"
+                                />
+                                Shortfall experiment
+                              </span>
+                              {ev.isExperimentActive ? (
+                                <span className="rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                                  Experiment active
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="text-[11px] text-secondary">
+                              Simulate adjustments to resolve the shortfall for this flexible goal.
+                            </p>
+
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              <button
+                                className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                  !ev.isExperimentActive
+                                    ? "border-primary bg-container font-semibold text-primary shadow-xs"
+                                    : "border-secondary text-secondary hover:text-primary"
+                                }`}
+                                onClick={() => {
+                                  handleApplyShortfallExperiment(goal.id, "none");
+                                }}
+                                type="button"
+                              >
+                                Original target
+                              </button>
+
+                              <button
+                                className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                  ev.isExperimentActive &&
+                                  goal.shortfallExperiment.strategy === "defer"
+                                    ? "border-primary bg-container font-semibold text-primary shadow-xs"
+                                    : "border-secondary text-secondary hover:text-primary"
+                                }`}
+                                onClick={() => {
+                                  handleApplyShortfallExperiment(goal.id, "defer", {
+                                    deferredYears: 2,
+                                  });
+                                }}
+                                type="button"
+                              >
+                                Defer +2 years ({goal.targetYear + 2})
+                              </button>
+
+                              <button
+                                className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                  ev.isExperimentActive &&
+                                  goal.shortfallExperiment.strategy === "reduce"
+                                    ? "border-primary bg-container font-semibold text-primary shadow-xs"
+                                    : "border-secondary text-secondary hover:text-primary"
+                                }`}
+                                onClick={() => {
+                                  const reduced =
+                                    ev.fundedAmount > 0
+                                      ? ev.fundedAmount
+                                      : Math.round(goal.targetAmount * 0.7);
+                                  handleApplyShortfallExperiment(goal.id, "reduce", {
+                                    reducedAmount: reduced,
+                                  });
+                                }}
+                                type="button"
+                              >
+                                Reduce target amount (
+                                {money.format(
+                                  ev.fundedAmount > 0
+                                    ? ev.fundedAmount
+                                    : Math.round(goal.targetAmount * 0.7),
+                                )}
+                                )
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Financial assumptions inputs */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <FormField
@@ -1601,6 +2056,13 @@ function ProjectionResults({
                               Post-horizon
                             </span>
                           ) : null}
+                          {point.goalEvaluations && point.goalEvaluations.length > 0 ? (
+                            <span className="rounded-full bg-container-inset px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                              {point.goalEvaluations.length === 1
+                                ? point.goalEvaluations[0].goal.name
+                                : `${point.goalEvaluations.length} goals`}
+                            </span>
+                          ) : null}
                         </div>
                       </td>
                       <ProjectionMoneyCell
@@ -1652,6 +2114,18 @@ function ProjectionResults({
           setEditingEvent(null);
         }}
         onSave={handleSaveEvent}
+        startYear={START_YEAR}
+      />
+
+      <ProjectionGoalDialog
+        household={appliedHousehold}
+        initialGoal={editingGoal}
+        isOpen={isGoalDialogOpen}
+        onClose={() => {
+          setIsGoalDialogOpen(false);
+          setEditingGoal(null);
+        }}
+        onSave={handleSaveGoal}
         startYear={START_YEAR}
       />
     </div>

@@ -5,10 +5,12 @@ import {
   HouseholdSchema,
   LifetimeProjectionAssumptionsSchema,
   ProjectionEventSchema,
+  ProjectionGoalSchema,
   type CashFlowMode,
   type Household,
   type LifetimeProjectionAssumptions,
   type ProjectionEvent,
+  type ProjectionGoal,
 } from "./lifetime-projection";
 
 export const STARTER_LIFETIME_PLAN_VERSION = 1;
@@ -44,6 +46,7 @@ export const LifetimePlanSnapshotSchema = z.object({
   household: z.optional(HouseholdSchema),
   cashFlowMode: z.optional(z.enum(["flat", "events"])),
   events: z.optional(z.array(ProjectionEventSchema)),
+  goals: z.optional(z.array(ProjectionGoalSchema)),
   display: z.optional(LifetimePlanDisplaySchema),
   updatedAt: z.optional(z.string()),
 });
@@ -60,6 +63,7 @@ export type LifetimePlanSnapshot = {
   household?: Household;
   cashFlowMode?: CashFlowMode;
   events?: ProjectionEvent[];
+  goals?: ProjectionGoal[];
   display?: LifetimePlanDisplay;
   updatedAt?: string;
 };
@@ -121,6 +125,13 @@ export function readLifetimePlanSnapshot(userId: string): LifetimePlanSnapshot |
     const events = validatedEvents?.success === true ? validatedEvents.data : [];
     const cashFlowMode = result.data.cashFlowMode ?? "flat";
 
+    const validatedGoals =
+      result.data.goals !== undefined
+        ? z.array(ProjectionGoalSchema).safeParse(result.data.goals)
+        : undefined;
+
+    const goals = validatedGoals?.success === true ? validatedGoals.data : [];
+
     return {
       version: result.data.version ?? STARTER_LIFETIME_PLAN_VERSION,
       planType: result.data.planType ?? "custom",
@@ -129,6 +140,7 @@ export function readLifetimePlanSnapshot(userId: string): LifetimePlanSnapshot |
       household,
       cashFlowMode,
       events,
+      goals,
       display: result.data.display,
       updatedAt: result.data.updatedAt,
     };
@@ -180,6 +192,7 @@ export function starterLifetimePlanSnapshot(
     household: createDefaultHousehold(startYear),
     cashFlowMode: "flat",
     events: [],
+    goals: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -202,6 +215,7 @@ export function loadOrInstallStarterLifetimePlan(
   household: Household;
   cashFlowMode: CashFlowMode;
   events: ProjectionEvent[];
+  goals: ProjectionGoal[];
   isSaved: boolean;
   planType: "starter" | "custom";
 } {
@@ -213,6 +227,7 @@ export function loadOrInstallStarterLifetimePlan(
       household: existing.household ?? createDefaultHousehold(startYear),
       cashFlowMode: existing.cashFlowMode ?? "flat",
       events: existing.events ?? [],
+      goals: existing.goals ?? [],
       isSaved: true,
       planType: existing.planType ?? "custom",
     };
@@ -227,6 +242,7 @@ export function loadOrInstallStarterLifetimePlan(
     household: starter.household ?? createDefaultHousehold(startYear),
     cashFlowMode: starter.cashFlowMode ?? "flat",
     events: starter.events ?? [],
+    goals: starter.goals ?? [],
     isSaved: true,
     planType: "starter",
   };
@@ -412,6 +428,7 @@ export function loadInitialLifetimePlan(
   household: Household;
   cashFlowMode: CashFlowMode;
   events: ProjectionEvent[];
+  goals: ProjectionGoal[];
   isSaved: boolean;
   planType: "starter" | "custom";
 } {

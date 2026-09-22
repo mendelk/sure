@@ -5,11 +5,11 @@ parentId:
 id: t_lfp_timeline_003
 title: Add goals and milestones
 type: task
-status: todo
+status: done
 priority: high
-start: ""
+start: "2026-09-22"
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - goals
