@@ -5,11 +5,11 @@ parentId:
 id: t_lfp_live_005
 title: Ship a resettable starter plan
 type: task
-status: todo
+status: done
 priority: high
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - seeds

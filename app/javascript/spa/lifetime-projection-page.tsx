@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Route composes UI primitives, projection modules, and dialogs. */
 import { useMemo, useState, type SyntheticEvent } from "react";
 import { useRouteContext } from "@tanstack/react-router";
 import { useSummaryQuery } from "./api/summary";
@@ -13,11 +14,13 @@ import {
   type LifetimeProjectionPoint,
 } from "./lifetime-projection";
 import {
-  clearLifetimePlanSnapshot,
   loadInitialLifetimePlan,
+  resetLifetimePlanToStarter,
+  STARTER_LIFETIME_PLAN_VERSION,
   writeLifetimePlanSnapshot,
 } from "./lifetime-projection-storage";
 import { ProjectionChart } from "./projection-chart";
+import { ProjectionResetDialog } from "./projection-reset-dialog";
 import { ProjectionYearBreakdown } from "./projection-year-breakdown";
 
 const START_YEAR = new Date().getFullYear();
@@ -208,6 +211,8 @@ function ProjectionResults({
   );
   const [formErrors, setFormErrors] = useState<AssumptionFormErrors>({});
   const [isSavedPlan, setIsSavedPlan] = useState<boolean>(() => initialPlan.isSaved);
+  const [planType, setPlanType] = useState<"starter" | "custom">(() => initialPlan.planType);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState<boolean>(false);
   const [selectedYear, setSelectedYear] = useState<number>(() => START_YEAR + 1);
 
   const money = useMemo(
@@ -291,22 +296,32 @@ function ProjectionResults({
       setFormValues(toFormValues(validation.parsed));
       setAppliedAssumptions(validation.parsed);
       writeLifetimePlanSnapshot(userId, {
+        version: STARTER_LIFETIME_PLAN_VERSION,
+        planType: "custom",
         baseline: {
           netWorth: startingBalance,
           capturedAt: new Date().toISOString(),
         },
         assumptions: validation.parsed,
+        updatedAt: new Date().toISOString(),
       });
+      setPlanType("custom");
       setIsSavedPlan(true);
     } else setFormErrors(validation.errors);
   };
 
-  const handleResetDefaults = () => {
-    setFormValues(toFormValues(DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS));
+  const handleOpenResetDialog = () => {
+    setIsResetDialogOpen(true);
+  };
+
+  const handleConfirmReset = () => {
+    const starter = resetLifetimePlanToStarter(userId, startingBalance);
     setFormErrors({});
-    setAppliedAssumptions(DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS);
-    clearLifetimePlanSnapshot(userId);
-    setIsSavedPlan(false);
+    setFormValues(toFormValues(starter.assumptions));
+    setAppliedAssumptions(starter.assumptions);
+    setPlanType("starter");
+    setIsSavedPlan(true);
+    setIsResetDialogOpen(false);
   };
 
   const { points, error } = projectionResult;
@@ -424,6 +439,8 @@ function ProjectionResults({
                   <span className="font-medium text-primary">
                     You have unapplied assumption changes.
                   </span>
+                ) : planType === "starter" ? (
+                  <span>Starter plan saved in this browser.</span>
                 ) : isSavedPlan ? (
                   <span>Plan saved in this browser.</span>
                 ) : (
@@ -432,8 +449,8 @@ function ProjectionResults({
               </div>
               <div className="flex items-center gap-2">
                 <Button
-                  disabled={isDefaultAssumptions && !hasUnappliedChanges && !isSavedPlan}
-                  onClick={handleResetDefaults}
+                  disabled={planType === "starter" && !hasUnappliedChanges && isDefaultAssumptions}
+                  onClick={handleOpenResetDialog}
                   size="sm"
                   type="button"
                   variant="secondary"
@@ -568,6 +585,14 @@ function ProjectionResults({
           </div>
         </section>
       )}
+
+      <ProjectionResetDialog
+        isOpen={isResetDialogOpen}
+        onCancel={() => {
+          setIsResetDialogOpen(false);
+        }}
+        onConfirm={handleConfirmReset}
+      />
     </div>
   );
 }
