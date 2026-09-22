@@ -16,6 +16,7 @@ import { DashboardSwitcher } from "./dashboard-switcher";
 import { ReportChart } from "./report-chart";
 import { chartMappingForResult } from "./report-chart-mapping";
 import { SureqlEditor } from "./sureql-editor";
+import { useSureqlPreview } from "./sureql-preview";
 import {
   STARTER_QUERY,
   generateDashboardId,
@@ -267,11 +268,25 @@ export function DashboardsPage() {
   const { width: gridWidth, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   });
+  const preview = useSureqlPreview();
   const selectedReport = activeDashboard?.reports.find((report) => report.id === selectedReportId);
   const reportPendingRemoval = activeDashboard?.reports.find(
     (report) => report.id === reportPendingRemovalId,
   );
-
+  const draftQueryTrimmed = reportQueryDraft.trim();
+  const previewMatchesDraft =
+    preview.status !== "running" &&
+    preview.result !== null &&
+    preview.resultQuery !== null &&
+    preview.resultQuery.trim() === draftQueryTrimmed &&
+    draftQueryTrimmed.length > 0;
+  const previewRunning = preview.status === "running";
+  const previewColumns = useMemo(() => {
+    if (preview.result === null) return [];
+    if (preview.result.columns.length > 0) return preview.result.columns;
+    if (preview.result.rows.length > 0) return Object.keys(preview.result.rows[0]);
+    return [];
+  }, [preview.result]);
   // Persist only on explicit saves and interaction stops — never on every
   const persistSnapshot = (nextSnapshot: DashboardSnapshot) => {
     setSnapshot(nextSnapshot);
@@ -357,6 +372,7 @@ export function DashboardsPage() {
     setReportQueryDraft(report.query);
     setReportPresentationDraft(report.presentation);
     setSelectedReportId(report.id);
+    preview.reset();
   };
 
   const addReport = (presentation: "table" | "chart" = "table") => {
@@ -387,11 +403,16 @@ export function DashboardsPage() {
     openReportDialog(report);
   };
 
+  const runDraftPreview = () => {
+    preview.run(bootstrap.apiPaths.sureqlRun, reportQueryDraft);
+  };
+
   const saveReportConfiguration = () => {
     const report = selectedReport;
     const name = reportNameDraft.trim();
     const query = reportQueryDraft.trim();
     if (report === undefined || name.length === 0 || query.length === 0) return;
+    if (!previewMatchesDraft) return;
 
     updateActiveDashboard((dashboard) => ({
       ...dashboard,
@@ -402,6 +423,7 @@ export function DashboardsPage() {
       ),
     }));
     setSelectedReportId(null);
+    preview.reset();
 
     if (query === report.query) {
       void queryClient.refetchQueries({
@@ -409,6 +431,16 @@ export function DashboardsPage() {
         queryKey: ["sureql", report.id, query],
       });
     }
+  };
+
+  const cancelReportConfiguration = () => {
+    if (selectedReport !== undefined) {
+      setReportNameDraft(selectedReport.name);
+      setReportQueryDraft(selectedReport.query);
+      setReportPresentationDraft(selectedReport.presentation);
+    }
+    setSelectedReportId(null);
+    preview.reset();
   };
 
   const removeReport = () => {
@@ -574,9 +606,7 @@ export function DashboardsPage() {
       <Modal
         ariaLabelledby="configure-report-title"
         id="configure-report-dialog"
-        onClose={() => {
-          setSelectedReportId(null);
-        }}
+        onClose={cancelReportConfiguration}
         open={selectedReport !== undefined}
         panelClassName="w-full max-w-4xl rounded-xl border border-secondary bg-container p-0 shadow-border-xs"
       >
@@ -589,9 +619,7 @@ export function DashboardsPage() {
               label="Close report configuration"
               className="shrink-0"
               icon="x"
-              onClick={() => {
-                setSelectedReportId(null);
-              }}
+              onClick={cancelReportConfiguration}
               size="sm"
             />
           </div>
@@ -610,14 +638,89 @@ export function DashboardsPage() {
           />
 
           <div>
-            <p className="mb-1.5 text-xs font-medium text-secondary">Query</p>
+            <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-xs font-medium text-secondary">Query</p>
+              {selectedReport !== undefined &&
+                (draftQueryTrimmed === selectedReport.query.trim() ? (
+                  <span className="text-xs text-tertiary">Draft matches saved query</span>
+                ) : (
+                  <span className="text-xs font-medium text-warning">Unsaved changes</span>
+                ))}
+            </div>
             <SureqlEditor
               defaultValue={STARTER_QUERY}
-              loading={false}
+              loading={previewRunning}
               onChange={setReportQueryDraft}
-              onRun={saveReportConfiguration}
+              onRun={runDraftPreview}
               value={reportQueryDraft}
             />
+            <div aria-live="polite" className="mt-2 space-y-2">
+              {previewRunning && (
+                <p className="flex items-center gap-2 rounded-lg border border-secondary bg-surface-inset px-3 py-2 text-xs text-secondary">
+                  <Icon name="loader-circle" size="sm" className="animate-spin" />
+                  <span>Running preview of the current draft…</span>
+                </p>
+              )}
+              {preview.error !== null && (
+                <div
+                  aria-live="assertive"
+                  className="rounded-xl border border-destructive bg-container p-4 text-sm text-destructive"
+                  role="alert"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <Icon
+                      name="circle-alert"
+                      size="sm"
+                      className="mt-0.5 shrink-0 text-destructive"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-semibold">Preview error</p>
+                      <pre className="mt-1 max-h-64 overflow-x-auto whitespace-pre-wrap font-mono text-xs">
+                        {preview.error}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {preview.error === null &&
+                preview.result !== null &&
+                preview.resultQuery !== null && (
+                  <div className="space-y-2 rounded-xl border border-secondary bg-surface-inset p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-secondary">
+                        Preview — not saved yet ({preview.result.row_count}{" "}
+                        {preview.result.row_count === 1 ? "row" : "rows"})
+                      </p>
+                      {preview.resultQuery.trim() !== draftQueryTrimmed && (
+                        <p className="text-xs font-medium text-warning">
+                          Draft changed since this preview — Run again to refresh.
+                        </p>
+                      )}
+                    </div>
+                    {preview.result.truncated && (
+                      <output className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
+                        <Icon name="circle-alert" size="sm" className="text-warning" />
+                        <span>
+                          Results truncated: showing first {preview.result.row_count} rows.
+                        </span>
+                      </output>
+                    )}
+                    {preview.result.rows.length === 0 ? (
+                      <p className="text-sm text-secondary">No results found for this query.</p>
+                    ) : (
+                      <ReportTable columns={previewColumns} rows={preview.result.rows} />
+                    )}
+                    <details className="rounded-lg border border-secondary bg-container">
+                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-secondary">
+                        Generated SQL (technical)
+                      </summary>
+                      <pre className="max-h-64 overflow-auto border-t border-secondary px-3 py-2 font-mono text-xs whitespace-pre-wrap text-secondary">
+                        {preview.result.sql}
+                      </pre>
+                    </details>
+                  </div>
+                )}
+            </div>
           </div>
 
           <fieldset>
@@ -658,26 +761,43 @@ export function DashboardsPage() {
             >
               Remove report
             </Button>
-            <div className="flex justify-end gap-2">
-              <Button
-                onClick={() => {
-                  setSelectedReportId(null);
-                }}
-                size="sm"
-                variant="secondary"
-              >
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button onClick={cancelReportConfiguration} size="sm" variant="secondary">
                 Cancel
               </Button>
               <Button
+                disabled={draftQueryTrimmed.length === 0 || previewRunning}
+                iconProps={{ name: "play", size: "sm" }}
+                onClick={runDraftPreview}
+                size="sm"
+                variant="secondary"
+              >
+                {previewRunning ? "Running…" : "Run preview"}
+              </Button>
+              <Button
                 disabled={
-                  reportNameDraft.trim().length === 0 || reportQueryDraft.trim().length === 0
+                  reportNameDraft.trim().length === 0 ||
+                  draftQueryTrimmed.length === 0 ||
+                  previewRunning ||
+                  !previewMatchesDraft
                 }
                 onClick={saveReportConfiguration}
                 size="sm"
+                title={
+                  previewMatchesDraft
+                    ? "Save this previewed draft"
+                    : "Run the draft preview successfully before saving"
+                }
               >
-                Save and run
+                Save
               </Button>
             </div>
+            {!previewMatchesDraft && draftQueryTrimmed.length > 0 && (
+              <p className="text-xs text-secondary">
+                Run the exact draft preview successfully before saving. Saving keeps the card&apos;s
+                last result until the new query loads.
+              </p>
+            )}
           </div>
         </div>
       </Modal>

@@ -70,10 +70,11 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selected_dashboard("Monthly review")
 
     click_button "Configure"
+    run_preview
     within "#configure-report-dialog" do
       fill_in "Report name", with: "Account overview"
-      click_button "Save and run"
     end
+    save_report
 
     assert_selector "h2", text: /Account overview/i
     assert_no_selector "[role='application'][aria-label='SureQL Query Editor']"
@@ -94,9 +95,8 @@ class DashboardsTest < ApplicationSystemTestCase
       fill_in "Report name", with: "Account overview"
     end
     set_query("from accounts\ntake 5")
-    within "#configure-report-dialog" do
-      click_button "Save and run"
-    end
+    run_preview
+    save_report
 
     assert_selector "h2", text: /Recent transactions/i
     assert_selector "h2", text: /Account overview/i
@@ -113,11 +113,14 @@ class DashboardsTest < ApplicationSystemTestCase
 
     set_query("from secrets", report_name: "Recent transactions")
     within "#configure-report-dialog" do
-      click_button "Save and run"
+      click_button "Run preview"
+      assert_selector "[role='alert']", text: "unknown sureql source `secrets`", wait: 10
+      assert_button "Save", disabled: true
+      click_button "Cancel"
     end
 
     within "section[aria-label='Recent transactions results']" do
-      assert_selector "[role='alert']", text: "unknown sureql source `secrets`"
+      assert_selector "table td", text: "Dashboard Groceries Test"
     end
     within "section[aria-label='Account overview results']" do
       assert_selector "table th", text: /balance/i
@@ -170,9 +173,8 @@ class DashboardsTest < ApplicationSystemTestCase
       fill_in "Report name", with: "Account overview"
     end
     set_query("from accounts\ntake 5")
-    within "#configure-report-dialog" do
-      click_button "Save and run"
-    end
+    run_preview
+    save_report
     assert_selector "h2", text: /Account overview/i
 
     select_dashboard("My dashboard")
@@ -243,9 +245,8 @@ class DashboardsTest < ApplicationSystemTestCase
       fill_in "Report name", with: "Balance history"
     end
     set_query("from transactions\nsort {date}\ntake 10")
-    within "#configure-report-dialog" do
-      click_button "Save and run"
-    end
+    run_preview
+    save_report
 
     assert_selector "h2", text: /Balance history/i
     assert_selector "[aria-label='Balance history chart']", wait: 10
@@ -266,9 +267,8 @@ class DashboardsTest < ApplicationSystemTestCase
       fill_in "Report name", with: "Names only"
     end
     set_query("from transactions\nselect {name}")
-    within "#configure-report-dialog" do
-      click_button "Save and run"
-    end
+    run_preview
+    save_report
 
     assert_selector "h2", text: /Names only/i
     assert_text "Chart needs a date column and a numeric column"
@@ -276,19 +276,55 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_equal "chart", active_dashboard(dashboard_snapshot).fetch("reports").find { |r| r.fetch("name") == "Names only" }.fetch("presentation")
   end
 
-  test "edits SureQL query in Monaco and runs it to display updated results" do
+  test "previews a draft beside the editor, then saves it to the card" do
     visit dashboards_url
 
-    assert_selected_dashboard("My dashboard")
     assert_selector "table td", text: "Dashboard Groceries Test"
+    set_query("from accounts\ntake 5")
+
+    within "#configure-report-dialog" do
+      assert_button "Save", disabled: true
+      click_button "Run preview"
+      assert_selector "p", text: %r{Preview.+not saved yet}, wait: 10
+      assert_selector "table th", text: /balance/i
+      assert_selector "summary", text: "Generated SQL"
+      assert_button "Save", disabled: false
+    end
+    save_report
+
+    assert_selector "section[aria-label='Recent transactions results'] table th", text: /balance/i
+    assert_saved_query("from accounts")
+  end
+
+  test "keeps the saved card result when a later draft preview fails" do
+    visit dashboards_url
+
+    assert_selector "table td", text: "Dashboard Groceries Test"
+    set_query("from secrets")
+
+    within "#configure-report-dialog" do
+      click_button "Run preview"
+      assert_selector "[role='alert']", text: "Preview error", wait: 10
+      assert_selector "[role='alert']", text: "unknown sureql source `secrets`"
+      assert_button "Save", disabled: true
+      click_button "Cancel"
+    end
+
+    assert_selector "section[aria-label='Recent transactions results'] table td", text: "Dashboard Groceries Test"
+    assert_saved_query("from transactions")
+  end
+
+  test "cancel restores the saved query draft" do
+    visit dashboards_url
 
     set_query("from accounts\ntake 5")
-    click_button "Run"
+    within "#configure-report-dialog" do
+      click_button "Cancel"
+    end
 
-    assert_selector "table th", text: /balance/i
-    assert_selector "table th", text: /classification/i
-    assert_no_selector "table th", text: /entryable_type/i
+    assert_saved_query("from transactions")
   end
+
 
   test "resets query to default using Reset button" do
     visit dashboards_url
@@ -300,25 +336,34 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), "from transactions"
   end
 
-  test "displays server error for invalid SureQL query" do
+  test "rejects save until the invalid draft preview succeeds" do
     visit dashboards_url
 
     assert_selected_dashboard("My dashboard")
     set_query("from secrets")
-    click_button "Run"
 
-    assert_selector "[role='alert']", text: "Query error"
-    assert_selector "[role='alert']", text: "unknown sureql source `secrets`"
+    within "#configure-report-dialog" do
+      click_button "Run preview"
+      assert_selector "[role='alert']", text: "Preview error", wait: 10
+      assert_selector "[role='alert']", text: "unknown sureql source `secrets`"
+      assert_button "Save", disabled: true
+    end
   end
 
-  test "displays empty state when query returns no rows" do
+  test "previews an empty draft result without replacing the saved card" do
     visit dashboards_url
 
     assert_selected_dashboard("My dashboard")
     set_query("from transactions\nfilter amount == -999999")
-    click_button "Run"
 
-    assert_selector "p", text: "No results found for this query."
+    within "#configure-report-dialog" do
+      click_button "Run preview"
+      assert_selector "p", text: "No results found for this query.", wait: 10
+      assert_button "Save", disabled: false
+      click_button "Cancel"
+    end
+
+    assert_selector "section[aria-label='Recent transactions results'] table td", text: "Dashboard Groceries Test"
   end
 
   test "persists the saved query across reload for continued experimentation" do
@@ -326,8 +371,9 @@ class DashboardsTest < ApplicationSystemTestCase
 
     assert_selector "table td", text: "Dashboard Groceries Test"
     set_query("from accounts\ntake 5")
-    click_button "Run"
-    assert_selector "table th", text: /classification/i
+    run_preview
+    save_report
+    assert_selector "section[aria-label='Recent transactions results'] table th", text: /classification/i
 
     visit dashboards_url
 
@@ -349,8 +395,9 @@ class DashboardsTest < ApplicationSystemTestCase
     visit dashboards_url
 
     set_query("from accounts\ntake 5")
-    click_button "Run"
-    assert_selector "table th", text: /classification/i
+    run_preview
+    save_report
+    assert_selector "section[aria-label='Recent transactions results'] table th", text: /classification/i
     find("button[aria-label='Open account menu']", match: :first, visible: :visible).click
     click_button "Log out", match: :first
     sign_in users(:family_member)
@@ -365,8 +412,9 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "table td", text: "Dashboard Groceries Test"
 
     set_query("from accounts\ntake 5")
-    click_button "Run"
-    assert_selector "table th", text: /classification/i
+    run_preview
+    save_report
+    assert_selector "section[aria-label='Recent transactions results'] table th", text: /classification/i
 
     visit dashboards_url
     assert_saved_query("from accounts")
@@ -388,9 +436,13 @@ class DashboardsTest < ApplicationSystemTestCase
     visit dashboards_url
 
     set_query("from transactions")
-    click_button "Run"
+    within "#configure-report-dialog" do
+      click_button "Run preview"
+      assert_selector "output", text: "Results truncated: showing first 50 rows.", wait: 10
+      click_button "Cancel"
+    end
 
-    assert_selector "output", text: "Results truncated: showing first 50 rows."
+    assert_selector "section[aria-label='Recent transactions results'] table"
   end
 
   private
@@ -425,6 +477,19 @@ class DashboardsTest < ApplicationSystemTestCase
       assert_selector ".monaco-editor", wait: 10
       assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), query_text
       find("button[aria-label='Close report configuration']").click
+    end
+
+    def run_preview
+      within "#configure-report-dialog" do
+        click_button "Run preview"
+        assert_selector "p", text: %r{Preview.+not saved yet}, wait: 10
+      end
+    end
+
+    def save_report
+      within "#configure-report-dialog" do
+        click_button "Save", match: :first
+      end
     end
 
     def dashboard_snapshot

@@ -104,7 +104,11 @@ export const SureqlResultSchema = z.object({
 
 export type SureqlResult = z.infer<typeof SureqlResultSchema>;
 
-export async function executeSureqlQuery(endpoint: string, source: string): Promise<SureqlResult> {
+export async function executeSureqlQuery(
+  endpoint: string,
+  source: string,
+  options?: { signal?: AbortSignal },
+): Promise<SureqlResult> {
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -112,6 +116,7 @@ export async function executeSureqlQuery(endpoint: string, source: string): Prom
       "X-CSRF-Token": readCsrfToken(),
     },
     body: JSON.stringify({ source }),
+    signal: options?.signal,
   });
 
   const data: unknown = await response.json().catch(() => ({}));
