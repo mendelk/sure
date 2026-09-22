@@ -5,11 +5,11 @@ parentId:
 id: t_lfp_live_008
 title: Refine the selected first projection
 type: task
-status: todo
+status: done
 priority: critical
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - refinement

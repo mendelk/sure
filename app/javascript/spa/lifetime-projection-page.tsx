@@ -143,18 +143,11 @@ export function LifetimeProjectionPage() {
         title="Projection unavailable"
       />
     );
-  } else if (summary.data.accounts.length === 0) {
-    content = (
-      <ProjectionEmptyState
-        accountsPath={bootstrap.railsPaths.accounts}
-        description="A lifetime projection needs at least one account as its starting point."
-        title="Add an account to start a projection"
-      />
-    );
   } else {
     content = (
       <ProjectionResults
         accounts={summary.data.accounts}
+        accountsPath={bootstrap.railsPaths.accounts}
         currency={summary.data.currency}
         currentNetWorth={summary.data.net_worth}
         key={bootstrap.currentUser.id}
@@ -195,12 +188,14 @@ export function LifetimeProjectionPage() {
 
 function ProjectionResults({
   accounts,
+  accountsPath,
   currency,
   currentNetWorth,
   startingBalance,
   userId,
 }: {
   accounts: SummaryAccount[];
+  accountsPath: string;
   currency: string;
   currentNetWorth: string;
   startingBalance: number;
@@ -417,6 +412,17 @@ function ProjectionResults({
                   >
                     Review changes
                   </Button>
+                </div>
+              ) : accounts.length === 0 ? (
+                <div className="mt-3 space-y-1 rounded-lg border border-secondary bg-container-inset p-3 text-xs text-secondary">
+                  <p className="font-medium text-primary">No accounts connected yet</p>
+                  <p>
+                    Modeling scenarios with a starter baseline ($0). You can experiment freely or{" "}
+                    <a className="font-medium text-link hover:underline" href={accountsPath}>
+                      connect accounts
+                    </a>{" "}
+                    to load live balances.
+                  </p>
                 </div>
               ) : (
                 <p className="mt-2 text-xs text-secondary">
@@ -728,30 +734,6 @@ function ProjectionLoadingState() {
         <span className="text-sm font-medium">Calculating your projection…</span>
       </div>
     </div>
-  );
-}
-
-function ProjectionEmptyState({
-  accountsPath,
-  description,
-  title,
-}: {
-  accountsPath: string;
-  description: string;
-  title: string;
-}) {
-  return (
-    <section className="flex flex-col items-center justify-center rounded-xl bg-container px-6 py-24 text-center shadow-border-xs">
-      <Icon name="chart-bar" size="lg" />
-      <p className="mt-4 font-medium text-primary">{title}</p>
-      <p className="mt-1 max-w-md text-sm text-secondary">{description}</p>
-      <a
-        className="mt-4 inline-flex min-h-9 items-center rounded-lg button-bg-primary px-3 text-sm font-medium text-inverse transition-colors hover:button-bg-primary-hover focus-ring"
-        href={accountsPath}
-      >
-        Review accounts
-      </a>
-    </section>
   );
 }
 

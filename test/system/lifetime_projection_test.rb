@@ -455,4 +455,25 @@ class LifetimeProjectionTest < ApplicationSystemTestCase
       assert_text "Collectable Account"
     end
   end
+
+  test "renders projection for an empty family with zero accounts using starter baseline" do
+    find("button[aria-label='Open account menu']", match: :first, visible: :visible).click
+    click_button "Log out", match: :first
+    sign_in users(:empty)
+
+    visit lifetime_projection_url
+
+    assert_selector "h1", text: "Lifetime projection"
+    assert_text "No accounts connected yet"
+    assert_text "Modeling scenarios with a starter baseline ($0)."
+
+    # Inputs and table are fully functional
+    assert_field "Projection horizon", with: "30"
+    assert_field "Annual income", with: "80000"
+    assert_field "Annual spending", with: "60000"
+
+    start_year = Date.current.year
+    assert_selector "table tbody tr", text: start_year.to_s
+    assert_selector "table tbody tr", text: (start_year + 30).to_s
+  end
 end
