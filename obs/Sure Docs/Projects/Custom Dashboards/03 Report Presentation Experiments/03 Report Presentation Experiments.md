@@ -21,7 +21,7 @@ config:
 Learn from real query results before choosing reusable report APIs.
 
 ## Tasks
-- [ ] [[improve-the-live-sureql-editing-loop|Improve the live SureQL editing loop]]
+- [x] [[improve-the-live-sureql-editing-loop|Improve the live SureQL editing loop]]
 - [x] [[exercise-the-table-with-real-result-shapes|Exercise the table with real result shapes]]
 - [ ] [[experiment-with-a-single-value-presentation|Experiment with a single-value presentation]]
 - [x] [[compare-inline-and-focused-report-editing|Compare inline and focused report editing]]
