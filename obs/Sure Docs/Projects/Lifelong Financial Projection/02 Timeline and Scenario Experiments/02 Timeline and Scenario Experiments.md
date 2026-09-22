@@ -21,7 +21,7 @@ config:
 Grow the projection through visible planning actions. Treat data shapes as experimental and prefer small end-to-end additions over a complete event taxonomy.
 
 ## Tasks
-- [ ] [[add-a-household-planning-horizon|Add a household planning horizon]]
+- [x] [[add-a-household-planning-horizon|Add a household planning horizon]]
 - [ ] [[schedule-income-and-spending-events|Schedule income and spending events]]
 - [ ] [[add-goals-and-milestones|Add goals and milestones]]
 - [ ] [[model-debts-and-real-asset-life-cycles|Model debts and real asset life cycles]]

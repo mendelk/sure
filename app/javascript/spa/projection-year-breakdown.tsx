@@ -116,6 +116,58 @@ export function ProjectionYearBreakdown({
         </div>
       </div>
 
+      {selectedPoint.memberStates && selectedPoint.memberStates.length > 0 ? (
+        <div className="space-y-2 rounded-lg border border-secondary bg-container-inset/50 p-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-secondary">
+              Household in {selectedPoint.year}
+            </span>
+            <span className="text-xs text-secondary">
+              {selectedPoint.memberStates.length === 1 ? "1 member" : "2 members"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {selectedPoint.memberStates.map((member) => {
+              let badgeColor = "bg-container-inset text-secondary";
+              let badgeText = "Working";
+              let description = `${member.retirementAge - member.age} years until retirement (age ${member.retirementAge})`;
+
+              if (member.isBeyondPlanningEndAge) {
+                badgeColor = "bg-warning/15 text-warning";
+                badgeText = "Post-horizon";
+                description = `Passed planned horizon of age ${member.planningEndAge} in ${member.birthYear + member.planningEndAge}`;
+              } else if (member.isRetirementYear) {
+                badgeColor = "bg-success/15 text-success";
+                badgeText = `Retiring this year (Age ${member.retirementAge})`;
+                description = `Transitions to retirement in ${selectedPoint.year}`;
+              } else if (member.isRetired) {
+                badgeColor = "bg-success/15 text-success";
+                badgeText = "Retired";
+                description = `Retired for ${member.age - member.retirementAge} ${member.age - member.retirementAge === 1 ? "year" : "years"} (since ${member.birthYear + member.retirementAge})`;
+              }
+
+              return (
+                <div
+                  className="flex items-start justify-between gap-2 rounded-lg border border-secondary bg-container p-3 text-xs"
+                  key={member.memberId}
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-primary">{member.name}</span>
+                      <span className="text-secondary">(Age {member.age})</span>
+                    </div>
+                    <p className="text-secondary">{description}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${badgeColor}`}>
+                    {badgeText}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       {isBaselineYear ? (
         <div className="rounded-lg bg-container-inset p-4 text-sm text-secondary">
           <p className="font-medium text-primary">

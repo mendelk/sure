@@ -1,7 +1,10 @@
 import { z } from "zod";
 import {
+  createDefaultHousehold,
   DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS,
+  HouseholdSchema,
   LifetimeProjectionAssumptionsSchema,
+  type Household,
   type LifetimeProjectionAssumptions,
 } from "./lifetime-projection";
 
@@ -35,6 +38,7 @@ export const LifetimePlanSnapshotSchema = z.object({
     annualReturnPercent: z.number().gt(-100),
     horizonYears: z.number().int().min(1).max(100),
   }),
+  household: z.optional(HouseholdSchema),
   display: z.optional(LifetimePlanDisplaySchema),
   updatedAt: z.optional(z.string()),
 });
@@ -48,6 +52,7 @@ export type LifetimePlanSnapshot = {
   planType?: "starter" | "custom";
   baseline: LifetimePlanBaseline;
   assumptions: LifetimeProjectionAssumptions;
+  household?: Household;
   display?: LifetimePlanDisplay;
   updatedAt?: string;
 };
@@ -91,11 +96,22 @@ export function readLifetimePlanSnapshot(userId: string): LifetimePlanSnapshot |
     );
     if (!validatedAssumptions.success) return undefined;
 
+    const validatedHousehold =
+      result.data.household !== undefined
+        ? HouseholdSchema.safeParse(result.data.household)
+        : undefined;
+
+    const household =
+      validatedHousehold?.success === true
+        ? validatedHousehold.data
+        : createDefaultHousehold(new Date().getFullYear());
+
     return {
       version: result.data.version ?? STARTER_LIFETIME_PLAN_VERSION,
       planType: result.data.planType ?? "custom",
       baseline: result.data.baseline,
       assumptions: validatedAssumptions.data,
+      household,
       display: result.data.display,
       updatedAt: result.data.updatedAt,
     };
@@ -128,6 +144,7 @@ export function starterLifetimePlanSnapshot(
     balance_amount: number;
     classification: "asset" | "liability";
   }>,
+  startYear = new Date().getFullYear(),
 ): LifetimePlanSnapshot {
   return {
     version: STARTER_LIFETIME_PLAN_VERSION,
@@ -143,6 +160,7 @@ export function starterLifetimePlanSnapshot(
       })),
     },
     assumptions: STARTER_LIFETIME_PLAN_ASSUMPTIONS,
+    household: createDefaultHousehold(startYear),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -158,9 +176,11 @@ export function loadOrInstallStarterLifetimePlan(
     balance_amount: number;
     classification: "asset" | "liability";
   }>,
+  startYear = new Date().getFullYear(),
 ): {
   assumptions: LifetimeProjectionAssumptions;
   baseline: LifetimePlanBaseline;
+  household: Household;
   isSaved: boolean;
   planType: "starter" | "custom";
 } {
@@ -169,17 +189,19 @@ export function loadOrInstallStarterLifetimePlan(
     return {
       assumptions: existing.assumptions,
       baseline: existing.baseline,
+      household: existing.household ?? createDefaultHousehold(startYear),
       isSaved: true,
       planType: existing.planType ?? "custom",
     };
   }
 
-  const starter = starterLifetimePlanSnapshot(currentNetWorthAmount, currentAccounts);
+  const starter = starterLifetimePlanSnapshot(currentNetWorthAmount, currentAccounts, startYear);
   writeLifetimePlanSnapshot(userId, starter);
 
   return {
     assumptions: starter.assumptions,
     baseline: starter.baseline,
+    household: starter.household ?? createDefaultHousehold(startYear),
     isSaved: true,
     planType: "starter",
   };
@@ -194,8 +216,9 @@ export function resetLifetimePlanToStarter(
     balance_amount: number;
     classification: "asset" | "liability";
   }>,
+  startYear = new Date().getFullYear(),
 ): LifetimePlanSnapshot {
-  const starter = starterLifetimePlanSnapshot(currentNetWorthAmount, currentAccounts);
+  const starter = starterLifetimePlanSnapshot(currentNetWorthAmount, currentAccounts, startYear);
   writeLifetimePlanSnapshot(userId, starter);
   return starter;
 }
@@ -357,11 +380,18 @@ export function loadInitialLifetimePlan(
     balance_amount: number;
     classification: "asset" | "liability";
   }>,
+  startYear = new Date().getFullYear(),
 ): {
   assumptions: LifetimeProjectionAssumptions;
   baseline: LifetimePlanBaseline;
+  household: Household;
   isSaved: boolean;
   planType: "starter" | "custom";
 } {
-  return loadOrInstallStarterLifetimePlan(userId, currentNetWorthAmount, currentAccounts);
+  return loadOrInstallStarterLifetimePlan(
+    userId,
+    currentNetWorthAmount,
+    currentAccounts,
+    startYear,
+  );
 }

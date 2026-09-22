@@ -14,6 +14,151 @@ const AnnualRateSchema = z.number().gt(-1).brand<"AnnualRate">();
 const HorizonYearsSchema = HorizonYearsValueSchema.brand<"HorizonYears">();
 const CalendarYearSchema = CalendarYearValueSchema.brand<"CalendarYear">();
 
+export const HouseholdMemberSchema = z.object({
+  id: z.string(),
+  name: z.string().trim().min(1),
+  birthYear: z.number().int().min(1900).max(2100),
+  retirementAge: z.number().int().min(18).max(120),
+  planningEndAge: z.number().int().min(18).max(120),
+});
+
+export const HouseholdSchema = z.object({
+  members: z.array(HouseholdMemberSchema).min(1).max(2),
+});
+
+export type HouseholdMember = z.infer<typeof HouseholdMemberSchema>;
+export type Household = z.infer<typeof HouseholdSchema>;
+
+export type MemberLifeStage = "working" | "retirement_year" | "retired" | "post_horizon";
+
+export type MemberYearState = {
+  memberId: string;
+  name: string;
+  age: number;
+  birthYear: number;
+  retirementAge: number;
+  planningEndAge: number;
+  isRetired: boolean;
+  isRetirementYear: boolean;
+  isBeyondPlanningEndAge: boolean;
+  lifeStage: MemberLifeStage;
+};
+
+export type OutOfHorizonMilestone = {
+  memberId: string;
+  memberName: string;
+  type: "retirement" | "planningEndAge";
+  year: number;
+  age: number;
+  yearsBeyondHorizon: number;
+  description: string;
+};
+
+export function createDefaultHousehold(startYear = new Date().getFullYear()): Household {
+  return {
+    members: [
+      {
+        id: "primary",
+        name: "You",
+        birthYear: startYear - 35,
+        retirementAge: 65,
+        planningEndAge: 85,
+      },
+    ],
+  };
+}
+
+export function createDefaultPartner(startYear = new Date().getFullYear()): HouseholdMember {
+  return {
+    id: "partner",
+    name: "Partner",
+    birthYear: startYear - 33,
+    retirementAge: 67,
+    planningEndAge: 90,
+  };
+}
+
+export function calculateMemberYearStates(
+  members: HouseholdMember[],
+  year: number,
+): MemberYearState[] {
+  return members.map((member) => {
+    const age = year - member.birthYear;
+    const isRetired = age >= member.retirementAge;
+    const isRetirementYear = age === member.retirementAge;
+    const isBeyondPlanningEndAge = age > member.planningEndAge;
+
+    let lifeStage: MemberLifeStage = "working";
+    if (isBeyondPlanningEndAge) lifeStage = "post_horizon";
+    else if (isRetirementYear) lifeStage = "retirement_year";
+    else if (isRetired) lifeStage = "retired";
+
+    return {
+      memberId: member.id,
+      name: member.name,
+      age,
+      birthYear: member.birthYear,
+      retirementAge: member.retirementAge,
+      planningEndAge: member.planningEndAge,
+      isRetired,
+      isRetirementYear,
+      isBeyondPlanningEndAge,
+      lifeStage,
+    };
+  });
+}
+
+export function getOutOfHorizonMilestones(
+  members: HouseholdMember[],
+  startYear: number,
+  horizonYears: number,
+): OutOfHorizonMilestone[] {
+  const horizonEndYear = startYear + horizonYears;
+  const milestones: OutOfHorizonMilestone[] = [];
+
+  for (const member of members) {
+    const retirementYear = member.birthYear + member.retirementAge;
+    if (retirementYear > horizonEndYear) {
+      const yearsBeyond = retirementYear - horizonEndYear;
+      milestones.push({
+        memberId: member.id,
+        memberName: member.name,
+        type: "retirement",
+        year: retirementYear,
+        age: member.retirementAge,
+        yearsBeyondHorizon: yearsBeyond,
+        description: `${member.name} reaches retirement age (${member.retirementAge}) in ${retirementYear} (${yearsBeyond} ${yearsBeyond === 1 ? "year" : "years"} beyond the ${horizonYears}-year horizon).`,
+      });
+    }
+
+    const planningEndYear = member.birthYear + member.planningEndAge;
+    if (planningEndYear > horizonEndYear) {
+      const yearsBeyond = planningEndYear - horizonEndYear;
+      milestones.push({
+        memberId: member.id,
+        memberName: member.name,
+        type: "planningEndAge",
+        year: planningEndYear,
+        age: member.planningEndAge,
+        yearsBeyondHorizon: yearsBeyond,
+        description: `${member.name} reaches planning end age (${member.planningEndAge}) in ${planningEndYear} (${yearsBeyond} ${yearsBeyond === 1 ? "year" : "years"} beyond the ${horizonYears}-year horizon).`,
+      });
+    }
+  }
+
+  return milestones.toSorted((a, b) => a.year - b.year);
+}
+
+export function getHorizonToCoverAllMilestones(
+  members: HouseholdMember[],
+  startYear: number,
+): number {
+  if (members.length === 0) return 30;
+  const maxEndYear = Math.max(...members.map((m) => m.birthYear + m.planningEndAge));
+  const diff = maxEndYear - startYear;
+  return Math.min(100, Math.max(1, diff));
+}
+
 export const LifetimeProjectionInputsSchema = z.object({
   startingBalance: ProjectionAmountSchema,
   annualIncome: NonnegativeProjectionAmountSchema,
@@ -22,6 +167,7 @@ export const LifetimeProjectionInputsSchema = z.object({
   annualReturnRate: AnnualRateSchema,
   horizonYears: HorizonYearsSchema,
   startYear: CalendarYearSchema,
+  household: z.optional(HouseholdSchema),
 });
 
 export const LifetimeProjectionAssumptionsSchema = z.object({
@@ -54,6 +200,7 @@ const LifetimeProjectionInputValuesSchema = z.object({
   annualReturnPercent: PercentagePointsValueSchema,
   horizonYears: HorizonYearsValueSchema,
   startYear: CalendarYearValueSchema,
+  household: z.optional(HouseholdSchema),
 });
 
 export const DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS = LifetimeProjectionAssumptionsSchema.parse({
@@ -79,6 +226,7 @@ export type LifetimeProjectionPoint = {
   incomeInflation: number | null;
   spendingInflation: number | null;
   inflationEffect: number | null;
+  memberStates?: MemberYearState[];
 };
 
 export class LifetimeProjectionCalculationError extends Error {}
@@ -100,6 +248,9 @@ export function parseLifetimeProjectionInputs(
 export function calculateLifetimeProjection(
   inputs: LifetimeProjectionInputs,
 ): LifetimeProjectionPoint[] {
+  const members = inputs.household?.members ?? [];
+  const initialMemberStates = calculateMemberYearStates(members, inputs.startYear);
+
   const projection: LifetimeProjectionPoint[] = [
     {
       year: inputs.startYear,
@@ -114,12 +265,14 @@ export function calculateLifetimeProjection(
       incomeInflation: null,
       spendingInflation: null,
       inflationEffect: null,
+      memberStates: initialMemberStates,
     },
   ];
   const inflationFactor = 1 + inputs.inflationRate;
   let netWorth: number = inputs.startingBalance;
 
   for (let yearOffset = 1; yearOffset <= inputs.horizonYears; yearOffset += 1) {
+    const currentYear = inputs.startYear + yearOffset;
     const startingNetWorth = netWorth;
     const investmentGrowth = startingNetWorth * inputs.annualReturnRate;
     const annualIncome = inputs.annualIncome * inflationFactor ** (yearOffset - 1);
@@ -137,7 +290,7 @@ export function calculateLifetimeProjection(
       throw new LifetimeProjectionCalculationError("The projection produced a non-finite result.");
 
     projection.push({
-      year: inputs.startYear + yearOffset,
+      year: currentYear,
       annualIncome,
       annualSpending,
       annualSavings,
@@ -149,6 +302,7 @@ export function calculateLifetimeProjection(
       incomeInflation,
       spendingInflation,
       inflationEffect,
+      memberStates: calculateMemberYearStates(members, currentYear),
     });
   }
 
