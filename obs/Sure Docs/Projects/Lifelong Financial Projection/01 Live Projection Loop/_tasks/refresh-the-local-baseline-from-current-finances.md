@@ -5,11 +5,11 @@ parentId:
 id: t_lfp_live_006
 title: Refresh the local baseline from current finances
 type: task
-status: todo
+status: done
 priority: high
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - accounts

@@ -1,7 +1,7 @@
 /* eslint-disable import/max-dependencies -- Route composes UI primitives, projection modules, and dialogs. */
 import { useMemo, useState, type SyntheticEvent } from "react";
 import { useRouteContext } from "@tanstack/react-router";
-import { useSummaryQuery } from "./api/summary";
+import { type SummaryAccount, useSummaryQuery } from "./api/summary";
 import { Button } from "./components/button";
 import { FormField } from "./components/form-field";
 import { Icon } from "./icon";
@@ -14,11 +14,16 @@ import {
   type LifetimeProjectionPoint,
 } from "./lifetime-projection";
 import {
+  computeBaselineDiff,
+  formatBaselineDate,
   loadInitialLifetimePlan,
+  refreshLifetimePlanBaseline,
   resetLifetimePlanToStarter,
   STARTER_LIFETIME_PLAN_VERSION,
   writeLifetimePlanSnapshot,
+  type LifetimePlanBaseline,
 } from "./lifetime-projection-storage";
+import { ProjectionBaselineRefreshModal } from "./projection-baseline-refresh-modal";
 import { ProjectionChart } from "./projection-chart";
 import { ProjectionResetDialog } from "./projection-reset-dialog";
 import { ProjectionYearBreakdown } from "./projection-year-breakdown";
@@ -149,6 +154,7 @@ export function LifetimeProjectionPage() {
   } else {
     content = (
       <ProjectionResults
+        accounts={summary.data.accounts}
         currency={summary.data.currency}
         currentNetWorth={summary.data.net_worth}
         key={bootstrap.currentUser.id}
@@ -188,21 +194,26 @@ export function LifetimeProjectionPage() {
 }
 
 function ProjectionResults({
+  accounts,
   currency,
   currentNetWorth,
   startingBalance,
   userId,
 }: {
+  accounts: SummaryAccount[];
   currency: string;
   currentNetWorth: string;
   startingBalance: number;
   userId: string;
 }) {
   const initialPlan = useMemo(
-    () => loadInitialLifetimePlan(userId, startingBalance),
-    [userId, startingBalance],
+    () => loadInitialLifetimePlan(userId, startingBalance, accounts),
+    [userId, startingBalance, accounts],
   );
 
+  const [activeBaseline, setActiveBaseline] = useState<LifetimePlanBaseline>(
+    () => initialPlan.baseline,
+  );
   const [appliedAssumptions, setAppliedAssumptions] = useState<LifetimeProjectionAssumptions>(
     () => initialPlan.assumptions,
   );
@@ -213,7 +224,13 @@ function ProjectionResults({
   const [isSavedPlan, setIsSavedPlan] = useState<boolean>(() => initialPlan.isSaved);
   const [planType, setPlanType] = useState<"starter" | "custom">(() => initialPlan.planType);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState<boolean>(false);
+  const [isRefreshModalOpen, setIsRefreshModalOpen] = useState<boolean>(false);
   const [selectedYear, setSelectedYear] = useState<number>(() => START_YEAR + 1);
+
+  const baselineDiff = useMemo(
+    () => computeBaselineDiff(activeBaseline, startingBalance, accounts),
+    [activeBaseline, startingBalance, accounts],
+  );
 
   const money = useMemo(
     () =>
@@ -228,7 +245,7 @@ function ProjectionResults({
   const projectionResult = useMemo(() => {
     try {
       const inputs = parseLifetimeProjectionInputs({
-        startingBalance,
+        startingBalance: activeBaseline.netWorth,
         ...appliedAssumptions,
         startYear: START_YEAR,
       });
@@ -242,7 +259,7 @@ function ProjectionResults({
         error: "We could not calculate this projection with the selected assumptions.",
       };
     }
-  }, [startingBalance, appliedAssumptions]);
+  }, [activeBaseline.netWorth, appliedAssumptions]);
 
   const activeSelectedYear = useMemo(() => {
     const points = projectionResult.points;
@@ -298,10 +315,7 @@ function ProjectionResults({
       writeLifetimePlanSnapshot(userId, {
         version: STARTER_LIFETIME_PLAN_VERSION,
         planType: "custom",
-        baseline: {
-          netWorth: startingBalance,
-          capturedAt: new Date().toISOString(),
-        },
+        baseline: activeBaseline,
         assumptions: validation.parsed,
         updatedAt: new Date().toISOString(),
       });
@@ -315,13 +329,23 @@ function ProjectionResults({
   };
 
   const handleConfirmReset = () => {
-    const starter = resetLifetimePlanToStarter(userId, startingBalance);
+    const starter = resetLifetimePlanToStarter(userId, startingBalance, accounts);
     setFormErrors({});
     setFormValues(toFormValues(starter.assumptions));
     setAppliedAssumptions(starter.assumptions);
+    setActiveBaseline(starter.baseline);
     setPlanType("starter");
     setIsSavedPlan(true);
     setIsResetDialogOpen(false);
+  };
+
+  const handleConfirmBaselineRefresh = () => {
+    const refreshed = refreshLifetimePlanBaseline(userId, startingBalance, accounts);
+    if (refreshed !== undefined) {
+      setActiveBaseline(refreshed.baseline);
+      setIsSavedPlan(true);
+    }
+    setIsRefreshModalOpen(false);
   };
 
   const { points, error } = projectionResult;
@@ -344,16 +368,61 @@ function ProjectionResults({
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
           <div className="flex flex-col justify-between rounded-xl bg-container p-5 shadow-border-xs lg:col-span-1">
             <div>
-              <span className="text-xs font-medium uppercase tracking-wide text-secondary">
-                Current net worth
-              </span>
-              <div className="mt-2 text-2xl font-medium tabular-nums text-primary privacy-sensitive">
-                {currentNetWorth}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-secondary">
+                  Current net worth
+                </span>
+                {baselineDiff.hasDiff ? (
+                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
+                    Differs
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-container-inset px-2 py-0.5 text-xs text-secondary">
+                    Synced
+                  </span>
+                )}
               </div>
-              <p className="mt-2 text-xs text-secondary">
-                Live balance from accounts in your family finances. Serves as the starting baseline
-                (Year 0).
+              <div className="mt-2 text-2xl font-medium tabular-nums text-primary privacy-sensitive">
+                {money.format(activeBaseline.netWorth)}
+              </div>
+              <p className="mt-1 text-xs text-secondary">
+                Saved baseline captured {formatBaselineDate(activeBaseline.capturedAt)}. Serves as
+                Year 0.
               </p>
+              {baselineDiff.hasDiff ? (
+                <div
+                  aria-label="Baseline difference notice"
+                  className="mt-3 space-y-2 rounded-lg border border-secondary bg-container-inset p-3 text-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-secondary">Current live balance:</span>
+                    <span className="font-medium text-primary privacy-sensitive">
+                      {currentNetWorth}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-secondary">Difference:</span>
+                    <span className="font-medium text-primary privacy-sensitive">
+                      {baselineDiff.netWorthDelta >= 0 ? "+" : ""}
+                      {money.format(baselineDiff.netWorthDelta)}
+                    </span>
+                  </div>
+                  <Button
+                    className="mt-1 w-full"
+                    onClick={() => {
+                      setIsRefreshModalOpen(true);
+                    }}
+                    size="sm"
+                    variant="secondary"
+                  >
+                    Review changes
+                  </Button>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-secondary">
+                  Live balance from accounts in your family finances.
+                </p>
+              )}
             </div>
             <div className="mt-4 rounded-lg bg-container-inset p-3 text-xs text-secondary">
               <p className="font-medium text-primary">Nominal vs. adjusted</p>
@@ -592,6 +661,16 @@ function ProjectionResults({
           setIsResetDialogOpen(false);
         }}
         onConfirm={handleConfirmReset}
+      />
+
+      <ProjectionBaselineRefreshModal
+        diff={baselineDiff}
+        isOpen={isRefreshModalOpen}
+        money={money}
+        onClose={() => {
+          setIsRefreshModalOpen(false);
+        }}
+        onConfirmRefresh={handleConfirmBaselineRefresh}
       />
     </div>
   );
