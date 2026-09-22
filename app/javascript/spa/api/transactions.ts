@@ -1,9 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import {
+  PIVOT_AGGREGATIONS,
   PivotFieldMetadataSchema,
   aggregationsForFieldKind,
   inferPivotFieldKindFromValues,
+  type PivotChartConfig,
   type PivotFieldMetadata,
 } from "../pivot-chart-contract";
 import {
@@ -132,6 +134,55 @@ export function pivotFieldsForResult(result: SureqlResult): PivotFieldMetadata[]
       },
     };
   });
+}
+
+export const PivotResultSchema = z.object({
+  sql: z.string(),
+  categories: z.array(z.unknown()),
+  series: z.array(z.unknown()),
+  measures: z.array(
+    z.object({
+      field: z.optional(z.string()),
+      aggregation: z.enum(PIVOT_AGGREGATIONS),
+      label: z.optional(z.string()),
+    }),
+  ),
+  columns: z.array(z.string()),
+  rows: z.array(z.record(z.string(), z.unknown())),
+  row_count: z.number(),
+  truncated: z.boolean(),
+  fields: z.array(PivotFieldMetadataSchema),
+});
+
+export type PivotResult = z.infer<typeof PivotResultSchema>;
+
+export async function executeSureqlPivot(
+  endpoint: string,
+  source: string,
+  pivot: PivotChartConfig,
+  options?: { signal?: AbortSignal },
+): Promise<PivotResult> {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": readCsrfToken(),
+    },
+    body: JSON.stringify({ source, pivot }),
+    signal: options?.signal,
+  });
+
+  const data: unknown = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const errorMsg =
+      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+        ? data.error
+        : `Request failed with status ${response.status}`;
+    throw new Error(errorMsg);
+  }
+
+  return PivotResultSchema.parse(data);
 }
 
 export async function executeSureqlQuery(

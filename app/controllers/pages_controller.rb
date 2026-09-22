@@ -125,6 +125,10 @@ class PagesController < ApplicationController
   # returns server-rendered transaction rows reusing the entries partials.
   def monarch_run
     source = params.require(:source)
+    if params[:pivot].present?
+      render_pivot_run(source, params[:pivot])
+      return
+    end
     result = Sureql::Executor.new(Current.user).call(source)
     html = begin
       monarch_results_html(result)
@@ -150,6 +154,28 @@ class PagesController < ApplicationController
     # through). Return it as JSON so the panels show the DB message
     # instead of an HTML 500.
     Rails.logger.warn("[sureql] execution failed: #{e.message.truncate(500)}")
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  def render_pivot_run(source, pivot_params)
+    result = Sureql::Pivot.new(Current.user).call(source, pivot_params)
+    render json: {
+      sql: result.sql,
+      categories: result.categories,
+      series: result.series,
+      measures: result.measures,
+      columns: pivot_result_columns(result),
+      rows: result.rows,
+      row_count: result.row_count,
+      truncated: result.truncated,
+      fields: result.fields
+    }
+  rescue Sureql::Pivot::InvalidError => e
+    render json: { error: e.message, field: e.field }, status: :unprocessable_entity
+  rescue Sureql::UnknownSourceError, Sureql::CompileError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue ActiveRecord::StatementInvalid => e
+    Rails.logger.warn("[sureql] pivot execution failed: #{e.message.truncate(500)}")
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
@@ -688,6 +714,14 @@ class PagesController < ApplicationController
       return if Current.user&.guest?
 
       redirect_to root_path, alert: t("pages.intro.not_authorized", default: "Intro is only available to guest users.")
+    end
+
+    # Ordered pivot output columns: category, optional series, then measures.
+    def pivot_result_columns(result)
+      columns = [ "pivot_category" ]
+      columns << "pivot_series" if result.series.any?
+      columns.concat(result.rows.first&.keys&.select { |key| key.start_with?("measure_") } || [])
+      columns
     end
 
     # Renders rich transaction rows for sureql results when the query

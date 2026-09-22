@@ -5,7 +5,7 @@ parentId:
 id: t_cd_pivot_003
 title: Execute pivot aggregations on the server
 type: task
-status: todo
+status: "done"
 priority: critical
 start: ""
 due: ""
