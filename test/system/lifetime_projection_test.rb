@@ -603,4 +603,230 @@ class LifetimeProjectionTest < ApplicationSystemTestCase
     assert_field "member-primary-name", with: "You"
     assert_no_field "member-partner-name"
   end
+
+  test "schedules recurring income, living costs, retirement, and one-time expense events, and verifies first, last, and inactive years" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+
+    click_button "Scheduled life events"
+    assert_text "Scheduled life events (0)"
+
+    # 1. Add recurring salary (start_year + 1 to start_year + 10)
+    click_button "Add event"
+    within "[aria-label='Life event form']" do
+      fill_in "Event name", with: "Tech Salary"
+      fill_in "Amount", with: "120000"
+      fill_in "Start year", with: (start_year + 1).to_s
+      fill_in "End year", with: (start_year + 10).to_s
+      click_button "Add event"
+    end
+
+    within "[data-testid='scheduled-events-table']" do
+      assert_text "Tech Salary"
+      assert_text "Income"
+      assert_text "#{start_year + 1} – #{start_year + 10} (10 yrs)"
+      assert_text "$120,000 / yr"
+      assert_text "Enabled"
+    end
+
+    # 2. Add recurring living cost (start_year + 1 to start_year + 30)
+    click_button "Add event"
+    within "[aria-label='Life event form']" do
+      fill_in "Event name", with: "Living Costs"
+      click_button "Spending"
+      fill_in "Amount", with: "60000"
+      fill_in "Start year", with: (start_year + 1).to_s
+      fill_in "End year", with: (start_year + 30).to_s
+      click_button "Add event"
+    end
+
+    # 3. Add retirement pension (start_year + 11 to start_year + 30)
+    click_button "Add event"
+    within "[aria-label='Life event form']" do
+      fill_in "Event name", with: "Retirement Pension"
+      click_button "Income"
+      fill_in "Amount", with: "40000"
+      fill_in "Start year", with: (start_year + 11).to_s
+      fill_in "End year", with: (start_year + 30).to_s
+      click_button "Add event"
+    end
+
+    # 4. Add one-time home remodel expense (in start_year + 5)
+    click_button "Add event"
+    within "[aria-label='Life event form']" do
+      fill_in "Event name", with: "Home Remodel"
+      click_button "Spending"
+      click_button "One-time"
+      fill_in "Amount", with: "35000"
+      fill_in "Calendar year", with: (start_year + 5).to_s
+      click_button "Add event"
+    end
+
+    # Verify Year 1 (start_year + 1):
+    # - Tech Salary: Active (First year)
+    # - Living Costs: Active (First year)
+    # - Home Remodel: Inactive (Starts in start_year + 5)
+    # - Retirement Pension: Inactive (Starts in start_year + 11)
+    find("[data-testid='projection-results-table'] tbody tr", text: (start_year + 1).to_s).click
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text(/Scheduled cash flow events in #{start_year + 1}/i)
+      assert_text "Tech Salary"
+      assert_text "First year"
+      assert_text "Living Costs"
+      assert_text "Home Remodel"
+      assert_text "Starts in #{start_year + 5}"
+      assert_text "Retirement Pension"
+      assert_text "Starts in #{start_year + 11}"
+    end
+
+    # Verify Year 5 (start_year + 5):
+    # - Home Remodel: Active (One-time)
+    # - Tech Salary: Active
+    # - Living Costs: Active
+    # - Retirement Pension: Inactive (Starts in start_year + 11)
+    find("[data-testid='projection-results-table'] tbody tr", text: (start_year + 5).to_s).click
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "Home Remodel"
+      assert_text "One-time"
+      assert_text "Tech Salary"
+      assert_text "Living Costs"
+      assert_text "Retirement Pension"
+      assert_text "Starts in #{start_year + 11}"
+    end
+
+    # Verify Year 6 (start_year + 6):
+    # - Home Remodel: Inactive (Ended in start_year + 5)
+    find("[data-testid='projection-results-table'] tbody tr", text: (start_year + 6).to_s).click
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "Home Remodel"
+      assert_text "Ended in #{start_year + 5}"
+    end
+
+    # Verify Year 10 (start_year + 10):
+    # - Tech Salary: Active (Last year)
+    find("[data-testid='projection-results-table'] tbody tr", text: (start_year + 10).to_s).click
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "Tech Salary"
+      assert_text "Last year"
+    end
+
+    # Verify Year 11 (start_year + 11):
+    # - Tech Salary: Inactive (Ended in start_year + 10)
+    # - Retirement Pension: Active (First year)
+    find("[data-testid='projection-results-table'] tbody tr", text: (start_year + 11).to_s).click
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "Tech Salary"
+      assert_text "Ended in #{start_year + 10}"
+      assert_text "Retirement Pension"
+      assert_text "First year"
+    end
+
+    # Verify Year 30 (start_year + 30):
+    # - Living Costs: Active (Last year)
+    # - Retirement Pension: Active (Last year)
+    find("[data-testid='projection-results-table'] tbody tr", text: (start_year + 30).to_s).click
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "Living Costs"
+      assert_text "Last year"
+      assert_text "Retirement Pension"
+      assert_text "Last year"
+    end
+  end
+
+  test "edits, disables, and deletes scheduled life events, recalculating projection immediately" do
+    visit lifetime_projection_url
+    start_year = Date.current.year
+
+    click_button "Scheduled life events"
+    click_button "Pre-fill starter events"
+
+    within "[data-testid='scheduled-events-table']" do
+      assert_text "Salary"
+      assert_text "$80,000 / yr"
+      assert_text "Living costs"
+      assert_text "$60,000 / yr"
+    end
+
+    # Disable Salary event
+    find("button[aria-label='Disable Salary']").click
+    within "[data-testid='scheduled-events-table']" do
+      assert_text "Disabled"
+    end
+
+    # Breakdown reflects disabled Salary
+    find("[data-testid='projection-results-table'] tbody tr", text: (start_year + 1).to_s).click
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "Salary"
+      assert_text "Disabled"
+      # Income is now 0 without Salary
+      assert_text "+$0"
+    end
+
+    # Re-enable Salary
+    find("button[aria-label='Enable Salary']").click
+    within "[data-testid='scheduled-events-table']" do
+      assert_text "Enabled"
+    end
+
+    find("[data-testid='projection-results-table'] tbody tr", text: (start_year + 1).to_s).click
+    within "[data-testid='projection-year-breakdown']" do
+      assert_text "Salary"
+      assert_text "+$80,000"
+    end
+
+    # Edit Salary amount and annual change
+    find("button[aria-label='Edit Salary']").click
+    within "[aria-label='Life event form']" do
+      fill_in "Amount", with: "95000"
+      fill_in "Annual change rate", with: "3"
+      click_button "Save changes"
+    end
+
+    within "[data-testid='scheduled-events-table']" do
+      assert_text "$95,000 / yr"
+      assert_text "+3% / yr"
+    end
+
+    # Delete Salary
+    find("button[aria-label='Delete Salary']").click
+    within "[data-testid='scheduled-events-table']" do
+      assert_no_text "Salary"
+      assert_text "Living costs"
+    end
+  end
+
+  test "preserves scheduled events plan across reload and resets to flat starter plan defaults" do
+    visit lifetime_projection_url
+
+    click_button "Scheduled life events"
+    click_button "Add event"
+    within "[aria-label='Life event form']" do
+      fill_in "Event name", with: "Consulting Bonus"
+      fill_in "Amount", with: "25000"
+      click_button "Add event"
+    end
+
+    within "[data-testid='scheduled-events-table']" do
+      assert_text "Consulting Bonus"
+    end
+
+    # Reload page
+    visit lifetime_projection_url
+    assert_selector "button[aria-pressed='true']", text: "Scheduled life events"
+    within "[data-testid='scheduled-events-table']" do
+      assert_text "Consulting Bonus"
+    end
+
+    # Reset to defaults
+    click_button "Reset to defaults"
+    within "[role='dialog']" do
+      assert_text "Scheduled life events and cash flow timeline (reset to flat assumptions)"
+      click_button "Reset plan"
+    end
+
+    # Returns to flat cash flow mode with starter defaults
+    assert_selector "button[aria-pressed='true']", text: "Flat annual amounts"
+    assert_field "Annual income", with: "80000"
+    assert_field "Annual spending", with: "60000"
+  end
 end

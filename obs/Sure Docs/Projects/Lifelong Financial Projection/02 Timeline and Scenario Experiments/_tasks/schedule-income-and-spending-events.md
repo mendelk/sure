@@ -5,11 +5,11 @@ parentId:
 id: t_lfp_timeline_002
 title: Schedule income and spending events
 type: task
-status: todo
+status: done
 priority: critical
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - events

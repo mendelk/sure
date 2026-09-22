@@ -43,6 +43,7 @@ export function ProjectionResetDialog({
             </li>
             <li>Inflation rate (2.5% / year) and investment return (5.0% / year)</li>
             <li>Household planning horizon (reset to single member, age 35, retirement at 65)</li>
+            <li>Scheduled life events and cash flow timeline (reset to flat assumptions)</li>
             <li>Saved baseline balance and any unapplied edits in this browser</li>
           </ul>
           <p className="pt-1 text-xs text-secondary">
