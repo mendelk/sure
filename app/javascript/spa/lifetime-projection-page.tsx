@@ -1,25 +1,119 @@
-import { useMemo } from "react";
-import { defineChart, lineY } from "@tanstack/charts";
-import { scaleLinear } from "@tanstack/charts/scales/linear";
-import { scalePoint } from "@tanstack/charts/scales/point";
-import { tooltip } from "@tanstack/charts/tooltip";
-import { Chart } from "@tanstack/charts/react";
+import { useMemo, useState, type SyntheticEvent } from "react";
 import { useRouteContext } from "@tanstack/react-router";
 import { useSummaryQuery } from "./api/summary";
+import { Button } from "./components/button";
+import { FormField } from "./components/form-field";
 import { Icon } from "./icon";
 import {
   calculateLifetimeProjection,
   DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS,
+  LifetimeProjectionAssumptionsSchema,
   parseLifetimeProjectionInputs,
+  type LifetimeProjectionAssumptions,
   type LifetimeProjectionPoint,
 } from "./lifetime-projection";
+import { ProjectionChart } from "./projection-chart";
 
 const START_YEAR = new Date().getFullYear();
 
-type ProjectionResult = {
-  money: Intl.NumberFormat;
-  points: LifetimeProjectionPoint[];
+export type AssumptionFormValues = {
+  annualIncome: string;
+  annualSpending: string;
+  inflationPercent: string;
+  annualReturnPercent: string;
+  horizonYears: string;
 };
+
+export type AssumptionFormErrors = Partial<Record<keyof AssumptionFormValues, string>>;
+
+function toFormValues(assumptions: LifetimeProjectionAssumptions): AssumptionFormValues {
+  return {
+    annualIncome: String(assumptions.annualIncome),
+    annualSpending: String(assumptions.annualSpending),
+    inflationPercent: String(assumptions.inflationPercent),
+    annualReturnPercent: String(assumptions.annualReturnPercent),
+    horizonYears: String(assumptions.horizonYears),
+  };
+}
+
+function cleanNumericInput(value: string): string {
+  return value.replaceAll(/[$,\s]/gu, "").trim();
+}
+
+function validateHorizon(raw: string): string | undefined {
+  if (raw.length === 0) return "Enter a projection horizon.";
+  const num = Number(raw);
+  if (!Number.isFinite(num) || !Number.isInteger(num) || num < 1 || num > 100)
+    return "Horizon must be a whole number between 1 and 100 years.";
+  return undefined;
+}
+
+function validateIncome(raw: string): string | undefined {
+  if (raw.length === 0) return "Enter annual income.";
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return "Enter a valid income amount.";
+  if (num < 0) return "Annual income cannot be negative.";
+  return undefined;
+}
+
+function validateSpending(raw: string): string | undefined {
+  if (raw.length === 0) return "Enter annual spending.";
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return "Enter a valid spending amount.";
+  if (num < 0) return "Annual spending cannot be negative.";
+  return undefined;
+}
+
+function validateInflation(raw: string): string | undefined {
+  if (raw.length === 0) return "Enter an inflation rate.";
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return "Enter a valid inflation rate.";
+  if (num <= -100) return "Inflation rate must be greater than -100%.";
+  return undefined;
+}
+
+function validateReturn(raw: string): string | undefined {
+  if (raw.length === 0) return "Enter an investment return rate.";
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return "Enter a valid return rate.";
+  if (num <= -100) return "Investment return must be greater than -100%.";
+  return undefined;
+}
+
+export function validateAssumptionForm(values: AssumptionFormValues): {
+  errors: AssumptionFormErrors;
+  parsed?: LifetimeProjectionAssumptions;
+} {
+  const errors: AssumptionFormErrors = {};
+
+  const horizonError = validateHorizon(cleanNumericInput(values.horizonYears));
+  if (horizonError !== undefined) errors.horizonYears = horizonError;
+
+  const incomeError = validateIncome(cleanNumericInput(values.annualIncome));
+  if (incomeError !== undefined) errors.annualIncome = incomeError;
+
+  const spendingError = validateSpending(cleanNumericInput(values.annualSpending));
+  if (spendingError !== undefined) errors.annualSpending = spendingError;
+
+  const inflationError = validateInflation(cleanNumericInput(values.inflationPercent));
+  if (inflationError !== undefined) errors.inflationPercent = inflationError;
+
+  const returnError = validateReturn(cleanNumericInput(values.annualReturnPercent));
+  if (returnError !== undefined) errors.annualReturnPercent = returnError;
+
+  if (Object.keys(errors).length > 0) return { errors };
+
+  return {
+    errors: {},
+    parsed: LifetimeProjectionAssumptionsSchema.parse({
+      annualIncome: Number(cleanNumericInput(values.annualIncome)),
+      annualSpending: Number(cleanNumericInput(values.annualSpending)),
+      inflationPercent: Number(cleanNumericInput(values.inflationPercent)),
+      annualReturnPercent: Number(cleanNumericInput(values.annualReturnPercent)),
+      horizonYears: Number(cleanNumericInput(values.horizonYears)),
+    }),
+  };
+}
 
 export function LifetimeProjectionPage() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
@@ -31,8 +125,8 @@ export function LifetimeProjectionPage() {
     content = (
       <ProjectionErrorState
         description="Your current balances could not be loaded."
-        title="Projection unavailable"
         onRetry={() => void summary.refetch()}
+        title="Projection unavailable"
       />
     );
   } else if (summary.data.accounts.length === 0) {
@@ -44,21 +138,13 @@ export function LifetimeProjectionPage() {
       />
     );
   } else {
-    const result = buildProjectionResult(summary.data.net_worth_amount, summary.data.currency);
-    content =
-      result === undefined ? (
-        <ProjectionErrorState
-          description="One or more assumptions are invalid. Review the values and try again."
-          title="We could not calculate this projection"
-          onRetry={() => void summary.refetch()}
-        />
-      ) : (
-        <ProjectionResults
-          currentNetWorth={summary.data.net_worth}
-          money={result.money}
-          points={result.points}
-        />
-      );
+    content = (
+      <ProjectionResults
+        currency={summary.data.currency}
+        currentNetWorth={summary.data.net_worth}
+        startingBalance={summary.data.net_worth_amount}
+      />
+    );
   }
 
   return (
@@ -73,7 +159,7 @@ export function LifetimeProjectionPage() {
           </span>
         </div>
         <p className="mt-1 text-sm text-secondary">
-          See how today&apos;s finances could change over the next 30 years.
+          See how today&apos;s finances could change over your projection horizon.
         </p>
       </header>
 
@@ -90,225 +176,323 @@ export function LifetimeProjectionPage() {
   );
 }
 
-function buildProjectionResult(
-  startingBalance: number,
-  currency: string,
-): ProjectionResult | undefined {
-  try {
-    return {
-      money: new Intl.NumberFormat(undefined, {
+function ProjectionResults({
+  currency,
+  currentNetWorth,
+  startingBalance,
+}: {
+  currency: string;
+  currentNetWorth: string;
+  startingBalance: number;
+}) {
+  const [appliedAssumptions, setAppliedAssumptions] = useState<LifetimeProjectionAssumptions>(
+    DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS,
+  );
+  const [formValues, setFormValues] = useState<AssumptionFormValues>(() =>
+    toFormValues(DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS),
+  );
+  const [formErrors, setFormErrors] = useState<AssumptionFormErrors>({});
+
+  const money = useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
         style: "currency",
         currency,
         maximumFractionDigits: 0,
       }),
-      points: calculateLifetimeProjection(
-        parseLifetimeProjectionInputs({
-          startingBalance,
-          ...DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS,
-          startYear: START_YEAR,
-        }),
-      ),
-    };
-  } catch {
-    return undefined;
-  }
-}
+    [currency],
+  );
 
-function ProjectionResults({
-  currentNetWorth,
-  money,
-  points,
-}: {
-  currentNetWorth: string;
-  money: Intl.NumberFormat;
-  points: LifetimeProjectionPoint[];
-}) {
-  const assumptions = [
-    {
-      label: "Current net worth",
-      value: currentNetWorth,
-      help: "Live balance from the accounts included in your finances.",
-      private: true,
-    },
-    {
-      label: "Annual income",
-      value: money.format(DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualIncome),
-      help: "Starting estimate before inflation.",
-      private: true,
-    },
-    {
-      label: "Annual spending",
-      value: money.format(DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualSpending),
-      help: "Starting estimate before inflation.",
-      private: true,
-    },
-    {
-      label: "Inflation",
-      value: `${DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.inflationPercent.toFixed(1)}%`,
-      help: "Applied to income and spending each year.",
-      private: false,
-    },
-    {
-      label: "Annual return",
-      value: `${DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualReturnPercent.toFixed(1)}%`,
-      help: "Applied to projected net worth each year.",
-      private: false,
-    },
-    {
-      label: "Projection horizon",
-      value: `${DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.horizonYears} years`,
-      help: "A fixed year-by-year planning window.",
-      private: false,
-    },
-  ];
+  const projectionResult = useMemo(() => {
+    try {
+      const inputs = parseLifetimeProjectionInputs({
+        startingBalance,
+        ...appliedAssumptions,
+        startYear: START_YEAR,
+      });
+      return {
+        points: calculateLifetimeProjection(inputs),
+        error: null,
+      };
+    } catch {
+      return {
+        points: [] as LifetimeProjectionPoint[],
+        error: "We could not calculate this projection with the selected assumptions.",
+      };
+    }
+  }, [startingBalance, appliedAssumptions]);
+
+  const hasUnappliedChanges = useMemo(() => {
+    const horizonNum = Number(cleanNumericInput(formValues.horizonYears));
+    const incomeNum = Number(cleanNumericInput(formValues.annualIncome));
+    const spendingNum = Number(cleanNumericInput(formValues.annualSpending));
+    const inflationNum = Number(cleanNumericInput(formValues.inflationPercent));
+    const returnNum = Number(cleanNumericInput(formValues.annualReturnPercent));
+
+    return (
+      horizonNum !== appliedAssumptions.horizonYears ||
+      incomeNum !== appliedAssumptions.annualIncome ||
+      spendingNum !== appliedAssumptions.annualSpending ||
+      inflationNum !== appliedAssumptions.inflationPercent ||
+      returnNum !== appliedAssumptions.annualReturnPercent
+    );
+  }, [appliedAssumptions, formValues]);
+
+  const isDefaultAssumptions = useMemo(
+    () =>
+      appliedAssumptions.annualIncome === DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualIncome &&
+      appliedAssumptions.annualSpending ===
+        DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualSpending &&
+      appliedAssumptions.inflationPercent ===
+        DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.inflationPercent &&
+      appliedAssumptions.annualReturnPercent ===
+        DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualReturnPercent &&
+      appliedAssumptions.horizonYears === DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.horizonYears,
+    [appliedAssumptions],
+  );
+
+  const handleFieldChange =
+    (field: keyof AssumptionFormValues) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setFormValues((prev) => ({ ...prev, [field]: value }));
+      if (formErrors[field] !== undefined)
+        setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+    };
+
+  const handleFormSubmit = (event: SyntheticEvent) => {
+    event.preventDefault();
+    const validation = validateAssumptionForm(formValues);
+    if (validation.parsed !== undefined) {
+      setFormErrors({});
+      setFormValues(toFormValues(validation.parsed));
+      setAppliedAssumptions(validation.parsed);
+    } else setFormErrors(validation.errors);
+  };
+
+  const handleResetDefaults = () => {
+    setFormValues(toFormValues(DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS));
+    setFormErrors({});
+    setAppliedAssumptions(DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS);
+  };
+
+  const { points, error } = projectionResult;
   const finalPoint = points.at(-1);
 
   return (
     <div className="space-y-6">
-      <section aria-labelledby="projection-assumptions-title" className="space-y-3">
+      <section aria-labelledby="projection-assumptions-title" className="space-y-4">
         <div>
           <h2 className="text-lg font-medium text-primary" id="projection-assumptions-title">
             Starting point and assumptions
           </h2>
           <p className="mt-1 text-sm text-secondary">
-            Each year applies the return to projected net worth, then adds income minus spending.
-            Income and spending both rise with inflation.
+            Assumptions are entered as nominal amounts in today&apos;s dollars. The projection below
+            adjusts future income, spending, and net worth for inflation and compound returns year
+            by year.
           </p>
         </div>
-        <dl className="grid grid-cols-1 gap-3 @md:grid-cols-2 @3xl:grid-cols-3">
-          {assumptions.map((assumption) => (
-            <div
-              className="rounded-xl bg-container px-5 py-4 shadow-border-xs"
-              key={assumption.label}
-            >
-              <dt className="text-xs font-medium uppercase tracking-wide text-secondary">
-                {assumption.label}
-              </dt>
-              <dd
-                className={`mt-2 text-2xl font-medium tabular-nums text-primary ${assumption.private ? "privacy-sensitive" : ""}`}
-              >
-                {assumption.value}
-              </dd>
-              <p className="mt-1 text-xs text-secondary">{assumption.help}</p>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          <div className="flex flex-col justify-between rounded-xl bg-container p-5 shadow-border-xs lg:col-span-1">
+            <div>
+              <span className="text-xs font-medium uppercase tracking-wide text-secondary">
+                Current net worth
+              </span>
+              <div className="mt-2 text-2xl font-medium tabular-nums text-primary privacy-sensitive">
+                {currentNetWorth}
+              </div>
+              <p className="mt-2 text-xs text-secondary">
+                Live balance from accounts in your family finances. Serves as the starting baseline
+                (Year 0).
+              </p>
             </div>
-          ))}
-        </dl>
+            <div className="mt-4 rounded-lg bg-container-inset p-3 text-xs text-secondary">
+              <p className="font-medium text-primary">Nominal vs. adjusted</p>
+              <p className="mt-1">
+                Income and spending inputs represent today&apos;s purchasing power. The projection
+                compounds inflation into future cash flows.
+              </p>
+            </div>
+          </div>
+
+          <form
+            aria-label="Projection assumptions"
+            className="space-y-4 rounded-xl bg-container p-5 shadow-border-xs lg:col-span-3"
+            noValidate
+            onSubmit={handleFormSubmit}
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <FormField
+                actions={<span className="text-xs text-secondary">years</span>}
+                description="Total window to simulate (1 to 100 years)."
+                error={formErrors.horizonYears}
+                id="projection-horizon-years"
+                inputMode="numeric"
+                label="Projection horizon"
+                name="horizonYears"
+                onChange={handleFieldChange("horizonYears")}
+                required
+                value={formValues.horizonYears}
+              />
+              <FormField
+                actions={<span className="text-xs text-secondary">today&apos;s dollars</span>}
+                description="Nominal starting income before inflation."
+                error={formErrors.annualIncome}
+                id="projection-annual-income"
+                inputMode="decimal"
+                label="Annual income"
+                name="annualIncome"
+                onChange={handleFieldChange("annualIncome")}
+                required
+                value={formValues.annualIncome}
+              />
+              <FormField
+                actions={<span className="text-xs text-secondary">today&apos;s dollars</span>}
+                description="Nominal starting spending before inflation."
+                error={formErrors.annualSpending}
+                id="projection-annual-spending"
+                inputMode="decimal"
+                label="Annual spending"
+                name="annualSpending"
+                onChange={handleFieldChange("annualSpending")}
+                required
+                value={formValues.annualSpending}
+              />
+              <FormField
+                actions={<span className="text-xs text-secondary">% / year</span>}
+                description="Compounded onto income and spending annually."
+                error={formErrors.inflationPercent}
+                id="projection-inflation-percent"
+                inputMode="decimal"
+                label="Inflation rate"
+                name="inflationPercent"
+                onChange={handleFieldChange("inflationPercent")}
+                required
+                value={formValues.inflationPercent}
+              />
+              <FormField
+                actions={<span className="text-xs text-secondary">% / year</span>}
+                description="Compounded onto projected balance annually."
+                error={formErrors.annualReturnPercent}
+                id="projection-annual-return-percent"
+                inputMode="decimal"
+                label="Investment return"
+                name="annualReturnPercent"
+                onChange={handleFieldChange("annualReturnPercent")}
+                required
+                value={formValues.annualReturnPercent}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-secondary pt-3">
+              <div className="text-xs text-secondary">
+                {hasUnappliedChanges ? (
+                  <span className="font-medium text-primary">
+                    You have unapplied assumption changes.
+                  </span>
+                ) : (
+                  <span>Inputs reflect the active projection below.</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  disabled={isDefaultAssumptions && !hasUnappliedChanges}
+                  onClick={handleResetDefaults}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  Reset to defaults
+                </Button>
+                <Button size="sm" type="submit" variant="primary">
+                  Apply changes
+                </Button>
+              </div>
+            </div>
+          </form>
+        </div>
       </section>
 
-      <section
-        aria-labelledby="projection-results-title"
-        className="overflow-hidden rounded-xl bg-container shadow-border-xs"
-      >
-        <div className="border-b border-secondary px-5 py-4">
-          <h2 className="text-lg font-medium text-primary" id="projection-results-title">
-            Year-by-year projection
-          </h2>
-          <p className="mt-1 text-sm text-secondary">
-            The first row is today&apos;s net worth. Later rows show end-of-year estimates.
-          </p>
-        </div>
+      {error !== null ? (
+        <section
+          aria-live="assertive"
+          className="flex flex-col items-center justify-center rounded-xl border border-destructive bg-container px-6 py-12 text-center shadow-border-xs"
+          role="alert"
+        >
+          <Icon className="text-destructive" name="circle-alert" size="lg" />
+          <p className="mt-3 font-medium text-primary">Calculation error</p>
+          <p className="mt-1 max-w-md text-sm text-secondary">{error}</p>
+        </section>
+      ) : (
+        <section
+          aria-labelledby="projection-results-title"
+          className="overflow-hidden rounded-xl bg-container shadow-border-xs"
+        >
+          <div className="border-b border-secondary px-5 py-4">
+            <h2 className="text-lg font-medium text-primary" id="projection-results-title">
+              Year-by-year projection
+            </h2>
+            <p className="mt-1 text-sm text-secondary">
+              The first row is today&apos;s net worth (nominal). Later rows show future income and
+              spending adjusted for {appliedAssumptions.inflationPercent}% annual inflation, with
+              net worth compounding at {appliedAssumptions.annualReturnPercent}% annual return.
+            </p>
+          </div>
 
-        <figure className="border-b border-secondary px-4 py-5 sm:px-5">
-          <ProjectionChart money={money} points={points} />
-          <figcaption className="mt-3 text-center text-sm font-medium tabular-nums text-primary privacy-sensitive">
-            Projected net worth in {finalPoint?.year}: {money.format(finalPoint?.netWorth ?? 0)}
-          </figcaption>
-        </figure>
+          <figure className="border-b border-secondary px-4 py-5 sm:px-5">
+            <ProjectionChart
+              horizonYears={appliedAssumptions.horizonYears}
+              money={money}
+              points={points}
+            />
+            <figcaption className="mt-3 text-center text-sm font-medium tabular-nums text-primary privacy-sensitive">
+              Projected net worth in {finalPoint?.year}: {money.format(finalPoint?.netWorth ?? 0)} (
+              {appliedAssumptions.horizonYears}-year horizon)
+            </figcaption>
+          </figure>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-180">
-            <caption className="sr-only">Lifetime net worth projection by year</caption>
-            <thead className="bg-container-inset">
-              <tr>
-                <ProjectionHeading align="left">Year</ProjectionHeading>
-                <ProjectionHeading>Income</ProjectionHeading>
-                <ProjectionHeading>Spending</ProjectionHeading>
-                <ProjectionHeading>Income − spending</ProjectionHeading>
-                <ProjectionHeading>Projected net worth</ProjectionHeading>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-tertiary">
-              {points.map((point, index) => (
-                <tr className="hover:bg-surface-hover" key={point.year}>
-                  <th
-                    className="px-4 py-3 text-left text-sm font-medium tabular-nums text-primary"
-                    scope="row"
-                  >
-                    {point.year}
-                  </th>
-                  <ProjectionMoneyCell
-                    money={money}
-                    value={index === 0 ? null : point.annualIncome}
-                  />
-                  <ProjectionMoneyCell
-                    money={money}
-                    value={index === 0 ? null : point.annualSpending}
-                  />
-                  <ProjectionMoneyCell
-                    money={money}
-                    value={index === 0 ? null : point.annualSavings}
-                  />
-                  <ProjectionMoneyCell emphasis money={money} value={point.netWorth} />
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-180">
+              <caption className="sr-only">Lifetime net worth projection by year</caption>
+              <thead className="bg-container-inset">
+                <tr>
+                  <ProjectionHeading align="left">Year</ProjectionHeading>
+                  <ProjectionHeading>Income (adjusted)</ProjectionHeading>
+                  <ProjectionHeading>Spending (adjusted)</ProjectionHeading>
+                  <ProjectionHeading>Income − spending</ProjectionHeading>
+                  <ProjectionHeading>Projected net worth</ProjectionHeading>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody className="divide-y divide-tertiary">
+                {points.map((point, index) => (
+                  <tr className="hover:bg-surface-hover" key={point.year}>
+                    <th
+                      className="px-4 py-3 text-left text-sm font-medium tabular-nums text-primary"
+                      scope="row"
+                    >
+                      {point.year}
+                    </th>
+                    <ProjectionMoneyCell
+                      money={money}
+                      value={index === 0 ? null : point.annualIncome}
+                    />
+                    <ProjectionMoneyCell
+                      money={money}
+                      value={index === 0 ? null : point.annualSpending}
+                    />
+                    <ProjectionMoneyCell
+                      money={money}
+                      value={index === 0 ? null : point.annualSavings}
+                    />
+                    <ProjectionMoneyCell emphasis money={money} value={point.netWorth} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
-  );
-}
-
-function ProjectionChart({
-  money,
-  points,
-}: {
-  money: Intl.NumberFormat;
-  points: LifetimeProjectionPoint[];
-}) {
-  const definition = useMemo(() => {
-    const tickInterval = Math.max(1, Math.ceil((points.length - 1) / 5));
-    const tickYears = points
-      .filter((_, index) => index % tickInterval === 0 || index === points.length - 1)
-      .map((point) => point.year);
-
-    return defineChart({
-      marks: [
-        lineY(points, {
-          x: "year",
-          y: "netWorth",
-          points: true,
-          strokeWidth: 3,
-        }),
-      ],
-      scales: {
-        x: {
-          scale: () => scalePoint().padding(0.5),
-          axis: {
-            label: "Year",
-            ticks: { values: tickYears },
-          },
-        },
-        y: {
-          scale: scaleLinear,
-          nice: true,
-          grid: true,
-          axis: {
-            label: "Projected net worth",
-            ticks: { format: (value: number) => money.format(value) },
-          },
-        },
-      },
-      tooltip,
-    });
-  }, [money, points]);
-
-  return (
-    <Chart
-      ariaLabel={`Projected net worth over ${DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.horizonYears} years`}
-      definition={definition}
-      height={256}
-    />
   );
 }
 
