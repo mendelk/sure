@@ -5,11 +5,11 @@ parentId:
 id: t_lfp_live_003
 title: Remember one plan in local storage
 type: task
-status: todo
+status: done
 priority: critical
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - local-storage

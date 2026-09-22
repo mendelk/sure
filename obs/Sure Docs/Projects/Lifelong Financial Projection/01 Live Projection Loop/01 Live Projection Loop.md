@@ -23,7 +23,7 @@ Start with a browser-verifiable projection, then improve only what the working s
 ## Tasks
 - [x] [[build-the-first-live-lifetime-projection|Build the first live lifetime projection]]
 - [x] [[make-core-projection-assumptions-editable|Make core projection assumptions editable]]
-- [ ] [[remember-one-plan-in-local-storage|Remember one plan in local storage]]
+- [x] [[remember-one-plan-in-local-storage|Remember one plan in local storage]]
 - [ ] [[explain-one-projected-year|Explain one projected year]]
 - [ ] [[ship-a-resettable-starter-plan|Ship a resettable starter plan]]
 - [ ] [[refresh-the-local-baseline-from-current-finances|Refresh the local baseline from current finances]]
