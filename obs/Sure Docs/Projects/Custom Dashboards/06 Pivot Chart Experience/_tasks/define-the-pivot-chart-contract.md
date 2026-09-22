@@ -5,7 +5,7 @@ parentId:
 id: t_cd_pivot_001
 title: Define the pivot chart contract
 type: task
-status: todo
+status: "done"
 priority: critical
 start: ""
 due: ""
