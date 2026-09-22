@@ -27,5 +27,5 @@ Start with a browser-verifiable projection, then improve only what the working s
 - [x] [[explain-one-projected-year|Explain one projected year]]
 - [x] [[ship-a-resettable-starter-plan|Ship a resettable starter plan]]
 - [x] [[refresh-the-local-baseline-from-current-finances|Refresh the local baseline from current finances]]
-- [ ] [[review-the-first-live-projection-slice|Review the first live projection slice]]
+- [x] [[review-the-first-live-projection-slice|Review the first live projection slice]]
 - [ ] [[refine-the-selected-first-projection|Refine the selected first projection]]
