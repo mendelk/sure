@@ -4,7 +4,9 @@
 # If you are deploying to a memory constrained environment
 # you may want to delete this file, but otherwise it's free
 # performance.
-if defined? RubyVM::YJIT.enable
+if ENV["SURE_SKIP_YJIT"].present?
+  Rails.logger.info("Skipping YJIT (SURE_SKIP_YJIT is set)")
+elsif defined? RubyVM::YJIT.enable
   Rails.application.config.after_initialize do
     RubyVM::YJIT.enable
   end

@@ -22,9 +22,8 @@ export ORCA_SSH_PUBLIC_KEY="unused-during-destroy"
 export ORCA_WORKTREE_PATH="${worktree_path:-$repo_root}"
 export ORCA_PUBLISH_HOST="$publish_host"
 
-
-
-compose --project-name "$project_name" --file "$compose_file" down --volumes >&2
+# shellcheck disable=SC2086
+compose --project-name "$project_name" $(compose_files_args) down --volumes >&2
 if [[ -n "$ssh_port" ]]; then
   ssh-keygen -R "[$publish_host]:$ssh_port" >/dev/null 2>&1 || true
 fi
