@@ -5,11 +5,11 @@ parentId:
 id: t_cd_present_001
 title: Improve the live SureQL editing loop
 type: task
-status: todo
+status: "done"
 priority: high
 start: ""
 due: ""
-progress: 0
+progress: 100
 assignees: []
 tags:
   - frontend
@@ -19,7 +19,7 @@ subtaskIds: []
 dependencies:
   - "[[refine-the-selected-first-slice|Refine the selected first slice]]"
 createdAt: 2026-09-20T00:00:00.000Z
-updatedAt: 2026-09-20T17:56:25.856Z
+updatedAt: 2026-09-22T00:31:41.000Z
 timeEstimate: 8
 ---
 
