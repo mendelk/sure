@@ -287,6 +287,144 @@ export function ProjectionYearBreakdown({
               components reconcile exactly to the ending value.
             </p>
           </div>
+
+          {selectedPoint.eventStatuses && selectedPoint.eventStatuses.length > 0 ? (
+            <div
+              className="space-y-3 rounded-lg border border-secondary bg-container-inset/50 p-3.5"
+              data-testid="year-events-breakdown"
+            >
+              <div className="flex items-center justify-between gap-2 border-b border-secondary pb-2">
+                <div className="flex items-center gap-2">
+                  <Icon className="text-secondary" name="calendar" size="sm" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-secondary">
+                    Scheduled cash flow events in {selectedPoint.year}
+                  </span>
+                </div>
+                <span className="text-xs text-secondary">
+                  {selectedPoint.eventStatuses.filter((s) => s.isActive).length} active,{" "}
+                  {selectedPoint.eventStatuses.filter((s) => !s.isActive).length} inactive
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-primary">Active events</h4>
+                {selectedPoint.eventStatuses.filter((s) => s.isActive).length === 0 ? (
+                  <p className="text-xs italic text-secondary">
+                    No scheduled events are active in {selectedPoint.year}.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {selectedPoint.eventStatuses
+                      .filter((s) => s.isActive)
+                      .map((event) => {
+                        const memberName =
+                          event.memberId === "household"
+                            ? "Household"
+                            : (selectedPoint.memberStates?.find(
+                                (m) => m.memberId === event.memberId,
+                              )?.name ?? "Member");
+
+                        return (
+                          <div
+                            className="flex items-start justify-between gap-2 rounded-lg border border-secondary bg-container p-3 text-xs"
+                            key={event.eventId}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-primary">{event.name}</span>
+                                <span className="text-secondary">({memberName})</span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                                <span
+                                  className={`rounded-full px-1.5 py-0.5 font-medium ${
+                                    event.type === "income"
+                                      ? "bg-success/15 text-success"
+                                      : "bg-destructive/15 text-destructive"
+                                  }`}
+                                >
+                                  {event.type === "income" ? "+ Income" : "− Spending"}
+                                </span>
+                                {event.frequency === "one_time" ? (
+                                  <span className="rounded-full bg-container-inset px-1.5 py-0.5 font-medium text-primary">
+                                    One-time
+                                  </span>
+                                ) : null}
+                                {event.isFirstYear && event.frequency === "recurring" ? (
+                                  <span className="rounded-full bg-container-inset px-1.5 py-0.5 font-medium text-primary">
+                                    First year
+                                  </span>
+                                ) : null}
+                                {event.isLastYear && event.frequency === "recurring" ? (
+                                  <span className="rounded-full bg-warning/15 px-1.5 py-0.5 font-medium text-warning">
+                                    Last year
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span
+                                className={`font-semibold tabular-nums ${
+                                  event.type === "income" ? "text-success" : "text-destructive"
+                                }`}
+                              >
+                                {event.type === "income" ? "+" : "−"}
+                                {money.format(event.adjustedAmount)}
+                              </span>
+                              {event.adjustedAmount !== event.baseAmount ? (
+                                <span className="block text-[10px] text-secondary">
+                                  Base: {money.format(event.baseAmount)}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              {selectedPoint.eventStatuses.some((s) => !s.isActive) ? (
+                <div className="space-y-2 border-t border-secondary pt-2">
+                  <h4 className="text-xs font-medium text-secondary">
+                    Inactive in {selectedPoint.year}
+                  </h4>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {selectedPoint.eventStatuses
+                      .filter((s) => !s.isActive)
+                      .map((event) => {
+                        const memberName =
+                          event.memberId === "household"
+                            ? "Household"
+                            : (selectedPoint.memberStates?.find(
+                                (m) => m.memberId === event.memberId,
+                              )?.name ?? "Member");
+
+                        return (
+                          <div
+                            className="flex items-center justify-between gap-2 rounded-lg border border-secondary bg-container/60 p-2 text-xs opacity-75"
+                            key={event.eventId}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-secondary">{event.name}</span>
+                              <span className="text-[11px] text-secondary">({memberName})</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-full bg-container-inset px-2 py-0.5 text-[11px] font-medium text-secondary">
+                                {event.reason}
+                              </span>
+                              <span className="text-[11px] tabular-nums text-secondary">
+                                {money.format(event.amount)}
+                                {event.frequency === "recurring" ? "/yr" : ""}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       )}
     </section>

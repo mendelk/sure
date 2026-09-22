@@ -22,7 +22,7 @@ Grow the projection through visible planning actions. Treat data shapes as exper
 
 ## Tasks
 - [x] [[add-a-household-planning-horizon|Add a household planning horizon]]
-- [ ] [[schedule-income-and-spending-events|Schedule income and spending events]]
+- [x] [[schedule-income-and-spending-events|Schedule income and spending events]]
 - [ ] [[add-goals-and-milestones|Add goals and milestones]]
 - [ ] [[model-debts-and-real-asset-life-cycles|Model debts and real asset life cycles]]
 - [ ] [[create,-switch,-and-duplicate-local-scenarios|Create, switch, and duplicate local scenarios]]

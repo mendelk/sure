@@ -15,10 +15,12 @@ import {
   HouseholdSchema,
   LifetimeProjectionAssumptionsSchema,
   parseLifetimeProjectionInputs,
+  type CashFlowMode,
   type Household,
   type HouseholdMember,
   type LifetimeProjectionAssumptions,
   type LifetimeProjectionPoint,
+  type ProjectionEvent,
 } from "./lifetime-projection";
 import {
   computeBaselineDiff,
@@ -32,6 +34,7 @@ import {
 } from "./lifetime-projection-storage";
 import { ProjectionBaselineRefreshModal } from "./projection-baseline-refresh-modal";
 import { ProjectionChart } from "./projection-chart";
+import { ProjectionEventDialog } from "./projection-event-dialog";
 import { ProjectionResetDialog } from "./projection-reset-dialog";
 import { ProjectionYearBreakdown } from "./projection-year-breakdown";
 
@@ -389,6 +392,10 @@ function ProjectionResults({
     () => initialPlan.assumptions,
   );
   const [appliedHousehold, setAppliedHousehold] = useState<Household>(() => initialPlan.household);
+  const [cashFlowMode, setCashFlowMode] = useState<CashFlowMode>(() => initialPlan.cashFlowMode);
+  const [events, setEvents] = useState<ProjectionEvent[]>(() => initialPlan.events);
+  const [isEventDialogOpen, setIsEventDialogOpen] = useState<boolean>(false);
+  const [editingEvent, setEditingEvent] = useState<ProjectionEvent | null>(null);
   const [formValues, setFormValues] = useState<AssumptionFormValues>(() =>
     toFormValues(initialPlan.assumptions, initialPlan.household),
   );
@@ -421,6 +428,8 @@ function ProjectionResults({
         ...appliedAssumptions,
         startYear: START_YEAR,
         household: appliedHousehold,
+        cashFlowMode,
+        events,
       });
       return {
         points: calculateLifetimeProjection(inputs),
@@ -432,7 +441,7 @@ function ProjectionResults({
         error: "We could not calculate this projection with the selected assumptions.",
       };
     }
-  }, [activeBaseline.netWorth, appliedAssumptions, appliedHousehold]);
+  }, [activeBaseline.netWorth, appliedAssumptions, appliedHousehold, cashFlowMode, events]);
 
   const activeSelectedYear = useMemo(() => {
     const points = projectionResult.points;
@@ -463,10 +472,11 @@ function ProjectionResults({
     const inflationNum = Number(cleanNumericInput(formValues.inflationPercent));
     const returnNum = Number(cleanNumericInput(formValues.annualReturnPercent));
 
+    const isFlat = cashFlowMode === "flat";
     if (
       horizonNum !== appliedAssumptions.horizonYears ||
-      incomeNum !== appliedAssumptions.annualIncome ||
-      spendingNum !== appliedAssumptions.annualSpending ||
+      (isFlat && incomeNum !== appliedAssumptions.annualIncome) ||
+      (isFlat && spendingNum !== appliedAssumptions.annualSpending) ||
       inflationNum !== appliedAssumptions.inflationPercent ||
       returnNum !== appliedAssumptions.annualReturnPercent
     )
@@ -500,7 +510,7 @@ function ProjectionResults({
     }
 
     return false;
-  }, [appliedAssumptions, appliedHousehold, formValues]);
+  }, [appliedAssumptions, appliedHousehold, cashFlowMode, formValues]);
 
   const isDefaultAssumptions = useMemo(() => {
     const defaultHousehold = createDefaultHousehold(START_YEAR);
@@ -514,8 +524,11 @@ function ProjectionResults({
       primaryCurrent.retirementAge === primaryDefault.retirementAge &&
       primaryCurrent.planningEndAge === primaryDefault.planningEndAge;
 
+    const eventsAreDefault = cashFlowMode === "flat" && events.length === 0;
+
     return (
       householdIsDefault &&
+      eventsAreDefault &&
       appliedAssumptions.annualIncome === DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualIncome &&
       appliedAssumptions.annualSpending ===
         DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualSpending &&
@@ -525,7 +538,7 @@ function ProjectionResults({
         DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.annualReturnPercent &&
       appliedAssumptions.horizonYears === DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS.horizonYears
     );
-  }, [appliedAssumptions, appliedHousehold]);
+  }, [appliedAssumptions, appliedHousehold, cashFlowMode, events]);
 
   const handleFieldChange =
     (field: keyof Omit<AssumptionFormValues, "household">) =>
@@ -604,6 +617,102 @@ function ProjectionResults({
     }));
   };
 
+  const saveEvents = (newEvents: ProjectionEvent[], newMode: CashFlowMode = cashFlowMode) => {
+    setEvents(newEvents);
+    writeLifetimePlanSnapshot(userId, {
+      version: STARTER_LIFETIME_PLAN_VERSION,
+      planType: "custom",
+      baseline: activeBaseline,
+      assumptions: appliedAssumptions,
+      household: appliedHousehold,
+      cashFlowMode: newMode,
+      events: newEvents,
+      updatedAt: new Date().toISOString(),
+    });
+    setPlanType("custom");
+    setIsSavedPlan(true);
+  };
+
+  const handleSetCashFlowMode = (newMode: CashFlowMode) => {
+    setCashFlowMode(newMode);
+    writeLifetimePlanSnapshot(userId, {
+      version: STARTER_LIFETIME_PLAN_VERSION,
+      planType: "custom",
+      baseline: activeBaseline,
+      assumptions: appliedAssumptions,
+      household: appliedHousehold,
+      cashFlowMode: newMode,
+      events,
+      updatedAt: new Date().toISOString(),
+    });
+    setPlanType("custom");
+    setIsSavedPlan(true);
+  };
+
+  const handleOpenAddEvent = () => {
+    setEditingEvent(null);
+    setIsEventDialogOpen(true);
+  };
+
+  const handleEditEvent = (eventToEdit: ProjectionEvent) => {
+    setEditingEvent(eventToEdit);
+    setIsEventDialogOpen(true);
+  };
+
+  const handleSaveEvent = (savedEvent: ProjectionEvent) => {
+    const existingIndex = events.findIndex((e) => e.id === savedEvent.id);
+    const nextEvents =
+      existingIndex >= 0
+        ? events.map((e, idx) => (idx === existingIndex ? savedEvent : e))
+        : [...events, savedEvent];
+    saveEvents(nextEvents);
+  };
+
+  const handleToggleEvent = (eventId: string) => {
+    const nextEvents = events.map((e) => (e.id === eventId ? { ...e, enabled: !e.enabled } : e));
+    saveEvents(nextEvents);
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    const nextEvents = events.filter((e) => e.id !== eventId);
+    saveEvents(nextEvents);
+  };
+
+  const handlePrefillStarterEvents = () => {
+    const primaryMember = appliedHousehold.members[0];
+    const retirementYear = primaryMember.birthYear + primaryMember.retirementAge;
+    const horizonEndYear = START_YEAR + appliedAssumptions.horizonYears;
+
+    const starterEvents: ProjectionEvent[] = [
+      {
+        id: `event-${Date.now()}-1`,
+        name: "Salary",
+        type: "income",
+        frequency: "recurring",
+        memberId: primaryMember.id,
+        startYear: START_YEAR + 1,
+        endYear: Math.max(START_YEAR + 1, retirementYear),
+        amount: appliedAssumptions.annualIncome,
+        annualChangePercent: 0,
+        enabled: true,
+      },
+      {
+        id: `event-${Date.now()}-2`,
+        name: "Living costs",
+        type: "spending",
+        frequency: "recurring",
+        memberId: "household",
+        startYear: START_YEAR + 1,
+        endYear: horizonEndYear,
+        amount: appliedAssumptions.annualSpending,
+        annualChangePercent: 0,
+        enabled: true,
+      },
+    ];
+
+    saveEvents(starterEvents);
+  };
+
   const handleFormSubmit = (event: SyntheticEvent) => {
     event.preventDefault();
     const validation = validateAssumptionForm(formValues, START_YEAR);
@@ -618,6 +727,8 @@ function ProjectionResults({
         baseline: activeBaseline,
         assumptions: validation.parsedAssumptions,
         household: validation.parsedHousehold,
+        cashFlowMode,
+        events,
         updatedAt: new Date().toISOString(),
       });
       setPlanType("custom");
@@ -637,6 +748,8 @@ function ProjectionResults({
     setAppliedAssumptions(starter.assumptions);
     setAppliedHousehold(starterHousehold);
     setActiveBaseline(starter.baseline);
+    setCashFlowMode(starter.cashFlowMode ?? "flat");
+    setEvents(starter.events ?? []);
     setPlanType("starter");
     setIsSavedPlan(true);
     setIsResetDialogOpen(false);
@@ -653,6 +766,9 @@ function ProjectionResults({
 
   const { points, error } = projectionResult;
   const finalPoint = points.at(-1);
+  const year1Point = points[1];
+  const year1Income = year1Point.annualIncome ?? 0;
+  const year1Spending = year1Point.annualSpending ?? 0;
 
   return (
     <div className="space-y-6">
@@ -963,6 +1079,307 @@ function ProjectionResults({
               ) : null}
             </div>
 
+            {/* Cash flow model & schedule */}
+            <div className="space-y-4 rounded-xl border border-secondary bg-container-inset/40 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-secondary pb-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-primary">Cash flow schedule</h3>
+                  <p className="text-xs text-secondary">
+                    Simulate with simple flat amounts or detailed scheduled life events.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 rounded-lg border border-secondary bg-container p-0.5 text-xs font-medium">
+                  <button
+                    aria-pressed={cashFlowMode === "flat"}
+                    className={`rounded-md px-3 py-1 transition-colors ${
+                      cashFlowMode === "flat"
+                        ? "bg-container-inset font-medium text-primary shadow-xs"
+                        : "text-secondary hover:text-primary"
+                    }`}
+                    onClick={() => {
+                      handleSetCashFlowMode("flat");
+                    }}
+                    type="button"
+                  >
+                    Flat annual amounts
+                  </button>
+                  <button
+                    aria-pressed={cashFlowMode === "events"}
+                    className={`rounded-md px-3 py-1 transition-colors ${
+                      cashFlowMode === "events"
+                        ? "bg-container-inset font-medium text-primary shadow-xs"
+                        : "text-secondary hover:text-primary"
+                    }`}
+                    onClick={() => {
+                      handleSetCashFlowMode("events");
+                    }}
+                    type="button"
+                  >
+                    Scheduled life events
+                  </button>
+                </div>
+              </div>
+
+              {cashFlowMode === "flat" ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormField
+                    actions={<span className="text-xs text-secondary">today&apos;s dollars</span>}
+                    description="Nominal starting income before inflation."
+                    error={formErrors.annualIncome}
+                    id="projection-annual-income"
+                    inputMode="decimal"
+                    label="Annual income"
+                    name="annualIncome"
+                    onChange={handleFieldChange("annualIncome")}
+                    required
+                    value={formValues.annualIncome}
+                  />
+                  <FormField
+                    actions={<span className="text-xs text-secondary">today&apos;s dollars</span>}
+                    description="Nominal starting spending before inflation."
+                    error={formErrors.annualSpending}
+                    id="projection-annual-spending"
+                    inputMode="decimal"
+                    label="Annual spending"
+                    name="annualSpending"
+                    onChange={handleFieldChange("annualSpending")}
+                    required
+                    value={formValues.annualSpending}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-semibold text-secondary">
+                        Scheduled life events ({events.length})
+                      </span>
+                      <p className="text-xs text-secondary">
+                        Timing, amounts, and member assignments drive projected cash flow.
+                      </p>
+                    </div>
+                    {events.length > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          id="add-event-button"
+                          onClick={handleOpenAddEvent}
+                          size="sm"
+                          type="button"
+                          variant="primary"
+                        >
+                          <Icon className="mr-1.5" name="plus" size="sm" />
+                          Add event
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 rounded-lg border border-secondary bg-container p-3 sm:grid-cols-2 text-xs">
+                    <div>
+                      <span className="text-secondary">Year 1 income (active events):</span>
+                      <span className="ml-2 font-semibold tabular-nums text-success">
+                        +{money.format(year1Income)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-secondary">Year 1 spending (active events):</span>
+                      <span className="ml-2 font-semibold tabular-nums text-destructive">
+                        −{money.format(year1Spending)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {events.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-secondary bg-container p-6 text-center text-xs text-secondary">
+                      <Icon className="mb-2 text-secondary" name="calendar" size="md" />
+                      <p className="font-medium text-primary">No events scheduled yet</p>
+                      <p className="mt-1 max-w-sm">
+                        Schedule recurring income, retirement pensions, living costs, or one-time
+                        expenses to drive your projection.
+                      </p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button
+                          onClick={handleOpenAddEvent}
+                          size="sm"
+                          type="button"
+                          variant="primary"
+                        >
+                          <Icon className="mr-1.5" name="plus" size="sm" />
+                          Add event
+                        </Button>
+                        <Button
+                          onClick={handlePrefillStarterEvents}
+                          size="sm"
+                          type="button"
+                          variant="secondary"
+                        >
+                          Pre-fill starter events
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-lg border border-secondary bg-container">
+                      <table
+                        className="w-full min-w-160 text-xs"
+                        data-testid="scheduled-events-table"
+                      >
+                        <caption className="sr-only">Scheduled life events</caption>
+                        <thead className="bg-container-inset">
+                          <tr>
+                            <th
+                              className="px-3 py-2 text-left font-medium uppercase tracking-wide text-secondary"
+                              scope="col"
+                            >
+                              Status
+                            </th>
+                            <th
+                              className="px-3 py-2 text-left font-medium uppercase tracking-wide text-secondary"
+                              scope="col"
+                            >
+                              Event & Member
+                            </th>
+                            <th
+                              className="px-3 py-2 text-left font-medium uppercase tracking-wide text-secondary"
+                              scope="col"
+                            >
+                              Type
+                            </th>
+                            <th
+                              className="px-3 py-2 text-left font-medium uppercase tracking-wide text-secondary"
+                              scope="col"
+                            >
+                              Active timing
+                            </th>
+                            <th
+                              className="px-3 py-2 text-right font-medium uppercase tracking-wide text-secondary"
+                              scope="col"
+                            >
+                              Base amount
+                            </th>
+                            <th
+                              className="px-3 py-2 text-right font-medium uppercase tracking-wide text-secondary"
+                              scope="col"
+                            >
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-tertiary">
+                          {events.map((event) => {
+                            const memberName =
+                              event.memberId === "household"
+                                ? "Household (Shared)"
+                                : (appliedHousehold.members.find((m) => m.id === event.memberId)
+                                    ?.name ?? "Member");
+
+                            const timingText =
+                              event.frequency === "one_time"
+                                ? `${event.startYear} (One-time)`
+                                : `${event.startYear} – ${event.endYear} (${
+                                    event.endYear - event.startYear + 1
+                                  } yrs)`;
+
+                            return (
+                              <tr
+                                className={`transition-colors hover:bg-surface-hover ${
+                                  !event.enabled ? "opacity-60" : ""
+                                }`}
+                                key={event.id}
+                              >
+                                <td className="px-3 py-2.5">
+                                  <button
+                                    aria-label={
+                                      event.enabled
+                                        ? `Disable ${event.name}`
+                                        : `Enable ${event.name}`
+                                    }
+                                    className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                                      event.enabled
+                                        ? "bg-success/15 text-success hover:bg-success/25"
+                                        : "bg-container-inset text-secondary hover:text-primary"
+                                    }`}
+                                    onClick={() => {
+                                      handleToggleEvent(event.id);
+                                    }}
+                                    type="button"
+                                  >
+                                    <span
+                                      className={`size-1.5 rounded-full ${
+                                        event.enabled ? "bg-success" : "bg-container-inset"
+                                      }`}
+                                    />
+                                    {event.enabled ? "Enabled" : "Disabled"}
+                                  </button>
+                                </td>
+                                <th
+                                  aria-label={`${event.name} (${memberName})`}
+                                  className="px-3 py-2.5 text-left font-medium text-primary"
+                                  scope="row"
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold text-primary">{event.name}</span>
+                                    <span className="text-[11px] text-secondary">{memberName}</span>
+                                  </div>
+                                </th>
+                                <td className="px-3 py-2.5">
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                                      event.type === "income"
+                                        ? "bg-success/15 text-success"
+                                        : "bg-destructive/15 text-destructive"
+                                    }`}
+                                  >
+                                    {event.type === "income" ? "Income" : "Spending"}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-secondary">{timingText}</td>
+                                <td className="px-3 py-2.5 text-right font-medium tabular-nums text-primary">
+                                  <div>
+                                    {money.format(event.amount)}
+                                    {event.frequency === "recurring" ? " / yr" : ""}
+                                  </div>
+                                  {event.annualChangePercent !== 0 ? (
+                                    <div className="text-[10px] text-secondary">
+                                      {event.annualChangePercent > 0 ? "+" : ""}
+                                      {event.annualChangePercent}% / yr
+                                    </div>
+                                  ) : null}
+                                </td>
+                                <td className="px-3 py-2.5 text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <button
+                                      aria-label={`Edit ${event.name}`}
+                                      className="rounded-md p-1 text-secondary hover:bg-container-inset hover:text-primary"
+                                      onClick={() => {
+                                        handleEditEvent(event);
+                                      }}
+                                      type="button"
+                                    >
+                                      <Icon name="pencil" size="sm" />
+                                    </button>
+                                    <button
+                                      aria-label={`Delete ${event.name}`}
+                                      className="rounded-md p-1 text-secondary hover:bg-container-inset hover:text-destructive"
+                                      onClick={() => {
+                                        handleDeleteEvent(event.id);
+                                      }}
+                                      type="button"
+                                    >
+                                      <Icon name="trash-2" size="sm" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Financial assumptions inputs */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <FormField
@@ -976,30 +1393,6 @@ function ProjectionResults({
                 onChange={handleFieldChange("horizonYears")}
                 required
                 value={formValues.horizonYears}
-              />
-              <FormField
-                actions={<span className="text-xs text-secondary">today&apos;s dollars</span>}
-                description="Nominal starting income before inflation."
-                error={formErrors.annualIncome}
-                id="projection-annual-income"
-                inputMode="decimal"
-                label="Annual income"
-                name="annualIncome"
-                onChange={handleFieldChange("annualIncome")}
-                required
-                value={formValues.annualIncome}
-              />
-              <FormField
-                actions={<span className="text-xs text-secondary">today&apos;s dollars</span>}
-                description="Nominal starting spending before inflation."
-                error={formErrors.annualSpending}
-                id="projection-annual-spending"
-                inputMode="decimal"
-                label="Annual spending"
-                name="annualSpending"
-                onChange={handleFieldChange("annualSpending")}
-                required
-                value={formValues.annualSpending}
               />
               <FormField
                 actions={<span className="text-xs text-secondary">% / year</span>}
@@ -1144,7 +1537,7 @@ function ProjectionResults({
           ) : null}
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-180">
+            <table className="w-full min-w-180" data-testid="projection-results-table">
               <caption className="sr-only">Lifetime net worth projection by year</caption>
               <thead className="bg-container-inset">
                 <tr>
@@ -1248,6 +1641,18 @@ function ProjectionResults({
           setIsRefreshModalOpen(false);
         }}
         onConfirmRefresh={handleConfirmBaselineRefresh}
+      />
+
+      <ProjectionEventDialog
+        household={appliedHousehold}
+        initialEvent={editingEvent}
+        isOpen={isEventDialogOpen}
+        onClose={() => {
+          setIsEventDialogOpen(false);
+          setEditingEvent(null);
+        }}
+        onSave={handleSaveEvent}
+        startYear={START_YEAR}
       />
     </div>
   );

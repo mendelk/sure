@@ -29,6 +29,40 @@ export const HouseholdSchema = z.object({
 export type HouseholdMember = z.infer<typeof HouseholdMemberSchema>;
 export type Household = z.infer<typeof HouseholdSchema>;
 
+export const ProjectionEventSchema = z.object({
+  id: z.string(),
+  name: z.string().trim().min(1),
+  type: z.enum(["income", "spending"]),
+  memberId: z.string(),
+  frequency: z.enum(["recurring", "one_time"]),
+  startYear: z.number().int().min(1900).max(2150),
+  endYear: z.number().int().min(1900).max(2150),
+  amount: z.number().nonnegative(),
+  annualChangePercent: z.number().min(-100).max(100).default(0),
+  enabled: z.boolean().default(true),
+});
+
+export type ProjectionEvent = z.infer<typeof ProjectionEventSchema>;
+export type CashFlowMode = "flat" | "events";
+
+export type EventYearStatus = {
+  eventId: string;
+  name: string;
+  type: "income" | "spending";
+  memberId: string;
+  frequency: "recurring" | "one_time";
+  startYear: number;
+  endYear: number;
+  amount: number;
+  annualChangePercent: number;
+  isActive: boolean;
+  isFirstYear: boolean;
+  isLastYear: boolean;
+  adjustedAmount: number;
+  baseAmount: number;
+  reason: string;
+};
+
 export type MemberLifeStage = "working" | "retirement_year" | "retired" | "post_horizon";
 
 export type MemberYearState = {
@@ -108,6 +142,59 @@ export function calculateMemberYearStates(
   });
 }
 
+export function calculateEventYearStatuses(
+  events: ProjectionEvent[],
+  currentYear: number,
+  startYear: number,
+  inflationRate: number,
+): EventYearStatus[] {
+  const yearOffset = currentYear - startYear;
+  const inflationFactor = yearOffset > 0 ? (1 + inflationRate) ** (yearOffset - 1) : 1;
+
+  return events.map((event) => {
+    const isWithinYears = currentYear >= event.startYear && currentYear <= event.endYear;
+    const isActive = event.enabled && isWithinYears;
+    const isFirstYear =
+      currentYear === event.startYear ||
+      (currentYear === startYear + 1 && event.startYear <= startYear);
+    const isLastYear = currentYear === event.endYear;
+
+    let reason = "Active";
+    if (!event.enabled) reason = "Disabled";
+    else if (currentYear < event.startYear) reason = `Starts in ${event.startYear}`;
+    else if (currentYear > event.endYear) reason = `Ended in ${event.endYear}`;
+
+    let baseAmount = 0;
+    let adjustedAmount = 0;
+
+    if (isActive) {
+      const yearsActive = currentYear - event.startYear;
+      const growthFactor =
+        event.annualChangePercent !== 0 ? (1 + event.annualChangePercent / 100) ** yearsActive : 1;
+      baseAmount = event.amount * growthFactor;
+      adjustedAmount = baseAmount * inflationFactor;
+    }
+
+    return {
+      eventId: event.id,
+      name: event.name,
+      type: event.type,
+      memberId: event.memberId,
+      frequency: event.frequency,
+      startYear: event.startYear,
+      endYear: event.endYear,
+      amount: event.amount,
+      annualChangePercent: event.annualChangePercent,
+      isActive,
+      isFirstYear,
+      isLastYear,
+      adjustedAmount,
+      baseAmount,
+      reason,
+    };
+  });
+}
+
 export function getOutOfHorizonMilestones(
   members: HouseholdMember[],
   startYear: number,
@@ -168,6 +255,8 @@ export const LifetimeProjectionInputsSchema = z.object({
   horizonYears: HorizonYearsSchema,
   startYear: CalendarYearSchema,
   household: z.optional(HouseholdSchema),
+  cashFlowMode: z.optional(z.enum(["flat", "events"])),
+  events: z.optional(z.array(ProjectionEventSchema)),
 });
 
 export const LifetimeProjectionAssumptionsSchema = z.object({
@@ -201,6 +290,8 @@ const LifetimeProjectionInputValuesSchema = z.object({
   horizonYears: HorizonYearsValueSchema,
   startYear: CalendarYearValueSchema,
   household: z.optional(HouseholdSchema),
+  cashFlowMode: z.optional(z.enum(["flat", "events"])),
+  events: z.optional(z.array(ProjectionEventSchema)),
 });
 
 export const DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS = LifetimeProjectionAssumptionsSchema.parse({
@@ -227,6 +318,7 @@ export type LifetimeProjectionPoint = {
   spendingInflation: number | null;
   inflationEffect: number | null;
   memberStates?: MemberYearState[];
+  eventStatuses?: EventYearStatus[];
 };
 
 export class LifetimeProjectionCalculationError extends Error {}
@@ -250,6 +342,12 @@ export function calculateLifetimeProjection(
 ): LifetimeProjectionPoint[] {
   const members = inputs.household?.members ?? [];
   const initialMemberStates = calculateMemberYearStates(members, inputs.startYear);
+  const isEventsMode = inputs.cashFlowMode === "events";
+  const events = inputs.events ?? [];
+
+  const initialEventStatuses = isEventsMode
+    ? calculateEventYearStatuses(events, inputs.startYear, inputs.startYear, inputs.inflationRate)
+    : undefined;
 
   const projection: LifetimeProjectionPoint[] = [
     {
@@ -266,6 +364,7 @@ export function calculateLifetimeProjection(
       spendingInflation: null,
       inflationEffect: null,
       memberStates: initialMemberStates,
+      eventStatuses: initialEventStatuses,
     },
   ];
   const inflationFactor = 1 + inputs.inflationRate;
@@ -275,11 +374,37 @@ export function calculateLifetimeProjection(
     const currentYear = inputs.startYear + yearOffset;
     const startingNetWorth = netWorth;
     const investmentGrowth = startingNetWorth * inputs.annualReturnRate;
-    const annualIncome = inputs.annualIncome * inflationFactor ** (yearOffset - 1);
-    const annualSpending = inputs.annualSpending * inflationFactor ** (yearOffset - 1);
+
+    let annualIncome: number;
+    let annualSpending: number;
+    let baseIncome: number;
+    let baseSpending: number;
+    let currentEventStatuses: EventYearStatus[] | undefined;
+
+    if (isEventsMode) {
+      currentEventStatuses = calculateEventYearStatuses(
+        events,
+        currentYear,
+        inputs.startYear,
+        inputs.inflationRate,
+      );
+      const activeIncome = currentEventStatuses.filter((s) => s.isActive && s.type === "income");
+      const activeSpending = currentEventStatuses.filter(
+        (s) => s.isActive && s.type === "spending",
+      );
+
+      annualIncome = activeIncome.reduce((sum, s) => sum + s.adjustedAmount, 0);
+      annualSpending = activeSpending.reduce((sum, s) => sum + s.adjustedAmount, 0);
+      baseIncome = activeIncome.reduce((sum, s) => sum + s.baseAmount, 0);
+      baseSpending = activeSpending.reduce((sum, s) => sum + s.baseAmount, 0);
+    } else {
+      annualIncome = inputs.annualIncome * inflationFactor ** (yearOffset - 1);
+      annualSpending = inputs.annualSpending * inflationFactor ** (yearOffset - 1);
+      baseIncome = inputs.annualIncome;
+      baseSpending = inputs.annualSpending;
+    }
+
     const annualSavings = annualIncome - annualSpending;
-    const baseIncome = inputs.annualIncome;
-    const baseSpending = inputs.annualSpending;
     const incomeInflation = annualIncome - baseIncome;
     const spendingInflation = annualSpending - baseSpending;
     const inflationEffect = incomeInflation - spendingInflation;
@@ -303,6 +428,7 @@ export function calculateLifetimeProjection(
       spendingInflation,
       inflationEffect,
       memberStates: calculateMemberYearStates(members, currentYear),
+      eventStatuses: currentEventStatuses,
     });
   }
 
