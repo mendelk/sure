@@ -1,6 +1,12 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import {
+  PivotFieldMetadataSchema,
+  aggregationsForFieldKind,
+  inferPivotFieldKindFromValues,
+  type PivotFieldMetadata,
+} from "../pivot-chart-contract";
+import {
   GetApiV1Transactions200Response,
   GetApiV1TransactionsId200Response,
   GetApiV1TransactionsIdParams,
@@ -100,9 +106,33 @@ export const SureqlResultSchema = z.object({
   row_count: z.number(),
   truncated: z.boolean(),
   html: z.optional(z.nullable(z.string())),
+  fields: z.optional(z.array(PivotFieldMetadataSchema)),
 });
 
 export type SureqlResult = z.infer<typeof SureqlResultSchema>;
+
+export function pivotFieldsForResult(result: SureqlResult): PivotFieldMetadata[] {
+  if (result.fields !== undefined && result.fields.length > 0) return result.fields;
+  const columns =
+    result.columns.length > 0
+      ? result.columns
+      : result.rows.length > 0
+        ? Object.keys(result.rows[0])
+        : [];
+  return columns.map((name) => {
+    const kind = inferPivotFieldKindFromValues(result.rows.map((row) => row[name]));
+    return {
+      name,
+      kind,
+      capabilities: {
+        category: true,
+        series: kind !== "boolean",
+        measure: true,
+        aggregations: aggregationsForFieldKind(kind),
+      },
+    };
+  });
+}
 
 export async function executeSureqlQuery(
   endpoint: string,
