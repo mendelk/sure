@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Add here
+- Aligned chart `version` and `appVersion` with the fork's `.sure-version` (`0.7.5-fork.1`) to satisfy the Chart CI version synchronization check.
 
 ### Added
 - Add here
