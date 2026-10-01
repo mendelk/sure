@@ -34,6 +34,11 @@ It retains the fork's transaction autocomplete and exclusion filters, configurab
 transaction columns, merchant shortcuts and APIs, transfer-aware splits, SureQL
 editor, deployment/workspace tooling, and planning vault.
 
+Desktop and mobile transaction tag pickers stay synchronized without a page reload;
+transfer tag edits update both legs. CI covers persisted tag changes and keyboard focus.
+The report currency regression also runs safely when month-start rates already exist
+in the exchange-rate fixtures.
+
 ## Backstory
 
 The [Maybe Finance](https://github.com/maybe-finance/maybe) (archived/abandoned repo) team spent most of 2021–2022 building a full-featured personal finance and wealth management app. It even included an “Ask an Advisor” feature that connected users with a real CFP/CFA — all included with your subscription.

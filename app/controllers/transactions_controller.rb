@@ -239,14 +239,19 @@ class TransactionsController < ApplicationController
       format.html { redirect_back_or_to transaction_path(@entry) }
       format.turbo_stream do
         transaction = @entry.transaction
-        streams = %i[desktop mobile].map do |variant|
+        streams = [
           turbo_stream.replace(
-            dom_id(transaction, "tag_summary_#{variant}"),
+            dom_id(transaction, "tag_summary_mobile"),
             partial: "tags/summary",
-            locals: { transaction: transaction, variant: variant }
+            locals: { transaction: transaction, variant: :mobile }
           )
-        end
+        ]
         if @toggled_tag
+          streams << turbo_stream.replace(
+            dom_id(transaction, :inline_tags),
+            partial: "transactions/inline_tags",
+            locals: { entry: @entry, transaction: transaction }
+          )
           # autofocus hands keyboard focus back to the re-rendered option,
           # which Turbo focuses after the stream renders.
           streams << turbo_stream.replace(
