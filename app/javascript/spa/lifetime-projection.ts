@@ -86,6 +86,96 @@ export type GoalEvaluation = {
   projectedNetWorthAtYear?: number;
 };
 
+export const ProjectionDebtSchema = z.object({
+  id: z.string(),
+  name: z.string().trim().min(1),
+  category: z.enum(["mortgage", "auto", "student", "other"]).default("mortgage"),
+  startingBalance: z.number().nonnegative(),
+  interestRatePercent: z.number().min(0).max(100),
+  termYears: z.number().int().min(1).max(50),
+  startYear: z.number().int().min(1900).max(2150),
+  extraAnnualPayment: z.number().nonnegative().default(0),
+  linkedAssetId: z.string().optional(),
+  enabled: z.boolean().default(true),
+});
+
+export type ProjectionDebt = z.infer<typeof ProjectionDebtSchema>;
+
+export const ProjectionRealAssetSchema = z.object({
+  id: z.string(),
+  name: z.string().trim().min(1),
+  category: z.enum(["property", "vehicle", "other_asset"]).default("property"),
+  initialValue: z.number().nonnegative(),
+  purchaseYear: z.number().int().min(1900).max(2150),
+  annualAppreciationPercent: z.number().min(-100).max(100).default(0),
+  annualCarryingCost: z.number().nonnegative().default(0),
+  saleYear: z.number().int().min(1900).max(2150).optional(),
+  linkedDebtId: z.string().optional(),
+  enabled: z.boolean().default(true),
+});
+
+export type ProjectionRealAsset = z.infer<typeof ProjectionRealAssetSchema>;
+
+export type DebtYearStatus = {
+  debtId: string;
+  name: string;
+  category: "mortgage" | "auto" | "student" | "other";
+  startYear: number;
+  isActive: boolean;
+  isPaidOff: boolean;
+  isPaidOffThisYear: boolean;
+  payoffYear?: number;
+  startingBalance: number;
+  interestAccrued: number;
+  scheduledPrincipalPaid: number;
+  extraPrincipalPaid: number;
+  totalPrincipalPaid: number;
+  totalPayment: number;
+  endingBalance: number;
+  scheduledPayoffYear: number;
+  actualPayoffYear: number;
+  yearsSavedByExtraPayments: number;
+  interestSavedByExtraPayments: number;
+  clearedBySaleOfAsset?: boolean;
+};
+
+export type RealAssetYearStatus = {
+  assetId: string;
+  name: string;
+  category: "property" | "vehicle" | "other_asset";
+  purchaseYear: number;
+  isPurchasedThisYear: boolean;
+  isOwned: boolean;
+  isSoldThisYear: boolean;
+  saleYear?: number;
+  startingValue: number;
+  appreciationOrDepreciation: number;
+  endingValue: number;
+  annualCarryingCost: number;
+  purchaseCashOutflow: number;
+  grossSaleProceeds: number;
+  debtClearedAtSale: number;
+  netSaleProceeds: number;
+  linkedDebtId?: string;
+  netEquity: number;
+};
+
+export type DebtsAssetsProjectionSummary = {
+  activeDebtsCount: number;
+  activeAssetsCount: number;
+  currentDebtBalance: number;
+  currentAssetsValue: number;
+  currentNetEquity: number;
+  planEndDebtBalance: number;
+  planEndAssetsValue: number;
+  planEndNetEquity: number;
+  totalDebtServiceOverHorizon: number;
+  totalCarryingCostsOverHorizon: number;
+  totalInterestSavedOverHorizon: number;
+  hasEarlyPayoffs: boolean;
+  hasSalesBeforePayoff: boolean;
+};
+
 export type EventYearStatus = {
   eventId: string;
   name: string;
@@ -299,6 +389,8 @@ export const LifetimeProjectionInputsSchema = z.object({
   cashFlowMode: z.optional(z.enum(["flat", "events"])),
   events: z.optional(z.array(ProjectionEventSchema)),
   goals: z.optional(z.array(ProjectionGoalSchema)),
+  debts: z.optional(z.array(ProjectionDebtSchema)),
+  realAssets: z.optional(z.array(ProjectionRealAssetSchema)),
 });
 
 export const LifetimeProjectionAssumptionsSchema = z.object({
@@ -335,6 +427,8 @@ const LifetimeProjectionInputValuesSchema = z.object({
   cashFlowMode: z.optional(z.enum(["flat", "events"])),
   events: z.optional(z.array(ProjectionEventSchema)),
   goals: z.optional(z.array(ProjectionGoalSchema)),
+  debts: z.optional(z.array(ProjectionDebtSchema)),
+  realAssets: z.optional(z.array(ProjectionRealAssetSchema)),
 });
 
 export const DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS = LifetimeProjectionAssumptionsSchema.parse({
@@ -362,9 +456,19 @@ export type LifetimeProjectionPoint = {
   inflationEffect: number | null;
   regularSpending?: number | null;
   goalSpending?: number | null;
+  liquidPortfolio: number;
+  realAssetsValue: number;
+  totalDebtBalance: number;
+  netEquity: number;
+  debtPayments?: number | null;
+  carryingCosts?: number | null;
+  assetPurchasesOutflow?: number | null;
+  assetSalesInflow?: number | null;
   memberStates?: MemberYearState[];
   eventStatuses?: EventYearStatus[];
   goalEvaluations?: GoalEvaluation[];
+  debtStatuses?: DebtYearStatus[];
+  assetStatuses?: RealAssetYearStatus[];
 };
 
 export class LifetimeProjectionCalculationError extends Error {}
@@ -605,6 +709,210 @@ export function evaluateAllGoals(
   return goals.map((goal) => evaluateGoal(goal, points, startYear, horizonYears));
 }
 
+export function calculateScheduledAnnualPayment(
+  principal: number,
+  interestRatePercent: number,
+  termYears: number,
+): number {
+  if (principal <= 0 || termYears <= 0) return 0;
+  const rate = interestRatePercent / 100;
+  if (rate <= 0) return principal / termYears;
+  return (principal * rate) / (1 - (1 + rate) ** -termYears);
+}
+
+export function calculateTotalInterestWithoutExtra(
+  principal: number,
+  interestRatePercent: number,
+  termYears: number,
+): number {
+  const annual = calculateScheduledAnnualPayment(principal, interestRatePercent, termYears);
+  return Math.max(0, annual * termYears - principal);
+}
+
+export function simulateDebtPayoff(debt: ProjectionDebt): {
+  scheduledPayoffYear: number;
+  actualPayoffYear: number;
+  scheduledAnnualPayment: number;
+  totalPaymentWithExtra: number;
+  yearsSaved: number;
+  totalInterestWithoutExtra: number;
+  totalInterestWithExtra: number;
+  interestSaved: number;
+} {
+  const scheduledAnnual = calculateScheduledAnnualPayment(
+    debt.startingBalance,
+    debt.interestRatePercent,
+    debt.termYears,
+  );
+  const scheduledPayoffYear = debt.startYear + debt.termYears;
+  const totalInterestWithoutExtra = calculateTotalInterestWithoutExtra(
+    debt.startingBalance,
+    debt.interestRatePercent,
+    debt.termYears,
+  );
+
+  if (debt.extraAnnualPayment <= 0 || debt.startingBalance <= 0) {
+    return {
+      scheduledPayoffYear,
+      actualPayoffYear: scheduledPayoffYear,
+      scheduledAnnualPayment: scheduledAnnual,
+      totalPaymentWithExtra: scheduledAnnual,
+      yearsSaved: 0,
+      totalInterestWithoutExtra,
+      totalInterestWithExtra: totalInterestWithoutExtra,
+      interestSaved: 0,
+    };
+  }
+
+  let balance = debt.startingBalance;
+  const rate = debt.interestRatePercent / 100;
+  let totalInterestWithExtra = 0;
+  let actualPayoffYear = scheduledPayoffYear;
+
+  for (let y = 1; y <= debt.termYears + 10; y += 1) {
+    if (balance <= 0.01) {
+      actualPayoffYear = debt.startYear + y - 1;
+      break;
+    }
+    const interest = balance * rate;
+    totalInterestWithExtra += interest;
+    const maxPayoff = balance + interest;
+    const scheduled = Math.min(scheduledAnnual, maxPayoff);
+    const afterScheduled = maxPayoff - scheduled;
+    const extra = Math.min(debt.extraAnnualPayment, afterScheduled);
+    const total = scheduled + extra;
+    balance = Math.max(0, balance + interest - total);
+
+    if (balance <= 0.01) {
+      actualPayoffYear = debt.startYear + y;
+      break;
+    }
+  }
+
+  const yearsSaved = Math.max(0, scheduledPayoffYear - actualPayoffYear);
+  const interestSaved = Math.max(0, totalInterestWithoutExtra - totalInterestWithExtra);
+
+  return {
+    scheduledPayoffYear,
+    actualPayoffYear,
+    scheduledAnnualPayment: scheduledAnnual,
+    totalPaymentWithExtra: scheduledAnnual + debt.extraAnnualPayment,
+    yearsSaved,
+    totalInterestWithoutExtra,
+    totalInterestWithExtra,
+    interestSaved,
+  };
+}
+
+export function summarizeDebtsAndAssets(
+  points: LifetimeProjectionPoint[],
+): DebtsAssetsProjectionSummary {
+  if (points.length === 0) {
+    return {
+      activeDebtsCount: 0,
+      activeAssetsCount: 0,
+      currentDebtBalance: 0,
+      currentAssetsValue: 0,
+      currentNetEquity: 0,
+      planEndDebtBalance: 0,
+      planEndAssetsValue: 0,
+      planEndNetEquity: 0,
+      totalDebtServiceOverHorizon: 0,
+      totalCarryingCostsOverHorizon: 0,
+      totalInterestSavedOverHorizon: 0,
+      hasEarlyPayoffs: false,
+      hasSalesBeforePayoff: false,
+    };
+  }
+
+  const firstPoint = points[0];
+  const lastPoint = points.at(-1)!;
+
+  let totalDebtService = 0;
+  let totalCarryingCosts = 0;
+  let totalInterestSaved = 0;
+  let hasEarlyPayoffs = false;
+  let hasSalesBeforePayoff = false;
+
+  for (const point of points) {
+    totalDebtService += point.debtPayments ?? 0;
+    totalCarryingCosts += point.carryingCosts ?? 0;
+
+    for (const d of point.debtStatuses ?? []) {
+      if (d.yearsSavedByExtraPayments > 0) {
+        hasEarlyPayoffs = true;
+        totalInterestSaved = Math.max(totalInterestSaved, d.interestSavedByExtraPayments);
+      }
+      if (d.clearedBySaleOfAsset === true) hasSalesBeforePayoff = true;
+    }
+  }
+
+  return {
+    activeDebtsCount: (firstPoint.debtStatuses ?? []).filter((d) => d.isActive).length,
+    activeAssetsCount: (firstPoint.assetStatuses ?? []).filter((a) => a.isOwned).length,
+    currentDebtBalance: firstPoint.totalDebtBalance,
+    currentAssetsValue: firstPoint.realAssetsValue,
+    currentNetEquity: firstPoint.netEquity,
+    planEndDebtBalance: lastPoint.totalDebtBalance,
+    planEndAssetsValue: lastPoint.realAssetsValue,
+    planEndNetEquity: lastPoint.netEquity,
+    totalDebtServiceOverHorizon: totalDebtService,
+    totalCarryingCostsOverHorizon: totalCarryingCosts,
+    totalInterestSavedOverHorizon: totalInterestSaved,
+    hasEarlyPayoffs,
+    hasSalesBeforePayoff,
+  };
+}
+
+export function createExampleDebtsAndAssets(startYear = new Date().getFullYear()): {
+  debts: ProjectionDebt[];
+  realAssets: ProjectionRealAsset[];
+} {
+  const homeAssetId = "asset-primary-home";
+  const mortgageDebtId = "debt-primary-mortgage";
+  const vehicleAssetId = "asset-commuter-car";
+
+  return {
+    debts: [
+      {
+        id: mortgageDebtId,
+        name: "Primary Mortgage",
+        category: "mortgage",
+        startingBalance: 320_000,
+        interestRatePercent: 5,
+        termYears: 25,
+        startYear,
+        extraAnnualPayment: 0,
+        linkedAssetId: homeAssetId,
+        enabled: true,
+      },
+    ],
+    realAssets: [
+      {
+        id: homeAssetId,
+        name: "Family Home",
+        category: "property",
+        initialValue: 450_000,
+        purchaseYear: startYear,
+        annualAppreciationPercent: 3.5,
+        annualCarryingCost: 4_500,
+        linkedDebtId: mortgageDebtId,
+        enabled: true,
+      },
+      {
+        id: vehicleAssetId,
+        name: "Commuter Car",
+        category: "vehicle",
+        initialValue: 35_000,
+        purchaseYear: startYear,
+        annualAppreciationPercent: -15,
+        annualCarryingCost: 1_800,
+        enabled: true,
+      },
+    ],
+  };
+}
+
 export function calculateLifetimeProjection(
   inputs: LifetimeProjectionInputs,
 ): LifetimeProjectionPoint[] {
@@ -615,9 +923,75 @@ export function calculateLifetimeProjection(
   const goals = inputs.goals ?? [];
   const enabledGoals = goals.filter((g) => g.enabled);
 
+  const debts = (inputs.debts ?? []).filter((d) => d.enabled);
+  const realAssets = (inputs.realAssets ?? []).filter((a) => a.enabled);
+
   const initialEventStatuses = isEventsMode
     ? calculateEventYearStatuses(events, inputs.startYear, inputs.startYear, inputs.inflationRate)
     : undefined;
+
+  // Calculate baseline real asset values and debt balances for existing assets/debts
+  const existingDebts = debts.filter((d) => d.startYear <= inputs.startYear);
+  const initialDebtsBalance = existingDebts.reduce((sum, d) => sum + d.startingBalance, 0);
+
+  const existingRealAssets = realAssets.filter((a) => a.purchaseYear <= inputs.startYear);
+  const initialRealAssetsValue = existingRealAssets.reduce((sum, a) => sum + a.initialValue, 0);
+
+  const initialTotalNetWorth = inputs.startingBalance;
+  // Liquid Portfolio = Total Net Worth - Real Assets + Debts
+  const initialLiquidPortfolio =
+    initialTotalNetWorth - initialRealAssetsValue + initialDebtsBalance;
+
+  const initialDebtStatuses: DebtYearStatus[] = existingDebts.map((d) => {
+    const payoffSim = simulateDebtPayoff(d);
+    return {
+      debtId: d.id,
+      name: d.name,
+      category: d.category,
+      startYear: d.startYear,
+      isActive: true,
+      isPaidOff: false,
+      isPaidOffThisYear: false,
+      payoffYear: undefined,
+      startingBalance: d.startingBalance,
+      interestAccrued: 0,
+      scheduledPrincipalPaid: 0,
+      extraPrincipalPaid: 0,
+      totalPrincipalPaid: 0,
+      totalPayment: 0,
+      endingBalance: d.startingBalance,
+      scheduledPayoffYear: payoffSim.scheduledPayoffYear,
+      actualPayoffYear: payoffSim.actualPayoffYear,
+      yearsSavedByExtraPayments: payoffSim.yearsSaved,
+      interestSavedByExtraPayments: payoffSim.interestSaved,
+    };
+  });
+
+  const initialAssetStatuses: RealAssetYearStatus[] = existingRealAssets.map((a) => {
+    const linkedDebt = debts.find((d) => d.id === a.linkedDebtId || d.linkedAssetId === a.id);
+    const linkedDebtBalance =
+      linkedDebt && linkedDebt.startYear <= inputs.startYear ? linkedDebt.startingBalance : 0;
+    return {
+      assetId: a.id,
+      name: a.name,
+      category: a.category,
+      purchaseYear: a.purchaseYear,
+      isPurchasedThisYear: false,
+      isOwned: true,
+      isSoldThisYear: false,
+      saleYear: a.saleYear,
+      startingValue: a.initialValue,
+      appreciationOrDepreciation: 0,
+      endingValue: a.initialValue,
+      annualCarryingCost: 0,
+      purchaseCashOutflow: 0,
+      grossSaleProceeds: 0,
+      debtClearedAtSale: 0,
+      netSaleProceeds: 0,
+      linkedDebtId: a.linkedDebtId,
+      netEquity: a.initialValue - linkedDebtBalance,
+    };
+  });
 
   const projection: LifetimeProjectionPoint[] = [
     {
@@ -625,8 +999,8 @@ export function calculateLifetimeProjection(
       annualIncome: null,
       annualSpending: null,
       annualSavings: null,
-      netWorth: inputs.startingBalance,
-      startingNetWorth: inputs.startingBalance,
+      netWorth: initialTotalNetWorth,
+      startingNetWorth: initialTotalNetWorth,
       investmentGrowth: null,
       baseIncome: null,
       baseSpending: null,
@@ -635,18 +1009,49 @@ export function calculateLifetimeProjection(
       inflationEffect: null,
       regularSpending: null,
       goalSpending: null,
+      liquidPortfolio: initialLiquidPortfolio,
+      realAssetsValue: initialRealAssetsValue,
+      totalDebtBalance: initialDebtsBalance,
+      netEquity: initialRealAssetsValue - initialDebtsBalance,
+      debtPayments: null,
+      carryingCosts: null,
+      assetPurchasesOutflow: null,
+      assetSalesInflow: null,
       memberStates: initialMemberStates,
       eventStatuses: initialEventStatuses,
       goalEvaluations: undefined,
+      debtStatuses: initialDebtStatuses,
+      assetStatuses: initialAssetStatuses,
     },
   ];
+
   const inflationFactor = 1 + inputs.inflationRate;
-  let netWorth: number = inputs.startingBalance;
+  let liquidPortfolio = initialLiquidPortfolio;
+
+  // Running states for debts and assets
+  const debtCurrentBalances = new Map<string, number>();
+  const debtPaidOff = new Map<string, boolean>();
+  for (const d of debts) {
+    debtCurrentBalances.set(d.id, d.startingBalance);
+    debtPaidOff.set(d.id, false);
+  }
+
+  const assetCurrentValues = new Map<string, number>();
+  const assetOwned = new Map<string, boolean>();
+  for (const a of realAssets) {
+    if (a.purchaseYear <= inputs.startYear) {
+      assetCurrentValues.set(a.id, a.initialValue);
+      assetOwned.set(a.id, true);
+    } else {
+      assetCurrentValues.set(a.id, 0);
+      assetOwned.set(a.id, false);
+    }
+  }
 
   for (let yearOffset = 1; yearOffset <= inputs.horizonYears; yearOffset += 1) {
     const currentYear = inputs.startYear + yearOffset;
-    const startingNetWorth = netWorth;
-    const investmentGrowth = startingNetWorth * inputs.annualReturnRate;
+    const startingLiquidPortfolio = liquidPortfolio;
+    const investmentGrowth = startingLiquidPortfolio * inputs.annualReturnRate;
 
     let annualIncome: number;
     let annualSpending: number;
@@ -700,15 +1105,227 @@ export function calculateLifetimeProjection(
     }, 0);
 
     const regularSpending = annualSpending;
-    annualSpending += goalSpending;
-    baseSpending += goalSpending;
 
-    const annualSavings = annualIncome - annualSpending;
+    // Simulate debts for currentYear
+    const debtYearStatuses: DebtYearStatus[] = [];
+    const debtClearedMap = new Map<string, number>();
+
+    for (const d of debts) {
+      const payoffSim = simulateDebtPayoff(d);
+      const isAlreadyPaid = debtPaidOff.get(d.id) ?? false;
+      const hasStarted = currentYear >= d.startYear;
+
+      if (!hasStarted || isAlreadyPaid) {
+        debtYearStatuses.push({
+          debtId: d.id,
+          name: d.name,
+          category: d.category,
+          startYear: d.startYear,
+          isActive: false,
+          isPaidOff: isAlreadyPaid,
+          isPaidOffThisYear: false,
+          payoffYear: isAlreadyPaid ? currentYear : undefined,
+          startingBalance: 0,
+          interestAccrued: 0,
+          scheduledPrincipalPaid: 0,
+          extraPrincipalPaid: 0,
+          totalPrincipalPaid: 0,
+          totalPayment: 0,
+          endingBalance: 0,
+          scheduledPayoffYear: payoffSim.scheduledPayoffYear,
+          actualPayoffYear: payoffSim.actualPayoffYear,
+          yearsSavedByExtraPayments: payoffSim.yearsSaved,
+          interestSavedByExtraPayments: payoffSim.interestSaved,
+        });
+        continue;
+      }
+
+      const startingDebtBalance = debtCurrentBalances.get(d.id) ?? d.startingBalance;
+      const rate = d.interestRatePercent / 100;
+      const interestAccrued = startingDebtBalance * rate;
+      const scheduledAnnual = calculateScheduledAnnualPayment(
+        d.startingBalance,
+        d.interestRatePercent,
+        d.termYears,
+      );
+      const maxPayoff = startingDebtBalance + interestAccrued;
+      const scheduledPI = Math.min(scheduledAnnual, maxPayoff);
+      const remainingAfterScheduled = maxPayoff - scheduledPI;
+      const extra = Math.min(d.extraAnnualPayment, remainingAfterScheduled);
+      const totalPayment = scheduledPI + extra;
+      const scheduledPrincipal = Math.max(0, scheduledPI - interestAccrued);
+      const totalPrincipal = scheduledPrincipal + extra;
+      let endingDebtBalance = Math.max(0, startingDebtBalance + interestAccrued - totalPayment);
+      if (endingDebtBalance <= 0.01) endingDebtBalance = 0;
+
+      // Check if linked asset is sold in currentYear (sale before payoff!)
+      const linkedAsset = realAssets.find(
+        (a) => a.id === d.linkedAssetId || a.linkedDebtId === d.id,
+      );
+      let clearedBySale = false;
+      if (linkedAsset && linkedAsset.saleYear === currentYear && endingDebtBalance > 0) {
+        clearedBySale = true;
+        debtClearedMap.set(d.id, endingDebtBalance);
+        endingDebtBalance = 0;
+      }
+
+      const isPaidOffThisYear = endingDebtBalance === 0;
+      if (isPaidOffThisYear) debtPaidOff.set(d.id, true);
+      debtCurrentBalances.set(d.id, endingDebtBalance);
+
+      debtYearStatuses.push({
+        debtId: d.id,
+        name: d.name,
+        category: d.category,
+        startYear: d.startYear,
+        isActive: true,
+        isPaidOff: isPaidOffThisYear,
+        isPaidOffThisYear,
+        payoffYear: isPaidOffThisYear ? currentYear : undefined,
+        startingBalance: startingDebtBalance,
+        interestAccrued,
+        scheduledPrincipalPaid: scheduledPrincipal,
+        extraPrincipalPaid: extra,
+        totalPrincipalPaid: totalPrincipal,
+        totalPayment,
+        endingBalance: endingDebtBalance,
+        scheduledPayoffYear: payoffSim.scheduledPayoffYear,
+        actualPayoffYear: payoffSim.actualPayoffYear,
+        yearsSavedByExtraPayments: payoffSim.yearsSaved,
+        interestSavedByExtraPayments: payoffSim.interestSaved,
+        clearedBySaleOfAsset: clearedBySale,
+      });
+    }
+
+    // Simulate real assets for currentYear
+    const assetYearStatuses: RealAssetYearStatus[] = [];
+
+    for (const a of realAssets) {
+      const isOwned = assetOwned.get(a.id) ?? false;
+      const isPurchaseYear = a.purchaseYear === currentYear;
+      const isSaleYear = a.saleYear === currentYear;
+
+      let startingValue = 0;
+      let appreciation = 0;
+      let endingValue = 0;
+      let carryingCost = 0;
+      let purchaseCashOutflow = 0;
+      let grossSaleProceeds = 0;
+      let debtClearedAtSale = 0;
+      let netSaleProceeds = 0;
+
+      if (currentYear < a.purchaseYear) {
+        // Not yet acquired
+        assetYearStatuses.push({
+          assetId: a.id,
+          name: a.name,
+          category: a.category,
+          purchaseYear: a.purchaseYear,
+          isPurchasedThisYear: false,
+          isOwned: false,
+          isSoldThisYear: false,
+          saleYear: a.saleYear,
+          startingValue: 0,
+          appreciationOrDepreciation: 0,
+          endingValue: 0,
+          annualCarryingCost: 0,
+          purchaseCashOutflow: 0,
+          grossSaleProceeds: 0,
+          debtClearedAtSale: 0,
+          netSaleProceeds: 0,
+          linkedDebtId: a.linkedDebtId,
+          netEquity: 0,
+        });
+        continue;
+      }
+
+      if (isPurchaseYear) {
+        startingValue = a.initialValue;
+        endingValue = a.initialValue;
+        assetOwned.set(a.id, true);
+        carryingCost = a.annualCarryingCost;
+
+        if (a.purchaseYear > inputs.startYear) {
+          // Future purchase: compute down payment outflow
+          const linkedDebt = debts.find(
+            (d) =>
+              (d.id === a.linkedDebtId || d.linkedAssetId === a.id) && d.startYear === currentYear,
+          );
+          const debtFinancing = linkedDebt ? linkedDebt.startingBalance : 0;
+          purchaseCashOutflow = Math.max(0, a.initialValue - debtFinancing);
+        }
+      } else if (isOwned) {
+        startingValue = assetCurrentValues.get(a.id) ?? a.initialValue;
+        appreciation = startingValue * (a.annualAppreciationPercent / 100);
+        endingValue = Math.max(0, startingValue + appreciation);
+        carryingCost = a.annualCarryingCost;
+      }
+
+      if (isSaleYear && (isOwned || isPurchaseYear)) {
+        assetOwned.set(a.id, false);
+        grossSaleProceeds = endingValue;
+        const linkedDebt = debts.find((d) => d.id === a.linkedDebtId || d.linkedAssetId === a.id);
+        if (linkedDebt) {
+          debtClearedAtSale = debtClearedMap.get(linkedDebt.id) ?? 0;
+          netSaleProceeds = Math.max(0, grossSaleProceeds - debtClearedAtSale);
+        } else netSaleProceeds = grossSaleProceeds;
+        // Value zeroed after sale
+        endingValue = 0;
+      }
+
+      assetCurrentValues.set(a.id, endingValue);
+
+      // Net equity = endingValue - linked debt ending balance
+      const linkedDebt = debts.find((d) => d.id === a.linkedDebtId || d.linkedAssetId === a.id);
+      const linkedDebtBalance = linkedDebt
+        ? (debtYearStatuses.find((s) => s.debtId === linkedDebt.id)?.endingBalance ?? 0)
+        : 0;
+
+      assetYearStatuses.push({
+        assetId: a.id,
+        name: a.name,
+        category: a.category,
+        purchaseYear: a.purchaseYear,
+        isPurchasedThisYear: isPurchaseYear,
+        isOwned: isSaleYear ? false : isOwned || isPurchaseYear,
+        isSoldThisYear: isSaleYear,
+        saleYear: a.saleYear,
+        startingValue,
+        appreciationOrDepreciation: appreciation,
+        endingValue,
+        annualCarryingCost: carryingCost,
+        purchaseCashOutflow,
+        grossSaleProceeds,
+        debtClearedAtSale,
+        netSaleProceeds,
+        linkedDebtId: a.linkedDebtId,
+        netEquity: endingValue - linkedDebtBalance,
+      });
+    }
+
+    const totalDebtPayments = debtYearStatuses.reduce((sum, s) => sum + s.totalPayment, 0);
+    const totalCarryingCosts = assetYearStatuses.reduce((sum, s) => sum + s.annualCarryingCost, 0);
+    const totalAssetPurchases = assetYearStatuses.reduce(
+      (sum, s) => sum + s.purchaseCashOutflow,
+      0,
+    );
+    const totalAssetSalesNet = assetYearStatuses.reduce((sum, s) => sum + s.netSaleProceeds, 0);
+
+    const totalOutflows =
+      regularSpending + goalSpending + totalDebtPayments + totalCarryingCosts + totalAssetPurchases;
+    const totalInflows = annualIncome + totalAssetSalesNet;
+    const annualSavings = totalInflows - totalOutflows;
+
+    liquidPortfolio = startingLiquidPortfolio + investmentGrowth + annualSavings;
+
+    const totalRealAssetsValue = assetYearStatuses.reduce((sum, s) => sum + s.endingValue, 0);
+    const totalDebtBalance = debtYearStatuses.reduce((sum, s) => sum + s.endingBalance, 0);
+    const netEquity = totalRealAssetsValue - totalDebtBalance;
+    const netWorth = liquidPortfolio + totalRealAssetsValue - totalDebtBalance;
+
     const incomeInflation = annualIncome - baseIncome;
     const spendingInflation = annualSpending - baseSpending;
     const inflationEffect = incomeInflation - spendingInflation;
-
-    netWorth = startingNetWorth + investmentGrowth + annualSavings;
 
     if (!Number.isFinite(netWorth))
       throw new LifetimeProjectionCalculationError("The projection produced a non-finite result.");
@@ -716,10 +1333,10 @@ export function calculateLifetimeProjection(
     projection.push({
       year: currentYear,
       annualIncome,
-      annualSpending,
+      annualSpending: totalOutflows,
       annualSavings,
       netWorth,
-      startingNetWorth,
+      startingNetWorth: projection.at(-1)!.netWorth,
       investmentGrowth,
       baseIncome,
       baseSpending,
@@ -728,9 +1345,19 @@ export function calculateLifetimeProjection(
       inflationEffect,
       regularSpending,
       goalSpending,
+      liquidPortfolio,
+      realAssetsValue: totalRealAssetsValue,
+      totalDebtBalance,
+      netEquity,
+      debtPayments: totalDebtPayments,
+      carryingCosts: totalCarryingCosts,
+      assetPurchasesOutflow: totalAssetPurchases,
+      assetSalesInflow: totalAssetSalesNet,
       memberStates: calculateMemberYearStates(members, currentYear),
       eventStatuses: currentEventStatuses,
       goalEvaluations: undefined,
+      debtStatuses: debtYearStatuses,
+      assetStatuses: assetYearStatuses,
     });
   }
 
