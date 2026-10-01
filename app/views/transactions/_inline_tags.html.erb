@@ -21,7 +21,7 @@
 <% selected_ids = transaction.tags.map { |t| t.id.to_s }.to_set %>
 <% update_url = transaction.transfer.present? ? tags_transfer_path(transaction.transfer) : tags_transaction_path(entry) %>
 
-<div class="hidden lg:flex min-w-0 w-full items-center [&>div]:min-w-0 [&>div]:max-w-full"
+<div id="<%= dom_id(transaction, :inline_tags) %>" class="hidden lg:flex min-w-0 w-full items-center [&>div]:min-w-0 [&>div]:max-w-full"
      data-controller="inline-tags"
      data-inline-tags-update-url-value="<%= update_url %>">
   <%= render DS::Popover.new(variant: "button", placement: "bottom-start", max_width: "280px") do |popover| %>

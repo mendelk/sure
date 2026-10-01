@@ -123,7 +123,7 @@ export default class extends Controller {
       const response = await fetch(this.updateUrlValue, {
         method: "PATCH",
         headers: {
-          Accept: "application/json",
+          Accept: "text/vnd.turbo-stream.html, application/json",
           "Content-Type": "application/json",
           "X-CSRF-Token": this.csrfToken,
           "X-Requested-With": "XMLHttpRequest",
@@ -133,6 +133,9 @@ export default class extends Controller {
         signal: abortController.signal,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (response.headers.get("content-type")?.includes("text/vnd.turbo-stream.html")) {
+        Turbo.renderStreamMessage(await response.text());
+      }
     } finally {
       if (this.saveAbortController === abortController) {
         this.saveAbortController = null;

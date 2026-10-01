@@ -220,71 +220,84 @@ class TransactionsTest < ApplicationSystemTestCase
     assert_text @transaction.name
   end
 
-  test "can toggle tags from the transaction row" do
+  test "can add and remove tags from the transaction row" do
     transaction = @transaction.entryable
-    summary_id = dom_id(transaction, "tag_summary_desktop")
-    option_id = "#{dom_id(@transaction, :tag_option)}_#{tags(:two).id}"
+    editor = "##{dom_id(@transaction)} [data-controller='inline-tags']"
 
-    within "##{summary_id}" do
-      assert_text tags(:one).name
+    within editor do
+      find("button[aria-haspopup='dialog']").click
+      find("[role='option']", text: tags(:two).name).click
+      assert_selector "[role='option'][aria-selected='true']", text: tags(:two).name
     end
+    assert_selector "##{dom_id(transaction, 'tag_summary_mobile')}", text: tags(:two).name, visible: :all
 
-    find("##{summary_id}").click
-    find("##{option_id} button").click
+    visit current_url
+    within editor do
+      assert_selector "[data-inline-tags-target='display']", text: tags(:two).name
+      find("button[aria-haspopup='dialog']").click
+      find("[role='option']", text: tags(:two).name).click
+      assert_selector "[role='option'][aria-selected='false']", text: tags(:two).name
+    end
+    assert_no_selector "##{dom_id(transaction, 'tag_summary_mobile')}", text: tags(:two).name, visible: :all
 
-    assert_selector "##{option_id}[aria-selected='true']"
-    assert_selector "##{summary_id} [data-tag-fit-target=compact] [data-tag-initial]", count: 2, visible: :all
-    assert_equal [ tags(:one).id, tags(:two).id ].sort, transaction.reload.tag_ids.sort
-  end
-
-  test "tags show as full pills when they fit and collapse when the column shrinks" do
-    transaction = @transaction.entryable
-    short_tags = %w[Ab Cd].map { |name| @user.family.tags.create!(name: name, color: Tag::COLORS.first) }
-    transaction.update!(tag_ids: short_tags.map(&:id))
-    visit transactions_url(per_page: @page_size)
-
-    summary = "##{dom_id(transaction, "tag_summary_desktop")}"
-    cell = "document.querySelector('#{summary}').closest('[data-tag-fit-bounds]')"
-
-    page.execute_script("#{cell}.style.width = '400px'")
-    assert_selector "#{summary} [data-tag-fit-target=full]", text: "Ab"
-    assert_no_selector "#{summary} [data-tag-fit-target=compact]"
-
-    page.execute_script("#{cell}.style.width = '48px'")
-    assert_selector "#{summary} [data-tag-fit-target=compact] [data-tag-initial]", count: 2
-    assert_no_selector "#{summary} [data-tag-fit-target=full]"
-
-    page.execute_script("#{cell}.style.width = '400px'")
-    assert_selector "#{summary} [data-tag-fit-target=full]", text: "Cd"
+    visit current_url
+    assert_equal [ tags(:one).id ], transaction.reload.tag_ids
+    within editor do
+      assert_selector "[data-inline-tags-target='display']", text: tags(:one).name
+      assert_no_selector "[data-inline-tags-target='display']", text: tags(:two).name
+    end
   end
 
   test "a first tag added on desktop also shows on the mobile row" do
     transaction = @uncategorized_transaction.entryable
     assert_empty transaction.tags
-    option_id = "#{dom_id(@uncategorized_transaction, :tag_option)}_#{tags(:one).id}"
 
-    find("##{dom_id(@uncategorized_transaction)}").hover
-    find("##{dom_id(transaction, "tag_summary_desktop")}").click
-    find("##{option_id} button").click
-    assert_selector "##{option_id}[aria-selected='true']"
+    within "##{dom_id(@uncategorized_transaction)} [data-controller='inline-tags']" do
+      find("button[aria-haspopup='dialog']").click
+      find("[role='option']", text: tags(:one).name).click
+      assert_selector "[role='option'][aria-selected='true']", text: tags(:one).name
+    end
 
     page.current_window.resize_to(390, 900)
-    assert_selector "##{dom_id(transaction, "tag_summary_mobile")}", text: tags(:one).name
+    assert_selector "##{dom_id(transaction, 'tag_summary_mobile')}", text: tags(:one).name
+    assert_equal [ tags(:one).id ], transaction.reload.tag_ids
   ensure
     page.current_window.resize_to(1400, 1400)
   end
 
   test "keyboard focus stays on a tag option after toggling it" do
-    summary_id = dom_id(@transaction.entryable, "tag_summary_desktop")
-    option_id = "#{dom_id(@transaction, :tag_option)}_#{tags(:two).id}"
+    editor = find("##{dom_id(@transaction)} [data-controller='inline-tags']")
+    editor.find("button[aria-haspopup='dialog']").click
+    option = editor.find("[role='option']", text: tags(:two).name)
+    option.send_keys(:enter)
 
-    find("##{summary_id}").click
-    button = find("##{option_id} button")
-    button.send_keys(:enter)
+    assert_selector "##{dom_id(@transaction.entryable, 'tag_summary_mobile')}", text: tags(:two).name, visible: :all
+    assert_equal option.native, page.driver.browser.switch_to.active_element
+    assert_equal [ tags(:one).id, tags(:two).id ].sort, @transaction.entryable.reload.tag_ids.sort
+  end
 
-    assert_selector "##{option_id}[aria-selected='true']"
-    assert page.evaluate_script("document.activeElement.closest('##{option_id}') !== null"),
-      "focus should remain on the toggled option"
+  test "transfer tags added on desktop appear on mobile and persist on both legs" do
+    transfer = Transfer::Creator.new(
+      family: @user.family,
+      source_account_id: accounts(:depository).id,
+      destination_account_id: accounts(:credit_card).id,
+      date: Date.current,
+      amount: 25
+    ).create
+    transaction = transfer.outflow_transaction
+    visit transactions_url(per_page: @page_size)
+
+    within "##{dom_id(transaction.entry)} [data-controller='inline-tags']" do
+      find("button[aria-haspopup='dialog']").click
+      find("[role='option']", text: tags(:one).name).click
+    end
+
+    page.current_window.resize_to(390, 900)
+    assert_selector "##{dom_id(transaction, 'tag_summary_mobile')}", text: tags(:one).name
+    assert_equal [ tags(:one).id ], transaction.reload.tag_ids
+    assert_equal [ tags(:one).id ], transfer.inflow_transaction.reload.tag_ids
+  ensure
+    page.current_window.resize_to(1400, 1400)
   end
 
   test "can select and deselect entire page of transactions" do

@@ -118,7 +118,19 @@ class TransfersController < ApplicationController
       end
     end
 
-    render json: { tag_ids: @transfer.outflow_transaction.reload.tag_ids }
+    respond_to do |format|
+      format.json { render json: { tag_ids: @transfer.outflow_transaction.reload.tag_ids } }
+      format.turbo_stream do
+        streams = [ @transfer.outflow_transaction, @transfer.inflow_transaction ].map do |transaction|
+          turbo_stream.replace(
+            helpers.dom_id(transaction, "tag_summary_mobile"),
+            partial: "tags/summary",
+            locals: { transaction: transaction, variant: :mobile, editable: false }
+          )
+        end
+        render turbo_stream: streams
+      end
+    end
   end
 
   def destroy
