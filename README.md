@@ -28,8 +28,8 @@ involved: [Discord](https://discord.gg/36ZGBsxYEK) • [Website](https://sure.am
 
 ## Fork baseline
 
-This fork is based on upstream [Sure v0.7.5](https://github.com/we-promise/sure/releases/tag/v0.7.5)
-(`5fc037defefa8e4d79c0e4b9da2937dd8048ac79`) and identifies itself as `0.7.5-fork.1`.
+This fork is based on upstream [Sure v0.7.5-hotfix.2](https://github.com/we-promise/sure/releases/tag/v0.7.5-hotfix.2)
+(`e336a285d96582253debd57396b33e18b4e2c66c`) and identifies itself as `0.7.5-hotfix.2-fork.1`.
 It retains the fork's transaction autocomplete and exclusion filters, configurable
 transaction columns, merchant shortcuts and APIs, transfer-aware splits, SureQL
 editor, deployment/workspace tooling, and planning vault.
@@ -38,6 +38,8 @@ Desktop and mobile transaction tag pickers stay synchronized without a page relo
 transfer tag edits update both legs. CI covers persisted tag changes and keyboard focus.
 The report currency regression also runs safely when month-start rates already exist
 in the exchange-rate fixtures.
+The hotfix caches only upcoming recurring-transaction IDs and reloads records for
+each request, avoiding stale cached attributes after a schema upgrade.
 
 ## Backstory
 
