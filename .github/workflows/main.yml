@@ -13,3 +13,48 @@ permissions:
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to Dokploy
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    concurrency:
+      group: dokploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Request production deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
+          DOKPLOY_COMPOSE_ID: ${{ vars.DOKPLOY_COMPOSE_ID }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          : "${DOKPLOY_URL:?Missing production DOKPLOY_URL variable}"
+          : "${DOKPLOY_COMPOSE_ID:?Missing production DOKPLOY_COMPOSE_ID variable}"
+          : "${DOKPLOY_API_KEY:?Missing production DOKPLOY_API_KEY secret}"
+
+          CURRENT_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')
+          if [ "$CURRENT_SHA" != "$GITHUB_SHA" ]; then
+            echo "Skipping deployment: main has advanced beyond this tested commit."
+            exit 0
+          fi
+
+          PAYLOAD=$(jq --null-input --compact-output \
+            --arg composeId "$DOKPLOY_COMPOSE_ID" \
+            --arg sha "$GITHUB_SHA" \
+            --arg runUrl "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            '{composeId: $composeId, title: ("Deploy " + $sha), description: $runUrl}')
+
+          curl --fail --silent --show-error --proto '=https' --max-time 60 \
+            --request POST "${DOKPLOY_URL%/}/api/compose.deploy" \
+            --header "Content-Type: application/json" \
+            --header "x-api-key: $DOKPLOY_API_KEY" \
+            --data "$PAYLOAD" \
+            --output /dev/null
+
+          echo "Dokploy accepted the deployment request for $GITHUB_SHA."
