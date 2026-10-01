@@ -1177,7 +1177,7 @@ class Transaction::SearchTest < ActiveSupport::TestCase
       amount: 200
     )
 
-    result_ids = Transaction::Search.new(@family, filters: { excluded_categories: [ Category.uncategorized.name ] }).transactions_scope.pluck(:id)
+    result_ids = Transaction::Search.new(@family, filters: { excluded_categories: [ Category::UNCATEGORIZED_FILTER_VALUE ] }).transactions_scope.pluck(:id)
 
     assert_includes result_ids, categorized.entryable.id
     assert_not_includes result_ids, uncategorized.entryable.id

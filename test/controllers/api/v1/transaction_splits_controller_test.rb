@@ -258,6 +258,78 @@ class Api::V1::TransactionSplitsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Transfer account IDs must be valid UUIDs", JSON.parse(response.body)["message"]
   end
 
+  test "splitting requires ownership or full control of the source account" do
+    @account.update!(owner: users(:family_member))
+    share = @account.account_shares.new(user: @user)
+
+    [ nil, "read_only", "read_write" ].each do |permission|
+      share.update!(permission: permission) if permission
+
+      assert_no_difference -> { Entry.count } do
+        post api_v1_transaction_split_url(@entry.transaction),
+          params: { split: { splits: [ { name: "Groceries", amount: -70 }, { name: "Household", amount: -30 } ] } },
+          headers: api_headers(@api_key)
+      end
+      assert_response :not_found
+      refute @entry.reload.split_parent?
+    end
+
+    share.update!(permission: "full_control")
+    post api_v1_transaction_split_url(@entry.transaction),
+      params: { split: { splits: [ { name: "Groceries", amount: -70 }, { name: "Household", amount: -30 } ] } },
+      headers: api_headers(@api_key)
+
+    assert_response :created
+    assert_equal [ 30, 70 ], @entry.child_entries.order(:amount).map { |child| child.amount.to_i }
+  end
+
+  test "transfer splits require ownership or full control of the destination account" do
+    destination = @family.accounts.create!(
+      name: "Shared Split Destination",
+      balance: 0,
+      currency: "USD",
+      owner: users(:family_member),
+      accountable: Depository.new
+    )
+    share = destination.account_shares.new(user: @user)
+
+    [ nil, "read_only", "read_write" ].each do |permission|
+      share.update!(permission: permission) if permission
+
+      assert_no_difference -> { Entry.count } do
+        post api_v1_transaction_split_url(@entry.transaction),
+          params: {
+            split: {
+              splits: [
+                { name: "Groceries", amount: -70 },
+                { name: "Transfer", amount: -30, transfer_account_id: destination.id }
+              ]
+            }
+          },
+          headers: api_headers(@api_key)
+      end
+      assert_response :unprocessable_entity
+      refute @entry.reload.split_parent?
+    end
+
+    share.update!(permission: "full_control")
+    post api_v1_transaction_split_url(@entry.transaction),
+      params: {
+        split: {
+          splits: [
+            { name: "Groceries", amount: -70 },
+            { name: "Transfer", amount: -30, transfer_account_id: destination.id }
+          ]
+        }
+      },
+      headers: api_headers(@api_key)
+
+    assert_response :created
+    transfer_child = @entry.child_entries.find_by!(name: "Transfer")
+    assert_equal destination.id, transfer_child.transaction.transfer.to_account.id
+    assert_equal(-30, transfer_child.transaction.transfer.inflow_transaction.entry.amount.to_i)
+  end
+
   private
     def api_headers(api_key)
       { "X-Api-Key" => api_key.plain_key }

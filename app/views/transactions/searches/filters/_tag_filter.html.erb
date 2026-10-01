@@ -16,7 +16,8 @@
                            {
                              multiple: true,
                              checked: @q[:tags]&.include?(tag.filter_value),
-                             class: "checkbox checkbox--light"
+                             class: "checkbox checkbox--light",
+                             data: { autocomplete_label: tag.name }
                            },
                            tag.filter_value,
                            nil %>

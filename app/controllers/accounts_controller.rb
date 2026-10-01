@@ -121,8 +121,14 @@ class AccountsController < ApplicationController
     ActiveRecord::Associations::Preloader.new(
       records: txn_entryables,
       associations: {
-        transfer_as_outflow: { inflow_transaction: { entry: :account } },
-        transfer_as_inflow: { outflow_transaction: { entry: :account } }
+        transfer_as_outflow: {
+          inflow_transaction: { entry: :account },
+          outflow_transaction: { entry: :account }
+        },
+        transfer_as_inflow: {
+          inflow_transaction: { entry: :account },
+          outflow_transaction: { entry: :account }
+        }
       }
     ).call
 

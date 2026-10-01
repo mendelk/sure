@@ -19,6 +19,7 @@
                              checked: @q[:categories]&.include?(category.filter_value),
                              class: "checkbox checkbox--light",
                              data: {
+                               autocomplete_label: category.display_name,
                                category_filter_target: "checkbox",
                                action: "change->category-filter#toggle",
                                category_id: category.id,

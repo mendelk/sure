@@ -16,7 +16,8 @@
                            {
                              multiple: true,
                              checked: @q[:merchants]&.include?(merchant.filter_value),
-                             class: "checkbox checkbox--light"
+                             class: "checkbox checkbox--light",
+                             data: { autocomplete_label: merchant.name }
                            },
                            merchant.filter_value,
                            nil %>

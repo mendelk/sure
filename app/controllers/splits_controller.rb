@@ -97,7 +97,17 @@ class SplitsController < ApplicationController
     end
 
     def require_split_write_permission!
-      require_account_permission!(@entry.account, redirect_path: transactions_path)
+      return false unless require_account_permission!(@entry.account, redirect_path: transactions_path)
+      return true if action_name == "create"
+
+      parent = @entry.split_child? ? @entry.parent_entry : @entry
+      parent.child_entries.includes(entryable: [ :transfer_as_inflow, :transfer_as_outflow ]).all? do |child|
+        transfer = child.entryable.try(:transfer)
+        next true unless transfer
+
+        counterpart_account = transfer.from_account.id == parent.account_id ? transfer.to_account : transfer.from_account
+        require_account_permission!(counterpart_account, redirect_path: transactions_path)
+      end
     end
 
     def resolve_to_parent!
@@ -113,7 +123,7 @@ class SplitsController < ApplicationController
     end
 
     def transfer_account_options
-      Current.family.accounts.visible.alphabetically.where.not(id: @entry.account_id)
+      Current.accessible_accounts.writable_by(Current.user).visible.alphabetically.where.not(id: @entry.account_id)
     end
 
     def build_splits_with_transfers
@@ -123,7 +133,7 @@ class SplitsController < ApplicationController
       transfer_ids = raw_splits.filter_map { |s| s[:transfer_account_id].presence }.uniq
       accounts_by_id = {}
       if transfer_ids.any?
-        accounts = Current.family.accounts.where(id: transfer_ids).index_by(&:id)
+        accounts = Current.accessible_accounts.where(id: transfer_ids).index_by(&:id)
         if accounts.size != transfer_ids.size
           redirect_back_or_to transactions_path, alert: t("splits.create.invalid_transfer_account")
           return nil

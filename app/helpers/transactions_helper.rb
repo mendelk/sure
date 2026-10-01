@@ -52,7 +52,8 @@ module TransactionsHelper
       },
       autocomplete_options_filter("category", "category", "q[categories][]"),
       autocomplete_options_filter("tag", "tag", "q[tags][]"),
-      autocomplete_options_filter("merchant", "merchant", "q[merchants][]")
+      autocomplete_options_filter("merchant", "merchant", "q[merchants][]"),
+      autocomplete_options_filter("ai", "ai", "q[ai_status][]").except(:excludedInputName)
     ]
   end
 

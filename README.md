@@ -26,6 +26,14 @@ involved: [Discord](https://discord.gg/36ZGBsxYEK) • [Website](https://sure.am
 > This repository is a community fork of the now-abandoned Maybe Finance project. <br />
 > Learn more in their [final release](https://github.com/maybe-finance/maybe/releases/tag/v0.6.0) doc.
 
+## Fork baseline
+
+This fork is based on upstream [Sure v0.7.5](https://github.com/we-promise/sure/releases/tag/v0.7.5)
+(`5fc037defefa8e4d79c0e4b9da2937dd8048ac79`) and identifies itself as `0.7.5-fork.1`.
+It retains the fork's transaction autocomplete and exclusion filters, configurable
+transaction columns, merchant shortcuts and APIs, transfer-aware splits, SureQL
+editor, deployment/workspace tooling, and planning vault.
+
 ## Backstory
 
 The [Maybe Finance](https://github.com/maybe-finance/maybe) (archived/abandoned repo) team spent most of 2021–2022 building a full-featured personal finance and wealth management app. It even included an “Ask an Advisor” feature that connected users with a real CFP/CFA — all included with your subscription.

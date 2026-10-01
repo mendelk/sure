@@ -265,4 +265,98 @@ class SplitsControllerTest < ActionDispatch::IntegrationTest
     assert_equal I18n.t("splits.destroy.success"), flash[:notice]
     refute @entry.reload.excluded?
   end
+
+  test "transfer choices include only accounts with full write access" do
+    private_account = @user.family.accounts.create!(
+      name: "Private Split Destination",
+      balance: 0,
+      currency: "USD",
+      owner: users(:family_member),
+      accountable: Depository.new
+    )
+    shared_account = @user.family.accounts.create!(
+      name: "Shared Split Destination",
+      balance: 0,
+      currency: "USD",
+      owner: users(:family_member),
+      accountable: Depository.new
+    )
+    share = shared_account.account_shares.create!(user: @user, permission: "read_write")
+
+    get new_transaction_split_path(@entry)
+
+    assert_response :success
+    assert_select "select option[value='#{private_account.id}']", count: 0
+    assert_select "select option[value='#{shared_account.id}']", count: 0
+
+    share.update!(permission: "full_control")
+    get new_transaction_split_path(@entry)
+
+    assert_response :success
+    assert_select "select option[value='#{shared_account.id}']", minimum: 1
+    assert_select "select option[value='#{private_account.id}']", count: 0
+  end
+
+  test "transfer splits reject private and annotation-only destination accounts" do
+    destination = @user.family.accounts.create!(
+      name: "Restricted Split Destination",
+      balance: 0,
+      currency: "USD",
+      owner: users(:family_member),
+      accountable: Depository.new
+    )
+
+    [ nil, "read_write" ].each do |permission|
+      destination.account_shares.create!(user: @user, permission: permission) if permission
+      assert_no_difference -> { Entry.count } do
+        post transaction_split_path(@entry), params: {
+          split: {
+            splits: [
+              { name: "Groceries", amount: "-70" },
+              { name: "Transfer", amount: "-30", transfer_account_id: destination.id }
+            ]
+          }
+        }
+      end
+
+      assert_redirected_to transactions_url
+      assert flash[:alert].present?
+      refute @entry.reload.split_parent?
+    end
+  end
+
+  test "updating or removing a split requires write access to existing transfer counterparts" do
+    destination = @user.family.accounts.create!(
+      name: "Previously Shared Split Destination",
+      balance: 0,
+      currency: "USD",
+      owner: users(:family_member),
+      accountable: Depository.new
+    )
+    share = destination.account_shares.create!(user: @user, permission: "full_control")
+    children = @entry.split!([
+      { name: "Groceries", amount: 70 },
+      { name: "Transfer", amount: 30, transfer_account: destination }
+    ])
+    transfer = children.last.transaction.transfer
+    counterpart = transfer.inflow_transaction.entry
+    share.update!(permission: "read_write")
+
+    assert_no_difference -> { Entry.count } do
+      patch transaction_split_path(@entry), params: {
+        split: { splits: [ { name: "Replacement", amount: "-100" } ] }
+      }
+    end
+    assert_redirected_to transactions_url
+    assert_equal I18n.t("accounts.not_authorized"), flash[:alert]
+
+    assert_no_difference -> { Entry.count } do
+      delete transaction_split_path(children.first)
+    end
+    assert_redirected_to transactions_url
+    assert_equal I18n.t("accounts.not_authorized"), flash[:alert]
+    assert @entry.reload.split_parent?
+    assert Transfer.exists?(transfer.id)
+    assert Entry.exists?(counterpart.id)
+  end
 end

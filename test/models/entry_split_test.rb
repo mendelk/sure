@@ -247,6 +247,39 @@ class EntrySplitTest < ActiveSupport::TestCase
     end
   end
 
+  test "ordinary and transfer splits preserve split notes and imported entry metadata on both transfer legs" do
+    @entry.update!(import: imports(:transaction), import_locked: true, notes: "Parent notes")
+    destination = @entry.account.family.accounts.create!(
+      name: "Imported Split Destination",
+      balance: 0,
+      currency: "USD",
+      owner: users(:family_admin),
+      accountable: Depository.new
+    )
+
+    children = @entry.split!([
+      { name: "Groceries", amount: 70, notes: "Groceries notes" },
+      { name: "Outgoing transfer", amount: 50, notes: "Outgoing notes", transfer_account: destination },
+      { name: "Incoming transfer", amount: -20, notes: "Incoming notes", transfer_account: destination }
+    ])
+
+    children.each do |child|
+      assert_equal @entry.import_id, child.import_id
+      assert child.import_locked?
+      assert_equal "#{child.name.split.first} notes", child.notes
+      next unless child.transaction.transfer?
+
+      transfer = child.transaction.transfer
+      counterpart = child.amount.positive? ? transfer.inflow_transaction.entry : transfer.outflow_transaction.entry
+      assert_equal destination.id, counterpart.account_id
+      assert_equal(-child.amount, counterpart.amount)
+      assert_equal child.notes, counterpart.notes
+      assert_equal @entry.import_id, counterpart.import_id
+      assert counterpart.import_locked?
+      assert counterpart.user_modified?
+    end
+  end
+
   test "split! rejects transfer to the same account" do
     assert_raises(ActiveRecord::RecordInvalid) do
       @entry.split!([

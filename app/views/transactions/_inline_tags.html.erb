@@ -2,11 +2,26 @@
 <%# Inline tag display + quick add/remove for transaction rows (desktop). %>
 <%# Used by both the global transactions table and the account activity feed, %>
 <%# since both render entries via transactions/_transaction. %>
+<% transfer = transaction.transfer %>
+<% can_annotate = can_annotate_account?(entry.account) &&
+                  (!transfer || [ transfer.from_account, transfer.to_account ].all? { |account| account && can_annotate_account?(account) }) %>
+<% unless can_annotate %>
+  <span class="hidden lg:flex min-w-0 items-center gap-1">
+    <% transaction.tags.first(3).each do |tag| %>
+      <%= render DS::Pill.new(label: tag.name, marker: false, size: :sm, custom_color: tag.color, truncate: true) %>
+    <% end %>
+    <% if transaction.tags.size > 3 %>
+      <span class="text-xs text-secondary shrink-0">+<%= transaction.tags.size - 3 %></span>
+    <% elsif transaction.tags.empty? %>
+      <span class="text-xs text-secondary">—</span>
+    <% end %>
+  </span>
+<% else %>
 <% all_tags = defined?(@family_tags) && @family_tags ? @family_tags : Current.family.tags.alphabetically %>
 <% selected_ids = transaction.tags.map { |t| t.id.to_s }.to_set %>
 <% update_url = transaction.transfer.present? ? tags_transfer_path(transaction.transfer) : tags_transaction_path(entry) %>
 
-<div class="hidden lg:flex min-w-0 items-center"
+<div class="hidden lg:flex min-w-0 w-full items-center [&>div]:min-w-0 [&>div]:max-w-full"
      data-controller="inline-tags"
      data-inline-tags-update-url-value="<%= update_url %>">
   <%= render DS::Popover.new(variant: "button", placement: "bottom-start", max_width: "280px") do |popover| %>
@@ -95,3 +110,4 @@
     <% end %>
   <% end %>
 </div>
+<% end %>
