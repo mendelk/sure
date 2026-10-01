@@ -59,6 +59,27 @@ Sure is a fully working personal finance app that can be [self hosted with Docke
 Sure can be accessed from a browser, the macOS desktop app, the mobile app, API
 clients, and LLM agents. See [Sure Clients](docs/clients.md) for an overview.
 
+### CI-gated Dokploy deployment
+
+Pushes to `main` deploy this fork through the `deploy` job in
+[`.github/workflows/main.yml`](.github/workflows/main.yml), only after the reusable
+CI workflow succeeds. Chart-only changes and manual CI runs do not deploy.
+
+The GitHub `production` environment contains:
+
+- Variable `DOKPLOY_URL`: the HTTPS base URL of the Dokploy instance.
+- Variable `DOKPLOY_COMPOSE_ID`: the Sure Docker Compose service ID.
+- Secret `DOKPLOY_API_KEY`: an API key authorized to deploy that service.
+
+Restrict that environment to the `main` branch. Disable Dokploy's **Auto Deploy**
+setting and the repository's direct Dokploy push webhook; otherwise pushes can
+bypass the CI gate. Deployment requests are serialized, and runs for commits that
+are no longer the head of `main` are skipped.
+
+The job requests a build of Dokploy's configured `main` branch, not an immutable
+image or pinned Git revision. A successful job means Dokploy accepted the request;
+check its deployment logs for the build result and application health.
+
 ## Forking and Attribution
 
 This repo is a community fork of the archived Maybe Finance repo.
