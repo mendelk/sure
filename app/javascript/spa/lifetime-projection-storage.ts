@@ -4,13 +4,17 @@ import {
   DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS,
   HouseholdSchema,
   LifetimeProjectionAssumptionsSchema,
+  ProjectionDebtSchema,
   ProjectionEventSchema,
   ProjectionGoalSchema,
+  ProjectionRealAssetSchema,
   type CashFlowMode,
   type Household,
   type LifetimeProjectionAssumptions,
+  type ProjectionDebt,
   type ProjectionEvent,
   type ProjectionGoal,
+  type ProjectionRealAsset,
 } from "./lifetime-projection";
 
 export const STARTER_LIFETIME_PLAN_VERSION = 1;
@@ -47,6 +51,8 @@ export const LifetimePlanSnapshotSchema = z.object({
   cashFlowMode: z.optional(z.enum(["flat", "events"])),
   events: z.optional(z.array(ProjectionEventSchema)),
   goals: z.optional(z.array(ProjectionGoalSchema)),
+  debts: z.optional(z.array(ProjectionDebtSchema)),
+  realAssets: z.optional(z.array(ProjectionRealAssetSchema)),
   display: z.optional(LifetimePlanDisplaySchema),
   updatedAt: z.optional(z.string()),
 });
@@ -64,6 +70,8 @@ export type LifetimePlanSnapshot = {
   cashFlowMode?: CashFlowMode;
   events?: ProjectionEvent[];
   goals?: ProjectionGoal[];
+  debts?: ProjectionDebt[];
+  realAssets?: ProjectionRealAsset[];
   display?: LifetimePlanDisplay;
   updatedAt?: string;
 };
@@ -132,6 +140,20 @@ export function readLifetimePlanSnapshot(userId: string): LifetimePlanSnapshot |
 
     const goals = validatedGoals?.success === true ? validatedGoals.data : [];
 
+    const validatedDebts =
+      result.data.debts !== undefined
+        ? z.array(ProjectionDebtSchema).safeParse(result.data.debts)
+        : undefined;
+
+    const debts = validatedDebts?.success === true ? validatedDebts.data : [];
+
+    const validatedRealAssets =
+      result.data.realAssets !== undefined
+        ? z.array(ProjectionRealAssetSchema).safeParse(result.data.realAssets)
+        : undefined;
+
+    const realAssets = validatedRealAssets?.success === true ? validatedRealAssets.data : [];
+
     return {
       version: result.data.version ?? STARTER_LIFETIME_PLAN_VERSION,
       planType: result.data.planType ?? "custom",
@@ -141,6 +163,8 @@ export function readLifetimePlanSnapshot(userId: string): LifetimePlanSnapshot |
       cashFlowMode,
       events,
       goals,
+      debts,
+      realAssets,
       display: result.data.display,
       updatedAt: result.data.updatedAt,
     };
@@ -193,6 +217,8 @@ export function starterLifetimePlanSnapshot(
     cashFlowMode: "flat",
     events: [],
     goals: [],
+    debts: [],
+    realAssets: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -216,6 +242,8 @@ export function loadOrInstallStarterLifetimePlan(
   cashFlowMode: CashFlowMode;
   events: ProjectionEvent[];
   goals: ProjectionGoal[];
+  debts: ProjectionDebt[];
+  realAssets: ProjectionRealAsset[];
   isSaved: boolean;
   planType: "starter" | "custom";
 } {
@@ -228,6 +256,8 @@ export function loadOrInstallStarterLifetimePlan(
       cashFlowMode: existing.cashFlowMode ?? "flat",
       events: existing.events ?? [],
       goals: existing.goals ?? [],
+      debts: existing.debts ?? [],
+      realAssets: existing.realAssets ?? [],
       isSaved: true,
       planType: existing.planType ?? "custom",
     };
@@ -243,6 +273,8 @@ export function loadOrInstallStarterLifetimePlan(
     cashFlowMode: starter.cashFlowMode ?? "flat",
     events: starter.events ?? [],
     goals: starter.goals ?? [],
+    debts: starter.debts ?? [],
+    realAssets: starter.realAssets ?? [],
     isSaved: true,
     planType: "starter",
   };
@@ -429,6 +461,8 @@ export function loadInitialLifetimePlan(
   cashFlowMode: CashFlowMode;
   events: ProjectionEvent[];
   goals: ProjectionGoal[];
+  debts: ProjectionDebt[];
+  realAssets: ProjectionRealAsset[];
   isSaved: boolean;
   planType: "starter" | "custom";
 } {

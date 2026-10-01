@@ -36,6 +36,11 @@ export function ProjectionYearBreakdown({
   const spendingInflation = selectedPoint.spendingInflation ?? 0;
   const inflationEffect = selectedPoint.inflationEffect ?? 0;
   const endingValue = selectedPoint.netWorth;
+  const previousPoint = points[Math.max(0, selectedIndex - 1)];
+  const equityChange = selectedPoint.netEquity - previousPoint.netEquity;
+  const assetSaleProceeds = selectedPoint.assetSalesInflow ?? 0;
+  const hasDebtOrAssets =
+    (selectedPoint.debtStatuses?.length ?? 0) > 0 || (selectedPoint.assetStatuses?.length ?? 0) > 0;
 
   const handlePrev = () => {
     if (selectedIndex > 0) onSelectYear(points[selectedIndex - 1].year);
@@ -219,7 +224,9 @@ export function ProjectionYearBreakdown({
                 {investmentGrowth >= 0 ? "+" : ""}
                 {money.format(investmentGrowth)}
               </span>
-              <span className="text-xs text-secondary">{annualReturnPercent}% annual return</span>
+              <span className="text-xs text-secondary">
+                {annualReturnPercent}% annual return on the liquid portfolio
+              </span>
             </div>
 
             <div className="rounded-lg bg-container-inset p-3">
@@ -278,6 +285,13 @@ export function ProjectionYearBreakdown({
               <span className="tabular-nums">
                 Starting ({money.format(startingValue)}) + Return ({money.format(investmentGrowth)})
                 + Income ({money.format(annualIncome)}) − Spending ({money.format(annualSpending)})
+                {hasDebtOrAssets ? (
+                  <>
+                    {" "}
+                    + Asset sale proceeds ({money.format(assetSaleProceeds)}) + Real equity change (
+                    {money.format(equityChange)})
+                  </>
+                ) : null}
                 = Ending ({money.format(endingValue)})
               </span>
             </div>
@@ -491,6 +505,328 @@ export function ProjectionYearBreakdown({
               ) : null}
             </div>
           ) : null}
+
+          {/* Debts and Real Assets Breakdown */}
+          {((selectedPoint.debtStatuses?.length ?? 0) > 0 ||
+            (selectedPoint.assetStatuses?.length ?? 0) > 0) && (
+            <div
+              className="space-y-4 rounded-xl border border-secondary bg-container-inset/50 p-4"
+              data-testid="year-debts-assets-breakdown"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-secondary pb-3">
+                <div className="flex items-center gap-2">
+                  <Icon name="credit-card" size="md" />
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-primary">
+                    Debts and real assets in {selectedPoint.year}
+                  </h4>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="rounded-full bg-container-inset px-2.5 py-0.5 font-medium text-secondary">
+                    Assets:{" "}
+                    <strong className="text-primary">
+                      {money.format(selectedPoint.realAssetsValue)}
+                    </strong>
+                  </span>
+                  <span className="rounded-full bg-container-inset px-2.5 py-0.5 font-medium text-secondary">
+                    Debts:{" "}
+                    <strong className="text-primary">
+                      {money.format(selectedPoint.totalDebtBalance)}
+                    </strong>
+                  </span>
+                  <span className="rounded-full bg-container-inset px-2.5 py-0.5 font-medium text-secondary">
+                    Real equity:{" "}
+                    <strong className="text-primary">
+                      {money.format(selectedPoint.netEquity)}
+                    </strong>
+                  </span>
+                  <span className="rounded-full bg-container-inset px-2.5 py-0.5 font-medium text-secondary">
+                    Liquid portfolio:{" "}
+                    <strong className="text-primary">
+                      {money.format(selectedPoint.liquidPortfolio)}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Plan End Balances Notice if final projection year */}
+              {selectedIndex === points.length - 1 ? (
+                <div
+                  className="rounded-lg border border-primary bg-container p-3 text-xs"
+                  data-testid="plan-end-balances-callout"
+                >
+                  <div className="flex items-center gap-1.5 font-semibold text-primary">
+                    <Icon name="clock" size="sm" />
+                    <span>Plan-end balances ({selectedPoint.year})</span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-1 gap-2 text-secondary sm:grid-cols-3">
+                    <div>
+                      <span>Remaining debt balance: </span>
+                      <strong className="text-primary">
+                        {money.format(selectedPoint.totalDebtBalance)}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Remaining real assets: </span>
+                      <strong className="text-primary">
+                        {money.format(selectedPoint.realAssetsValue)}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Net real equity: </span>
+                      <strong className="text-primary">
+                        {money.format(selectedPoint.netEquity)}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Debts List */}
+              {selectedPoint.debtStatuses && selectedPoint.debtStatuses.length > 0 ? (
+                <div className="space-y-2">
+                  <h5 className="text-xs font-semibold uppercase tracking-wide text-secondary">
+                    Debts & loans ({selectedPoint.debtStatuses.length})
+                  </h5>
+                  <div
+                    className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                    data-testid="year-debts-list"
+                  >
+                    {selectedPoint.debtStatuses.map((debt) => (
+                      <div
+                        className="flex flex-col justify-between gap-2 rounded-lg border border-secondary bg-container p-3 text-xs"
+                        key={debt.debtId}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-primary">{debt.name}</span>
+                              <span className="rounded-full bg-container-inset px-1.5 py-0.5 text-[10px] capitalize text-secondary">
+                                {debt.category}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              {debt.isPaidOffThisYear ? (
+                                <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">
+                                  {debt.clearedBySaleOfAsset === true
+                                    ? "Cleared from asset sale"
+                                    : "Paid off this year!"}
+                                </span>
+                              ) : debt.isPaidOff ? (
+                                <span className="rounded-full bg-container-inset px-1.5 py-0.5 text-[10px] font-medium text-secondary">
+                                  Fully paid off
+                                </span>
+                              ) : debt.isActive ? (
+                                <span className="rounded-full bg-container-inset px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                                  Active amortizing
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-container-inset px-1.5 py-0.5 text-[10px] font-medium text-secondary">
+                                  Starts in {debt.startYear}
+                                </span>
+                              )}
+                              {debt.yearsSavedByExtraPayments > 0 ? (
+                                <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">
+                                  ⚡ Early payoff ({debt.yearsSavedByExtraPayments}y saved)
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] text-secondary">Ending balance</span>
+                            <div className="font-semibold text-primary">
+                              {money.format(debt.endingBalance)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {debt.isActive ? (
+                          <div className="mt-1 grid grid-cols-2 gap-1 border-t border-secondary pt-2 text-[11px] text-secondary">
+                            <div>
+                              <span>Starting: </span>
+                              <strong className="text-primary">
+                                {money.format(debt.startingBalance)}
+                              </strong>
+                            </div>
+                            <div>
+                              <span>Interest: </span>
+                              <strong className="text-destructive">
+                                {money.format(debt.interestAccrued)}
+                              </strong>
+                            </div>
+                            <div>
+                              <span>Principal: </span>
+                              <strong className="text-primary">
+                                {money.format(debt.totalPrincipalPaid)}
+                              </strong>
+                            </div>
+                            <div>
+                              <span>Payment: </span>
+                              <strong className="text-destructive">
+                                −{money.format(debt.totalPayment)}
+                              </strong>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Real Assets List */}
+              {selectedPoint.assetStatuses && selectedPoint.assetStatuses.length > 0 ? (
+                <div className="space-y-2">
+                  <h5 className="text-xs font-semibold uppercase tracking-wide text-secondary">
+                    Real assets & property ({selectedPoint.assetStatuses.length})
+                  </h5>
+                  <div
+                    className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                    data-testid="year-assets-list"
+                  >
+                    {selectedPoint.assetStatuses.map((asset) => (
+                      <div
+                        className="flex flex-col justify-between gap-2 rounded-lg border border-secondary bg-container p-3 text-xs"
+                        key={asset.assetId}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-primary">{asset.name}</span>
+                              <span className="rounded-full bg-container-inset px-1.5 py-0.5 text-[10px] capitalize text-secondary">
+                                {asset.category}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              {asset.isPurchasedThisYear ? (
+                                <span className="rounded-full bg-container-inset px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                                  Purchased this year
+                                </span>
+                              ) : null}
+                              {asset.isSoldThisYear ? (
+                                <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">
+                                  Sold this year
+                                </span>
+                              ) : asset.isOwned ? (
+                                <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">
+                                  Owned
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-container-inset px-1.5 py-0.5 text-[10px] font-medium text-secondary">
+                                  Purchases in {asset.purchaseYear}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] text-secondary">Asset value</span>
+                            <div className="font-semibold text-primary">
+                              {money.format(asset.endingValue)}
+                            </div>
+                            {asset.isOwned ? (
+                              <span className="text-[10px] text-secondary">
+                                Equity: {money.format(asset.netEquity)}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {asset.isSoldThisYear ? (
+                          <div className="mt-1 rounded-sm border border-warning/30 bg-warning/10 p-2 text-[11px] text-primary">
+                            <div>
+                              <strong>Gross sale proceeds:</strong>{" "}
+                              {money.format(asset.grossSaleProceeds)}
+                            </div>
+                            {asset.debtClearedAtSale > 0 ? (
+                              <div className="text-secondary">
+                                Sold before debt payoff:{" "}
+                                <strong className="text-destructive">
+                                  {money.format(asset.debtClearedAtSale)}
+                                </strong>{" "}
+                                debt cleared from proceeds.
+                              </div>
+                            ) : null}
+                            <div className="font-semibold text-success">
+                              Net cash proceeds to liquid portfolio:{" "}
+                              {money.format(asset.netSaleProceeds)}
+                            </div>
+                          </div>
+                        ) : asset.isOwned || asset.isPurchasedThisYear ? (
+                          <div className="mt-1 grid grid-cols-2 gap-1 border-t border-secondary pt-2 text-[11px] text-secondary">
+                            <div>
+                              <span>Starting: </span>
+                              <strong className="text-primary">
+                                {money.format(asset.startingValue)}
+                              </strong>
+                            </div>
+                            <div>
+                              <span>Annual change: </span>
+                              <strong
+                                className={
+                                  asset.appreciationOrDepreciation >= 0
+                                    ? "text-success"
+                                    : "text-destructive"
+                                }
+                              >
+                                {asset.appreciationOrDepreciation >= 0 ? "+" : ""}
+                                {money.format(asset.appreciationOrDepreciation)}
+                              </strong>
+                            </div>
+                            <div>
+                              <span>Carrying cost: </span>
+                              <strong className="text-destructive">
+                                −{money.format(asset.annualCarryingCost)}
+                              </strong>
+                            </div>
+                            {asset.purchaseCashOutflow > 0 ? (
+                              <div>
+                                <span>Purchase down payment: </span>
+                                <strong className="text-destructive">
+                                  −{money.format(asset.purchaseCashOutflow)}
+                                </strong>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Cash Flow Summary */}
+              <div className="rounded-lg border border-secondary bg-container p-3 text-xs">
+                <h5 className="font-semibold text-primary">
+                  Cash flow effects for {selectedPoint.year}
+                </h5>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-secondary sm:grid-cols-4">
+                  <div>
+                    <span>Debt payments: </span>
+                    <strong className="text-destructive">
+                      −{money.format(selectedPoint.debtPayments ?? 0)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Carrying costs: </span>
+                    <strong className="text-destructive">
+                      −{money.format(selectedPoint.carryingCosts ?? 0)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Asset purchases: </span>
+                    <strong className="text-destructive">
+                      −{money.format(selectedPoint.assetPurchasesOutflow ?? 0)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Asset sale proceeds: </span>
+                    <strong className="text-success">
+                      +{money.format(selectedPoint.assetSalesInflow ?? 0)}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>

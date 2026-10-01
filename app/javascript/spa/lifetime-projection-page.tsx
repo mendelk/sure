@@ -9,6 +9,7 @@ import {
   calculateLifetimeProjection,
   createDefaultHousehold,
   createDefaultPartner,
+  createExampleDebtsAndAssets,
   DEFAULT_LIFETIME_PROJECTION_ASSUMPTIONS,
   getHorizonToCoverAllMilestones,
   getOutOfHorizonMilestones,
@@ -16,13 +17,17 @@ import {
   HouseholdSchema,
   LifetimeProjectionAssumptionsSchema,
   parseLifetimeProjectionInputs,
+  simulateDebtPayoff,
+  summarizeDebtsAndAssets,
   type CashFlowMode,
   type Household,
   type HouseholdMember,
   type LifetimeProjectionAssumptions,
   type LifetimeProjectionPoint,
+  type ProjectionDebt,
   type ProjectionEvent,
   type ProjectionGoal,
+  type ProjectionRealAsset,
 } from "./lifetime-projection";
 import {
   computeBaselineDiff,
@@ -36,8 +41,10 @@ import {
 } from "./lifetime-projection-storage";
 import { ProjectionBaselineRefreshModal } from "./projection-baseline-refresh-modal";
 import { ProjectionChart } from "./projection-chart";
+import { ProjectionDebtDialog } from "./projection-debt-dialog";
 import { ProjectionEventDialog } from "./projection-event-dialog";
 import { ProjectionGoalDialog } from "./projection-goal-dialog";
+import { ProjectionRealAssetDialog } from "./projection-real-asset-dialog";
 import { ProjectionResetDialog } from "./projection-reset-dialog";
 import { ProjectionYearBreakdown } from "./projection-year-breakdown";
 
@@ -398,10 +405,16 @@ function ProjectionResults({
   const [cashFlowMode, setCashFlowMode] = useState<CashFlowMode>(() => initialPlan.cashFlowMode);
   const [events, setEvents] = useState<ProjectionEvent[]>(() => initialPlan.events);
   const [goals, setGoals] = useState<ProjectionGoal[]>(() => initialPlan.goals);
+  const [debts, setDebts] = useState<ProjectionDebt[]>(() => initialPlan.debts);
+  const [realAssets, setRealAssets] = useState<ProjectionRealAsset[]>(() => initialPlan.realAssets);
   const [isEventDialogOpen, setIsEventDialogOpen] = useState<boolean>(false);
   const [editingEvent, setEditingEvent] = useState<ProjectionEvent | null>(null);
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState<boolean>(false);
   const [editingGoal, setEditingGoal] = useState<ProjectionGoal | null>(null);
+  const [isDebtDialogOpen, setIsDebtDialogOpen] = useState<boolean>(false);
+  const [editingDebt, setEditingDebt] = useState<ProjectionDebt | null>(null);
+  const [isRealAssetDialogOpen, setIsRealAssetDialogOpen] = useState<boolean>(false);
+  const [editingRealAsset, setEditingRealAsset] = useState<ProjectionRealAsset | null>(null);
   const [formValues, setFormValues] = useState<AssumptionFormValues>(() =>
     toFormValues(initialPlan.assumptions, initialPlan.household),
   );
@@ -437,6 +450,8 @@ function ProjectionResults({
         cashFlowMode,
         events,
         goals,
+        debts,
+        realAssets,
       });
       return {
         points: calculateLifetimeProjection(inputs),
@@ -448,7 +463,21 @@ function ProjectionResults({
         error: "We could not calculate this projection with the selected assumptions.",
       };
     }
-  }, [activeBaseline.netWorth, appliedAssumptions, appliedHousehold, cashFlowMode, events, goals]);
+  }, [
+    activeBaseline.netWorth,
+    appliedAssumptions,
+    appliedHousehold,
+    cashFlowMode,
+    events,
+    goals,
+    debts,
+    realAssets,
+  ]);
+
+  const debtsAssetsSummary = useMemo(
+    () => summarizeDebtsAndAssets(projectionResult.points),
+    [projectionResult.points],
+  );
 
   const allGoalEvaluations = useMemo(
     () =>
@@ -643,6 +672,8 @@ function ProjectionResults({
       cashFlowMode: newMode,
       events: newEvents,
       goals,
+      debts,
+      realAssets,
       updatedAt: new Date().toISOString(),
     });
     setPlanType("custom");
@@ -660,6 +691,8 @@ function ProjectionResults({
       cashFlowMode: newMode,
       events,
       goals,
+      debts,
+      realAssets,
       updatedAt: new Date().toISOString(),
     });
     setPlanType("custom");
@@ -741,6 +774,8 @@ function ProjectionResults({
       cashFlowMode,
       events,
       goals: newGoals,
+      debts,
+      realAssets,
       updatedAt: new Date().toISOString(),
     });
     setPlanType("custom");
@@ -832,6 +867,111 @@ function ProjectionResults({
     setSelectedYear(year);
   };
 
+  const saveDebtsAndAssets = (newDebts: ProjectionDebt[], newAssets: ProjectionRealAsset[]) => {
+    setDebts(newDebts);
+    setRealAssets(newAssets);
+    writeLifetimePlanSnapshot(userId, {
+      version: STARTER_LIFETIME_PLAN_VERSION,
+      planType: "custom",
+      baseline: activeBaseline,
+      assumptions: appliedAssumptions,
+      household: appliedHousehold,
+      cashFlowMode,
+      events,
+      goals,
+      debts: newDebts,
+      realAssets: newAssets,
+      updatedAt: new Date().toISOString(),
+    });
+    setPlanType("custom");
+    setIsSavedPlan(true);
+  };
+
+  const handleOpenAddDebt = () => {
+    setEditingDebt(null);
+    setIsDebtDialogOpen(true);
+  };
+
+  const handleEditDebt = (debtToEdit: ProjectionDebt) => {
+    setEditingDebt(debtToEdit);
+    setIsDebtDialogOpen(true);
+  };
+
+  const handleSaveDebt = (savedDebt: ProjectionDebt) => {
+    const existingIndex = debts.findIndex((d) => d.id === savedDebt.id);
+    const nextDebts =
+      existingIndex >= 0
+        ? debts.map((d, idx) => (idx === existingIndex ? savedDebt : d))
+        : [...debts, savedDebt];
+
+    const nextAssets = realAssets.map((asset) => {
+      if (savedDebt.linkedAssetId !== undefined && asset.id === savedDebt.linkedAssetId)
+        return { ...asset, linkedDebtId: savedDebt.id };
+
+      return asset.linkedDebtId === savedDebt.id ? { ...asset, linkedDebtId: undefined } : asset;
+    });
+    saveDebtsAndAssets(nextDebts, nextAssets);
+  };
+
+  const handleToggleDebt = (debtId: string) => {
+    const nextDebts = debts.map((d) => (d.id === debtId ? { ...d, enabled: !d.enabled } : d));
+    saveDebtsAndAssets(nextDebts, realAssets);
+  };
+
+  const handleDeleteDebt = (debtId: string) => {
+    const nextDebts = debts.filter((d) => d.id !== debtId);
+    const nextAssets = realAssets.map((a) =>
+      a.linkedDebtId === debtId ? { ...a, linkedDebtId: undefined } : a,
+    );
+    saveDebtsAndAssets(nextDebts, nextAssets);
+  };
+
+  const handleOpenAddRealAsset = () => {
+    setEditingRealAsset(null);
+    setIsRealAssetDialogOpen(true);
+  };
+
+  const handleEditRealAsset = (assetToEdit: ProjectionRealAsset) => {
+    setEditingRealAsset(assetToEdit);
+    setIsRealAssetDialogOpen(true);
+  };
+
+  const handleSaveRealAsset = (savedAsset: ProjectionRealAsset) => {
+    const existingIndex = realAssets.findIndex((a) => a.id === savedAsset.id);
+    const nextAssets =
+      existingIndex >= 0
+        ? realAssets.map((a, idx) => (idx === existingIndex ? savedAsset : a))
+        : [...realAssets, savedAsset];
+
+    const nextDebts = debts.map((debt) => {
+      if (savedAsset.linkedDebtId !== undefined && debt.id === savedAsset.linkedDebtId)
+        return { ...debt, linkedAssetId: savedAsset.id };
+
+      return debt.linkedAssetId === savedAsset.id ? { ...debt, linkedAssetId: undefined } : debt;
+    });
+    saveDebtsAndAssets(nextDebts, nextAssets);
+  };
+
+  const handleToggleRealAsset = (assetId: string) => {
+    const nextAssets = realAssets.map((a) =>
+      a.id === assetId ? { ...a, enabled: !a.enabled } : a,
+    );
+    saveDebtsAndAssets(debts, nextAssets);
+  };
+
+  const handleDeleteRealAsset = (assetId: string) => {
+    const nextAssets = realAssets.filter((a) => a.id !== assetId);
+    const nextDebts = debts.map((d) =>
+      d.linkedAssetId === assetId ? { ...d, linkedAssetId: undefined } : d,
+    );
+    saveDebtsAndAssets(nextDebts, nextAssets);
+  };
+
+  const handlePrefillExampleDebtsAndAssets = () => {
+    const examples = createExampleDebtsAndAssets(START_YEAR);
+    saveDebtsAndAssets(examples.debts, examples.realAssets);
+  };
+
   const handleFormSubmit = (event: SyntheticEvent) => {
     event.preventDefault();
     const validation = validateAssumptionForm(formValues, START_YEAR);
@@ -849,6 +989,8 @@ function ProjectionResults({
         cashFlowMode,
         events,
         goals,
+        debts,
+        realAssets,
         updatedAt: new Date().toISOString(),
       });
       setPlanType("custom");
@@ -871,6 +1013,8 @@ function ProjectionResults({
     setCashFlowMode(starter.cashFlowMode ?? "flat");
     setEvents(starter.events ?? []);
     setGoals(starter.goals ?? []);
+    setDebts(starter.debts ?? []);
+    setRealAssets(starter.realAssets ?? []);
     setPlanType("starter");
     setIsSavedPlan(true);
     setIsResetDialogOpen(false);
@@ -1835,6 +1979,226 @@ function ProjectionResults({
               )}
             </div>
 
+            <section
+              aria-labelledby="projection-debts-assets-title"
+              className="space-y-4 rounded-xl border border-secondary bg-container-inset/30 p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3
+                    className="text-sm font-semibold text-primary"
+                    id="projection-debts-assets-title"
+                  >
+                    Debts and real assets
+                  </h3>
+                  <p className="mt-1 text-xs text-secondary">
+                    Model loan payments, extra repayments, purchases, carrying costs, and sales
+                    separately from everyday cash flow.
+                  </p>
+                </div>
+                <Button
+                  onClick={handlePrefillExampleDebtsAndAssets}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {debts.length + realAssets.length > 0
+                    ? "Replace with examples"
+                    : "Prefill examples"}
+                </Button>
+              </div>
+
+              <dl className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+                <div className="rounded-lg border border-secondary bg-container p-3">
+                  <dt className="text-secondary">Current debt balance</dt>
+                  <dd className="mt-1 font-semibold text-primary privacy-sensitive">
+                    {money.format(debtsAssetsSummary.currentDebtBalance)}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-secondary bg-container p-3">
+                  <dt className="text-secondary">Current real asset value</dt>
+                  <dd className="mt-1 font-semibold text-primary privacy-sensitive">
+                    {money.format(debtsAssetsSummary.currentAssetsValue)}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-secondary bg-container p-3">
+                  <dt className="text-secondary">Plan-end net equity</dt>
+                  <dd className="mt-1 font-semibold text-primary privacy-sensitive">
+                    {money.format(debtsAssetsSummary.planEndNetEquity)}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-secondary bg-container p-3">
+                  <dt className="text-secondary">Interest saved over horizon</dt>
+                  <dd className="mt-1 font-semibold text-success privacy-sensitive">
+                    {money.format(debtsAssetsSummary.totalInterestSavedOverHorizon)}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-medium text-primary">Debts</h4>
+                  <Button onClick={handleOpenAddDebt} size="sm" type="button" variant="secondary">
+                    Add debt
+                  </Button>
+                </div>
+                {debts.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-secondary p-4 text-xs text-secondary">
+                    No debts yet. Add a mortgage, auto loan, student loan, or other debt to project
+                    repayments.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {debts.map((debt) => {
+                      const payoff = simulateDebtPayoff(debt);
+                      const linkedAsset = realAssets.find(
+                        (asset) => asset.id === debt.linkedAssetId,
+                      );
+                      return (
+                        <li
+                          className={`rounded-lg border border-secondary bg-container p-3 ${debt.enabled ? "" : "opacity-60"}`}
+                          key={debt.id}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-medium text-primary">{debt.name}</p>
+                              <p className="mt-1 text-xs text-secondary privacy-sensitive">
+                                {money.format(debt.startingBalance)} · {debt.interestRatePercent}%
+                                interest · {debt.termYears} years from {debt.startYear}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                aria-label={`${debt.enabled ? "Disable" : "Enable"} ${debt.name}`}
+                                aria-pressed={debt.enabled}
+                                className="rounded-full bg-container-inset px-2 py-1 text-xs font-medium text-primary hover:bg-surface-hover"
+                                onClick={() => {
+                                  handleToggleDebt(debt.id);
+                                }}
+                                type="button"
+                              >
+                                {debt.enabled ? "Enabled" : "Disabled"}
+                              </button>
+                              <button
+                                aria-label={`Edit ${debt.name}`}
+                                className="rounded-md p-1 text-secondary hover:bg-container-inset hover:text-primary"
+                                onClick={() => {
+                                  handleEditDebt(debt);
+                                }}
+                                type="button"
+                              >
+                                <Icon name="pencil" size="sm" />
+                              </button>
+                              <button
+                                aria-label={`Delete ${debt.name}`}
+                                className="rounded-md p-1 text-secondary hover:bg-container-inset hover:text-destructive"
+                                onClick={() => {
+                                  handleDeleteDebt(debt.id);
+                                }}
+                                type="button"
+                              >
+                                <Icon name="trash-2" size="sm" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-2 text-xs text-secondary privacy-sensitive">
+                            Extra payments: {money.format(debt.extraAnnualPayment)}/year · Estimated
+                            payoff: {payoff.actualPayoffYear}
+                            {linkedAsset !== undefined
+                              ? ` (before any sale of ${linkedAsset.name})`
+                              : ""}{" "}
+                            · Interest saved: {money.format(payoff.interestSaved)}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-medium text-primary">Real assets</h4>
+                  <Button
+                    onClick={handleOpenAddRealAsset}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    Add real asset
+                  </Button>
+                </div>
+                {realAssets.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-secondary p-4 text-xs text-secondary">
+                    No real assets yet. Add property, a vehicle, or another asset to project
+                    ownership and sale proceeds.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {realAssets.map((asset) => {
+                      const linkedDebt = debts.find((debt) => debt.id === asset.linkedDebtId);
+                      return (
+                        <li
+                          className={`rounded-lg border border-secondary bg-container p-3 ${asset.enabled ? "" : "opacity-60"}`}
+                          key={asset.id}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-medium text-primary">{asset.name}</p>
+                              <p className="mt-1 text-xs text-secondary privacy-sensitive">
+                                {money.format(asset.initialValue)} · Purchase: {asset.purchaseYear}{" "}
+                                · {asset.annualAppreciationPercent}% annual value change
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                aria-label={`${asset.enabled ? "Disable" : "Enable"} ${asset.name}`}
+                                aria-pressed={asset.enabled}
+                                className="rounded-full bg-container-inset px-2 py-1 text-xs font-medium text-primary hover:bg-surface-hover"
+                                onClick={() => {
+                                  handleToggleRealAsset(asset.id);
+                                }}
+                                type="button"
+                              >
+                                {asset.enabled ? "Enabled" : "Disabled"}
+                              </button>
+                              <button
+                                aria-label={`Edit ${asset.name}`}
+                                className="rounded-md p-1 text-secondary hover:bg-container-inset hover:text-primary"
+                                onClick={() => {
+                                  handleEditRealAsset(asset);
+                                }}
+                                type="button"
+                              >
+                                <Icon name="pencil" size="sm" />
+                              </button>
+                              <button
+                                aria-label={`Delete ${asset.name}`}
+                                className="rounded-md p-1 text-secondary hover:bg-container-inset hover:text-destructive"
+                                onClick={() => {
+                                  handleDeleteRealAsset(asset.id);
+                                }}
+                                type="button"
+                              >
+                                <Icon name="trash-2" size="sm" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-2 text-xs text-secondary privacy-sensitive">
+                            Carrying costs: {money.format(asset.annualCarryingCost)}/year ·{" "}
+                            {asset.saleYear !== undefined
+                              ? `Sale: ${asset.saleYear}`
+                              : "Held through plan end"}
+                            {linkedDebt !== undefined ? ` · Linked debt: ${linkedDebt.name}` : ""}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </section>
+
             {/* Financial assumptions inputs */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <FormField
@@ -2000,7 +2364,7 @@ function ProjectionResults({
                   <ProjectionHeading align="left">Age(s)</ProjectionHeading>
                   <ProjectionHeading>Income (adjusted)</ProjectionHeading>
                   <ProjectionHeading>Spending (adjusted)</ProjectionHeading>
-                  <ProjectionHeading>Income − spending</ProjectionHeading>
+                  <ProjectionHeading>Net cash flow</ProjectionHeading>
                   <ProjectionHeading>Projected net worth</ProjectionHeading>
                 </tr>
               </thead>
@@ -2126,6 +2490,30 @@ function ProjectionResults({
           setEditingGoal(null);
         }}
         onSave={handleSaveGoal}
+        startYear={START_YEAR}
+      />
+
+      <ProjectionDebtDialog
+        initialDebt={editingDebt}
+        isOpen={isDebtDialogOpen}
+        onClose={() => {
+          setIsDebtDialogOpen(false);
+          setEditingDebt(null);
+        }}
+        onSave={handleSaveDebt}
+        realAssets={realAssets}
+        startYear={START_YEAR}
+      />
+
+      <ProjectionRealAssetDialog
+        debts={debts}
+        initialAsset={editingRealAsset}
+        isOpen={isRealAssetDialogOpen}
+        onClose={() => {
+          setIsRealAssetDialogOpen(false);
+          setEditingRealAsset(null);
+        }}
+        onSave={handleSaveRealAsset}
         startYear={START_YEAR}
       />
     </div>

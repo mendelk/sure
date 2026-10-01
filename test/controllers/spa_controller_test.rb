@@ -48,13 +48,13 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
       nav_items = JSON.parse(elements.first.text).fetch("navItems")
       summary = nav_items.map { |item| [ item.fetch("label"), item.fetch("icon"), item.fetch("preview"), item.fetch("mobileOnly") ] }
 
-      # Same entries and order as the Rails application layout rail: no
-      # preview flag means Bills is absent and the Plan slot renders as
-      # Budgets; Assistant stays mobile-only.
+      # Preserve the shared Rails navigation alongside the SPA-only projection
+      # entry. Without preview features, Bills is absent and Plan is Budgets.
       assert_equal [
         [ "Home", "pie-chart", false, false ],
         [ "Dashboards", "layout-dashboard", false, false ],
         [ "Transactions", "credit-card", false, false ],
+        [ "Projection", "chart-bar", false, false ],
         [ "Reports", "chart-bar", false, false ],
         [ "Budgets", "map", false, false ],
         [ "Assistant", "sparkles", false, true ]
@@ -79,6 +79,7 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
         [ "Home", false ],
         [ "Dashboards", false ],
         [ "Transactions", false ],
+        [ "Projection", false ],
         [ "Bills", true ],
         [ "Reports", false ],
         [ "Plan", true ],
