@@ -49,9 +49,8 @@ export default class extends Controller {
       return;
     }
 
-    // Slack-style negative filters (e.g. `-category:House`) only apply to
-    // faceted filters. Branch/value filters (date, amount) can't be negated.
-    if (term.negated && filter.kind !== "options") {
+    // Only faceted filters with a backend exclusion parameter can be negated.
+    if (term.negated && !filter.excludedInputName) {
       this.hideMenu();
       return;
     }
@@ -170,10 +169,7 @@ export default class extends Controller {
         (input) => !input.checked && !excludedValues.has(input.value),
       )
       .map((input) => ({
-        label:
-          this.element
-            .querySelector(`label[for='${input.id}']`)
-            ?.textContent.trim() || input.value,
+        label: this.displayValueFor(filter, input.value),
         value: input.value,
       }))
       .filter((option) => this.matches(option.label, query));
@@ -215,10 +211,7 @@ export default class extends Controller {
         for (const input of this.formElements(filter.inputName).filter(
           (element) => element.checked,
         )) {
-          const displayValue =
-            this.element
-              .querySelector(`label[for='${input.id}']`)
-              ?.textContent.trim() || input.value;
+          const displayValue = this.displayValueFor(filter, input.value);
           tokens.push({
             label: filter.label,
             displayValue,
@@ -307,6 +300,8 @@ export default class extends Controller {
       (element) => element.value === value,
     );
     if (positive?.id) {
+      if (positive.dataset.autocompleteLabel)
+        return positive.dataset.autocompleteLabel;
       return (
         this.element.querySelector(`label[for='${positive.id}']`)?.textContent.trim() ||
         value

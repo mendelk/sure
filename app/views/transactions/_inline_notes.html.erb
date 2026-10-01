@@ -2,6 +2,7 @@
 <%# Notes display + quick edit for the transaction attributes column (desktop). %>
 <%# The popover form PATCHes the existing transaction update endpoint %>
 <%# (turbo_stream re-renders the row on save). %>
+<% if can_annotate_account?(entry.account) %>
 <%= render DS::Popover.new(variant: "button", placement: "bottom-start", max_width: "320px") do |popover| %>
   <% popover.with_button(class: "block min-w-0 max-w-full rounded-md focus-ring") do %>
     <span class="flex min-w-0 items-center gap-1 group/notes">
@@ -42,4 +43,7 @@
       <% end %>
     </div>
   <% end %>
+<% end %>
+<% else %>
+  <span class="block truncate text-sm text-secondary" title="<%= entry.notes %>"><%= entry.notes.present? ? truncate(entry.notes, length: 80) : "—" %></span>
 <% end %>

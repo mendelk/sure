@@ -695,6 +695,9 @@ class Entry < ApplicationRecord
         name: split_attrs[:name],
         amount: child_amount,
         currency: currency,
+        notes: split_attrs[:notes],
+        import: import,
+        import_locked: import_locked,
         excluded: split_attrs[:excluded],
         entryable: child_transaction
       )
@@ -712,6 +715,9 @@ class Entry < ApplicationRecord
         name: counterpart_name,
         amount: counterpart_amount,
         currency: transfer_account.currency,
+        notes: split_attrs[:notes],
+        import: import,
+        import_locked: import_locked,
         entryable: counterpart_transaction,
         parent_entry_id: nil
       )

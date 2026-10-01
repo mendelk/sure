@@ -4,7 +4,7 @@
 <%# PATCHes the existing transaction update endpoint (turbo_stream re-renders the row). %>
 <% merchant = transaction.merchant %>
 
-<% if transaction.transfer.present? %>
+<% if transaction.transfer.present? || !can_annotate_account?(entry.account) %>
   <span class="block truncate text-sm text-secondary" title="<%= merchant&.name %>">
     <%= merchant&.name || "—" %>
   </span>
