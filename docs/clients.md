@@ -38,6 +38,29 @@ http://localhost:3000
 
 The web app also serves as the surface rendered by the macOS desktop app.
 
+Dashboards at `/dashboards` retain stable IDs in each user's browser-local
+snapshot. New dashboards receive random 128-bit IDs. A report's **Configure**
+button opens the dedicated configuration page at
+`/dashboards/<dashboard-id>/reports/<report-id>/configure`, with both IDs in the
+path rather than a report query parameter. Reloading that URL restores the
+selected report editor. Saving, canceling, or using **Back to dashboard** returns
+to the selected dashboard. Report headers keep their drag grip and resize handle
+without the instructional hint text.
+
+The query editor supports SureQL only: there is no language selector or PRQL
+mode. Syntax highlighting, source suggestions, validation and Run all use
+SureQL. The editor grows and shrinks with query content from 128px to 640px,
+then scrolls internally for longer queries. Copy, Reset and Run use compact footer buttons
+beside the cursor position and character count, without a separate query heading
+or shortcut hint. Command/Ctrl+Enter still runs the query. A new chart report
+retains its chart presentation across configuration-page navigation and reload,
+before its pivot is configured.
+
+Autocomplete offers account and category joins after `from transactions`.
+Join completions preserve a typed alias and replace partial join text. Typing `.`
+after a declared account or category alias suggests its fields, such as
+`a.name`, `bank.balance`, or `c.name`.
+
 ## macOS desktop app
 
 The macOS desktop app is a Tauri 2 shell that renders the full Sure web app in a

@@ -1,4 +1,6 @@
 import {
+  Outlet,
+  useParams,
   createRootRouteWithContext,
   createRoute,
   createRouter,
@@ -44,12 +46,37 @@ const dashboardsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dashboards",
   validateSearch: validateDashboardSearch,
+  component: Outlet,
+});
+
+const dashboardsIndexRoute = createRoute({
+  getParentRoute: () => dashboardsRoute,
+  path: "/",
   component: DashboardsPage,
 });
 
+const reportConfigureRoute = createRoute({
+  getParentRoute: () => dashboardsRoute,
+  path: "$dashboardId/reports/$reportId/configure",
+  component: ReportConfigurePage,
+});
+
+function ReportConfigurePage() {
+  const { dashboardId, reportId } = useParams({
+    from: "/dashboards/$dashboardId/reports/$reportId/configure",
+  });
+  return (
+    <DashboardsPage
+      key={`${dashboardId}:${reportId}`}
+      dashboardId={dashboardId}
+      reportId={reportId}
+    />
+  );
+}
+
 const routeTree = rootRoute.addChildren([
   transactionsRoute.addChildren([transactionDetailRoute, newTransactionRoute]),
-  dashboardsRoute,
+  dashboardsRoute.addChildren([dashboardsIndexRoute, reportConfigureRoute]),
 ]);
 export type SpaRouter = Router<typeof routeTree>;
 
