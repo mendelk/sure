@@ -72,9 +72,6 @@ function ReportCardHeader({ name, onConfigure }: { name: string; onConfigure: ()
         <h2 className="truncate select-none text-xs font-semibold uppercase tracking-wider text-primary">
           {name}
         </h2>
-        <span className="ml-auto hidden select-none text-xs tabular-nums text-tertiary sm:inline">
-          drag to move · resize from corner
-        </span>
       </div>
       <Button
         aria-label={`Configure ${name}`}
@@ -320,25 +317,36 @@ function ReportCard({
   );
 }
 
-export function DashboardsPage() {
+export function DashboardsPage({
+  dashboardId: configuredDashboardId,
+  reportId,
+}: {
+  dashboardId?: string;
+  reportId?: string;
+}) {
   const { bootstrap } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
   const routeSearch = useSearch({ from: "/dashboards" });
   const navigate = useNavigate({ from: "/dashboards" });
   const [initialSnapshot] = useState(() => loadOrInstallStarterSnapshot(bootstrap.currentUser.id));
   const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const activeDashboard = selectActiveDashboard(snapshot, routeSearch.dashboard);
-  const [reportNameDraft, setReportNameDraft] = useState("");
-  const [reportQueryDraft, setReportQueryDraft] = useState(STARTER_QUERY);
+  const activeDashboard =
+    configuredDashboardId === undefined
+      ? selectActiveDashboard(snapshot, routeSearch.dashboard)
+      : snapshot.dashboards.find((dashboard) => dashboard.id === configuredDashboardId);
+  const selectedReport = activeDashboard?.reports.find((report) => report.id === reportId);
+  const [reportNameDraft, setReportNameDraft] = useState(selectedReport?.name ?? "");
+  const [reportQueryDraft, setReportQueryDraft] = useState(selectedReport?.query ?? STARTER_QUERY);
   const [reportPresentationDraft, setReportPresentationDraft] = useState<"table" | "chart">(
-    "table",
+    selectedReport?.presentation ?? "table",
   );
-  const [reportPivotDraft, setReportPivotDraft] = useState<PivotChartConfig | null>(null);
+  const [reportPivotDraft, setReportPivotDraft] = useState<PivotChartConfig | null>(
+    selectedReport?.pivot ?? null,
+  );
   const [reportPivotPreview, setReportPivotPreview] = useState<PivotResult | null>(null);
   const [reportPivotPreviewKey, setReportPivotPreviewKey] = useState<string | null>(null);
   const [reportPivotRunning, setReportPivotRunning] = useState(false);
   const [reportPivotError, setReportPivotError] = useState<string | null>(null);
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [reportPendingRemovalId, setReportPendingRemovalId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -350,7 +358,6 @@ export function DashboardsPage() {
     measureBeforeMount: true,
   });
   const preview = useSureqlPreview();
-  const selectedReport = activeDashboard?.reports.find((report) => report.id === selectedReportId);
   const reportPendingRemoval = activeDashboard?.reports.find(
     (report) => report.id === reportPendingRemovalId,
   );
@@ -418,7 +425,7 @@ export function DashboardsPage() {
   };
 
   const switchDashboard = (dashboardId: string) => {
-    void navigate({ search: { dashboard: dashboardId } });
+    void navigate({ to: "/dashboards", search: { dashboard: dashboardId } });
   };
 
   const handleInteractionStop: EventCallback = (nextLayout) => {
@@ -474,7 +481,7 @@ export function DashboardsPage() {
     setDeleteDialogOpen(false);
     setTitleEditor(null);
     if (remaining.length > 0) switchDashboard(remaining[0].id);
-    else void navigate({ search: {} });
+    else void navigate({ to: "/dashboards", search: {} });
   };
 
   const resetStarterDashboard = () => {
@@ -482,20 +489,16 @@ export function DashboardsPage() {
     persistSnapshot(starter);
     setResetDialogOpen(false);
     setTitleEditor(null);
-    void navigate({ search: {} });
+    void navigate({ to: "/dashboards", search: {} });
   };
 
-  const openReportDialog = (report: DashboardReport) => {
-    setReportNameDraft(report.name);
-    setReportQueryDraft(report.query);
-    setReportPresentationDraft(report.presentation);
-    setReportPivotDraft(report.pivot ?? null);
-    setReportPivotPreview(null);
-    setReportPivotPreviewKey(null);
-    setReportPivotRunning(false);
-    setReportPivotError(null);
-    setSelectedReportId(report.id);
-    preview.reset();
+  const openReportConfiguration = (report: DashboardReport) => {
+    if (activeDashboard === undefined) return;
+    void navigate({
+      to: "/dashboards/$dashboardId/reports/$reportId/configure",
+      params: { dashboardId: activeDashboard.id, reportId: report.id },
+      search: {},
+    });
   };
 
   const addReport = (presentation: "table" | "chart" = "table") => {
@@ -523,7 +526,7 @@ export function DashboardsPage() {
         },
       ],
     }));
-    openReportDialog(report);
+    openReportConfiguration(report);
   };
 
   const runDraftPreview = () => {
@@ -563,7 +566,13 @@ export function DashboardsPage() {
     const report = selectedReport;
     const name = reportNameDraft.trim();
     const query = reportQueryDraft.trim();
-    if (report === undefined || name.length === 0 || query.length === 0) return;
+    if (
+      activeDashboard === undefined ||
+      report === undefined ||
+      name.length === 0 ||
+      query.length === 0
+    )
+      return;
     if (!previewMatchesDraft) return;
     if (
       reportPresentationDraft === "chart" &&
@@ -587,13 +596,7 @@ export function DashboardsPage() {
           : candidate,
       ),
     }));
-    setSelectedReportId(null);
-    setReportPivotDraft(null);
-    setReportPivotPreview(null);
-    setReportPivotPreviewKey(null);
-    setReportPivotRunning(false);
-    setReportPivotError(null);
-    preview.reset();
+    switchDashboard(activeDashboard.id);
 
     if (query === report.query) {
       void queryClient.refetchQueries({
@@ -604,18 +607,7 @@ export function DashboardsPage() {
   };
 
   const cancelReportConfiguration = () => {
-    if (selectedReport !== undefined) {
-      setReportNameDraft(selectedReport.name);
-      setReportQueryDraft(selectedReport.query);
-      setReportPresentationDraft(selectedReport.presentation);
-      setReportPivotDraft(selectedReport.pivot ?? null);
-    }
-    setSelectedReportId(null);
-    setReportPivotPreview(null);
-    setReportPivotPreviewKey(null);
-    setReportPivotRunning(false);
-    setReportPivotError(null);
-    preview.reset();
+    if (activeDashboard !== undefined) switchDashboard(activeDashboard.id);
   };
 
   const removeReport = () => {
@@ -628,7 +620,395 @@ export function DashboardsPage() {
     }));
     queryClient.removeQueries({ queryKey: ["sureql", report.id] });
     setReportPendingRemovalId(null);
+    cancelReportConfiguration();
   };
+
+  if (configuredDashboardId !== undefined && activeDashboard === undefined)
+    return <p className="p-8 text-secondary">Dashboard not found.</p>;
+  if (reportId !== undefined && selectedReport === undefined)
+    return <p className="p-8 text-secondary">Report not found.</p>;
+
+  if (selectedReport !== undefined) {
+    return (
+      <div className="space-y-6 pb-12">
+        <section
+          aria-labelledby="configure-report-title"
+          id="configure-report-page"
+          className="space-y-4 rounded-xl border border-secondary bg-container p-4 shadow-border-xs"
+        >
+          <div className="space-y-4">
+            <header className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 id="configure-report-title" className="text-2xl font-semibold text-primary">
+                  Configure report
+                </h1>
+                <p className="mt-1 text-sm text-secondary">
+                  {activeDashboard?.name} / {selectedReport.name}
+                </p>
+              </div>
+              <Button
+                aria-label="Back to dashboard"
+                onClick={cancelReportConfiguration}
+                size="sm"
+                variant="secondary"
+              >
+                Back to dashboard
+              </Button>
+            </header>
+
+            <FormField
+              autoComplete="off"
+              id="report-name"
+              label="Report name"
+              maxLength={80}
+              onChange={(event) => {
+                setReportNameDraft(event.currentTarget.value);
+              }}
+              required
+              type="text"
+              value={reportNameDraft}
+            />
+
+            <div>
+              <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
+                <p className="text-xs font-medium text-secondary">Query</p>
+                {draftQueryTrimmed === selectedReport.query.trim() ? (
+                  <span className="text-xs text-tertiary">Draft matches saved query</span>
+                ) : (
+                  <span className="text-xs font-medium text-warning">Unsaved changes</span>
+                )}
+              </div>
+              <SureqlEditor
+                defaultValue={STARTER_QUERY}
+                loading={previewRunning}
+                onChange={setReportQueryDraft}
+                onRun={runDraftPreview}
+                value={reportQueryDraft}
+              />
+              <div aria-live="polite" className="mt-2 space-y-2">
+                {previewRunning && (
+                  <p className="flex items-center gap-2 rounded-lg border border-secondary bg-surface-inset px-3 py-2 text-xs text-secondary">
+                    <Icon name="loader-circle" size="sm" className="animate-spin" />
+                    <span>Running preview of the current draft…</span>
+                  </p>
+                )}
+                {preview.error !== null && (
+                  <div
+                    aria-live="assertive"
+                    className="rounded-xl border border-destructive bg-container p-4 text-sm text-destructive"
+                    role="alert"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <Icon
+                        name="circle-alert"
+                        size="sm"
+                        className="mt-0.5 shrink-0 text-destructive"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-semibold">Preview error</p>
+                        <pre className="mt-1 max-h-64 overflow-x-auto whitespace-pre-wrap font-mono text-xs">
+                          {preview.error}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {preview.error === null &&
+                  preview.result !== null &&
+                  preview.resultQuery !== null && (
+                    <div className="space-y-2 rounded-xl border border-secondary bg-surface-inset p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-secondary">
+                          Preview — not saved yet ({preview.result.row_count}{" "}
+                          {preview.result.row_count === 1 ? "row" : "rows"})
+                        </p>
+                        {preview.resultQuery.trim() !== draftQueryTrimmed && (
+                          <p className="text-xs font-medium text-warning">
+                            Draft changed since this preview — Run again to refresh.
+                          </p>
+                        )}
+                      </div>
+                      {preview.result.truncated && (
+                        <output className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
+                          <Icon name="circle-alert" size="sm" className="text-warning" />
+                          <span>
+                            Results truncated: showing first {preview.result.row_count} rows.
+                          </span>
+                        </output>
+                      )}
+                      {preview.result.rows.length === 0 ? (
+                        <p className="text-sm text-secondary">No results found for this query.</p>
+                      ) : (
+                        <ReportTable columns={previewColumns} rows={preview.result.rows} />
+                      )}
+                      <details className="rounded-lg border border-secondary bg-container">
+                        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-secondary">
+                          Generated SQL (technical)
+                        </summary>
+                        <pre className="max-h-64 overflow-auto border-t border-secondary px-3 py-2 font-mono text-xs whitespace-pre-wrap text-secondary">
+                          {preview.result.sql}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
+              </div>
+            </div>
+
+            {reportPresentationDraft === "chart" && (
+              <fieldset>
+                <legend className="mb-1.5 text-xs font-medium text-secondary">
+                  Chart configuration
+                </legend>
+                {preview.result === null || !previewMatchesDraft ? (
+                  <p className="text-xs text-secondary">
+                    Run the query preview successfully to choose chart fields.
+                  </p>
+                ) : (
+                  <>
+                    {reportPivotDraft === null && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            const next = defaultPivotChartConfig(previewFields);
+                            if (next !== undefined) {
+                              setReportPivotDraft(next);
+                              setReportPivotPreview(null);
+                              setReportPivotPreviewKey(null);
+                              setReportPivotError(null);
+                            }
+                          }}
+                        >
+                          Start from suggested chart
+                        </Button>
+                      </div>
+                    )}
+                    <PivotChartConfigurator
+                      fields={previewFields}
+                      value={reportPivotDraft}
+                      onChange={(next) => {
+                        setReportPivotDraft(next);
+                        setReportPivotPreview(null);
+                        setReportPivotPreviewKey(null);
+                        setReportPivotError(null);
+                      }}
+                      stale={!previewMatchesDraft}
+                      missingFields={pivotMissingFields}
+                    />
+                    <div className="space-y-2 rounded-xl border border-secondary bg-surface-inset p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-secondary">
+                          Pivot preview — grouped server result
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={
+                            reportPivotDraft === null ||
+                            reportPivotRunning ||
+                            pivotDraftIssues.length > 0 ||
+                            pivotMissingFields.length > 0
+                          }
+                          onClick={() => {
+                            if (reportPivotDraft === null) return;
+                            const pivot = reportPivotDraft;
+                            const query = reportQueryDraft;
+                            const key = `${query.trim()}\n${JSON.stringify(pivot)}`;
+                            setReportPivotRunning(true);
+                            setReportPivotError(null);
+                            void (async () => {
+                              try {
+                                const data = await executeSureqlPivot(
+                                  bootstrap.apiPaths.sureqlRun,
+                                  query,
+                                  pivot,
+                                );
+                                setReportPivotPreview(data);
+                                setReportPivotPreviewKey(key);
+                              } catch (reason: unknown) {
+                                setReportPivotError(
+                                  reason instanceof Error
+                                    ? reason.message
+                                    : "Pivot preview failed.",
+                                );
+                              } finally {
+                                setReportPivotRunning(false);
+                              }
+                            })();
+                          }}
+                        >
+                          {reportPivotRunning ? "Running pivot…" : "Run pivot preview"}
+                        </Button>
+                      </div>
+                      {reportPivotRunning && (
+                        <p className="flex items-center gap-2 text-xs text-secondary">
+                          <Icon name="loader-circle" size="sm" className="animate-spin" />
+                          <span>Running pivot preview…</span>
+                        </p>
+                      )}
+                      {reportPivotError !== null && (
+                        <p className="text-xs text-destructive" role="alert">
+                          {reportPivotError}
+                        </p>
+                      )}
+                      {reportPivotPreview !== null && !pivotPreviewStale && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-secondary">
+                            {reportPivotPreview.row_count}{" "}
+                            {reportPivotPreview.row_count === 1 ? "group" : "groups"}
+                            {reportPivotPreview.truncated ? " (truncated)" : ""}
+                          </p>
+                          <ReportTable
+                            columns={reportPivotPreview.columns}
+                            rows={reportPivotPreview.rows}
+                          />
+                          <details className="rounded-lg border border-secondary bg-container">
+                            <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-secondary">
+                              Generated pivot SQL (technical)
+                            </summary>
+                            <pre className="max-h-64 overflow-auto border-t border-secondary px-3 py-2 font-mono text-xs whitespace-pre-wrap text-secondary">
+                              {reportPivotPreview.sql}
+                            </pre>
+                          </details>
+                        </div>
+                      )}
+                      {pivotPreviewStale && reportPivotPreview !== null && (
+                        <p className="text-xs font-medium text-warning">
+                          Chart or query changed since this pivot preview — run again.
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </fieldset>
+            )}
+
+            <fieldset>
+              <legend className="mb-1.5 text-xs font-medium text-secondary">Presentation</legend>
+              <div className="flex gap-2">
+                <Button
+                  aria-pressed={reportPresentationDraft === "table"}
+                  onClick={() => {
+                    setReportPresentationDraft("table");
+                  }}
+                  size="sm"
+                  variant={reportPresentationDraft === "table" ? "primary" : "secondary"}
+                >
+                  Table
+                </Button>
+                <Button
+                  aria-pressed={reportPresentationDraft === "chart"}
+                  onClick={() => {
+                    setReportPresentationDraft("chart");
+                  }}
+                  size="sm"
+                  variant={reportPresentationDraft === "chart" ? "primary" : "secondary"}
+                >
+                  Chart
+                </Button>
+              </div>
+            </fieldset>
+
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                onClick={() => {
+                  setReportPendingRemovalId(selectedReport.id);
+                }}
+                size="sm"
+                variant="destructive-outline"
+              >
+                Remove report
+              </Button>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button onClick={cancelReportConfiguration} size="sm" variant="secondary">
+                  Cancel
+                </Button>
+                <Button
+                  disabled={draftQueryTrimmed.length === 0 || previewRunning}
+                  iconProps={{ name: "play", size: "sm" }}
+                  onClick={runDraftPreview}
+                  size="sm"
+                  variant="secondary"
+                >
+                  {previewRunning ? "Running…" : "Run preview"}
+                </Button>
+                <Button
+                  disabled={
+                    reportNameDraft.trim().length === 0 ||
+                    draftQueryTrimmed.length === 0 ||
+                    previewRunning ||
+                    reportPivotRunning ||
+                    !previewMatchesDraft ||
+                    (reportPresentationDraft === "chart" &&
+                      (reportPivotDraft === null || !pivotPreviewMatchesDraft))
+                  }
+                  onClick={saveReportConfiguration}
+                  size="sm"
+                  title={
+                    reportPresentationDraft === "chart"
+                      ? "Run the query and pivot previews successfully before saving"
+                      : previewMatchesDraft
+                        ? "Save this previewed draft"
+                        : "Run the draft preview successfully before saving"
+                  }
+                >
+                  Save
+                </Button>
+              </div>
+              {!previewMatchesDraft && draftQueryTrimmed.length > 0 && (
+                <p className="text-xs text-secondary">
+                  Run the exact draft preview successfully before saving. Saving keeps the
+                  card&apos;s last result until the new query loads.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <Modal
+          ariaLabelledby="remove-report-title"
+          id="remove-report-dialog"
+          onClose={() => {
+            setReportPendingRemovalId(null);
+            cancelReportConfiguration();
+          }}
+          open={reportPendingRemoval !== undefined}
+          panelClassName="w-full max-w-sm rounded-xl border border-secondary bg-container p-0 shadow-border-xs"
+        >
+          <div className="space-y-3 p-4">
+            <h2 id="remove-report-title" className="text-sm font-semibold text-primary">
+              Remove report?
+            </h2>
+            <p className="text-sm text-secondary">
+              {reportPendingRemoval === undefined
+                ? "This report card will be removed."
+                : `${reportPendingRemoval.name} and its saved layout will be removed.`}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="inline-flex min-h-8 items-center rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
+                onClick={() => {
+                  setReportPendingRemovalId(null);
+                  cancelReportConfiguration();
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="inline-flex min-h-8 items-center rounded-lg bg-destructive px-2.5 py-1.5 text-xs font-medium text-inverse transition-opacity hover:opacity-90 focus-ring"
+                onClick={removeReport}
+                type="button"
+              >
+                Remove report
+              </button>
+            </div>
+          </div>
+        </Modal>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12">
@@ -782,377 +1162,6 @@ export function DashboardsPage() {
       </Modal>
 
       <Modal
-        ariaLabelledby="configure-report-title"
-        id="configure-report-dialog"
-        onClose={cancelReportConfiguration}
-        open={selectedReport !== undefined}
-        panelClassName="w-full max-w-4xl rounded-xl border border-secondary bg-container p-0 shadow-border-xs"
-      >
-        <div className="max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto p-4">
-          <div className="flex items-start justify-between gap-4">
-            <h2 id="configure-report-title" className="text-base font-semibold text-primary">
-              Configure report
-            </h2>
-            <IconButton
-              label="Close report configuration"
-              className="shrink-0"
-              icon="x"
-              onClick={cancelReportConfiguration}
-              size="sm"
-            />
-          </div>
-
-          <FormField
-            autoComplete="off"
-            id="report-name"
-            label="Report name"
-            maxLength={80}
-            onChange={(event) => {
-              setReportNameDraft(event.currentTarget.value);
-            }}
-            required
-            type="text"
-            value={reportNameDraft}
-          />
-
-          <div>
-            <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
-              <p className="text-xs font-medium text-secondary">Query</p>
-              {selectedReport !== undefined &&
-                (draftQueryTrimmed === selectedReport.query.trim() ? (
-                  <span className="text-xs text-tertiary">Draft matches saved query</span>
-                ) : (
-                  <span className="text-xs font-medium text-warning">Unsaved changes</span>
-                ))}
-            </div>
-            <SureqlEditor
-              defaultValue={STARTER_QUERY}
-              loading={previewRunning}
-              onChange={setReportQueryDraft}
-              onRun={runDraftPreview}
-              value={reportQueryDraft}
-            />
-            <div aria-live="polite" className="mt-2 space-y-2">
-              {previewRunning && (
-                <p className="flex items-center gap-2 rounded-lg border border-secondary bg-surface-inset px-3 py-2 text-xs text-secondary">
-                  <Icon name="loader-circle" size="sm" className="animate-spin" />
-                  <span>Running preview of the current draft…</span>
-                </p>
-              )}
-              {preview.error !== null && (
-                <div
-                  aria-live="assertive"
-                  className="rounded-xl border border-destructive bg-container p-4 text-sm text-destructive"
-                  role="alert"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <Icon
-                      name="circle-alert"
-                      size="sm"
-                      className="mt-0.5 shrink-0 text-destructive"
-                    />
-                    <div className="min-w-0">
-                      <p className="font-semibold">Preview error</p>
-                      <pre className="mt-1 max-h-64 overflow-x-auto whitespace-pre-wrap font-mono text-xs">
-                        {preview.error}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {preview.error === null &&
-                preview.result !== null &&
-                preview.resultQuery !== null && (
-                  <div className="space-y-2 rounded-xl border border-secondary bg-surface-inset p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-medium text-secondary">
-                        Preview — not saved yet ({preview.result.row_count}{" "}
-                        {preview.result.row_count === 1 ? "row" : "rows"})
-                      </p>
-                      {preview.resultQuery.trim() !== draftQueryTrimmed && (
-                        <p className="text-xs font-medium text-warning">
-                          Draft changed since this preview — Run again to refresh.
-                        </p>
-                      )}
-                    </div>
-                    {preview.result.truncated && (
-                      <output className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
-                        <Icon name="circle-alert" size="sm" className="text-warning" />
-                        <span>
-                          Results truncated: showing first {preview.result.row_count} rows.
-                        </span>
-                      </output>
-                    )}
-                    {preview.result.rows.length === 0 ? (
-                      <p className="text-sm text-secondary">No results found for this query.</p>
-                    ) : (
-                      <ReportTable columns={previewColumns} rows={preview.result.rows} />
-                    )}
-                    <details className="rounded-lg border border-secondary bg-container">
-                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-secondary">
-                        Generated SQL (technical)
-                      </summary>
-                      <pre className="max-h-64 overflow-auto border-t border-secondary px-3 py-2 font-mono text-xs whitespace-pre-wrap text-secondary">
-                        {preview.result.sql}
-                      </pre>
-                    </details>
-                  </div>
-                )}
-            </div>
-          </div>
-
-          {reportPresentationDraft === "chart" && (
-            <fieldset>
-              <legend className="mb-1.5 text-xs font-medium text-secondary">
-                Chart configuration
-              </legend>
-              {preview.result === null || !previewMatchesDraft ? (
-                <p className="text-xs text-secondary">
-                  Run the query preview successfully to choose chart fields.
-                </p>
-              ) : (
-                <>
-                  {reportPivotDraft === null && (
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          const next = defaultPivotChartConfig(previewFields);
-                          if (next !== undefined) {
-                            setReportPivotDraft(next);
-                            setReportPivotPreview(null);
-                            setReportPivotPreviewKey(null);
-                            setReportPivotError(null);
-                          }
-                        }}
-                      >
-                        Start from suggested chart
-                      </Button>
-                    </div>
-                  )}
-                  <PivotChartConfigurator
-                    fields={previewFields}
-                    value={reportPivotDraft}
-                    onChange={(next) => {
-                      setReportPivotDraft(next);
-                      setReportPivotPreview(null);
-                      setReportPivotPreviewKey(null);
-                      setReportPivotError(null);
-                    }}
-                    stale={!previewMatchesDraft}
-                    missingFields={pivotMissingFields}
-                  />
-                  <div className="space-y-2 rounded-xl border border-secondary bg-surface-inset p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-medium text-secondary">
-                        Pivot preview — grouped server result
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={
-                          reportPivotDraft === null ||
-                          reportPivotRunning ||
-                          pivotDraftIssues.length > 0 ||
-                          pivotMissingFields.length > 0
-                        }
-                        onClick={() => {
-                          if (reportPivotDraft === null) return;
-                          const pivot = reportPivotDraft;
-                          const query = reportQueryDraft;
-                          const key = `${query.trim()}\n${JSON.stringify(pivot)}`;
-                          setReportPivotRunning(true);
-                          setReportPivotError(null);
-                          void (async () => {
-                            try {
-                              const data = await executeSureqlPivot(
-                                bootstrap.apiPaths.sureqlRun,
-                                query,
-                                pivot,
-                              );
-                              setReportPivotPreview(data);
-                              setReportPivotPreviewKey(key);
-                            } catch (reason: unknown) {
-                              setReportPivotError(
-                                reason instanceof Error ? reason.message : "Pivot preview failed.",
-                              );
-                            } finally {
-                              setReportPivotRunning(false);
-                            }
-                          })();
-                        }}
-                      >
-                        {reportPivotRunning ? "Running pivot…" : "Run pivot preview"}
-                      </Button>
-                    </div>
-                    {reportPivotRunning && (
-                      <p className="flex items-center gap-2 text-xs text-secondary">
-                        <Icon name="loader-circle" size="sm" className="animate-spin" />
-                        <span>Running pivot preview…</span>
-                      </p>
-                    )}
-                    {reportPivotError !== null && (
-                      <p className="text-xs text-destructive" role="alert">
-                        {reportPivotError}
-                      </p>
-                    )}
-                    {reportPivotPreview !== null && !pivotPreviewStale && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-secondary">
-                          {reportPivotPreview.row_count}{" "}
-                          {reportPivotPreview.row_count === 1 ? "group" : "groups"}
-                          {reportPivotPreview.truncated ? " (truncated)" : ""}
-                        </p>
-                        <ReportTable
-                          columns={reportPivotPreview.columns}
-                          rows={reportPivotPreview.rows}
-                        />
-                        <details className="rounded-lg border border-secondary bg-container">
-                          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-secondary">
-                            Generated pivot SQL (technical)
-                          </summary>
-                          <pre className="max-h-64 overflow-auto border-t border-secondary px-3 py-2 font-mono text-xs whitespace-pre-wrap text-secondary">
-                            {reportPivotPreview.sql}
-                          </pre>
-                        </details>
-                      </div>
-                    )}
-                    {pivotPreviewStale && reportPivotPreview !== null && (
-                      <p className="text-xs font-medium text-warning">
-                        Chart or query changed since this pivot preview — run again.
-                      </p>
-                    )}
-                  </div>
-                </>
-              )}
-            </fieldset>
-          )}
-
-          <fieldset>
-            <legend className="mb-1.5 text-xs font-medium text-secondary">Presentation</legend>
-            <div className="flex gap-2">
-              <Button
-                aria-pressed={reportPresentationDraft === "table"}
-                onClick={() => {
-                  setReportPresentationDraft("table");
-                }}
-                size="sm"
-                variant={reportPresentationDraft === "table" ? "primary" : "secondary"}
-              >
-                Table
-              </Button>
-              <Button
-                aria-pressed={reportPresentationDraft === "chart"}
-                onClick={() => {
-                  setReportPresentationDraft("chart");
-                }}
-                size="sm"
-                variant={reportPresentationDraft === "chart" ? "primary" : "secondary"}
-              >
-                Chart
-              </Button>
-            </div>
-          </fieldset>
-
-          <div className="flex items-center justify-between gap-2">
-            <Button
-              onClick={() => {
-                if (selectedReport === undefined) return;
-                setSelectedReportId(null);
-                setReportPendingRemovalId(selectedReport.id);
-              }}
-              size="sm"
-              variant="destructive-outline"
-            >
-              Remove report
-            </Button>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button onClick={cancelReportConfiguration} size="sm" variant="secondary">
-                Cancel
-              </Button>
-              <Button
-                disabled={draftQueryTrimmed.length === 0 || previewRunning}
-                iconProps={{ name: "play", size: "sm" }}
-                onClick={runDraftPreview}
-                size="sm"
-                variant="secondary"
-              >
-                {previewRunning ? "Running…" : "Run preview"}
-              </Button>
-              <Button
-                disabled={
-                  reportNameDraft.trim().length === 0 ||
-                  draftQueryTrimmed.length === 0 ||
-                  previewRunning ||
-                  reportPivotRunning ||
-                  !previewMatchesDraft ||
-                  (reportPresentationDraft === "chart" &&
-                    (reportPivotDraft === null || !pivotPreviewMatchesDraft))
-                }
-                onClick={saveReportConfiguration}
-                size="sm"
-                title={
-                  reportPresentationDraft === "chart"
-                    ? "Run the query and pivot previews successfully before saving"
-                    : previewMatchesDraft
-                      ? "Save this previewed draft"
-                      : "Run the draft preview successfully before saving"
-                }
-              >
-                Save
-              </Button>
-            </div>
-            {!previewMatchesDraft && draftQueryTrimmed.length > 0 && (
-              <p className="text-xs text-secondary">
-                Run the exact draft preview successfully before saving. Saving keeps the card&apos;s
-                last result until the new query loads.
-              </p>
-            )}
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
-        ariaLabelledby="remove-report-title"
-        id="remove-report-dialog"
-        onClose={() => {
-          setReportPendingRemovalId(null);
-        }}
-        open={reportPendingRemoval !== undefined}
-        panelClassName="w-full max-w-sm rounded-xl border border-secondary bg-container p-0 shadow-border-xs"
-      >
-        <div className="space-y-3 p-4">
-          <h2 id="remove-report-title" className="text-sm font-semibold text-primary">
-            Remove report?
-          </h2>
-          <p className="text-sm text-secondary">
-            {reportPendingRemoval === undefined
-              ? "This report card will be removed."
-              : `${reportPendingRemoval.name} and its saved layout will be removed.`}
-          </p>
-          <div className="flex justify-end gap-2">
-            <button
-              className="inline-flex min-h-8 items-center rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
-              onClick={() => {
-                setReportPendingRemovalId(null);
-              }}
-              type="button"
-            >
-              Cancel
-            </button>
-            <button
-              className="inline-flex min-h-8 items-center rounded-lg bg-destructive px-2.5 py-1.5 text-xs font-medium text-inverse transition-opacity hover:opacity-90 focus-ring"
-              onClick={removeReport}
-              type="button"
-            >
-              Remove report
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
         ariaLabelledby="reset-starter-title"
         id="reset-starter-dialog"
         onClose={() => {
@@ -1256,7 +1265,7 @@ export function DashboardsPage() {
                 <ReportCard
                   endpoint={bootstrap.apiPaths.sureqlRun}
                   onConfigure={() => {
-                    openReportDialog(report);
+                    openReportConfiguration(report);
                   }}
                   report={report}
                 />

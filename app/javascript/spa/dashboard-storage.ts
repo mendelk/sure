@@ -263,10 +263,7 @@ function normalizeReports(
     if (id.length === 0 || name.length === 0 || query.length === 0 || ids.has(id)) return undefined;
     ids.add(id);
     const pivot = normalizePivotConfig(storedReport.pivot);
-    // Legacy automatic charts lose no data: without a valid explicit pivot
-    // they open as tables until the user previews and saves a new chart.
-    const presentation =
-      pivot !== undefined && storedReport.presentation === "chart" ? "chart" : "table";
+    const presentation = storedReport.presentation ?? "table";
     reports.push({
       id,
       name,
