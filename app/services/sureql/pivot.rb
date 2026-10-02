@@ -16,6 +16,7 @@ class Sureql::Pivot
   AGGREGATIONS = %w[count count_distinct sum average minimum maximum].freeze
   DATE_BUCKETS = %w[day week month quarter year].freeze
   SORTS = %w[category_asc category_desc value_desc value_asc].freeze
+  CHART_TYPES = %w[line grouped_bar stacked_bar pie].freeze
   FIELD_PATTERN = /\A[A-Za-z_][A-Za-z0-9_]*\z/.freeze
   MAX_MEASURES_WITHOUT_SERIES = 3
   MAX_MEASURES_WITH_SERIES = 1
@@ -143,6 +144,24 @@ class Sureql::Pivot
 
       unless SORTS.include?(spec[:sort].to_s)
         raise InvalidError.new("sort", "Unsupported pivot sort.")
+      end
+
+      validate_chart_type!(spec)
+    end
+
+    def validate_chart_type!(spec)
+      chart_type = spec[:chartType].to_s
+      chart_type = "grouped_bar" if chart_type.blank?
+      raise InvalidError.new("chartType", "Unsupported chart type.") unless CHART_TYPES.include?(chart_type)
+      return unless chart_type == "pie"
+      if spec[:series].present?
+        raise InvalidError.new("chartType", "Pie charts support one category and one measure, without a series.")
+      end
+      if spec[:measures].size != 1
+        raise InvalidError.new("chartType", "Pie charts support exactly one measure.")
+      end
+      if spec[:category][:dateBucket].present?
+        raise InvalidError.new("chartType", "Pie charts group by category names, not date buckets.")
       end
     end
 

@@ -2,6 +2,9 @@
 //
 // Representative shapes:
 // - Transactions: date (date), amount (number), name (text); monthly cash flow buckets date by month.
+// - Category pie (last 30 days, no take): base query filters date past cutoff, joins categories,
+//   and selects the joined category name plus amount; pivot groups that name with sum(amount),
+//   chartType pie, sort value_desc. `take` stays out because it truncates before aggregation.
 // - Accounts: name (text), balance (number/currency), classification (text); category spending splits one sum by classification.
 // - Empty results keep typed empty categories/measures; invalid specs return validation issues instead of charts.
 // - Executor: base SureQL compiles once with existing authorization; pivot groups/aggregates the full result.
@@ -35,7 +38,7 @@ export type PivotAggregation = (typeof PIVOT_AGGREGATIONS)[number];
 export const PIVOT_DATE_BUCKETS = ["day", "week", "month", "quarter", "year"] as const;
 export type PivotDateBucket = (typeof PIVOT_DATE_BUCKETS)[number];
 
-export const PIVOT_CHART_TYPES = ["line", "grouped_bar", "stacked_bar"] as const;
+export const PIVOT_CHART_TYPES = ["line", "grouped_bar", "stacked_bar", "pie"] as const;
 export type PivotChartType = (typeof PIVOT_CHART_TYPES)[number];
 
 export const PIVOT_SORTS = ["category_asc", "category_desc", "value_desc", "value_asc"] as const;
@@ -199,16 +202,27 @@ export function validatePivotChartConfig(
   }
 
   const categoryField = fieldByName(config.category.field, fields);
-  if (!FIELD_NAME_PATTERN.test(config.category.field) || categoryField === undefined)
-    issues.push({ field: "category.field", message: "Choose a category from the query result." });
-  else if (!categoryField.capabilities.category)
-    issues.push({ field: "category.field", message: "This field cannot group chart categories." });
+  if (!FIELD_NAME_PATTERN.test(config.category.field) || categoryField === undefined) {
+    issues.push({
+      field: "category.field",
+      message: "Choose a category from the query result.",
+    });
+  } else if (!categoryField.capabilities.category) {
+    issues.push({
+      field: "category.field",
+      message: "This field cannot group chart categories.",
+    });
+  }
   if (
     categoryField?.kind !== "date" &&
     categoryField?.kind !== "datetime" &&
     config.category.dateBucket !== undefined
-  )
-    issues.push({ field: "category.dateBucket", message: "Date buckets need a date field." });
+  ) {
+    issues.push({
+      field: "category.dateBucket",
+      message: "Date buckets need a date field.",
+    });
+  }
   if (
     config.category.limit !== undefined &&
     (!Number.isInteger(config.category.limit) ||
@@ -223,12 +237,23 @@ export function validatePivotChartConfig(
 
   if (config.series !== undefined) {
     const seriesField = fieldByName(config.series.field, fields);
-    if (!FIELD_NAME_PATTERN.test(config.series.field) || seriesField === undefined)
-      issues.push({ field: "series.field", message: "Choose a series from the query result." });
-    else if (!seriesField.capabilities.series)
-      issues.push({ field: "series.field", message: "This field cannot split chart series." });
-    if (config.series.field === config.category.field)
-      issues.push({ field: "series.field", message: "Series must differ from category." });
+    if (!FIELD_NAME_PATTERN.test(config.series.field) || seriesField === undefined) {
+      issues.push({
+        field: "series.field",
+        message: "Choose a series from the query result.",
+      });
+    } else if (!seriesField.capabilities.series) {
+      issues.push({
+        field: "series.field",
+        message: "This field cannot split chart series.",
+      });
+    }
+    if (config.series.field === config.category.field) {
+      issues.push({
+        field: "series.field",
+        message: "Series must differ from category.",
+      });
+    }
     if (
       config.series.limit !== undefined &&
       (!Number.isInteger(config.series.limit) ||
@@ -255,11 +280,17 @@ export function validatePivotChartConfig(
     }
     const measureField = fieldByName(measure.field, fields);
     if (!FIELD_NAME_PATTERN.test(measure.field) || measureField === undefined) {
-      issues.push({ field: `${path}.field`, message: "Choose a measure from the query result." });
+      issues.push({
+        field: `${path}.field`,
+        message: "Choose a measure from the query result.",
+      });
       continue;
     }
     if (!measureField.capabilities.measure) {
-      issues.push({ field: `${path}.field`, message: "This field cannot be measured." });
+      issues.push({
+        field: `${path}.field`,
+        message: "This field cannot be measured.",
+      });
       continue;
     }
     if (!measureField.capabilities.aggregations.includes(measure.aggregation)) {
@@ -287,6 +318,26 @@ export function validatePivotChartConfig(
       field: "chartType",
       message: "Line charts support one measure unless a series splits it.",
     });
+  }
+  if (config.chartType === "pie") {
+    if (config.series !== undefined) {
+      issues.push({
+        field: "chartType",
+        message: "Pie charts support one category and one measure, without a series.",
+      });
+    }
+    if (config.measures.length !== 1) {
+      issues.push({
+        field: "chartType",
+        message: "Pie charts support exactly one measure.",
+      });
+    }
+    if (config.category.dateBucket !== undefined) {
+      issues.push({
+        field: "chartType",
+        message: "Pie charts group by category names, not date buckets.",
+      });
+    }
   }
   if (config.chartType === "stacked_bar") {
     if (config.series === undefined && config.measures.length < 2) {

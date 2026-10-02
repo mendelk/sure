@@ -11,8 +11,21 @@ import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Icon } from "./icon";
 import { Modal } from "./modal";
-import { executeSureqlQuery } from "./api/transactions";
+import {
+  executeSureqlPivot,
+  executeSureqlQuery,
+  pivotFieldsForResult,
+  type PivotResult,
+} from "./api/transactions";
 import { DashboardSwitcher } from "./dashboard-switcher";
+import { PivotChartConfigurator } from "./pivot-chart-configurator";
+import { PivotPieChart, pivotPieSlices } from "./pivot-pie-chart";
+import {
+  defaultPivotChartConfig,
+  validatePivotChartConfig,
+  type PivotChartConfig,
+  type PivotFieldMetadata,
+} from "./pivot-chart-contract";
 import { ReportChart } from "./report-chart";
 import { chartMappingForResult } from "./report-chart-mapping";
 import { SureqlEditor } from "./sureql-editor";
@@ -131,6 +144,24 @@ function ReportCard({
     retry: false,
     staleTime: 30_000,
   });
+  const pivotQuery = useQuery({
+    queryKey: ["sureql-pivot", report.id, report.query, report.pivot],
+    queryFn: () =>
+      executeSureqlPivot(
+        endpoint,
+        report.query,
+        report.pivot ?? {
+          version: 1,
+          category: { field: "" },
+          measures: [],
+          chartType: "pie",
+          sort: "value_desc",
+        },
+      ),
+    retry: false,
+    staleTime: 30_000,
+    enabled: report.presentation === "chart" && report.pivot?.chartType === "pie",
+  });
   const loading = isLoading || isFetching;
   const columns = useMemo(() => {
     if (data === undefined) return [];
@@ -207,6 +238,47 @@ function ReportCard({
           data !== undefined &&
           data.rows.length > 0 &&
           report.presentation === "chart" &&
+          report.pivot?.chartType === "pie" &&
+          pivotQuery.data !== undefined &&
+          pivotPieSlices(pivotQuery.data) !== undefined && (
+            <div className="space-y-4">
+              <PivotPieChart result={pivotQuery.data} reportName={report.name} />
+              <details className="rounded-xl border border-secondary bg-container shadow-border-xs">
+                <summary className="cursor-pointer px-4 py-2.5 text-xs font-medium text-secondary">
+                  View data table (category, amount)
+                </summary>
+                <div className="overflow-x-auto border-t border-secondary">
+                  <ReportTable columns={pivotQuery.data.columns} rows={pivotQuery.data.rows} />
+                </div>
+              </details>
+            </div>
+          )}
+        {!loading &&
+          error === null &&
+          data !== undefined &&
+          data.rows.length > 0 &&
+          report.presentation === "chart" &&
+          report.pivot?.chartType === "pie" &&
+          (pivotQuery.isLoading ||
+            pivotQuery.isFetching ||
+            pivotQuery.error !== null ||
+            pivotQuery.data === undefined ||
+            pivotPieSlices(pivotQuery.data) === undefined) && (
+            <div className="space-y-4">
+              <p className="rounded-lg border border-secondary bg-surface-inset px-3 py-2 text-xs text-secondary">
+                {pivotQuery.error !== null
+                  ? `Pie chart unavailable — ${pivotQuery.error.message}`
+                  : "Pie charts need one category and one nonnegative measure — showing the table instead."}
+              </p>
+              <ReportTable columns={columns} rows={data.rows} />
+            </div>
+          )}
+        {!loading &&
+          error === null &&
+          data !== undefined &&
+          data.rows.length > 0 &&
+          report.presentation === "chart" &&
+          report.pivot?.chartType !== "pie" &&
           chartMapping !== undefined && (
             <div className="space-y-4">
               <ReportChart mapping={chartMapping} reportName={report.name} />
@@ -229,6 +301,7 @@ function ReportCard({
           data !== undefined &&
           data.rows.length > 0 &&
           report.presentation === "chart" &&
+          report.pivot?.chartType !== "pie" &&
           chartMapping === undefined && (
             <div className="space-y-4">
               <p className="rounded-lg border border-secondary bg-surface-inset px-3 py-2 text-xs text-secondary">
@@ -260,11 +333,19 @@ export function DashboardsPage() {
   const [reportPresentationDraft, setReportPresentationDraft] = useState<"table" | "chart">(
     "table",
   );
+  const [reportPivotDraft, setReportPivotDraft] = useState<PivotChartConfig | null>(null);
+  const [reportPivotPreview, setReportPivotPreview] = useState<PivotResult | null>(null);
+  const [reportPivotPreviewKey, setReportPivotPreviewKey] = useState<string | null>(null);
+  const [reportPivotRunning, setReportPivotRunning] = useState(false);
+  const [reportPivotError, setReportPivotError] = useState<string | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [reportPendingRemovalId, setReportPendingRemovalId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [titleEditor, setTitleEditor] = useState<{ id: string; draft: string } | null>(null);
+  const [titleEditor, setTitleEditor] = useState<{
+    id: string;
+    draft: string;
+  } | null>(null);
   const { width: gridWidth, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   });
@@ -287,6 +368,40 @@ export function DashboardsPage() {
     if (preview.result.rows.length > 0) return Object.keys(preview.result.rows[0]);
     return [];
   }, [preview.result]);
+  const previewFields: PivotFieldMetadata[] = useMemo(
+    () => (preview.result === null ? [] : pivotFieldsForResult(preview.result)),
+    [preview.result],
+  );
+  const pivotPreviewStale =
+    reportPivotPreviewKey === null ||
+    reportPivotPreviewKey !== `${draftQueryTrimmed}\n${JSON.stringify(reportPivotDraft)}`;
+  const pivotMissingFields = useMemo(() => {
+    if (reportPivotDraft === null || previewFields.length === 0) return [];
+    const names = new Set(previewFields.map((field) => field.name));
+    const required = [
+      reportPivotDraft.category.field,
+      reportPivotDraft.series?.field,
+      ...reportPivotDraft.measures.map((measure) => measure.field),
+    ];
+    return [
+      ...new Set(required.filter((name): name is string => name !== undefined && !names.has(name))),
+    ];
+  }, [reportPivotDraft, previewFields]);
+  const pivotDraftIssues = useMemo(
+    () =>
+      reportPivotDraft === null || previewFields.length === 0
+        ? []
+        : validatePivotChartConfig(reportPivotDraft, previewFields),
+    [reportPivotDraft, previewFields],
+  );
+  const pivotPreviewMatchesDraft =
+    reportPivotDraft !== null &&
+    reportPivotPreview !== null &&
+    !reportPivotRunning &&
+    reportPivotError === null &&
+    !pivotPreviewStale &&
+    pivotDraftIssues.length === 0 &&
+    pivotMissingFields.length === 0;
   // Persist only on explicit saves and interaction stops — never on every
   const persistSnapshot = (nextSnapshot: DashboardSnapshot) => {
     setSnapshot(nextSnapshot);
@@ -308,7 +423,10 @@ export function DashboardsPage() {
 
   const handleInteractionStop: EventCallback = (nextLayout) => {
     if (activeDashboard === undefined) return;
-    updateActiveDashboard((dashboard) => ({ ...dashboard, layout: nextLayout }));
+    updateActiveDashboard((dashboard) => ({
+      ...dashboard,
+      layout: nextLayout,
+    }));
   };
 
   const startEditingDashboardName = (dashboard: Dashboard) => {
@@ -371,6 +489,11 @@ export function DashboardsPage() {
     setReportNameDraft(report.name);
     setReportQueryDraft(report.query);
     setReportPresentationDraft(report.presentation);
+    setReportPivotDraft(report.pivot ?? null);
+    setReportPivotPreview(null);
+    setReportPivotPreviewKey(null);
+    setReportPivotRunning(false);
+    setReportPivotError(null);
     setSelectedReportId(report.id);
     preview.reset();
   };
@@ -404,6 +527,35 @@ export function DashboardsPage() {
   };
 
   const runDraftPreview = () => {
+    setReportPivotPreview(null);
+    setReportPivotPreviewKey(null);
+    setReportPivotRunning(false);
+    setReportPivotError(null);
+    if (reportPresentationDraft === "chart" && reportPivotDraft !== null) {
+      const pivot = reportPivotDraft;
+      const query = reportQueryDraft;
+      const key = `${query.trim()}\n${JSON.stringify(pivot)}`;
+      preview.run(bootstrap.apiPaths.sureqlRun, query);
+      setReportPivotRunning(true);
+      void (async () => {
+        try {
+          const data = await executeSureqlPivot(bootstrap.apiPaths.sureqlRun, query, pivot);
+          setReportPivotPreview((current) => {
+            setReportPivotPreviewKey((currentKey) => {
+              void currentKey;
+              return key;
+            });
+            void current;
+            return data;
+          });
+        } catch (reason: unknown) {
+          setReportPivotError(reason instanceof Error ? reason.message : "Pivot preview failed.");
+        } finally {
+          setReportPivotRunning(false);
+        }
+      })();
+      return;
+    }
     preview.run(bootstrap.apiPaths.sureqlRun, reportQueryDraft);
   };
 
@@ -413,16 +565,34 @@ export function DashboardsPage() {
     const query = reportQueryDraft.trim();
     if (report === undefined || name.length === 0 || query.length === 0) return;
     if (!previewMatchesDraft) return;
+    if (
+      reportPresentationDraft === "chart" &&
+      (reportPivotDraft === null || !pivotPreviewMatchesDraft)
+    )
+      return;
 
     updateActiveDashboard((dashboard) => ({
       ...dashboard,
       reports: dashboard.reports.map((candidate) =>
         candidate.id === report.id
-          ? { ...candidate, name, query, presentation: reportPresentationDraft }
+          ? {
+              ...candidate,
+              name,
+              query,
+              presentation: reportPresentationDraft,
+              ...(reportPresentationDraft === "chart" && reportPivotDraft !== null
+                ? { pivot: reportPivotDraft }
+                : { pivot: undefined }),
+            }
           : candidate,
       ),
     }));
     setSelectedReportId(null);
+    setReportPivotDraft(null);
+    setReportPivotPreview(null);
+    setReportPivotPreviewKey(null);
+    setReportPivotRunning(false);
+    setReportPivotError(null);
     preview.reset();
 
     if (query === report.query) {
@@ -438,8 +608,13 @@ export function DashboardsPage() {
       setReportNameDraft(selectedReport.name);
       setReportQueryDraft(selectedReport.query);
       setReportPresentationDraft(selectedReport.presentation);
+      setReportPivotDraft(selectedReport.pivot ?? null);
     }
     setSelectedReportId(null);
+    setReportPivotPreview(null);
+    setReportPivotPreviewKey(null);
+    setReportPivotRunning(false);
+    setReportPivotError(null);
     preview.reset();
   };
 
@@ -475,7 +650,10 @@ export function DashboardsPage() {
                   id="dashboard-name"
                   maxLength={80}
                   onChange={(event) => {
-                    setTitleEditor({ id: titleEditor.id, draft: event.currentTarget.value });
+                    setTitleEditor({
+                      id: titleEditor.id,
+                      draft: event.currentTarget.value,
+                    });
                   }}
                   onFocus={(event) => {
                     event.currentTarget.select();
@@ -723,6 +901,134 @@ export function DashboardsPage() {
             </div>
           </div>
 
+          {reportPresentationDraft === "chart" && (
+            <fieldset>
+              <legend className="mb-1.5 text-xs font-medium text-secondary">
+                Chart configuration
+              </legend>
+              {preview.result === null || !previewMatchesDraft ? (
+                <p className="text-xs text-secondary">
+                  Run the query preview successfully to choose chart fields.
+                </p>
+              ) : (
+                <>
+                  {reportPivotDraft === null && (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          const next = defaultPivotChartConfig(previewFields);
+                          if (next !== undefined) {
+                            setReportPivotDraft(next);
+                            setReportPivotPreview(null);
+                            setReportPivotPreviewKey(null);
+                            setReportPivotError(null);
+                          }
+                        }}
+                      >
+                        Start from suggested chart
+                      </Button>
+                    </div>
+                  )}
+                  <PivotChartConfigurator
+                    fields={previewFields}
+                    value={reportPivotDraft}
+                    onChange={(next) => {
+                      setReportPivotDraft(next);
+                      setReportPivotPreview(null);
+                      setReportPivotPreviewKey(null);
+                      setReportPivotError(null);
+                    }}
+                    stale={!previewMatchesDraft}
+                    missingFields={pivotMissingFields}
+                  />
+                  <div className="space-y-2 rounded-xl border border-secondary bg-surface-inset p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-secondary">
+                        Pivot preview — grouped server result
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={
+                          reportPivotDraft === null ||
+                          reportPivotRunning ||
+                          pivotDraftIssues.length > 0 ||
+                          pivotMissingFields.length > 0
+                        }
+                        onClick={() => {
+                          if (reportPivotDraft === null) return;
+                          const pivot = reportPivotDraft;
+                          const query = reportQueryDraft;
+                          const key = `${query.trim()}\n${JSON.stringify(pivot)}`;
+                          setReportPivotRunning(true);
+                          setReportPivotError(null);
+                          void (async () => {
+                            try {
+                              const data = await executeSureqlPivot(
+                                bootstrap.apiPaths.sureqlRun,
+                                query,
+                                pivot,
+                              );
+                              setReportPivotPreview(data);
+                              setReportPivotPreviewKey(key);
+                            } catch (reason: unknown) {
+                              setReportPivotError(
+                                reason instanceof Error ? reason.message : "Pivot preview failed.",
+                              );
+                            } finally {
+                              setReportPivotRunning(false);
+                            }
+                          })();
+                        }}
+                      >
+                        {reportPivotRunning ? "Running pivot…" : "Run pivot preview"}
+                      </Button>
+                    </div>
+                    {reportPivotRunning && (
+                      <p className="flex items-center gap-2 text-xs text-secondary">
+                        <Icon name="loader-circle" size="sm" className="animate-spin" />
+                        <span>Running pivot preview…</span>
+                      </p>
+                    )}
+                    {reportPivotError !== null && (
+                      <p className="text-xs text-destructive" role="alert">
+                        {reportPivotError}
+                      </p>
+                    )}
+                    {reportPivotPreview !== null && !pivotPreviewStale && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-secondary">
+                          {reportPivotPreview.row_count}{" "}
+                          {reportPivotPreview.row_count === 1 ? "group" : "groups"}
+                          {reportPivotPreview.truncated ? " (truncated)" : ""}
+                        </p>
+                        <ReportTable
+                          columns={reportPivotPreview.columns}
+                          rows={reportPivotPreview.rows}
+                        />
+                        <details className="rounded-lg border border-secondary bg-container">
+                          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-secondary">
+                            Generated pivot SQL (technical)
+                          </summary>
+                          <pre className="max-h-64 overflow-auto border-t border-secondary px-3 py-2 font-mono text-xs whitespace-pre-wrap text-secondary">
+                            {reportPivotPreview.sql}
+                          </pre>
+                        </details>
+                      </div>
+                    )}
+                    {pivotPreviewStale && reportPivotPreview !== null && (
+                      <p className="text-xs font-medium text-warning">
+                        Chart or query changed since this pivot preview — run again.
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </fieldset>
+          )}
+
           <fieldset>
             <legend className="mb-1.5 text-xs font-medium text-secondary">Presentation</legend>
             <div className="flex gap-2">
@@ -779,14 +1085,19 @@ export function DashboardsPage() {
                   reportNameDraft.trim().length === 0 ||
                   draftQueryTrimmed.length === 0 ||
                   previewRunning ||
-                  !previewMatchesDraft
+                  reportPivotRunning ||
+                  !previewMatchesDraft ||
+                  (reportPresentationDraft === "chart" &&
+                    (reportPivotDraft === null || !pivotPreviewMatchesDraft))
                 }
                 onClick={saveReportConfiguration}
                 size="sm"
                 title={
-                  previewMatchesDraft
-                    ? "Save this previewed draft"
-                    : "Run the draft preview successfully before saving"
+                  reportPresentationDraft === "chart"
+                    ? "Run the query and pivot previews successfully before saving"
+                    : previewMatchesDraft
+                      ? "Save this previewed draft"
+                      : "Run the draft preview successfully before saving"
                 }
               >
                 Save
