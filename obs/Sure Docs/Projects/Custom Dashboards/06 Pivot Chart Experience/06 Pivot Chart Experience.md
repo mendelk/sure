@@ -4,7 +4,18 @@ id: "p_cd_pivot_charts"
 title: "06 Pivot Chart Experience"
 color: "#2563eb"
 icon: "lucide-chart-spline"
-taskIds: ["[[define-the-pivot-chart-contract|Define the pivot chart contract]]", "[[return-typed-sureql-field-metadata|Return typed SureQL field metadata]]", "[[execute-pivot-aggregations-on-the-server|Execute pivot aggregations on the server]]", "[[version-and-migrate-pivot-chart-configuration|Version and migrate pivot chart configuration]]", "[[build-the-pivot-chart-configurator|Build the pivot chart configurator]]", "[[render-pivot-chart-presentations|Render pivot chart presentations]]", "[[integrate-pivot-preview-save-and-fallback|Integrate pivot preview, save, and fallback]]", "[[harden-pivot-security-cardinality-and-performance|Harden pivot security, cardinality, and performance]]", "[[verify-and-select-the-pivot-chart-experience|Verify and select the pivot chart experience]]"]
+taskIds:
+  [
+    "[[define-the-pivot-chart-contract|Define the pivot chart contract]]",
+    "[[return-typed-sureql-field-metadata|Return typed SureQL field metadata]]",
+    "[[execute-pivot-aggregations-on-the-server|Execute pivot aggregations on the server]]",
+    "[[version-and-migrate-pivot-chart-configuration|Version and migrate pivot chart configuration]]",
+    "[[build-the-pivot-chart-configurator|Build the pivot chart configurator]]",
+    "[[render-pivot-chart-presentations|Render pivot chart presentations]]",
+    "[[integrate-pivot-preview-save-and-fallback|Integrate pivot preview, save, and fallback]]",
+    "[[harden-pivot-security-cardinality-and-performance|Harden pivot security, cardinality, and performance]]",
+    "[[verify-and-select-the-pivot-chart-experience|Verify and select the pivot chart experience]]",
+  ]
 parent: "[[Projects/Custom Dashboards/Custom Dashboards]]"
 customFields: []
 teamMembers: []
@@ -22,10 +33,10 @@ Replace the current first-date/first-number chart guess with an explicit, saved 
 
 ## V1 boundary
 
-- One category dimension, with an optional date bucket for date/time fields.
-- Either one measure split by one optional series dimension, or up to three measures with no series dimension.
+- One category dimension, with an optional date bucket for date/time fields (pie uses plain category names, never a date bucket).
+- Either one measure split by one optional series dimension, or up to three measures with no series dimension; pie takes exactly one measure and no series.
 - `count`, `count distinct`, `sum`, `average`, `minimum`, and `maximum`, restricted by field type.
-- Line, grouped-bar, and stacked-bar presentations. No pie, calculated fields, drag-only field wells, or client-side aggregation.
+- Line, grouped-bar, stacked-bar, and pie presentations. No calculated fields, drag-only field wells, or client-side aggregation.
 - Explicit sort and top-N controls bound category and series cardinality.
 - A semantic result table remains available for every chart and is the fallback for invalid or unavailable configurations.
 
@@ -43,7 +54,7 @@ Replace the current first-date/first-number chart guess with an explicit, saved 
 - [x] [[return-typed-sureql-field-metadata|Return typed SureQL field metadata]]
 - [x] [[execute-pivot-aggregations-on-the-server|Execute pivot aggregations on the server]]
 - [x] [[version-and-migrate-pivot-chart-configuration|Version and migrate pivot chart configuration]]
-- [ ] [[build-the-pivot-chart-configurator|Build the pivot chart configurator]]
+- [x] [[build-the-pivot-chart-configurator|Build the pivot chart configurator]]
 - [ ] [[render-pivot-chart-presentations|Render pivot chart presentations]]
 - [ ] [[integrate-pivot-preview-save-and-fallback|Integrate pivot preview, save, and fallback]]
 - [ ] [[harden-pivot-security-cardinality-and-performance|Harden pivot security, cardinality, and performance]]

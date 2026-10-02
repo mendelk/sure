@@ -14,6 +14,19 @@ export const STARTER_DASHBOARD_NAME = "My dashboard";
 export const STARTER_REPORT_ID = "sureql-report";
 export const STARTER_REPORT_NAME = "Recent transactions";
 
+export const STARTER_PIE_REPORT_ID = "sureql-category-pie";
+export const STARTER_PIE_REPORT_NAME = "Spending by category (30 days)";
+export const STARTER_PIE_QUERY =
+  'from transactions\nderive cutoff = s"current_date - 30"\nfilter date > cutoff\njoin c=categories (==category_id)\nselect {c.name, amount}';
+export const STARTER_PIE_PIVOT: PivotChartConfig = {
+  version: 1,
+  category: { field: "name", limit: 12 },
+  measures: [{ field: "amount", aggregation: "sum" }],
+  chartType: "pie",
+  sort: "value_desc",
+  valueFormat: "currency",
+};
+
 export const STARTER_LAYOUT: Layout = [
   {
     i: STARTER_REPORT_ID,
@@ -21,6 +34,15 @@ export const STARTER_LAYOUT: Layout = [
     y: 0,
     w: 12,
     h: 4,
+    minW: 4,
+    minH: 3,
+  },
+  {
+    i: STARTER_PIE_REPORT_ID,
+    x: 0,
+    y: 4,
+    w: 4,
+    h: 5,
     minW: 4,
     minH: 3,
   },
@@ -100,6 +122,13 @@ export function starterDashboard(): Dashboard {
         name: STARTER_REPORT_NAME,
         query: STARTER_QUERY,
         presentation: "table",
+      },
+      {
+        id: STARTER_PIE_REPORT_ID,
+        name: STARTER_PIE_REPORT_NAME,
+        query: STARTER_PIE_QUERY,
+        presentation: "chart",
+        pivot: STARTER_PIE_PIVOT,
       },
     ],
     layout: structuredClone(STARTER_LAYOUT),

@@ -5,7 +5,7 @@ parentId:
 id: t_cd_pivot_005
 title: Build the pivot chart configurator
 type: task
-status: todo
+status: "done"
 priority: high
 start: ""
 due: ""
