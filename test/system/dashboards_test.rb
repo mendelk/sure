@@ -15,20 +15,31 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "table th", text: /name/i
     assert_selector "table td", text: "Dashboard Groceries Test"
 
-    click_button "Configure"
+    find("button[aria-label='Configure Recent transactions']").click
+    assert_current_path configure_dashboard_report_path("starter-dashboard", "sureql-report")
+    assert_no_selector "[role='dialog']", visible: true
+    assert_no_selector "[data-report-drag-handle]"
+    assert_no_select "Language"
 
-    within "#configure-report-dialog" do
-      assert_selector "label", text: "Report name"
-      assert_selector "label", text: "Language"
-      assert_selector "select#query-language-select"
+    visit current_url
+    assert_field "Report name", with: "Recent transactions"
+
+    within "#configure-report-page" do
       assert_selector "[role='application'][aria-label='SureQL Query Editor']"
       assert_selector ".monaco-editor", text: "from transactions", wait: 10
     end
+
+    click_button "Back to dashboard"
+    assert_current_path dashboards_path(dashboard: "starter-dashboard")
+    assert_no_selector "#configure-report-page", visible: true
+
+    page.go_back
+    assert_field "Report name", with: "Recent transactions"
   end
 
   test "suggests SureQL sources while typing" do
     visit dashboards_url
-    click_button "Configure"
+    find("button[aria-label^='Configure ']", match: :first).click
     assert_selector ".monaco-editor", wait: 10
 
     page.execute_script(<<~JS)
@@ -44,7 +55,7 @@ class DashboardsTest < ApplicationSystemTestCase
 
   test "moves the SureQL cursor by word with Option and arrow keys" do
     visit dashboards_url
-    click_button "Configure"
+    find("button[aria-label^='Configure ']", match: :first).click
     assert_selector ".monaco-editor", wait: 10
 
     page.execute_script(<<~JS)
@@ -61,7 +72,7 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_equal 18, page.evaluate_script("window.sureqlEditor.getPosition().column")
   end
 
-  test "persists dashboard and report names configured in dialogs" do
+  test "persists dashboard and report names configured on their editing surfaces" do
     visit dashboards_url
 
     click_button "Rename dashboard"
@@ -69,9 +80,9 @@ class DashboardsTest < ApplicationSystemTestCase
     click_button "Save dashboard name"
     assert_selected_dashboard("Monthly review")
 
-    click_button "Configure"
+    find("button[aria-label^='Configure ']", match: :first).click
     run_preview
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       fill_in "Report name", with: "Account overview"
     end
     save_report
@@ -91,7 +102,7 @@ class DashboardsTest < ApplicationSystemTestCase
     within "header" do
       click_button "Add table"
     end
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       fill_in "Report name", with: "Account overview"
     end
     set_query("from accounts\ntake 5")
@@ -112,7 +123,7 @@ class DashboardsTest < ApplicationSystemTestCase
     added_layout = dashboard.fetch("layout").find { |item| item.fetch("i") == added_report.fetch("id") }
 
     set_query("from secrets", report_name: "Recent transactions")
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       click_button "Run preview"
       assert_selector "[role='alert']", text: "unknown sureql source `secrets`", wait: 10
       assert_button "Save", disabled: true
@@ -127,7 +138,7 @@ class DashboardsTest < ApplicationSystemTestCase
     end
 
     find("button[aria-label='Configure Recent transactions']").click
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       click_button "Remove report"
     end
     within "#remove-report-dialog" do
@@ -146,7 +157,8 @@ class DashboardsTest < ApplicationSystemTestCase
     within "section[aria-label='Account overview results']" do
       assert_selector "table th", text: /balance/i
     end
-    assert_equal added_report.fetch("id"), active_dashboard(dashboard_snapshot).fetch("reports").sole.fetch("id")
+    expected_report_ids = dashboard.fetch("reports").reject { |report| report.fetch("id") == "sureql-report" }.map { |report| report.fetch("id") }
+    assert_equal expected_report_ids, active_dashboard(dashboard_snapshot).fetch("reports").map { |report| report.fetch("id") }
     assert_equal surviving_layout, active_dashboard(dashboard_snapshot).fetch("layout")
   end
 
@@ -169,7 +181,7 @@ class DashboardsTest < ApplicationSystemTestCase
     within "header" do
       click_button "Add table"
     end
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       fill_in "Report name", with: "Account overview"
     end
     set_query("from accounts\ntake 5")
@@ -233,47 +245,50 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "p", text: "No reports yet"
   end
 
-  test "creates a chart widget alongside the table widget" do
+  test "configures a chart report on its own page without altering the table report" do
     visit dashboards_url
-    assert_selected_dashboard("My dashboard")
     assert_selector "section[aria-label='Recent transactions results'] table"
 
     within "header" do
       click_button "Add chart"
     end
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       fill_in "Report name", with: "Balance history"
+      assert_selector "button[aria-pressed='true']", text: "Chart"
     end
-    set_query("from transactions\nsort {date}\ntake 10")
+    set_query("from transactions\nfilter amount > 0\nselect {date, amount}")
     run_preview
+    click_button "Start from suggested chart"
+    select "line", from: "Chart type"
+    select "amount (number)", from: "Measure 1 field"
+    select "sum", from: "Measure 1 aggregation"
+    click_button "Run pivot preview"
+    assert_button "Save", disabled: false
     save_report
 
-    assert_selector "h2", text: /Balance history/i
     assert_selector "[aria-label='Balance history chart']", wait: 10
-    assert_equal "chart", active_dashboard(dashboard_snapshot).fetch("reports").find { |r| r.fetch("name") == "Balance history" }.fetch("presentation")
+    assert_selector "section[aria-label='Recent transactions results'] table"
 
     visit dashboards_url
     assert_selector "[aria-label='Balance history chart']", wait: 10
     assert_selector "section[aria-label='Recent transactions results'] table"
   end
 
-  test "configures a chart widget with fallback to table when unchartable" do
+  test "retains chart mode across configuration reload and requires a pivot preview before save" do
     visit dashboards_url
-
     within "header" do
       click_button "Add chart"
     end
-    within "#configure-report-dialog" do
-      fill_in "Report name", with: "Names only"
-    end
+    assert_selector "button[aria-pressed='true']", text: "Chart"
+
+    visit current_url
+    assert_selector "button[aria-pressed='true']", text: "Chart"
     set_query("from transactions\nselect {name}")
     run_preview
-    save_report
+    assert_button "Save", disabled: true
+    click_button "Cancel"
 
-    assert_selector "h2", text: /Names only/i
-    assert_text "Chart needs a date column and a numeric column"
-    assert_selector "section[aria-label='Names only results'] table"
-    assert_equal "chart", active_dashboard(dashboard_snapshot).fetch("reports").find { |r| r.fetch("name") == "Names only" }.fetch("presentation")
+    assert_selector "section[aria-label='Recent transactions results'] table td", text: "Dashboard Groceries Test"
   end
 
   test "previews a draft beside the editor, then saves it to the card" do
@@ -282,7 +297,7 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "table td", text: "Dashboard Groceries Test"
     set_query("from accounts\ntake 5")
 
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       assert_button "Save", disabled: true
       click_button "Run preview"
       assert_selector "p", text: %r{Preview.+not saved yet}, wait: 10
@@ -302,7 +317,7 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "table td", text: "Dashboard Groceries Test"
     set_query("from secrets")
 
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       click_button "Run preview"
       assert_selector "[role='alert']", text: "Preview error", wait: 10
       assert_selector "[role='alert']", text: "unknown sureql source `secrets`"
@@ -318,7 +333,7 @@ class DashboardsTest < ApplicationSystemTestCase
     visit dashboards_url
 
     set_query("from accounts\ntake 5")
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       click_button "Cancel"
     end
 
@@ -342,7 +357,7 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selected_dashboard("My dashboard")
     set_query("from secrets")
 
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       click_button "Run preview"
       assert_selector "[role='alert']", text: "Preview error", wait: 10
       assert_selector "[role='alert']", text: "unknown sureql source `secrets`"
@@ -356,7 +371,7 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selected_dashboard("My dashboard")
     set_query("from transactions\nfilter amount == -999999")
 
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       click_button "Run preview"
       assert_selector "p", text: "No results found for this query.", wait: 10
       assert_button "Save", disabled: false
@@ -436,7 +451,7 @@ class DashboardsTest < ApplicationSystemTestCase
     visit dashboards_url
 
     set_query("from transactions")
-    within "#configure-report-dialog" do
+    within "#configure-report-page" do
       click_button "Run preview"
       assert_selector "output", text: "Results truncated: showing first 50 rows.", wait: 10
       click_button "Cancel"
@@ -456,11 +471,11 @@ class DashboardsTest < ApplicationSystemTestCase
     end
 
     def set_query(query_text, report_name: nil)
-      unless page.has_selector?("#configure-report-dialog", visible: :visible)
+      unless page.has_selector?("#configure-report-page", visible: :visible)
         if report_name
           find("button[aria-label='Configure #{report_name}']").click
         else
-          click_button "Configure"
+          find("button[aria-label^='Configure ']", match: :first).click
         end
       end
       assert_selector ".monaco-editor", wait: 10
@@ -473,21 +488,21 @@ class DashboardsTest < ApplicationSystemTestCase
     end
 
     def assert_saved_query(query_text)
-      click_button "Configure"
+      find("button[aria-label^='Configure ']", match: :first).click
       assert_selector ".monaco-editor", wait: 10
       assert_includes page.evaluate_script("window.sureqlEditor.getValue()"), query_text
-      find("button[aria-label='Close report configuration']").click
+      find("button[aria-label='Back to dashboard']").click
     end
 
     def run_preview
-      within "#configure-report-dialog" do
+      within "#configure-report-page" do
         click_button "Run preview"
         assert_selector "p", text: %r{Preview.+not saved yet}, wait: 10
       end
     end
 
     def save_report
-      within "#configure-report-dialog" do
+      within "#configure-report-page" do
         click_button "Save", match: :first
       end
     end

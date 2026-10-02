@@ -20,7 +20,7 @@ export interface SureqlPreview {
 }
 
 /**
- * Live SureQL preview state for the report configuration dialog. Draft text
+ * Live SureQL preview state for the report configuration page. Draft text
  * stays with the caller; this hook tracks one in-flight attempt at a time,
  * ignores late responses from superseded drafts, and aborts replaced
  * requests so rapid repeated Runs execute the latest draft exactly once.
