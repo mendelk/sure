@@ -9,6 +9,136 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     @family = @user.family
   end
 
+  test "structured report catalog is authorized without requiring raw source" do
+    private_account = @family.accounts.create!(name: "Private catalog account", owner: users(:family_member), balance: 0, currency: "EUR", accountable: Depository.new)
+    create_transaction(account: private_account, currency: "EUR", amount: 123)
+
+    post dashboard_monarch_run_path, params: { catalog: true }, as: :json
+
+    assert_response :ok
+    catalog = response.parsed_body
+    assert_equal "transactions", catalog.fetch("source")
+    account_options = catalog.fetch("fields").find { |field| field.fetch("key") == "account" }.fetch("options")
+    assert_not_includes account_options.map { |option| option.fetch("value") }, private_account.id
+  end
+
+  test "structured reports execute signed monthly totals without requiring raw source" do
+    account = @family.accounts.create!(name: "Report endpoint account", owner: @user, balance: 0, currency: "USD", accountable: Depository.new)
+    create_transaction(account: account, amount: 20, date: Date.new(2025, 1, 2))
+    create_transaction(account: account, amount: -7, date: Date.new(2025, 1, 3))
+    report = {
+      version: 1, source: "transactions", mode: "aggregate",
+      rows: [ { id: "category", field: "category" } ],
+      columns: [ { id: "month", field: "date", dateBucket: "month" } ],
+      values: [ { id: "total", field: "amount", aggregation: "sum" } ],
+      filters: [ { field: "account", operator: "equals", value: account.id } ], sort: []
+    }
+
+    post dashboard_monarch_run_path, params: { report: report }, as: :json
+
+    assert_response :ok
+    result = response.parsed_body
+    assert_equal "aggregate", result.fetch("mode")
+    assert_equal [ nil ], result.fetch("rows").first.fetch("values")
+    assert_equal 13, result.fetch("rows").first.fetch("totals").first.to_d
+    assert_equal [ "2025-01" ], result.fetch("columns").first.fetch("labels")
+    assert_equal 13, result.fetch("cells").first.fetch("values").first.to_d
+    assert_not result.fetch("truncated")
+  end
+
+  test "detail report pages preserve duplicate mixed currency transactions across offsets" do
+    account = @family.accounts.create!(name: "Detail endpoint account", owner: @user, balance: 0, currency: "USD", accountable: Depository.new)
+    entries = 51.times.map do |index|
+      create_transaction(account: account, name: "Duplicate", amount: "-900719925474099.1234", date: Date.new(2025, 1, 2),
+        currency: index.even? ? "USD" : "EUR", id: format("00000000-0000-0000-0000-%012d", index + 1))
+    end
+    create_transaction(account: account, amount: 999, excluded: true, date: Date.new(2025, 1, 3))
+    report = {
+      version: 1, source: "transactions", mode: "detail",
+      columns: [ { field: "amount" }, { field: "name" } ],
+      filters: [ { field: "account", operator: "equals", value: account.id } ], sort: []
+    }
+
+    post dashboard_monarch_run_path, params: { report: report }, as: :json
+    assert_response :ok
+    first = response.parsed_body
+    assert_equal "detail", first.fetch("mode")
+    assert_equal [ "amount", "name" ], first.fetch("columns").map { |column| column.fetch("field") }
+    assert_equal entries.first(10).map(&:id), first.fetch("rows").map { |row| row.fetch("id") }
+    assert_equal [ "USD", "EUR" ] * 5, first.fetch("rows").map { |row| row.fetch("currency") }
+    assert first.fetch("rows").all? { |row| row.fetch("values") == [ "-900719925474099.1234", "Duplicate" ] }
+    assert first.fetch("pagination").fetch("hasNext")
+    assert_not first.fetch("truncated")
+
+    post dashboard_monarch_run_path, params: { report: report, pagination: { limit: 25, offset: 25 } }, as: :json
+    assert_response :ok
+    custom = response.parsed_body
+    assert_equal entries.slice(25, 25).map(&:id), custom.fetch("rows").map { |row| row.fetch("id") }
+    assert_equal({ "limit" => 25, "offset" => 25, "hasNext" => true }, custom.fetch("pagination"))
+
+    post dashboard_monarch_run_path, params: { report: report, pagination: { limit: 25, offset: 50 } }, as: :json
+    assert_response :ok
+    last = response.parsed_body
+    assert_equal [ entries.last.id ], last.fetch("rows").map { |row| row.fetch("id") }
+    assert_not last.fetch("pagination").fetch("hasNext")
+  end
+
+  test "detail endpoint scopes explicit account filters to accessible accounts and retains empty metadata" do
+    private_account = @family.accounts.create!(name: "Private detail endpoint", owner: users(:family_member), balance: 0, currency: "USD", accountable: Depository.new)
+    shared_account = @family.accounts.create!(name: "Shared detail endpoint", owner: users(:family_member), balance: 0, currency: "USD", accountable: Depository.new)
+    shared_account.account_shares.create!(user: @user, permission: "read_only")
+    create_transaction(account: private_account, amount: 900)
+    shared = create_transaction(account: shared_account, amount: -17)
+    report = {
+      version: 1, source: "transactions", mode: "detail",
+      columns: [ { field: "account" }, { field: "amount" } ],
+      filters: [ { field: "account", operator: "equals", value: private_account.id } ], sort: []
+    }
+
+    post dashboard_monarch_run_path, params: { report: report }, as: :json
+    assert_response :ok
+    empty = response.parsed_body
+    assert_equal [ "account", "amount" ], empty.fetch("columns").map { |column| column.fetch("field") }
+    assert_empty empty.fetch("rows")
+    assert_not empty.fetch("truncated")
+
+    report[:filters].first[:value] = shared_account.id
+    post dashboard_monarch_run_path, params: { report: report }, as: :json
+    assert_response :ok
+    row = response.parsed_body.fetch("rows").sole
+    assert_equal shared.id, row.fetch("id")
+    assert_equal shared_account.name, row.fetch("values").first
+    assert_kind_of String, row.fetch("values").last
+    assert_equal(-17, row.fetch("values").last.to_d)
+    assert_equal "USD", row.fetch("currency")
+  end
+
+  test "detail endpoint rejects aggregate shape and unselected sort fields" do
+    report = { version: 1, source: "transactions", mode: "detail", columns: [ { field: "name" } ], filters: [], sort: [] }
+    post dashboard_monarch_run_path, params: { report: report.merge(rows: []) }, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "report", response.parsed_body.fetch("field")
+
+    post dashboard_monarch_run_path, params: { report: report.merge(sort: [ { field: "amount", direction: "asc" } ]) }, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "sort.0.field", response.parsed_body.fetch("field")
+  end
+
+  test "malformed structured request bodies fail with stable JSON fields" do
+    [ nil, false, "", [], {} ].each do |report|
+      post dashboard_monarch_run_path, params: { report: report }, as: :json
+      assert_response :unprocessable_entity
+      expected_field = report == {} ? "version" : "report"
+      assert_equal expected_field, response.parsed_body.fetch("field")
+      assert response.parsed_body.fetch("error").is_a?(String)
+    end
+    [ false, nil, "true", {} ].each do |catalog|
+      post dashboard_monarch_run_path, params: { catalog: catalog }, as: :json
+      assert_response :unprocessable_entity
+      assert_equal "catalog", response.parsed_body.fetch("field")
+    end
+  end
+
   test "dashboard" do
     get root_path
     assert_response :ok

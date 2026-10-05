@@ -1,0 +1,126 @@
+en:
+  report_builder:
+    add_visual_report: Build report
+    new_report: New report
+    configure_report: Configure report
+    back_to_dashboard: Back to dashboard
+    loading: Running report…
+    report_error: Report error
+    no_results: No matching transactions.
+    truncated: Some column groups were omitted. Narrow filters to see all columns.
+    builder_description: Arrange fields in the sidebar. Your preview updates automatically after every change.
+    detail_builder_description: Choose transaction columns in the sidebar. Your preview updates automatically after every change.
+    cancel: Cancel
+    remove_report: Remove report
+    save_report: Save report
+    report_name: Report name
+    report_type: Report type
+    transaction_table: Transaction table
+    pivot_table: Pivot table
+    source: Source
+    transactions: Transactions
+    signed_amount_help: Amounts retain their original signs. Positive amounts are outflows and negative amounts are inflows; their sum is net cash movement, not automatically spending. Currencies are never converted or added together. Group currencies in Rows or filter to one currency.
+    detail_signed_amount_help: Each row is one transaction in its original currency. Mixed currencies can be displayed together; amounts are never summed or converted. Positive amounts are outflows and negative amounts are inflows.
+    fields: Fields
+    palette_help: Drag a field header onto an ordered shelf, or use the buttons below each field. Add filters with the Filters button.
+    loading_catalog: Loading available fields…
+    retry_catalog: Reload fields
+    add_to: Add to
+    rows: Rows
+    columns: Columns
+    values: Values
+    filters: Filters
+    rows_help: Up to 3 dimensions. Use Currency here to keep monetary row totals separate.
+    columns_help: Up to 2 dimensions. Leave empty for a simple grouped report.
+    detail_columns_help: Choose 1–6 transaction fields. Their order here is the order displayed in the table.
+    values_help: Choose 1–3 measures. Each measure can use its own aggregation.
+    filters_help: All filters must match; their order does not matter. Add filters using the buttons in Fields.
+    drop_fields: Drop a field here or add one from the palette.
+    add_filters: Add a filter using the Filters button in Fields.
+    drag_field: Drag field
+    drag_help: Drag the field header to move it. Use the Up and Down arrow keys on the drag handle to reorder it.
+    remove_field: Remove field
+    move_to: Move to
+    choose_destination: Choose destination
+    aggregation: Aggregation
+    date_bucket: Date grouping
+    filter_operator: Condition
+    filter_value: Match value
+    filter_field: Filter field
+    choose_value: Choose a value
+    last_days: Last number of days
+    last_days_help: Includes today and the preceding days, excluding future dates. Enter a whole number from 1 to 3660.
+    currency_filter: Currency equals
+    currency_filter_help: Uses original amounts in this currency; no exchange-rate conversion. Remove this filter to include all accessible currencies.
+    sorting: Sorting
+    sort_help: Row measure sorting uses the aggregate over all matching column groups, not a sum of displayed averages. Column sorting uses dimension values.
+    detail_sort_help: Sort transactions by selected columns in priority order. Drag sort headers to change priority. Without explicit sorting, newest transactions appear first. Ties use a stable transaction order.
+    sort_field: Sort field
+    add_sort: Add sort
+    remove_sort: Remove sort
+    rows_sort: Sort rows by
+    columns_sort: Sort columns by
+    default_order: Default dimension order
+    sort_direction: Direction
+    ascending: Ascending
+    descending: Descending
+    preview: Preview
+    configuration: Report configuration
+    add_currency_rows: Separate rows by currency
+    retry_preview: Retry preview
+    pagination: Table pagination
+    rows_per_page: Rows per page
+    previous_page: Previous
+    next_page: Next
+    page_label: "Page %{page}"
+    page_range: "Rows %{start}–%{end}"
+    save_gate_help: Changes preview automatically. Save becomes available after a successful preview of the exact current settings.
+    stale_preview: Showing the last successful preview while the current settings update or need attention.
+    preview_empty: Your preview will appear automatically when the report settings are valid.
+    remove_report_title: Remove this report?
+    remove_report_description: This report will be removed from the dashboard. Your transactions will not be changed.
+    session_expired: Your session has expired. Sign in again to run this report.
+    invalid_response: The server returned an invalid report response.
+    request_failed: The report request could not be completed. Please try again.
+    invalid_destination: This field cannot be moved to that shelf. Add a separate field from the palette for filters.
+    capacity_rows: Rows can contain at most 3 dimensions. Remove a field before adding another.
+    capacity_columns: Columns can contain at most 2 dimensions. Remove a field before adding another.
+    detail_capacity_columns: Columns can contain at most 6 transaction fields. Remove a field before adding another.
+    capacity_values: Values can contain at most 3 measures. Remove a field before adding another.
+    capacity_filters: Filters can contain at most 20 conditions. Remove a filter before adding another.
+    no_filter_options: There are no accessible values available for this filter.
+    values_required: Add at least one field to Values to preview the report.
+    detail_columns_required: Add at least one field to Columns to preview the transaction table.
+    invalid_days: Enter a whole number of days from 1 to 3660.
+    result_table: Report results
+    detail_result_table: Transaction table results
+    all_transactions: All transactions
+    row_total: Row total
+    missing_cell: "—"
+    missing_cell_help: A dash indicates a missing intersection or a null aggregate. Zero is displayed as a number.
+    detail_missing_cell_help: A dash indicates a missing transaction value. Uncategorized transactions are labeled Uncategorized. Zero is displayed as a number.
+    uncategorized: Uncategorized
+    field_category: Category
+    field_account: Account
+    field_date: Date
+    field_name: Name
+    field_currency: Currency
+    field_amount: Amount
+    field_transaction_count: Transaction count
+    kind_text: Text
+    kind_date: Date
+    kind_number: Number
+    kind_currency: Currency
+    aggregation_count: Count
+    aggregation_count_distinct: Distinct count
+    aggregation_sum: Sum
+    aggregation_average: Average
+    aggregation_minimum: Minimum
+    aggregation_maximum: Maximum
+    bucket_day: Day
+    bucket_week: Week
+    bucket_month: Month
+    bucket_quarter: Quarter
+    bucket_year: Year
+    operator_last: In the last
+    operator_equals: Equals

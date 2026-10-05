@@ -10,6 +10,7 @@ const SpaBootstrapSchema = z.object({
   embedded: z.optional(z.nullable(z.boolean())),
   recurringTransactionsDisabled: z.optional(z.nullable(z.boolean())),
   uncategorizedCount: z.optional(z.nullable(z.number())),
+  reportBuilderText: z.record(z.string(), z.string()),
   apiPaths: z.object({
     transactions: z.string(),
     recurringTransactions: z.optional(z.string()),

@@ -1,5 +1,6 @@
 /* eslint-disable import/max-dependencies -- Route composes UI primitives with dashboard modules. */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { PaginationState } from "@tanstack/react-table";
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { GridLayout, useContainerWidth } from "react-grid-layout";
 import type { EventCallback } from "react-grid-layout";
@@ -30,6 +31,15 @@ import { ReportChart } from "./report-chart";
 import { chartMappingForResult } from "./report-chart-mapping";
 import { SureqlEditor } from "./sureql-editor";
 import { useSureqlPreview } from "./sureql-preview";
+import { ReportBuilder } from "./report-builder";
+import { StructuredReportTable } from "./report-pivot-table";
+import { executeStructuredReport } from "./api/reports";
+import {
+  defaultReportDefinition,
+  type ReportBuilderText,
+  type ReportDefinition,
+  type StructuredReportResult,
+} from "./report-definition";
 import {
   STARTER_QUERY,
   generateDashboardId,
@@ -130,10 +140,101 @@ function ReportCard({
   endpoint,
   onConfigure,
   report,
+  text,
 }: {
   endpoint: string;
   onConfigure: () => void;
   report: DashboardReport;
+  text: ReportBuilderText;
+}) {
+  return report.definition !== undefined ? (
+    <StructuredReportCard
+      key={JSON.stringify(report.definition)}
+      endpoint={endpoint}
+      onConfigure={onConfigure}
+      report={report}
+      text={text}
+    />
+  ) : (
+    <SureqlReportCard endpoint={endpoint} onConfigure={onConfigure} report={report} />
+  );
+}
+
+function StructuredReportCard({
+  endpoint,
+  onConfigure,
+  report,
+  text,
+}: {
+  endpoint: string;
+  onConfigure: () => void;
+  report: Extract<DashboardReport, { definition: ReportDefinition }>;
+  text: ReportBuilderText;
+}) {
+  const t = (key: string) => text[key];
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  const [lastGoodData, setLastGoodData] = useState<StructuredReportResult | null>(null);
+  const { data, error, isFetching } = useQuery({
+    queryKey: ["structured-report", endpoint, report.id, report.definition, pagination],
+    queryFn: async ({ signal }) => {
+      const result = await executeStructuredReport(endpoint, report.definition, {
+        signal,
+        pagination: {
+          limit: pagination.pageSize,
+          offset: pagination.pageIndex * pagination.pageSize,
+        },
+      });
+      if (!signal.aborted) setLastGoodData(result);
+      return result;
+    },
+    placeholderData: keepPreviousData,
+    retry: false,
+    staleTime: 30_000,
+  });
+  const result = data ?? lastGoodData;
+  return (
+    <div className="flex size-full flex-col overflow-hidden rounded-xl border border-secondary bg-container shadow-border-xs">
+      <ReportCardHeader name={report.name} onConfigure={onConfigure} />
+      <section aria-label={report.name} className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
+        {isFetching && (
+          <p aria-live="polite" className="text-sm text-secondary">
+            {t("loading")}
+          </p>
+        )}
+        {error !== null && (
+          <p role="alert" className="text-sm text-destructive">
+            {t("report_error")}: {error.message}
+          </p>
+        )}
+        {result !== null && (
+          <StructuredReportTable
+            definition={report.definition}
+            result={result}
+            text={text}
+            pagination={{
+              state: pagination,
+              onChange: (updater) => {
+                if (data) setLastGoodData(data);
+                setPagination(updater);
+              },
+              pending: isFetching,
+              hasNext: error === null && result.pagination.hasNext,
+            }}
+          />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function SureqlReportCard({
+  endpoint,
+  onConfigure,
+  report,
+}: {
+  endpoint: string;
+  onConfigure: () => void;
+  report: Extract<DashboardReport, { query: string }>;
 }) {
   const { data, error, isFetching, isLoading } = useQuery({
     queryKey: ["sureql", report.id, report.query],
@@ -335,6 +436,7 @@ export function DashboardsPage({
       ? selectActiveDashboard(snapshot, routeSearch.dashboard)
       : snapshot.dashboards.find((dashboard) => dashboard.id === configuredDashboardId);
   const selectedReport = activeDashboard?.reports.find((report) => report.id === reportId);
+  const t = (key: string) => bootstrap.reportBuilderText[key];
   const [reportNameDraft, setReportNameDraft] = useState(selectedReport?.name ?? "");
   const [reportQueryDraft, setReportQueryDraft] = useState(selectedReport?.query ?? STARTER_QUERY);
   const [reportPresentationDraft, setReportPresentationDraft] = useState<"table" | "chart">(
@@ -501,6 +603,23 @@ export function DashboardsPage({
     });
   };
 
+  const addVisualReport = () => {
+    if (activeDashboard === undefined) return;
+    const report: DashboardReport = {
+      id: generateReportId(),
+      name: t("new_report"),
+      definition: defaultReportDefinition(),
+      presentation: "table",
+    };
+    const y = activeDashboard.layout.reduce((bottom, item) => Math.max(bottom, item.y + item.h), 0);
+    updateActiveDashboard((dashboard) => ({
+      ...dashboard,
+      reports: [...dashboard.reports, report],
+      layout: [...dashboard.layout, { i: report.id, x: 0, y, w: 12, h: 5, minW: 4, minH: 3 }],
+    }));
+    openReportConfiguration(report);
+  };
+
   const addReport = (presentation: "table" | "chart" = "table") => {
     if (activeDashboard === undefined) return;
     const report: DashboardReport = {
@@ -569,6 +688,7 @@ export function DashboardsPage({
     if (
       activeDashboard === undefined ||
       report === undefined ||
+      report.definition !== undefined ||
       name.length === 0 ||
       query.length === 0
     )
@@ -585,7 +705,7 @@ export function DashboardsPage({
       reports: dashboard.reports.map((candidate) =>
         candidate.id === report.id
           ? {
-              ...candidate,
+              id: report.id,
               name,
               query,
               presentation: reportPresentationDraft,
@@ -627,6 +747,38 @@ export function DashboardsPage({
     return <p className="p-8 text-secondary">Dashboard not found.</p>;
   if (reportId !== undefined && selectedReport === undefined)
     return <p className="p-8 text-secondary">Report not found.</p>;
+  if (selectedReport?.definition !== undefined) {
+    return (
+      <ReportBuilder
+        key={selectedReport.id}
+        endpoint={bootstrap.apiPaths.sureqlRun}
+        initialName={selectedReport.name}
+        initialDefinition={selectedReport.definition}
+        text={bootstrap.reportBuilderText}
+        onCancel={cancelReportConfiguration}
+        onSave={(name, definition) => {
+          updateActiveDashboard((dashboard) => ({
+            ...dashboard,
+            reports: dashboard.reports.map((candidate) =>
+              candidate.id === selectedReport.id
+                ? { id: candidate.id, name, definition, presentation: "table" }
+                : candidate,
+            ),
+          }));
+          cancelReportConfiguration();
+        }}
+        onRemove={() => {
+          updateActiveDashboard((dashboard) => ({
+            ...dashboard,
+            reports: dashboard.reports.filter((candidate) => candidate.id !== selectedReport.id),
+            layout: dashboard.layout.filter((item) => item.i !== selectedReport.id),
+          }));
+          queryClient.removeQueries({ queryKey: ["structured-report", selectedReport.id] });
+          cancelReportConfiguration();
+        }}
+      />
+    );
+  }
 
   if (selectedReport !== undefined) {
     return (
@@ -1076,6 +1228,11 @@ export function DashboardsPage({
           </div>
         )}
         <div className="flex items-center gap-2">
+          {activeDashboard !== undefined && (
+            <Button iconProps={{ name: "plus", size: "sm" }} onClick={addVisualReport} size="sm">
+              {t("add_visual_report")}
+            </Button>
+          )}
           <Button iconProps={{ name: "plus", size: "sm" }} onClick={createDashboard} size="sm">
             New dashboard
           </Button>
@@ -1222,6 +1379,9 @@ export function DashboardsPage({
               Add a table or chart report to run a SureQL query against your live data.
             </p>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <Button onClick={addVisualReport} size="sm">
+                {t("add_visual_report")}
+              </Button>
               <Button
                 onClick={() => {
                   addReport("table");
@@ -1268,6 +1428,7 @@ export function DashboardsPage({
                     openReportConfiguration(report);
                   }}
                   report={report}
+                  text={bootstrap.reportBuilderText}
                 />
               </div>
             ))}

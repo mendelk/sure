@@ -124,6 +124,10 @@ class PagesController < ApplicationController
   # first MAX_ROWS rows. For `transactions` queries that select `id`, also
   # returns server-rendered transaction rows reusing the entries partials.
   def monarch_run
+    if params.key?(:catalog) || params.key?(:report)
+      render_structured_report_run
+      return
+    end
     source = params.require(:source)
     if params[:pivot].present?
       render_pivot_run(source, params[:pivot])
@@ -155,6 +159,20 @@ class PagesController < ApplicationController
     # instead of an HTML 500.
     Rails.logger.warn("[sureql] execution failed: #{e.message.truncate(500)}")
     render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  def render_structured_report_run
+    reports = Sureql::ReportDefinition.new(Current.user)
+    if params.key?(:catalog)
+      unless params[:catalog] == true && !params.key?(:report)
+        raise Sureql::ReportDefinition::InvalidError.new("catalog", I18n.t("report_definition.errors.catalog"))
+      end
+      render json: reports.catalog
+    else
+      render json: reports.call(params[:report], pagination: params[:pagination])
+    end
+  rescue Sureql::ReportDefinition::InvalidError => e
+    render json: { error: e.message, field: e.field }, status: :unprocessable_entity
   end
 
   def render_pivot_run(source, pivot_params)

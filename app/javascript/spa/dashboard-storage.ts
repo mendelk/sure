@@ -1,6 +1,7 @@
 import type { Layout, LayoutItem } from "react-grid-layout";
 import * as z from "zod/mini";
 import { PivotChartConfigSchema, type PivotChartConfig } from "./pivot-chart-contract";
+import { ReportDefinitionSchema, type ReportDefinition } from "./report-definition";
 
 // One source-controlled starter screen for first use and repeated design
 // review: a useful transactions table sized for the editor plus results.
@@ -67,7 +68,8 @@ const DashboardLayoutItemSchema = z.object({
 const DashboardReportSchema = z.object({
   id: z.string(),
   name: z.string(),
-  query: z.string(),
+  query: z.optional(z.string()),
+  definition: z.optional(ReportDefinitionSchema),
   presentation: z.optional(z.enum(["table", "chart"])),
   pivot: z.optional(PivotChartConfigSchema),
 });
@@ -88,13 +90,13 @@ const DashboardSnapshotSchema = z.object({
   query: z.optional(z.string()),
   layout: z.optional(z.array(DashboardLayoutItemSchema)),
 });
-export interface DashboardReport {
+export type DashboardReport = {
   id: string;
   name: string;
-  query: string;
-  presentation: "table" | "chart";
-  pivot?: PivotChartConfig;
-}
+} & (
+  | { definition: ReportDefinition; presentation: "table"; query?: never; pivot?: never }
+  | { query: string; presentation: "table" | "chart"; pivot?: PivotChartConfig; definition?: never }
+);
 
 export interface Dashboard {
   id: string;
@@ -259,18 +261,28 @@ function normalizeReports(
   for (const storedReport of storedReports) {
     const id = storedReport.id.trim();
     const name = storedReport.name.trim();
-    const query = storedReport.query.trim();
-    if (id.length === 0 || name.length === 0 || query.length === 0 || ids.has(id)) return undefined;
+    const query = storedReport.query?.trim();
+    const definition = storedReport.definition;
+    if (
+      id.length === 0 ||
+      name.length === 0 ||
+      ids.has(id) ||
+      (definition === undefined && (query === undefined || query.length === 0))
+    )
+      return undefined;
     ids.add(id);
     const pivot = normalizePivotConfig(storedReport.pivot);
     const presentation = storedReport.presentation ?? "table";
-    reports.push({
-      id,
-      name,
-      query,
-      presentation,
-      ...(pivot === undefined ? {} : { pivot }),
-    });
+    if (definition !== undefined) reports.push({ id, name, definition, presentation: "table" });
+    else if (query !== undefined && query.length > 0) {
+      reports.push({
+        id,
+        name,
+        query,
+        presentation,
+        ...(pivot === undefined ? {} : { pivot }),
+      });
+    }
   }
   return reports;
 }

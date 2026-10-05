@@ -1,0 +1,48 @@
+en:
+  report_definition:
+    uncategorized: Uncategorized
+    measure_label: "%{aggregation} of %{field}"
+    fields:
+      category: Category
+      account: Account
+      date: Date
+      currency: Currency
+      amount: Amount
+      name: Name
+      transaction_count: Transaction count
+    aggregations:
+      count: Count
+      count_distinct: Distinct count
+      sum: Sum
+      average: Average
+      minimum: Minimum
+      maximum: Maximum
+    errors:
+      object: Expected an object.
+      unknown_property: Unsupported report property.
+      array: Expected a list.
+      size: "Choose between %{min} and %{max} items."
+      version: Unsupported report version.
+      source: Unsupported report source.
+      mode: Unsupported report mode.
+      dimension: Choose a field that supports grouping.
+      bucket: Choose a supported date bucket for a date field.
+      aggregation: Choose an aggregation supported by this field.
+      operator: Choose a filter operator supported by this field.
+      unit: Relative date filters use days; other filters have no unit.
+      days: Choose a whole number of days between 1 and 3660.
+      filter_value: Choose a valid filter value.
+      sort_axis: Choose each report axis at most once.
+      sort_direction: Choose ascending or descending order.
+      sort_target: Choose exactly one selected dimension or measure to sort by.
+      column_sort: Column sorting by a measure is not supported.
+      identifier: Choose a unique identifier using letters, numbers and underscores, starting with a letter or underscore.
+      field: Choose a field from the report catalog.
+      detail_field: Choose a field that supports transaction tables.
+      duplicate_field: Choose each transaction column at most once.
+      detail_sort: Choose each selected transaction column at most once for sorting.
+      mixed_currencies: Put currency in Rows or filter to a single currency before aggregating amounts.
+      execution: The report could not be executed. Check its definition and try again.
+      catalog: The catalog request must be true.
+      page_limit: Choose a positive whole number of rows per page.
+      page_offset: Choose a non-negative whole number for the row offset.
