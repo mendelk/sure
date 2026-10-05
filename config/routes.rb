@@ -561,6 +561,9 @@ Rails.application.routes.draw do
   get "transactions/:id", to: "spa#show", as: :spa_transaction, constraints: { id: /[0-9a-f-]{36}/i }
   get "dashboards", to: "spa#show", as: :dashboards
   get "dashboards/:dashboard_id/reports/:report_id/configure", to: "spa#show", as: :configure_dashboard_report
+  get "cube-dashboards", to: "spa#show", as: :cube_dashboards
+  get "cube-dashboards/:dashboard_id/reports/:report_id/configure", to: "spa#show", as: :configure_cube_dashboard_report
+  post "cube-dashboards/query", to: "cube_dashboards#query", as: :cube_dashboard_query
   post "transactions", to: "transactions#create"
 
   resources :transactions, only: %i[new update destroy] do

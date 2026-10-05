@@ -355,6 +355,69 @@ docker compose build # This rebuilds the app with updates
 docker compose up --no-deps -d web worker # This restarts the app using the newest version
 ```
 
+## Optional Cube Core dashboards
+
+The alternative dashboard is available at `/cube-dashboards`; `/dashboards`
+continues to use its existing query engine and saved reports. Cube is optional:
+without its service, the alternative page reports an unavailable engine rather
+than silently running queries elsewhere.
+
+Use a source checkout containing the integration, with your existing
+`compose.yml` and environment configuration in that checkout. The overlay
+`compose.cube.yml` builds the Rails image from this checkout and adds pinned
+Cube Core/Cube Store services. It does not publish either analytics service.
+
+Create a dedicated reporting login in the Sure database. For the default
+database/owner names, open `docker compose exec db psql -U sure_user -d sure_production`
+and run:
+
+```sql
+CREATE ROLE sure_cube LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+\password sure_cube
+ALTER ROLE sure_cube SET default_transaction_read_only = on;
+GRANT CONNECT ON DATABASE sure_production TO sure_cube;
+GRANT USAGE ON SCHEMA public TO sure_cube;
+GRANT SELECT ON accounts, categories, entries, exchange_rates, families, transactions TO sure_cube;
+```
+
+Adjust the database and owner names to match your installation. Save that
+login's password as `CUBE_DB_PASSWORD`, and set `CUBE_DB_USER=sure_cube` and
+`CUBE_DB_NAME` to your Sure database in `.env`. Do not use the application's
+database owner as Cube's login.
+
+Generate a separate signing secret with `openssl rand -hex 32` and save it as
+`CUBE_API_SECRET` in `.env`. The overlay supplies the same value to Rails and
+Cube. Never expose this key or database credentials to the browser. Outside the
+overlay, Rails also supports an isolated key derived from its existing secret;
+`bin/rails cube:secret` prints it for server-side configuration only.
+
+Start the optional stack:
+
+```bash
+docker compose -f compose.yml -f compose.cube.yml up -d --build
+```
+
+Keep `CUBEJS_DEV_MODE=false`. Cube's development mode bypasses authentication and
+must not be used on a reachable financial-data deployment.
+
+The checked-in `cube/model/cash_flow.yml` is generated from Rails' existing
+monetary SQL. After changing pending-provider, transaction-kind, investment
+movement, or FX reporting rules, regenerate it in a development checkout:
+
+```bash
+bin/rails cube:generate
+```
+
+Commit the regenerated model and deploy/restart the Cube service with that
+model. The generator does not create tables, migrate the database, or copy
+financial records. The model excludes trades and valuations; tax/account-share
+eligibility is resolved by Rails and enforced by Cube's signed account scope.
+
+Queries request fresh Cube results, with a 500-row result cap. No rollups are
+configured initially; `cube-data` is Cube Store's persistent volume. Monitor
+source-database load before adding pre-aggregations, and retain account grain
+and authorization constraints when doing so.
+
 ## Troubleshooting
 
 ### ActiveRecord::DatabaseConnectionError

@@ -9,7 +9,7 @@ export function DashboardSwitcher({
   onSelect,
 }: {
   activeDashboardId: string;
-  dashboards: Dashboard[];
+  dashboards: Pick<Dashboard, "id" | "name">[];
   onSelect: (dashboardId: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -58,7 +58,7 @@ export function DashboardSwitcher({
       </button>
 
       {isOpen ? (
-        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-56 rounded-lg bg-container p-1.5 shadow-lg shadow-border-xs">
+        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-56 rounded-lg bg-container p-1.5 shadow-border-xs">
           <div className="relative mb-1">
             <input
               aria-label="Search dashboards"

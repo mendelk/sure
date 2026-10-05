@@ -1,0 +1,51 @@
+# Add to the normal stack with: docker compose -f compose.yml -f compose.cube.yml up -d
+# Supply a dedicated read-only database login and the same signing key to Rails and Cube.
+services:
+  web:
+    image: ${CUBE_APP_IMAGE:-sure-cube:local}
+    build: .
+    environment:
+      CUBE_API_URL: http://cube:4000/cubejs-api/v1
+      CUBE_API_SECRET: ${CUBE_API_SECRET:?Set CUBE_API_SECRET for Rails and Cube}
+
+  worker:
+    image: ${CUBE_APP_IMAGE:-sure-cube:local}
+
+  cube:
+    image: cubejs/cube:v1.7.49
+    restart: unless-stopped
+    environment:
+      CUBEJS_DEV_MODE: "false"
+      CUBEJS_API_SECRET: ${CUBE_API_SECRET:?Set CUBE_API_SECRET for Rails and Cube}
+      CUBEJS_DB_TYPE: postgres
+      CUBEJS_DB_HOST: db
+      CUBEJS_DB_PORT: "5432"
+      CUBEJS_DB_NAME: ${CUBE_DB_NAME:-${POSTGRES_DB:-sure_production}}
+      CUBEJS_DB_USER: ${CUBE_DB_USER:?Set a read-only CUBE_DB_USER}
+      CUBEJS_DB_PASS: ${CUBE_DB_PASSWORD:?Set CUBE_DB_PASSWORD}
+      CUBEJS_DB_SSL: ${CUBE_DB_SSL:-false}
+      CUBEJS_CUBESTORE_HOST: cubestore
+      CUBEJS_REFRESH_WORKER: "false"
+      CUBEJS_TELEMETRY: "false"
+    volumes:
+      - ./cube:/cube/conf:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      cubestore:
+        condition: service_started
+    networks:
+      - sure_net
+
+  cubestore:
+    image: cubejs/cubestore:v1.7.49
+    restart: unless-stopped
+    environment:
+      CUBESTORE_REMOTE_DIR: /cube/data
+    volumes:
+      - cube-data:/cube/data
+    networks:
+      - sure_net
+
+volumes:
+  cube-data:

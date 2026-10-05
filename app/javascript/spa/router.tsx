@@ -10,6 +10,8 @@ import type { SpaBootstrap } from "./bootstrap";
 import { AppShell } from "./app-shell";
 import { DashboardsPage } from "./dashboards-page";
 import { validateDashboardSearch } from "./dashboard-storage";
+import { CubeDashboardsPage } from "./cube-dashboards-page";
+import { validateCubeDashboardSearch } from "./cube-dashboard-storage";
 import { validateNewTransactionSearch, NewTransactionPage } from "./new-transaction-page";
 import { TransactionDetailDrawer } from "./transaction-detail-page";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
@@ -74,9 +76,42 @@ function ReportConfigurePage() {
   );
 }
 
+const cubeDashboardsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cube-dashboards",
+  validateSearch: validateCubeDashboardSearch,
+  component: Outlet,
+});
+
+const cubeDashboardsIndexRoute = createRoute({
+  getParentRoute: () => cubeDashboardsRoute,
+  path: "/",
+  component: CubeDashboardsPage,
+});
+
+const cubeReportConfigureRoute = createRoute({
+  getParentRoute: () => cubeDashboardsRoute,
+  path: "$dashboardId/reports/$reportId/configure",
+  component: CubeReportConfigurePage,
+});
+
+function CubeReportConfigurePage() {
+  const { dashboardId, reportId } = useParams({
+    from: "/cube-dashboards/$dashboardId/reports/$reportId/configure",
+  });
+  return (
+    <CubeDashboardsPage
+      key={`${dashboardId}:${reportId}`}
+      dashboardId={dashboardId}
+      reportId={reportId}
+    />
+  );
+}
+
 const routeTree = rootRoute.addChildren([
   transactionsRoute.addChildren([transactionDetailRoute, newTransactionRoute]),
   dashboardsRoute.addChildren([dashboardsIndexRoute, reportConfigureRoute]),
+  cubeDashboardsRoute.addChildren([cubeDashboardsIndexRoute, cubeReportConfigureRoute]),
 ]);
 export type SpaRouter = Router<typeof routeTree>;
 

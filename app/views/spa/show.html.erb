@@ -1,4 +1,4 @@
-<% page_title = request.path.start_with?("/dashboards") ? "Dashboards" : "Transactions" %>
+<% page_title = request.path.start_with?("/dashboards", "/cube-dashboards") ? "Dashboards" : "Transactions" %>
 <% content_for :title, "#{page_title} · #{product_name}" %>
 <% bootstrap = {
   currentUser: {
@@ -16,10 +16,12 @@
     merchants: api_v1_merchants_path,
     tags: api_v1_tags_path,
     transfers: api_v1_transfers_path,
-    sureqlRun: dashboard_monarch_run_path
+    sureqlRun: dashboard_monarch_run_path,
+    cubeQuery: cube_dashboard_query_path
   },
   recurringTransactionsDisabled: Current.family.recurring_transactions_disabled?,
   uncategorizedCount: @uncategorized_count,
+  cubeDashboardText: I18n.t("cube_dashboards").select { |_, value| value.is_a?(String) },
   railsPaths: {
     home: root_path,
     logo: image_path("logomark-color.svg"),

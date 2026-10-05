@@ -1,0 +1,74 @@
+en:
+  cube_dashboards:
+    title: Cube dashboards
+    alternative: An alternative dashboard powered by Cube Core. Your existing dashboards are unchanged.
+    original_dashboards: Original dashboards
+    new_dashboard: New dashboard
+    rename_dashboard: Rename dashboard
+    remove_dashboard: Remove dashboard
+    dashboard_name: Dashboard name
+    create: Create
+    save: Save
+    cancel: Cancel
+    remove: Remove
+    confirm_remove_dashboard: Remove this dashboard and its reports?
+    confirm_remove_report: Remove this report?
+    new_report: New report
+    configure_report: Configure report
+    remove_report: Remove report
+    report_name: Report name
+    metrics: Metrics
+    grouping: Group by
+    date: Date
+    category: Category
+    account: Account
+    date_start: Start date
+    date_end: End date
+    granularity: Time interval
+    day: Day
+    week: Week
+    month: Month
+    quarter: Quarter
+    year: Year
+    presentation: Presentation
+    table: Table
+    line: Line chart
+    pie: Pie chart
+    run_preview: Run preview
+    preview: Preview
+    preview_required: Run a preview of this configuration before saving.
+    loading: Loading from Cube…
+    empty: No data for this report's date range and grouping.
+    empty_dashboards: No Cube dashboards yet. Create a dashboard to get started.
+    empty_reports: No reports yet. Add a report to query your live Cube data.
+    unavailable: Cube is unavailable. Ask your administrator to check the Cube service and its connection, then try again.
+    query_error: This report could not be loaded. Try again or check its configuration.
+    invalid_response: Cube returned an invalid response. Ask your administrator to check the Cube service.
+    missing_dashboard: This dashboard could not be found.
+    missing_report: This report could not be found.
+    back: Back to Cube dashboards
+    storage_unavailable: Your browser could not save these dashboards. Check that local storage is enabled and try again.
+    invalid_configuration: Choose valid metrics, dates, grouping, and presentation before running a preview.
+    income: Income
+    expenses: Expenses
+    savings: Savings
+    count: Transaction count
+    starter_dashboard: Cash flow
+    starter_income: Income over time
+    starter_expenses: Expenses over time
+    starter_categories: Expenses by category
+    truncated: This report reached its row limit. Narrow the date range or grouping to see all results.
+    refresh: Refresh
+    chart_unavailable: Charts need one metric with finite values. Pie charts also need non-negative values and a positive total. Use the table to inspect exact values.
+    pagination: Table pagination
+    rows_per_page: Rows per page
+    previous_page: Previous
+    next_page: Next
+    page_label: "Page %{page}"
+    page_range: "Rows %{start}–%{end}"
+    errors:
+      invalid_query: Invalid Cube query. Choose supported cash-flow metrics, grouping, dates, order, and a row limit from 1 to 500.
+      invalid_request: Send either a query or a catalog request, without additional fields.
+      not_configured: Cube is not configured. Ask your administrator to check the Cube API URL and signing secret.
+      unavailable: Cube is unavailable. Ask your administrator to check the Cube service and its connection, then try again.
+      unauthorized: Sign in to access your family's Cube reports.

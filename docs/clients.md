@@ -61,6 +61,48 @@ Join completions preserve a typed alias and replace partial join text. Typing `.
 after a declared account or category alias suggests its fields, such as
 `a.name`, `bank.balance`, or `c.name`.
 
+### Alternative Cube dashboards
+
+`/cube-dashboards` is a separate Cube Core-backed reporting surface. It does not
+replace `/dashboards`, migrate SureQL reports, or overwrite their browser storage.
+It uses the same application shell, dashboard switcher, draggable/resizable grid,
+and chart primitives, with its own user-scoped `sure:cube-dashboards:<user-id>`
+snapshot.
+
+Reports select cash-flow metrics, date ranges, date/category/account grouping,
+and table, line, or pie presentation. Configure a report at
+`/cube-dashboards/<dashboard-id>/reports/<report-id>/configure`, run a preview,
+then save. Changing the query invalidates the preview; cancel leaves the saved
+report unchanged. Dashboards and layouts remain browser-local, not synchronized
+between devices.
+
+Queries go through a session-authenticated, CSRF-protected Rails endpoint to a
+private Cube API. Rails resolves current reporting-eligible accounts on every
+request; Cube applies mandatory family/account filters from a short-lived,
+server-only token. Financial values remain decimal strings; charts convert them
+only for plotting. There is no SureQL or local-data fallback when Cube is down.
+
+The frontend uses `@cubejs-client/core` through a Rails-backed, load-only
+transport. TanStack Query still owns fetching, caching, and cancellation; Cube's
+`ResultSet` supplies table pivots, column metadata, and chart series. Numeric
+casting is disabled for loads. Tables retain exact values and nulls from
+`rawData()` because SDK pivots replace null measures with zero; missing dates
+are not filled with artificial zeroes.
+
+Cube tables are rendered independently of the visual report builder. Currency
+and count formatting passes decimal strings directly to `Intl.NumberFormat`,
+without first converting them to JavaScript numbers.
+
+The existing configurator remains the editor. Cube's React `QueryBuilder` is
+not layered over it: that component introduces separate metadata fetching,
+automatic dry-run requests, and query state that this bounded editor does not
+need.
+
+The initial dataset covers posted reportable transactions in family currency,
+including the existing transfer-kind, split exclusion, pending, and dated FX
+rules. It does not model net worth, holdings, trades, or the category-netted
+Sankey graph. See [optional Cube deployment](hosting/docker.md#optional-cube-core-dashboards).
+
 ## macOS desktop app
 
 The macOS desktop app is a Tauri 2 shell that renders the full Sure web app in a

@@ -10,6 +10,7 @@ const SpaBootstrapSchema = z.object({
   embedded: z.optional(z.nullable(z.boolean())),
   recurringTransactionsDisabled: z.optional(z.nullable(z.boolean())),
   uncategorizedCount: z.optional(z.nullable(z.number())),
+  cubeDashboardText: z.record(z.string(), z.string()),
   apiPaths: z.object({
     transactions: z.string(),
     recurringTransactions: z.optional(z.string()),
@@ -20,6 +21,7 @@ const SpaBootstrapSchema = z.object({
     tags: z.string(),
     transfers: z.string(),
     sureqlRun: z.string(),
+    cubeQuery: z.string(),
   }),
   railsPaths: z.object({
     home: z.string(),
