@@ -739,7 +739,13 @@ function BreadcrumbBar({
 export function AppShell() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try {
+      return localStorage.getItem("sidebarOpen") !== "false";
+    } catch {
+      return true;
+    }
+  });
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(location.pathname);
 
@@ -784,7 +790,13 @@ export function AppShell() {
         >
           <BreadcrumbBar
             onToggleSidebar={() => {
-              setSidebarOpen((open) => !open);
+              const next = !sidebarOpen;
+              setSidebarOpen(next);
+              try {
+                localStorage.setItem("sidebarOpen", String(next));
+              } catch {
+                // Storage unavailable — the sidebar still toggles for this session.
+              }
             }}
             onToggleRightSidebar={() => {
               setRightSidebarOpen((open) => !open);

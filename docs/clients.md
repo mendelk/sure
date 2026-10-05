@@ -38,6 +38,11 @@ http://localhost:3000
 
 The web app also serves as the surface rendered by the macOS desktop app.
 
+The React app's desktop **Toggle sidebar** control remembers its expanded or
+collapsed state in localStorage across page refreshes. It defaults to expanded
+when no preference is saved. If browser storage is unavailable, toggling still
+works for the current session. The mobile navigation drawer remains separate.
+
 Dashboards at `/dashboards` retain stable IDs in each user's browser-local
 snapshot. New dashboards receive random 128-bit IDs. A report's **Configure**
 button opens the dedicated configuration page at
@@ -46,6 +51,84 @@ path rather than a report query parameter. Reloading that URL restores the
 selected report editor. Saving, canceling, or using **Back to dashboard** returns
 to the selected dashboard. Report headers keep their drag grip and resize handle
 without the instructional hint text.
+
+### Visual report builder
+
+**Build report** creates a structured transaction report without opening the
+SureQL editor. **Report type** selects **Transaction table** (`mode: "detail"`)
+or **Pivot table** (`mode: "aggregate"`); new reports initially use Pivot table.
+**Source** is a dropdown; Transactions is the current supported source.
+Source, available fields, selected shelves, Filters, and Sorting live in
+collapsible sidebar sections; the main area is the live table preview.
+Each section uses Headless UI Disclosure with a chevron pointing right when
+closed and down when open. Focus a section header and press Enter or Space to
+toggle it; closed panels are skipped when tabbing through controls.
+Drag field headers or grips between ordered shelves. Cards shift into their
+proposed positions while dragging; the report definition and preview change
+only after dropping. Dragging a compatible field over a closed shelf opens it.
+Filters are unordered, editable cards without drag grips or drop targets;
+add them with the palette's Filters buttons. Move-to excludes the current
+shelf, incompatible destinations, and full destinations, and disappears when
+none remain. Add-to, Move-to, and Remove controls remain available for keyboard
+and touch; focus a grip and use Up/Down arrow keys to reorder.
+Sorting uses the same card styling as the field shelves. Transaction-table
+sorts have draggable headers and grips; their order sets sorting priority,
+and reordering preserves each field's direction.
+
+Transaction tables show one row per matching transaction, without aggregation,
+grouping, or deduplication. Their Columns shelf selects and orders up to six
+display fields: Date, Name, Account, Category, Amount, and Currency. All six
+are selected initially. Sorting uses selected fields in priority order;
+removing a column removes sorts that target it. Without explicit sorting,
+newest transactions appear first. Every ordering has an entry-ID tie-breaker
+so equal field values remain deterministic, including at preview limits.
+Amounts retain exact decimal precision and are formatted in each row's
+original currency even when Currency is not a displayed column. Mixed
+currencies are allowed because transaction tables never sum or convert them.
+
+Pivot tables expose Rows, Columns, and Values shelves. Their initial definition
+groups categories across calendar months, sums original transaction amounts,
+and filters to the last 90 days. They support up to three row dimensions, two
+column dimensions, and three measures. Date grouping works on either axis;
+row-measure sorting ranks the aggregate across all matching columns, including
+columns omitted by the column-group limit.
+
+Switching report types remembers each mode's column/group/measure/sort draft
+while carrying the current shared filters into the selected mode.
+
+Every valid definition change automatically refreshes the preview. Builder
+results and saved report tables use the same server-side pagination: **10 rows
+per page** by default, with **10, 25, 50, or 100** selectable in **Rows per page**.
+**Previous / Next** fetch pages using a row offset; TanStack Query caches pages,
+and TanStack Table manages pagination and table rendering. Pagination applies
+after filtering, sorting, and full-data aggregation, selecting transactions or
+whole pivot row groups. There is no total row cap; Next is disabled after the
+last page. Changing filters, grouping, sorting, report type, or page size resets
+the offset to zero. Table bodies scroll independently so navigation remains
+reachable in the sticky builder preview. Pivot tables retain their
+24-column-group limit and indicate when columns are omitted.
+
+There is no Limited / Full preview mode. Page size is view state, not part of
+the saved report definition. Saving requires successful results for the exact
+current definition and page. Previous successful results remain visible and
+are labeled stale while builder settings change or a later request fails.
+
+All queries retain the user's account-access scope and exclude excluded
+transactions. Category grouping preserves uncategorized transactions and
+distinguishes categories with identical names. Missing intersections and null
+aggregates show a dash; actual zeroes remain numeric. Amounts retain their
+original signs: positive outflows and negative inflows. Their sum is not
+automatically spending. Pivot monetary measures require either a single
+filtered currency or Currency in Rows; currencies are never converted or added
+together.
+Relative date windows include today and the preceding days, excluding future
+transactions. Filters combine with AND.
+
+Visual reports save a versioned definition, not generated query text, in the
+existing browser-local dashboard snapshot. Existing SureQL reports remain
+unchanged; Add table and Add chart still open their existing editor.
+
+### Existing SureQL reports
 
 The query editor supports SureQL only: there is no language selector or PRQL
 mode. Syntax highlighting, source suggestions, validation and Run all use
