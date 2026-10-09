@@ -43,22 +43,128 @@ collapsed state in localStorage across page refreshes. It defaults to expanded
 when no preference is saved. If browser storage is unavailable, toggling still
 works for the current session. The mobile navigation drawer remains separate.
 
-Dashboards at `/dashboards` retain stable IDs in each user's browser-local
-snapshot. New dashboards receive random 128-bit IDs. A report's **Configure**
-button opens the dedicated configuration page at
-`/dashboards/<dashboard-id>/reports/<report-id>/configure`, with both IDs in the
-path rather than a report query parameter. Reloading that URL restores the
-selected report editor. Saving, canceling, or using **Back to dashboard** returns
-to the selected dashboard. Report headers keep their drag grip and resize handle
-without the instructional hint text.
+Dashboards at `/dashboards` use a user-scoped browser-local snapshot with
+`formatVersion: 4`, containing a shared source catalog and independent dashboard layouts.
+New dashboard IDs and all source IDs are random 128-bit identifiers.
+A source has an ID, a name, and configuration only: either a structured
+`ReportDefinition` or a SureQL query. It does not own layout or visualization
+settings. This remains a browser-local prototype; there is no backend source
+CRUD or cross-device synchronization. Incompatible older or malformed snapshots
+are reset to the starter rather than migrated.
 
-### Visual report builder
+Manage sources on their own pages: `/sources` lists the catalog,
+`/sources/new` creates a source, and `/sources/<id>/edit` edits one.
+New sources default to **Structured**, the first **Source type** option;
+**SureQL** remains the second option. Enter a **Source name** and save a
+successful preview with **Save source**. Creating from the catalog or dashboard
+header adds only the source. **Add table** and **Add chart** first open a
+**Source** picker; **Use source** adds the selected source to the dashboard.
+Creating from that picker opens the source page and adds the visualization
+after saving. **Edit source** navigates to the editor from a card or catalog;
+there is no dashboard-owned report configuration route or source-editor modal.
+A saved edit updates every consumer; unsaved previews and cancellation leave
+saved configuration unchanged. Sources can be created with no dashboards.
 
-**Build report** creates a structured transaction report without opening the
-SureQL editor. **Report type** selects **Transaction table** (`mode: "detail"`)
-or **Pivot table** (`mode: "aggregate"`); new reports initially use Pivot table.
-**Source** is a dropdown; Transactions is the current supported source.
-Source, available fields, selected shelves, Filters, and Sorting live in
+Both editor modes place **Cancel** and **Save source** to the right of the
+**Edit source / Create source** heading. **Source name** and **Source type**
+share the next row, with the name first. Structured sources place **Mode**
+(**Aggregate / Details**) third on that same row; SureQL keeps the two-field row.
+
+Dashboard layouts use the Puck editor's twelve-column **Grid** with layout-only
+**GridItem** containers. **Edit layout** opens a draft where you can drag grid
+items to reorder them and set their column span (1–12). **Height mode** selects
+**Fixed** (the default, 3–12 rows of 80 pixels) or **Auto**. Auto removes the
+container's fixed height and lets its content determine its intrinsic height;
+it grows or shrinks with that content. Switching back to Fixed starts at four
+rows. The selected mode is saved with the layout.
+Grid item content slots accept any configured Puck component,
+including nested **Grid** and **GridItem** containers, standalone **Table** and
+**Chart** blocks, and **RichText** blocks. Grid slots accept grid items; only the
+starter root grid is fixed and cannot be dragged, duplicated, or deleted.
+Blocks can be reordered and moved between containers or to the root using
+Puck's outline as well as the canvas. Root-level blocks are saved alongside the
+starter grid. Select a Table or Chart block to choose its **Source**, create a
+source on its own page, or edit the selected source. Per-user sessionStorage
+retains unsaved layout drafts across source-page navigation and reloads.
+Saving returns to the native Puck selection with the new source selected;
+canceling retains the previous source and layout settings.
+A new Table inserted from the palette starts unconfigured.
+RichText uses Puck's built-in `richtext` field, native formatting controls, and
+inline editing. Dashboards without visualizations can still be edited and contain
+rich text. **Undo layout change** and **Redo layout change** operate on the
+draft. **Save layout** persists it in browser storage; **Cancel** discards it.
+The editor combines Puck's component palette, outline, and fields with an
+unscaled preview. Layout is flow-based rather than absolute x/y positioning;
+size changes use fields instead of corner resize handles. Cards stack in a
+single column below the medium screen breakpoint.
+Removing a component or deleting a dashboard preserves its sources in the shared
+catalog. A source can appear repeatedly within a dashboard or across dashboards;
+there is no source deletion UI. Confirming **Reset dashboards and sources**
+replaces all dashboards, layouts, and source configurations with a fresh starter
+dashboard and its two sources, and clears unsaved layout drafts. Custom sources
+are removed; transactions remain untouched. Canceling leaves the workspace intact.
+Card headers have no viewing-mode drag grips or resize handles.
+
+### Table and chart consumers
+
+Table blocks store `sourceId` and their own `visibleColumns`; an empty list means
+all available columns. Column choices use stable field keys rather than positions.
+Chart blocks store `sourceId`, **Chart type** (Line, Bar, or Pie), **Category field**,
+and **Value field**. Empty category/value settings automatically choose compatible
+metadata. Changing these presentation settings does not alter the source or
+another consumer's settings.
+
+All SPA table rendering lives in `app/javascript/spa/components/table.tsx`.
+Structured aggregate, transaction-detail, and normalized source adapters supply
+rows, column definitions, and formatting. The shared component owns table markup,
+grouped and row headers, scroll regions, empty states, and client/server pagination.
+Tables use their intrinsic height by default; fixed-height containers provide
+vertical scrolling when explicitly configured. The pager places the page-size
+dropdown and **per page** label between **Previous** and **Next**, on one line.
+During a page request, **Next / Previous** are disabled and show spinners.
+The existing rows remain visible until the requested page arrives.
+Source previews omit the standalone **Running report…** status message.
+
+Source results are normalized once per query into reusable columns and rows.
+Consumers share a TanStack Query cache rooted at `["source", source.id]`, not a
+dashboard, source configuration, or visualization setting. SureQL and structured
+table pages append `[limit, offset]`; consumers of the same page share its result.
+Charts and chart-field selectors share `["source", source.id, "all"]`, separately
+from table pages. They fetch successive 100-row pages and publish the complete
+result only after the final page arrives. SureQL results are normalized after
+merging pages, preserving duplicate projected rows and their occurrence identities.
+Results remain fresh indefinitely (`staleTime: Infinity`); saving a source cancels
+requests and removes all its cached results/pages before updating the catalog.
+
+SPA entity and configuration IDs have distinct Zod brands defined in
+`app/javascript/spa/ids.ts`, including sources, dashboards, layout components,
+dimension/measure/row/column identities, and transaction/account/reference IDs.
+Storage, routes, API schemas, and editor boundaries parse these types; DOM IDs
+and dynamic result-field names remain strings. `npm run spa:generate` applies
+the Orval AST hook in `config/orval/spa-id-branding.ts`, preserving existing
+validators while branding nested IDs. Transfer matching selects the counterpart
+by Transaction ID rather than inferring it from amount signs, then resolves its
+detail record's Entry ID before submitting the match.
+
+Structured and SureQL charts consume the complete filtered source result, not a
+table page. SureQL's own `take` limits still apply. Structured chart requests
+include every pivot column group; the 24-column cap remains for tables and
+previews. Charts do not show a page-only notice. Chart series are separated by currency;
+amounts are never converted or summed across currencies. Negative pie values,
+incompatible fields, and non-finite numeric values
+produce an honest warning with a table fallback rather than fabricated data.
+
+Chart hover tooltips use the selected source-column labels and actual category
+values, not generic `x` / `y` channels or internal row positions. Line, bar, and
+pie charts share this mapping; numeric values retain locale-aware formatting.
+
+### Structured source builder
+
+The source editor defaults to **Structured** to author a transaction result
+without opening the SureQL editor. **Mode** selects **Aggregate**
+(`mode: "aggregate"`, the default) or **Details** (`mode: "detail"`).
+**Dataset** selects the underlying data; Transactions is currently supported.
+Dataset, available fields, selected shelves, Filters, and Sorting live in
 collapsible sidebar sections; the main area is the live table preview.
 Each section uses Headless UI Disclosure with a chevron pointing right when
 closed and down when open. Focus a section header and press Enter or Space to
@@ -93,25 +199,27 @@ column dimensions, and three measures. Date grouping works on either axis;
 row-measure sorting ranks the aggregate across all matching columns, including
 columns omitted by the column-group limit.
 
-Switching report types remembers each mode's column/group/measure/sort draft
+Switching modes remembers each mode's column/group/measure/sort draft
 while carrying the current shared filters into the selected mode.
 
 Every valid definition change automatically refreshes the preview. Builder
-results and saved report tables use the same server-side pagination: **10 rows
-per page** by default, with **10, 25, 50, or 100** selectable in **Rows per page**.
+results and saved structured source tables use the same server-side pagination:
+**10 rows per page** by default, with **10, 25, 50, or 100** selectable in the
+inline **per page** selector.
 **Previous / Next** fetch pages using a row offset; TanStack Query caches pages,
 and TanStack Table manages pagination and table rendering. Pagination applies
 after filtering, sorting, and full-data aggregation, selecting transactions or
 whole pivot row groups. There is no total row cap; Next is disabled after the
-last page. Changing filters, grouping, sorting, report type, or page size resets
-the offset to zero. Table bodies scroll independently so navigation remains
-reachable in the sticky builder preview. Pivot tables retain their
+last page. Changing filters, grouping, sorting, result type, or page size resets
+the offset to zero. Tables have no default height cap; fixed-height GridItem
+containers supply vertical scrolling. Pivot tables retain their
 24-column-group limit and indicate when columns are omitted.
 
 There is no Limited / Full preview mode. Page size is view state, not part of
-the saved report definition. Saving requires successful results for the exact
-current definition and page. Previous successful results remain visible and
-are labeled stale while builder settings change or a later request fails.
+the saved source definition. Saving requires successful results for the exact
+current definition and page. Previous successful results remain visible during
+requests and errors. The stale warning appears only for an idle, edited draft;
+it is suppressed alongside loading or error feedback in both editor modes.
 
 All queries retain the user's account-access scope and exclude excluded
 transactions. Category grouping preserves uncategorized transactions and
@@ -122,22 +230,46 @@ automatically spending. Pivot monetary measures require either a single
 filtered currency or Currency in Rows; currencies are never converted or added
 together.
 Relative date windows include today and the preceding days, excluding future
-transactions. Filters combine with AND.
+transactions. Filters combine with AND. Category supports **Equals** and
+**Not equals**. Excluding a concrete category retains uncategorized transactions;
+excluding **Uncategorized** retains only categorized transactions. These
+conditions persist with the saved source definition.
 
-Visual reports save a versioned definition, not generated query text, in the
-existing browser-local dashboard snapshot. Existing SureQL reports remain
-unchanged; Add table and Add chart still open their existing editor.
+Structured sources save a versioned definition, not generated query text, in the
+browser-local source catalog. Their definition's column/group/measure choices
+determine the result schema; Table visibility and Chart presentation remain
+independent component settings.
 
-### Existing SureQL reports
+### SureQL source editor
 
 The query editor supports SureQL only: there is no language selector or PRQL
 mode. Syntax highlighting, source suggestions, validation and Run all use
 SureQL. The editor grows and shrinks with query content from 128px to 640px,
 then scrolls internally for longer queries. Copy, Reset and Run use compact footer buttons
 beside the cursor position and character count, without a separate query heading
-or shortcut hint. Command/Ctrl+Enter still runs the query. A new chart report
-retains its chart presentation across configuration-page navigation and reload,
-before its pivot is configured.
+or shortcut hint. Command/Ctrl+Enter still runs the query. **Run** executes
+the draft query; **Save source** requires successful results for that exact
+draft and a nonblank source name.
+
+The SureQL editor and its preview each span the full available width. The
+preview card uses Headless UI tabs: **Preview** shows the shared paginated
+result table, and **Generated SQL** shows the executed SQL in a read-only
+Monaco editor with SQL syntax highlighting. Switching tabs retains the page
+and does not execute the query again.
+
+Run requests **10 rows** initially, even when the draft contains `take 100`.
+**Next / Previous** request server pages using a row offset rather than
+fetching the whole result and slicing it in the browser. The inline **per page**
+selector supports 10, 25, 50, or 100; changing it starts at the first page. Pagination
+wraps the authorized compiled query, preserving its own `take` limits and
+aggregation. The server probes one additional row to determine whether Next
+is available, returning only the requested page. Preview and saved-table paging
+are not subject to the non-paginated 50-row result cap.
+
+Saved SureQL tables use the same server-side page requests as previews, preserving
+the source query's own `take` and aggregation. Charts and chart-field selectors
+fetch the complete result through those paged query requests, without a separate
+chart-pivot query. Table-field selectors retain bounded metadata lookups.
 
 Autocomplete offers account and category joins after `from transactions`.
 Join completions preserve a typed alias and replace partial join text. Typing `.`

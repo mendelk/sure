@@ -1,8 +1,9 @@
 import * as z from "zod/mini";
+import { UserIdSchema } from "./ids";
 
 const SpaBootstrapSchema = z.object({
   currentUser: z.object({
-    id: z.string(),
+    id: UserIdSchema,
     name: z.string(),
     initials: z.string(),
     email: z.string(),

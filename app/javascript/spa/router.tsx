@@ -1,15 +1,22 @@
 import {
   Outlet,
-  useParams,
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  useRouteContext,
   type Router,
 } from "@tanstack/react-router";
 import type { SpaBootstrap } from "./bootstrap";
 import { AppShell } from "./app-shell";
 import { DashboardsPage } from "./dashboards-page";
 import { validateDashboardSearch } from "./dashboard-storage";
+import { DashboardWorkspaceProvider } from "./dashboard-workspace";
+import {
+  EditSourcePage,
+  NewSourcePage,
+  SourcesPage,
+  validateSourceReturnSearch,
+} from "./source-pages";
 import { validateNewTransactionSearch, NewTransactionPage } from "./new-transaction-page";
 import { TransactionDetailDrawer } from "./transaction-detail-page";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
@@ -18,7 +25,7 @@ type RouterContext = {
 };
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
-  component: AppShell,
+  component: WorkspaceRoot,
   notFoundComponent: NotFoundPage,
 });
 
@@ -55,28 +62,35 @@ const dashboardsIndexRoute = createRoute({
   component: DashboardsPage,
 });
 
-const reportConfigureRoute = createRoute({
-  getParentRoute: () => dashboardsRoute,
-  path: "$dashboardId/reports/$reportId/configure",
-  component: ReportConfigurePage,
+const sourcesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/sources",
+  validateSearch: validateSourceReturnSearch,
+  component: Outlet,
 });
 
-function ReportConfigurePage() {
-  const { dashboardId, reportId } = useParams({
-    from: "/dashboards/$dashboardId/reports/$reportId/configure",
-  });
-  return (
-    <DashboardsPage
-      key={`${dashboardId}:${reportId}`}
-      dashboardId={dashboardId}
-      reportId={reportId}
-    />
-  );
-}
+const sourcesIndexRoute = createRoute({
+  getParentRoute: () => sourcesRoute,
+  path: "/",
+  component: SourcesPage,
+});
+
+const newSourceRoute = createRoute({
+  getParentRoute: () => sourcesRoute,
+  path: "new",
+  component: NewSourcePage,
+});
+
+const editSourceRoute = createRoute({
+  getParentRoute: () => sourcesRoute,
+  path: "$sourceId/edit",
+  component: EditSourcePage,
+});
 
 const routeTree = rootRoute.addChildren([
   transactionsRoute.addChildren([transactionDetailRoute, newTransactionRoute]),
-  dashboardsRoute.addChildren([dashboardsIndexRoute, reportConfigureRoute]),
+  dashboardsRoute.addChildren([dashboardsIndexRoute]),
+  sourcesRoute.addChildren([sourcesIndexRoute, newSourceRoute, editSourceRoute]),
 ]);
 export type SpaRouter = Router<typeof routeTree>;
 
@@ -93,6 +107,15 @@ declare module "@tanstack/react-router" {
   interface Register {
     router: SpaRouter;
   }
+}
+
+function WorkspaceRoot() {
+  const { bootstrap } = useRouteContext({ from: "__root__" });
+  return (
+    <DashboardWorkspaceProvider key={bootstrap.currentUser.id} userId={bootstrap.currentUser.id}>
+      <AppShell />
+    </DashboardWorkspaceProvider>
+  );
 }
 
 function NotFoundPage() {

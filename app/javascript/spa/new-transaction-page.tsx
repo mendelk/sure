@@ -11,6 +11,13 @@ import { Icon } from "./icon";
 import { Modal } from "./modal";
 import { useDismiss } from "./use-dismiss";
 import {
+  AccountIdSchema,
+  type AccountId,
+  type CategoryId,
+  type MerchantId,
+  type TagId,
+} from "./ids";
+import {
   TransactionApiError,
   createTransaction,
   referenceDataQueryOptions,
@@ -25,29 +32,30 @@ import {
 } from "./transaction-detail-page";
 
 export type NewTransactionSearch = {
-  account_id?: string;
+  account_id?: AccountId;
   nature?: "inflow" | "outflow";
 };
 
 export function validateNewTransactionSearch(input: Record<string, unknown>): NewTransactionSearch {
   const result: NewTransactionSearch = {};
   const accountId = input.account_id;
-  if (typeof accountId === "string" && accountId.trim().length > 0) result.account_id = accountId;
+  if (typeof accountId === "string" && accountId.trim().length > 0)
+    result.account_id = AccountIdSchema.parse(accountId);
   const nature = input.nature;
   if (nature === "inflow" || nature === "outflow") result.nature = nature;
   return result;
 }
 
 export type NewTransactionFormValues = {
-  account_id: string;
+  account_id: AccountId | "";
   amount: string;
-  category_id: string;
+  category_id: CategoryId | "";
   date: string;
-  merchant_id: string;
+  merchant_id: MerchantId | "";
   name: string;
   nature: "inflow" | "outflow";
   notes: string;
-  tag_ids: string[];
+  tag_ids: TagId[];
 };
 
 function todayIso(): string {
@@ -85,27 +93,29 @@ export function NewTransactionPage() {
     },
   });
   const serverErrors = create.error instanceof TransactionApiError ? create.error.errors : [];
+  const defaultValues: NewTransactionFormValues = {
+    account_id: search.account_id ?? "",
+    amount: "",
+    category_id: "",
+    date: todayIso(),
+    merchant_id: "",
+    name: "",
+    nature: search.nature ?? "outflow",
+    notes: "",
+    tag_ids: [],
+  };
 
   const form = useForm({
-    defaultValues: {
-      account_id: search.account_id ?? "",
-      amount: "",
-      category_id: "",
-      date: todayIso(),
-      merchant_id: "",
-      name: "",
-      nature: search.nature ?? "outflow",
-      notes: "",
-      tag_ids: [] as string[],
-    },
+    defaultValues,
     onSubmit: ({ value }) => {
+      if (value.account_id === "") return;
       const amount = Number(value.amount);
       const input: NonNullable<TransactionCreateInput> = {
         account_id: value.account_id,
         amount: Number.isFinite(amount) ? amount : 0,
-        category_id: value.category_id.length > 0 ? value.category_id : undefined,
+        category_id: value.category_id !== "" ? value.category_id : undefined,
         date: value.date,
-        merchant_id: value.merchant_id.length > 0 ? value.merchant_id : undefined,
+        merchant_id: value.merchant_id !== "" ? value.merchant_id : undefined,
         name: value.name.trim(),
         nature: value.nature === "inflow" ? "inflow" : "expense",
         notes: value.notes.trim().length > 0 ? value.notes.trim() : undefined,
@@ -368,11 +378,11 @@ function NewTransactionHeader({ onClose }: { onClose: () => void }) {
 }
 
 type AccountSelectProps = {
-  accounts: ReferenceOption[];
+  accounts: ReferenceOption<AccountId>[];
   error?: string;
   loading: boolean;
-  onSelect: (accountId: string) => void;
-  selectedAccountId: string;
+  onSelect: (accountId: AccountId) => void;
+  selectedAccountId: AccountId | "";
 };
 
 function AccountSelect({
@@ -428,7 +438,7 @@ function AccountSelect({
             )}
           </button>
           {isOpen ? (
-            <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg shadow-border-xs">
+            <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg">
               <div className="relative mb-1">
                 <input
                   autoComplete="off"

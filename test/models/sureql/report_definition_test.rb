@@ -192,6 +192,14 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     assert_equal 51 * 25, result.fetch("rows").first.fetch("totals").first.to_d
     assert_equal [ categories.fetch(41).fetch(:id) ], result.fetch("rows").last.fetch("values")
     assert_equal "2024-12", result.fetch("columns").last.fetch("labels").first
+
+    complete = @reports.call(definition(sort: [ { axis: "rows", measure: "sum", direction: "desc" } ]), pagination: { limit: 100, offset: 0 }, all_columns: true)
+    assert_equal 51, complete.fetch("rows").size
+    assert_equal 25, complete.fetch("columns").size
+    assert_not complete.fetch("truncated")
+    assert_equal "2025-01", complete.fetch("columns").last.fetch("labels").first
+    cell = complete.fetch("cells").find { |item| item.fetch("rowKey") == complete.fetch("rows").first.fetch("key") && item.fetch("columnKey") == complete.fetch("columns").last.fetch("key") }
+    assert_equal 51, cell.fetch("values").first.to_d
   end
 
   test "pivot offsets page ranked whole groups without changing totals or column groups" do
@@ -260,6 +268,8 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
       [ definition(values: [ { id: "category", field: "amount", aggregation: "sum" } ]), "values.0.id" ],
       [ definition(filters: [ { field: "currency", operator: "equals", value: "USD' OR TRUE--" } ]), "filters.0.value" ],
       [ definition(filters: [ { field: "account", operator: "equals", value: [] } ]), "filters.0.value" ],
+      [ definition(filters: [ { field: "category", operator: "not_equals", value: "not-a-uuid" } ]), "filters.0.value" ],
+      [ definition(filters: [ { field: "account", operator: "not_equals", value: @account.id } ]), "filters.0.operator" ],
       [ definition(filters: [ { field: "date", operator: "last", unit: "days", value: "2" } ]), "filters.0.value" ],
       [ definition(filters: [ { field: "date", operator: "last", unit: "days", value: 0 } ]), "filters.0.value" ],
       [ definition(filters: [ { field: "date", operator: "last", unit: "days", value: 3661 } ]), "filters.0.value" ],
@@ -278,6 +288,25 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     result = @reports.call(definition(filters: account_filter + [ { field: "category", operator: "equals", value: "" } ]))
     assert_equal [ nil ], result.fetch("rows").first.fetch("values")
     assert_equal 12, result.fetch("rows").first.fetch("totals").first.to_d
+  end
+
+  test "category not equals retains other categories and uncategorized transactions" do
+    add(100, category: categories(:one))
+    add(7, category: categories(:income))
+    add(12)
+    add(1000, category: categories(:income), excluded: true)
+    result = @reports.call(definition(filters: account_filter + [ { field: "category", operator: "not_equals", value: categories(:one).id } ]))
+    totals = result.fetch("rows").to_h { |row| [ row.fetch("values").first, row.fetch("totals").first.to_d ] }
+    assert_equal({ categories(:income).id => 7, nil => 12 }, totals)
+  end
+
+  test "category not equals uncategorized retains only categorized transactions" do
+    add(100, category: categories(:one))
+    add(7, category: categories(:income))
+    add(12)
+    result = @reports.call(definition(filters: account_filter + [ { field: "category", operator: "not_equals", value: "" } ]))
+    totals = result.fetch("rows").to_h { |row| [ row.fetch("values").first, row.fetch("totals").first.to_d ] }
+    assert_equal({ categories(:one).id => 100, categories(:income).id => 7 }, totals)
   end
 
   test "detail keeps duplicate looking entries separate and preserves selected field order" do

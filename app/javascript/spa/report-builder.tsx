@@ -1,5 +1,5 @@
 // eslint-disable import/max-dependencies -- Report composition uses shared disclosure, field card, form, button, modal, and table primitives.
-import { useEffect, useId, useRef, useState, type DragEvent } from "react";
+import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { PaginationState } from "@tanstack/react-table";
 import { executeStructuredReport, fetchReportCatalog, ReportApiError } from "./api/reports";
@@ -9,8 +9,8 @@ import { FieldCard } from "./components/field-card";
 import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Icon } from "./icon";
-import { Modal } from "./modal";
 import { StructuredReportTable } from "./report-pivot-table";
+import { SourcePreviewPanel } from "./source-preview-panel";
 import {
   DETAIL_FIELDS,
   defaultDetailReportDefinition,
@@ -26,6 +26,7 @@ import type {
   ReportValue,
   StructuredReportResult,
 } from "./report-definition";
+import { ReportDimensionIdSchema, ReportMeasureIdSchema } from "./ids";
 
 type Shelf = "rows" | "columns" | "values" | "filters";
 type OrderedShelf = Exclude<Shelf, "filters">;
@@ -67,24 +68,23 @@ function reportRequestError(cause: unknown, text: ReportBuilderText): string {
 
 export function ReportBuilder({
   endpoint,
-  initialName,
+  name,
   initialDefinition,
   text,
   onSave,
   onCancel,
-  onRemove,
+  renderHeader,
 }: {
   endpoint: string;
-  initialName: string;
+  name: string;
   initialDefinition: ReportDefinition;
   text: ReportBuilderText;
   onSave: (name: string, definition: ReportDefinition) => void;
   onCancel: () => void;
-  onRemove: () => void;
+  renderHeader: (actions: ReactNode, modeControl: ReactNode) => ReactNode;
 }) {
   const t = (key: string) => text[key] ?? key;
   const id = useId();
-  const [name, setName] = useState(initialName);
   const [definition, setDefinition] = useState<ReportDefinition>(() =>
     structuredClone(initialDefinition),
   );
@@ -105,7 +105,6 @@ export function ReportBuilder({
     signature: string;
     result: StructuredReportResult;
   } | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState(false);
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [dragPreview, setDragPreview] = useState<{
@@ -288,12 +287,17 @@ export function ReportBuilder({
       next[payload.shelf].splice(payload.index, 1);
     let targetIndex = position ?? definition[destination].length;
     if (sameShelf && payload.index !== undefined && payload.index < targetIndex) targetIndex -= 1;
-    const usedIds = new Set([...next.rows, ...next.columns, ...next.values].map((item) => item.id));
-    let fieldId = original && "id" in original ? original.id : `${field.key}_1`;
+    const usedIds = new Set<string>(
+      [...next.rows, ...next.columns, ...next.values].map((item) => item.id),
+    );
+    let fieldId: string = original && "id" in original ? original.id : `${field.key}_1`;
     let suffix = 1;
     while (usedIds.has(fieldId)) fieldId = `${field.key}_${++suffix}`;
     if (destination === "rows" || destination === "columns") {
-      const item: ReportDimension = { id: fieldId, field: field.key };
+      const item: ReportDimension = {
+        id: ReportDimensionIdSchema.parse(fieldId),
+        field: field.key,
+      };
       if (field.dateBuckets.length > 0) {
         item.dateBucket =
           original && "dateBucket" in original
@@ -305,7 +309,7 @@ export function ReportBuilder({
       next[destination].splice(targetIndex, 0, item);
     } else if (destination === "values") {
       const item: ReportValue = {
-        id: fieldId,
+        id: ReportMeasureIdSchema.parse(fieldId),
         field: field.key,
         aggregation:
           original && "aggregation" in original
@@ -572,7 +576,9 @@ export function ReportBuilder({
       next.sort.push({
         axis,
         direction: direction ?? existing?.direction ?? "asc",
-        ...(kind === "measure" ? { measure: selectedId } : { dimension: selectedId }),
+        ...(kind === "measure"
+          ? { measure: ReportMeasureIdSchema.parse(selectedId) }
+          : { dimension: ReportDimensionIdSchema.parse(selectedId) }),
       });
     }
     change(next);
@@ -589,30 +595,11 @@ export function ReportBuilder({
   }
 
   return (
-    <section className="space-y-6" aria-labelledby={`${id}-title`}>
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <Button variant="ghost" size="sm" onClick={onCancel}>
-            {t("back_to_dashboard")}
-          </Button>
-          <h1 id={`${id}-title`} className="text-2xl font-semibold text-primary">
-            {t("configure_report")}
-          </h1>
-          <p className="text-sm text-secondary">
-            {t(definition.mode === "detail" ? "detail_builder_description" : "builder_description")}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <>
+      {renderHeader(
+        <>
           <Button variant="secondary" onClick={onCancel}>
             {t("cancel")}
-          </Button>
-          <Button
-            variant="destructive-outline"
-            onClick={() => {
-              setConfirmRemove(true);
-            }}
-          >
-            {t("remove_report")}
           </Button>
           <Button
             disabled={!canSave}
@@ -622,20 +609,7 @@ export function ReportBuilder({
           >
             {t("save_report")}
           </Button>
-        </div>
-      </header>
-      <div className="max-w-xl">
-        <FormField
-          id={`${id}-name`}
-          label={t("report_name")}
-          required
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-          }}
-        />
-      </div>
-      <div className="max-w-xl">
+        </>,
         <FormField
           as="select"
           id={`${id}-mode`}
@@ -646,671 +620,642 @@ export function ReportBuilder({
             if (mode === "detail" || mode === "aggregate") switchMode(mode);
           }}
         >
-          <option value="detail">{t("transaction_table")}</option>
           <option value="aggregate">{t("pivot_table")}</option>
-        </FormField>
-      </div>
-      <div className="flex flex-col items-start gap-6 lg:flex-row">
-        <aside
-          className="w-full min-w-0 shrink-0 space-y-3 lg:w-80"
-          aria-label={t("configuration")}
-        >
-          <p id={`${id}-drag-help`} className="sr-only">
-            {t("drag_help")}
-          </p>
-          <DisclosureSection title={t("source")} defaultOpen>
-            <FormField
-              as="select"
-              id={`${id}-source`}
-              label={t("source")}
-              value={definition.source}
-              onChange={(event) => {
-                if (event.currentTarget.value === "transactions")
-                  change({ ...definition, source: event.currentTarget.value });
-              }}
-            >
-              <option value="transactions">{t("transactions")}</option>
-            </FormField>
-            <p className="rounded-lg bg-warning/10 p-3 text-xs text-primary">
-              {t(definition.mode === "detail" ? "detail_signed_amount_help" : "signed_amount_help")}
+          <option value="detail">{t("transaction_table")}</option>
+        </FormField>,
+      )}
+      <section className="space-y-6" aria-label={t("configuration")}>
+        <p className="text-sm text-secondary">
+          {t(definition.mode === "detail" ? "detail_builder_description" : "builder_description")}
+        </p>
+        <div className="flex flex-col items-start gap-6 lg:flex-row">
+          <aside
+            className="w-full min-w-0 shrink-0 space-y-3 lg:w-80"
+            aria-label={t("configuration")}
+          >
+            <p id={`${id}-drag-help`} className="sr-only">
+              {t("drag_help")}
             </p>
-          </DisclosureSection>
-          <DisclosureSection title={t("fields")} id={`${id}-fields`}>
-            <p className="text-xs text-secondary">{t("palette_help")}</p>
-            {!catalog && catalogError === null ? (
-              <output className="block text-sm text-secondary">{t("loading_catalog")}</output>
-            ) : null}
-            {catalogError !== null ? (
-              <div role="alert" className="space-y-2">
-                <p className="text-sm text-destructive">{catalogError}</p>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    void catalogQuery.refetch();
-                  }}
-                >
-                  {t("retry_catalog")}
-                </Button>
-              </div>
-            ) : null}
-            {catalog?.fields
-              .filter((field) =>
-                definition.mode === "detail"
-                  ? field.detail
-                  : field.dimension || field.aggregations.length > 0 || field.operators.length > 0,
-              )
-              .map((field) => (
-                <div
-                  key={field.key}
-                  className="space-y-2 rounded-lg border border-primary bg-surface p-3"
-                >
-                  <div
-                    className="flex cursor-grab items-center gap-2 select-none active:cursor-grabbing"
-                    draggable
-                    onDragStart={(event) => {
-                      startDrag(event, { field: field.key });
-                    }}
-                    onDragEnd={endDrag}
-                  >
-                    <Icon name="grip-horizontal" size="sm" />
-                    <span className="font-medium text-primary">{field.label}</span>
-                    <span className="ml-auto text-xs text-secondary">
-                      {t(`kind_${field.kind}`)}
-                    </span>
-                  </div>
-                  <div
-                    className="flex flex-wrap gap-1"
-                    aria-label={`${t("add_to")} ${field.label}`}
-                  >
-                    {shelves
-                      .filter((shelf) => compatible(field, shelf, definition.mode))
-                      .map((shelf) => (
-                        <Button
-                          key={shelf}
-                          variant="secondary"
-                          size="sm"
-                          aria-label={`${t("add_to")} ${t(shelf)}: ${field.label}`}
-                          disabled={
-                            shelfEntries(definition, shelf).length >= capacity[shelf] ||
-                            (definition.mode === "detail" &&
-                              shelf === "columns" &&
-                              definition.columns.some((column) => column.field === field.key))
-                          }
-                          onClick={() => {
-                            place({ field: field.key }, shelf);
-                          }}
-                        >
-                          {t(shelf)}
-                        </Button>
-                      ))}
-                  </div>
-                </div>
-              ))}
-          </DisclosureSection>
-          <div className="space-y-3">
-            {shelves.map((shelf) => (
-              <DisclosureSection
-                key={`${definition.mode}-${shelf}`}
-                id={`${id}-${shelf}`}
-                defaultOpen={shelf !== "filters"}
-                className={
-                  dropTarget?.shelf === shelf
-                    ? "border-secondary bg-surface"
-                    : fieldError(shelf) !== undefined
-                      ? "border-destructive"
-                      : "border-primary"
-                }
-                onDragOver={shelf === "filters" ? undefined : (event) => dragOver(event, shelf)}
-                onDragLeave={
-                  shelf === "filters"
-                    ? undefined
-                    : (event) => {
-                        if (
-                          !(event.relatedTarget instanceof Node) ||
-                          !event.currentTarget.contains(event.relatedTarget)
-                        )
-                          setDropTarget(null);
-                      }
-                }
-                onDrop={
-                  shelf === "filters"
-                    ? undefined
-                    : (event) => {
-                        drop(event, shelf);
-                      }
-                }
-                title={
-                  <>
-                    {t(shelf)}
-                    <span className="ml-2 text-xs font-normal text-secondary">
-                      {shelfEntries(definition, shelf).length} / {capacity[shelf]}
-                    </span>
-                  </>
-                }
+            <DisclosureSection title={t("source")} defaultOpen>
+              <FormField
+                as="select"
+                id={`${id}-source`}
+                label={t("source")}
+                value={definition.source}
+                onChange={(event) => {
+                  if (event.currentTarget.value === "transactions")
+                    change({ ...definition, source: event.currentTarget.value });
+                }}
               >
-                <p className="text-xs text-secondary">
-                  {t(
-                    definition.mode === "detail" && shelf === "columns"
-                      ? "detail_columns_help"
-                      : `${shelf}_help`,
-                  )}
-                </p>
-                {definition.mode === "aggregate" &&
-                shelf === "rows" &&
-                currencyField !== undefined &&
-                !definition.rows.some((dimension) => dimension.field === "currency") ? (
+                <option value="transactions">{t("transactions")}</option>
+              </FormField>
+              <p className="rounded-lg bg-warning/10 p-3 text-xs text-primary">
+                {t(
+                  definition.mode === "detail" ? "detail_signed_amount_help" : "signed_amount_help",
+                )}
+              </p>
+            </DisclosureSection>
+            <DisclosureSection title={t("fields")} id={`${id}-fields`}>
+              <p className="text-xs text-secondary">{t("palette_help")}</p>
+              {!catalog && catalogError === null ? (
+                <output className="block text-sm text-secondary">{t("loading_catalog")}</output>
+              ) : null}
+              {catalogError !== null ? (
+                <div role="alert" className="space-y-2">
+                  <p className="text-sm text-destructive">{catalogError}</p>
                   <Button
                     variant="secondary"
                     size="sm"
                     onClick={() => {
-                      place({ field: currencyField.key }, "rows");
+                      void catalogQuery.refetch();
                     }}
                   >
-                    {t("add_currency_rows")}
+                    {t("retry_catalog")}
                   </Button>
-                ) : null}
-                {fieldError(shelf) !== undefined ? (
-                  <p role="alert" className="text-sm text-destructive">
-                    {fieldError(shelf)}
-                  </p>
-                ) : null}
-                {shelfEntries(definition, shelf).length === 0 && dropTarget?.shelf !== shelf ? (
-                  <p
-                    className={
-                      shelf === "filters"
-                        ? "text-sm text-secondary"
-                        : "rounded-lg border border-dashed border-primary p-4 text-center text-sm text-secondary"
-                    }
+                </div>
+              ) : null}
+              {catalog?.fields
+                .filter((field) =>
+                  definition.mode === "detail"
+                    ? field.detail
+                    : field.dimension ||
+                      field.aggregations.length > 0 ||
+                      field.operators.length > 0,
+                )
+                .map((field) => (
+                  <div
+                    key={field.key}
+                    className="space-y-2 rounded-lg border border-primary bg-surface p-3"
                   >
-                    {t(shelf === "filters" ? "add_filters" : "drop_fields")}
-                  </p>
-                ) : null}
-                <div
-                  ref={
+                    <div
+                      className="flex cursor-grab items-center gap-2 select-none active:cursor-grabbing"
+                      draggable
+                      onDragStart={(event) => {
+                        startDrag(event, { field: field.key });
+                      }}
+                      onDragEnd={endDrag}
+                    >
+                      <Icon name="grip-horizontal" size="sm" />
+                      <span className="font-medium text-primary">{field.label}</span>
+                      <span className="ml-auto text-xs text-secondary">
+                        {t(`kind_${field.kind}`)}
+                      </span>
+                    </div>
+                    <div
+                      className="flex flex-wrap gap-1"
+                      aria-label={`${t("add_to")} ${field.label}`}
+                    >
+                      {shelves
+                        .filter((shelf) => compatible(field, shelf, definition.mode))
+                        .map((shelf) => (
+                          <Button
+                            key={shelf}
+                            variant="secondary"
+                            size="sm"
+                            aria-label={`${t("add_to")} ${t(shelf)}: ${field.label}`}
+                            disabled={
+                              shelfEntries(definition, shelf).length >= capacity[shelf] ||
+                              (definition.mode === "detail" &&
+                                shelf === "columns" &&
+                                definition.columns.some((column) => column.field === field.key))
+                            }
+                            onClick={() => {
+                              place({ field: field.key }, shelf);
+                            }}
+                          >
+                            {t(shelf)}
+                          </Button>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+            </DisclosureSection>
+            <div className="space-y-3">
+              {shelves.map((shelf) => (
+                <DisclosureSection
+                  key={`${definition.mode}-${shelf}`}
+                  id={`${id}-${shelf}`}
+                  defaultOpen={shelf !== "filters"}
+                  className={
+                    dropTarget?.shelf === shelf
+                      ? "border-secondary bg-surface"
+                      : fieldError(shelf) !== undefined
+                        ? "border-destructive"
+                        : "border-primary"
+                  }
+                  onDragOver={shelf === "filters" ? undefined : (event) => dragOver(event, shelf)}
+                  onDragLeave={
                     shelf === "filters"
                       ? undefined
-                      : (element) => {
-                          listElements.current[shelf] = element;
+                      : (event) => {
+                          if (
+                            !(event.relatedTarget instanceof Node) ||
+                            !event.currentTarget.contains(event.relatedTarget)
+                          )
+                            setDropTarget(null);
                         }
                   }
-                  className="relative flex flex-col gap-3"
-                  style={shelf === "filters" ? undefined : listStyle(shelf)}
+                  onDrop={
+                    shelf === "filters"
+                      ? undefined
+                      : (event) => {
+                          drop(event, shelf);
+                        }
+                  }
+                  title={
+                    <>
+                      {t(shelf)}
+                      <span className="ml-2 text-xs font-normal text-secondary">
+                        {shelfEntries(definition, shelf).length} / {capacity[shelf]}
+                      </span>
+                    </>
+                  }
                 >
-                  {shelfEntries(definition, shelf).map((entry, index) => {
-                    const field = catalog?.fields.find((item) => item.key === entry.field);
-                    const entryId =
-                      "id" in entry
-                        ? entry.id
-                        : shelf === "columns"
-                          ? entry.field
-                          : `${entry.field}-${index}`;
-                    const entryPath = `${shelf}.${index}`;
-                    const moveTargets =
-                      definition.mode === "aggregate" && field && shelf !== "filters"
-                        ? (["rows", "columns", "values"] as const).filter(
-                            (destination) =>
-                              destination !== shelf &&
-                              compatible(field, destination, definition.mode) &&
-                              shelfEntries(definition, destination).length < capacity[destination],
-                          )
-                        : [];
-                    return (
-                      <FieldCard
-                        key={entryId}
-                        label={field?.label ?? t(`field_${entry.field}`)}
-                        removeLabel={`${t("remove_field")}: ${field?.label ?? t(`field_${entry.field}`)}`}
-                        {...(shelf === "filters"
-                          ? {}
-                          : cardDragProps({ field: entry.field, shelf, index }))}
-                        onRemove={() => {
-                          removeEntry(shelf, index);
-                        }}
-                      >
-                        {fieldError(entryPath) !== undefined ? (
-                          <p role="alert" className="text-xs text-destructive">
-                            {fieldError(entryPath)}
-                          </p>
-                        ) : null}
-                        {"aggregation" in entry ? (
-                          <FormField
-                            as="select"
-                            id={`${id}-${entryId}-aggregation`}
-                            label={t("aggregation")}
-                            value={entry.aggregation}
-                            error={fieldError(`${entryPath}.aggregation`)}
-                            onChange={(event) => {
-                              const aggregation = field?.aggregations.find(
-                                (item) => item === event.target.value,
-                              );
-                              if (aggregation !== undefined)
-                                updateEntry(shelf, index, { aggregation });
-                            }}
-                          >
-                            {field?.aggregations.map((aggregation) => (
-                              <option key={aggregation} value={aggregation}>
-                                {t(`aggregation_${aggregation}`)}
-                              </option>
-                            ))}
-                          </FormField>
-                        ) : null}
-                        {definition.mode === "aggregate" &&
-                        (shelf === "rows" || shelf === "columns") &&
-                        field !== undefined &&
-                        field.dateBuckets.length > 0 ? (
-                          <FormField
-                            as="select"
-                            id={`${id}-${entryId}-bucket`}
-                            label={t("date_bucket")}
-                            value={"dateBucket" in entry ? entry.dateBucket : ""}
-                            error={fieldError(`${entryPath}.dateBucket`)}
-                            onChange={(event) => {
-                              const dateBucket = field.dateBuckets.find(
-                                (item) => item === event.target.value,
-                              );
-                              if (dateBucket !== undefined)
-                                updateEntry(shelf, index, { dateBucket });
-                            }}
-                          >
-                            {field.dateBuckets.map((bucket) => (
-                              <option key={bucket} value={bucket}>
-                                {t(`bucket_${bucket}`)}
-                              </option>
-                            ))}
-                          </FormField>
-                        ) : null}
-                        {"operator" in entry ? (
-                          <div className="space-y-2">
+                  <p className="text-xs text-secondary">
+                    {t(
+                      definition.mode === "detail" && shelf === "columns"
+                        ? "detail_columns_help"
+                        : `${shelf}_help`,
+                    )}
+                  </p>
+                  {definition.mode === "aggregate" &&
+                  shelf === "rows" &&
+                  currencyField !== undefined &&
+                  !definition.rows.some((dimension) => dimension.field === "currency") ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        place({ field: currencyField.key }, "rows");
+                      }}
+                    >
+                      {t("add_currency_rows")}
+                    </Button>
+                  ) : null}
+                  {fieldError(shelf) !== undefined ? (
+                    <p role="alert" className="text-sm text-destructive">
+                      {fieldError(shelf)}
+                    </p>
+                  ) : null}
+                  {shelfEntries(definition, shelf).length === 0 && dropTarget?.shelf !== shelf ? (
+                    <p
+                      className={
+                        shelf === "filters"
+                          ? "text-sm text-secondary"
+                          : "rounded-lg border border-dashed border-primary p-4 text-center text-sm text-secondary"
+                      }
+                    >
+                      {t(shelf === "filters" ? "add_filters" : "drop_fields")}
+                    </p>
+                  ) : null}
+                  <div
+                    ref={
+                      shelf === "filters"
+                        ? undefined
+                        : (element) => {
+                            listElements.current[shelf] = element;
+                          }
+                    }
+                    className="relative flex flex-col gap-3"
+                    style={shelf === "filters" ? undefined : listStyle(shelf)}
+                  >
+                    {shelfEntries(definition, shelf).map((entry, index) => {
+                      const field = catalog?.fields.find((item) => item.key === entry.field);
+                      const entryId =
+                        "id" in entry
+                          ? entry.id
+                          : shelf === "columns"
+                            ? entry.field
+                            : `${entry.field}-${index}`;
+                      const entryPath = `${shelf}.${index}`;
+                      const moveTargets =
+                        definition.mode === "aggregate" && field && shelf !== "filters"
+                          ? (["rows", "columns", "values"] as const).filter(
+                              (destination) =>
+                                destination !== shelf &&
+                                compatible(field, destination, definition.mode) &&
+                                shelfEntries(definition, destination).length <
+                                  capacity[destination],
+                            )
+                          : [];
+                      return (
+                        <FieldCard
+                          key={entryId}
+                          label={field?.label ?? t(`field_${entry.field}`)}
+                          removeLabel={`${t("remove_field")}: ${field?.label ?? t(`field_${entry.field}`)}`}
+                          {...(shelf === "filters"
+                            ? {}
+                            : cardDragProps({ field: entry.field, shelf, index }))}
+                          onRemove={() => {
+                            removeEntry(shelf, index);
+                          }}
+                        >
+                          {fieldError(entryPath) !== undefined ? (
+                            <p role="alert" className="text-xs text-destructive">
+                              {fieldError(entryPath)}
+                            </p>
+                          ) : null}
+                          {"aggregation" in entry ? (
                             <FormField
                               as="select"
-                              id={`${id}-${entryId}-field`}
-                              label={t("filter_field")}
-                              value={entry.field}
-                              error={fieldError(`${entryPath}.field`)}
+                              id={`${id}-${entryId}-aggregation`}
+                              label={t("aggregation")}
+                              value={entry.aggregation}
+                              error={fieldError(`${entryPath}.aggregation`)}
                               onChange={(event) => {
-                                changeFilterField(index, event.target.value);
-                              }}
-                            >
-                              {catalog?.fields
-                                .filter((item) => item.operators.length > 0)
-                                .map((item) => (
-                                  <option key={item.key} value={item.key}>
-                                    {item.label}
-                                  </option>
-                                ))}
-                            </FormField>
-                            <FormField
-                              as="select"
-                              id={`${id}-${entryId}-operator`}
-                              label={t("filter_operator")}
-                              value={entry.operator}
-                              error={fieldError(`${entryPath}.operator`)}
-                              onChange={(event) => {
-                                const operator = field?.operators.find(
+                                const aggregation = field?.aggregations.find(
                                   (item) => item === event.target.value,
                                 );
-                                if (operator !== undefined) updateEntry(shelf, index, { operator });
+                                if (aggregation !== undefined)
+                                  updateEntry(shelf, index, { aggregation });
                               }}
                             >
-                              {field?.operators.map((operator) => (
-                                <option key={operator} value={operator}>
-                                  {t(`operator_${operator}`)}
+                              {field?.aggregations.map((aggregation) => (
+                                <option key={aggregation} value={aggregation}>
+                                  {t(`aggregation_${aggregation}`)}
                                 </option>
                               ))}
                             </FormField>
-                            {entry.operator === "last" ? (
-                              <FormField
-                                id={`${id}-${entryId}-days`}
-                                label={t("last_days")}
-                                description={t("last_days_help")}
-                                type="number"
-                                min={1}
-                                max={3660}
-                                step={1}
-                                value={entry.value}
-                                error={fieldError(`${entryPath}.value`)}
-                                onChange={(event) => {
-                                  updateEntry(shelf, index, {
-                                    value:
-                                      event.target.value === "" ? "" : Number(event.target.value),
-                                    unit: "days",
-                                  });
-                                }}
-                              />
-                            ) : (
+                          ) : null}
+                          {definition.mode === "aggregate" &&
+                          (shelf === "rows" || shelf === "columns") &&
+                          field !== undefined &&
+                          field.dateBuckets.length > 0 ? (
+                            <FormField
+                              as="select"
+                              id={`${id}-${entryId}-bucket`}
+                              label={t("date_bucket")}
+                              value={"dateBucket" in entry ? entry.dateBucket : ""}
+                              error={fieldError(`${entryPath}.dateBucket`)}
+                              onChange={(event) => {
+                                const dateBucket = field.dateBuckets.find(
+                                  (item) => item === event.target.value,
+                                );
+                                if (dateBucket !== undefined)
+                                  updateEntry(shelf, index, { dateBucket });
+                              }}
+                            >
+                              {field.dateBuckets.map((bucket) => (
+                                <option key={bucket} value={bucket}>
+                                  {t(`bucket_${bucket}`)}
+                                </option>
+                              ))}
+                            </FormField>
+                          ) : null}
+                          {"operator" in entry ? (
+                            <div className="space-y-2">
                               <FormField
                                 as="select"
-                                id={`${id}-${entryId}-value`}
-                                label={
-                                  entry.field === "currency"
-                                    ? t("currency_filter")
-                                    : t("filter_value")
-                                }
-                                description={
-                                  entry.field === "currency" ? t("currency_filter_help") : undefined
-                                }
-                                value={String(entry.value)}
-                                error={fieldError(`${entryPath}.value`)}
+                                id={`${id}-${entryId}-field`}
+                                label={t("filter_field")}
+                                value={entry.field}
+                                error={fieldError(`${entryPath}.field`)}
                                 onChange={(event) => {
-                                  updateEntry(shelf, index, { value: event.target.value });
+                                  changeFilterField(index, event.target.value);
                                 }}
                               >
-                                {field?.options.some(
-                                  (option) => option.value === String(entry.value),
-                                ) !== true ? (
-                                  <option value={String(entry.value)}>{t("choose_value")}</option>
-                                ) : null}
-                                {field?.options.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
+                                {catalog?.fields
+                                  .filter((item) => item.operators.length > 0)
+                                  .map((item) => (
+                                    <option key={item.key} value={item.key}>
+                                      {item.label}
+                                    </option>
+                                  ))}
+                              </FormField>
+                              <FormField
+                                as="select"
+                                id={`${id}-${entryId}-operator`}
+                                label={t("filter_operator")}
+                                value={entry.operator}
+                                error={fieldError(`${entryPath}.operator`)}
+                                onChange={(event) => {
+                                  const operator = field?.operators.find(
+                                    (item) => item === event.target.value,
+                                  );
+                                  if (operator !== undefined)
+                                    updateEntry(shelf, index, { operator });
+                                }}
+                              >
+                                {field?.operators.map((operator) => (
+                                  <option key={operator} value={operator}>
+                                    {t(`operator_${operator}`)}
                                   </option>
                                 ))}
                               </FormField>
-                            )}
-                          </div>
-                        ) : null}
-                        {moveTargets.length > 0 ? (
-                          <FormField
-                            as="select"
-                            id={`${id}-${entryId}-destination`}
-                            label={t("move_to")}
-                            value=""
-                            onChange={(event) => {
-                              const destination = shelves.find(
-                                (item) => item === event.target.value,
-                              );
-                              if (destination !== undefined && shelf !== "filters")
-                                place({ field: entry.field, shelf, index }, destination);
-                            }}
-                          >
-                            <option value="">{t("choose_destination")}</option>
-                            {moveTargets.map((destination) => (
-                              <option key={destination} value={destination}>
-                                {t(destination)}
-                              </option>
-                            ))}
-                          </FormField>
-                        ) : null}
-                      </FieldCard>
-                    );
-                  })}
-                  {shelf === "filters" ? null : incomingPlaceholder(shelf)}
-                  {shelf !== "filters" && dragPreview ? (
-                    <div aria-hidden="true" className="absolute inset-0 z-10" />
-                  ) : null}
-                </div>
-              </DisclosureSection>
-            ))}
-          </div>
-          <DisclosureSection
-            title={t("sorting")}
-            id={`${id}-sort`}
-            className={
-              dropTarget?.shelf === "sort" ? "border-secondary bg-surface" : "border-primary"
-            }
-            onDragOver={(event) => dragOver(event, "sort")}
-            onDragLeave={(event) => {
-              if (
-                !(event.relatedTarget instanceof Node) ||
-                !event.currentTarget.contains(event.relatedTarget)
-              )
-                setDropTarget(null);
-            }}
-            onDrop={(event) => {
-              drop(event, "sort");
-            }}
-          >
-            <p className="text-xs text-secondary">
-              {t(definition.mode === "detail" ? "detail_sort_help" : "sort_help")}
-            </p>
-            {fieldError("sort") !== undefined ? (
-              <p className="text-sm text-destructive" role="alert">
-                {fieldError("sort")}
+                              {entry.operator === "last" ? (
+                                <FormField
+                                  id={`${id}-${entryId}-days`}
+                                  label={t("last_days")}
+                                  description={t("last_days_help")}
+                                  type="number"
+                                  min={1}
+                                  max={3660}
+                                  step={1}
+                                  value={entry.value}
+                                  error={fieldError(`${entryPath}.value`)}
+                                  onChange={(event) => {
+                                    updateEntry(shelf, index, {
+                                      value:
+                                        event.target.value === "" ? "" : Number(event.target.value),
+                                      unit: "days",
+                                    });
+                                  }}
+                                />
+                              ) : (
+                                <FormField
+                                  as="select"
+                                  id={`${id}-${entryId}-value`}
+                                  label={
+                                    entry.field === "currency"
+                                      ? t("currency_filter")
+                                      : t("filter_value")
+                                  }
+                                  description={
+                                    entry.field === "currency"
+                                      ? t("currency_filter_help")
+                                      : undefined
+                                  }
+                                  value={String(entry.value)}
+                                  error={fieldError(`${entryPath}.value`)}
+                                  onChange={(event) => {
+                                    updateEntry(shelf, index, { value: event.target.value });
+                                  }}
+                                >
+                                  {field?.options.some(
+                                    (option) => option.value === String(entry.value),
+                                  ) !== true ? (
+                                    <option value={String(entry.value)}>{t("choose_value")}</option>
+                                  ) : null}
+                                  {field?.options.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </FormField>
+                              )}
+                            </div>
+                          ) : null}
+                          {moveTargets.length > 0 ? (
+                            <FormField
+                              as="select"
+                              id={`${id}-${entryId}-destination`}
+                              label={t("move_to")}
+                              value=""
+                              onChange={(event) => {
+                                const destination = shelves.find(
+                                  (item) => item === event.target.value,
+                                );
+                                if (destination !== undefined && shelf !== "filters")
+                                  place({ field: entry.field, shelf, index }, destination);
+                              }}
+                            >
+                              <option value="">{t("choose_destination")}</option>
+                              {moveTargets.map((destination) => (
+                                <option key={destination} value={destination}>
+                                  {t(destination)}
+                                </option>
+                              ))}
+                            </FormField>
+                          ) : null}
+                        </FieldCard>
+                      );
+                    })}
+                    {shelf === "filters" ? null : incomingPlaceholder(shelf)}
+                    {shelf !== "filters" && dragPreview ? (
+                      <div aria-hidden="true" className="absolute inset-0 z-10" />
+                    ) : null}
+                  </div>
+                </DisclosureSection>
+              ))}
+            </div>
+            <DisclosureSection
+              title={t("sorting")}
+              id={`${id}-sort`}
+              className={
+                dropTarget?.shelf === "sort" ? "border-secondary bg-surface" : "border-primary"
+              }
+              onDragOver={(event) => dragOver(event, "sort")}
+              onDragLeave={(event) => {
+                if (
+                  !(event.relatedTarget instanceof Node) ||
+                  !event.currentTarget.contains(event.relatedTarget)
+                )
+                  setDropTarget(null);
+              }}
+              onDrop={(event) => {
+                drop(event, "sort");
+              }}
+            >
+              <p className="text-xs text-secondary">
+                {t(definition.mode === "detail" ? "detail_sort_help" : "sort_help")}
               </p>
-            ) : null}
-            <div className="grid gap-4">
-              {definition.mode === "aggregate" ? (
-                (["rows", "columns"] as const).map((axis) => {
-                  const sort = definition.sort.find((item) => item.axis === axis);
-                  const selected =
-                    sort?.measure !== undefined
-                      ? `measure:${sort.measure}`
-                      : sort?.dimension !== undefined
-                        ? `dimension:${sort.dimension}`
-                        : "";
-                  return (
-                    <article
-                      key={axis}
-                      className="space-y-3 rounded-lg border border-primary bg-surface p-3"
-                    >
-                      <h3 className="font-medium text-primary">{t(`${axis}_sort`)}</h3>
-                      <FormField
-                        as="select"
-                        id={`${id}-${axis}-sort`}
-                        label={t(`${axis}_sort`)}
-                        value={selected}
-                        onChange={(event) => {
-                          updateSort(axis, event.target.value);
-                        }}
+              {fieldError("sort") !== undefined ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {fieldError("sort")}
+                </p>
+              ) : null}
+              <div className="grid gap-4">
+                {definition.mode === "aggregate" ? (
+                  (["rows", "columns"] as const).map((axis) => {
+                    const sort = definition.sort.find((item) => item.axis === axis);
+                    const selected =
+                      sort?.measure !== undefined
+                        ? `measure:${sort.measure}`
+                        : sort?.dimension !== undefined
+                          ? `dimension:${sort.dimension}`
+                          : "";
+                    return (
+                      <article
+                        key={axis}
+                        className="space-y-3 rounded-lg border border-primary bg-surface p-3"
                       >
-                        <option value="">{t("default_order")}</option>
-                        {definition[axis].map((dimension) => (
-                          <option key={dimension.id} value={`dimension:${dimension.id}`}>
-                            {t(`field_${dimension.field}`)}
-                            {dimension.dateBucket
-                              ? ` · ${t(`bucket_${dimension.dateBucket}`)}`
-                              : ""}
-                          </option>
-                        ))}
-                        {axis === "rows"
-                          ? definition.values.map((value) => (
-                              <option key={value.id} value={`measure:${value.id}`}>
-                                {t("row_total")} · {t(`aggregation_${value.aggregation}`)} ·{" "}
-                                {t(`field_${value.field}`)}
-                              </option>
-                            ))
-                          : null}
-                      </FormField>
-                      <FormField
-                        as="select"
-                        id={`${id}-${axis}-direction`}
-                        label={t("sort_direction")}
-                        value={sort?.direction ?? "asc"}
-                        disabled={!selected}
-                        onChange={(event) => {
-                          const direction = event.target.value;
-                          if (direction === "asc" || direction === "desc")
-                            updateSort(axis, selected, direction);
-                        }}
-                      >
-                        <option value="asc">{t("ascending")}</option>
-                        <option value="desc">{t("descending")}</option>
-                      </FormField>
-                    </article>
-                  );
-                })
-              ) : (
-                <>
-                  <div
-                    ref={(element) => {
-                      listElements.current.sort = element;
-                    }}
-                    className="relative flex flex-col gap-3"
-                    style={listStyle("sort")}
-                  >
-                    {definition.sort.map((sort, index) => (
-                      <FieldCard
-                        key={sort.field}
-                        label={t(`field_${sort.field}`)}
-                        removeLabel={`${t("remove_sort")}: ${t(`field_${sort.field}`)}`}
-                        {...cardDragProps({ field: sort.field, shelf: "sort", index })}
-                        onRemove={() => {
-                          updateDetailSort(index, "");
-                        }}
-                      >
+                        <h3 className="font-medium text-primary">{t(`${axis}_sort`)}</h3>
                         <FormField
                           as="select"
-                          id={`${id}-detail-sort-${index}`}
-                          label={t("sort_field")}
-                          value={sort.field}
-                          error={fieldError(`sort.${index}.field`)}
+                          id={`${id}-${axis}-sort`}
+                          label={t(`${axis}_sort`)}
+                          value={selected}
                           onChange={(event) => {
-                            const controlId = event.currentTarget.id;
-                            updateDetailSort(index, event.target.value);
-                            // Changing the field remounts this keyed row; retain keyboard focus.
-                            requestAnimationFrame(() => {
-                              document
-                                .querySelector<HTMLSelectElement>(`#${CSS.escape(controlId)}`)
-                                ?.focus();
-                            });
+                            updateSort(axis, event.target.value);
                           }}
                         >
-                          {definition.columns.map((column) => (
-                            <option
-                              key={column.field}
-                              value={column.field}
-                              disabled={definition.sort.some(
-                                (item, sortIndex) =>
-                                  sortIndex !== index && item.field === column.field,
-                              )}
-                            >
-                              {t(`field_${column.field}`)}
+                          <option value="">{t("default_order")}</option>
+                          {definition[axis].map((dimension) => (
+                            <option key={dimension.id} value={`dimension:${dimension.id}`}>
+                              {t(`field_${dimension.field}`)}
+                              {dimension.dateBucket
+                                ? ` · ${t(`bucket_${dimension.dateBucket}`)}`
+                                : ""}
                             </option>
                           ))}
+                          {axis === "rows"
+                            ? definition.values.map((value) => (
+                                <option key={value.id} value={`measure:${value.id}`}>
+                                  {t("row_total")} · {t(`aggregation_${value.aggregation}`)} ·{" "}
+                                  {t(`field_${value.field}`)}
+                                </option>
+                              ))
+                            : null}
                         </FormField>
                         <FormField
                           as="select"
-                          id={`${id}-detail-direction-${index}`}
+                          id={`${id}-${axis}-direction`}
                           label={t("sort_direction")}
-                          value={sort.direction}
-                          error={fieldError(`sort.${index}.direction`)}
+                          value={sort?.direction ?? "asc"}
+                          disabled={!selected}
                           onChange={(event) => {
                             const direction = event.target.value;
                             if (direction === "asc" || direction === "desc")
-                              updateDetailSort(index, sort.field, direction);
+                              updateSort(axis, selected, direction);
                           }}
                         >
                           <option value="asc">{t("ascending")}</option>
                           <option value="desc">{t("descending")}</option>
                         </FormField>
-                      </FieldCard>
-                    ))}
-                    {incomingPlaceholder("sort")}
-                    {dragPreview ? (
-                      <div aria-hidden="true" className="absolute inset-0 z-10" />
-                    ) : null}
-                  </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={definition.sort.length >= definition.columns.length}
-                    onClick={() => {
-                      const field = definition.columns.find(
-                        (column) => !definition.sort.some((sort) => sort.field === column.field),
-                      );
-                      if (field) updateDetailSort(definition.sort.length, field.field);
-                    }}
-                  >
-                    {t("add_sort")}
-                  </Button>
-                </>
-              )}
-            </div>
-          </DisclosureSection>
-        </aside>
-        <section
-          className="w-full min-w-0 flex-1 space-y-4 overflow-hidden rounded-xl border border-primary bg-container p-4 lg:sticky lg:top-20"
-          aria-labelledby={`${id}-preview`}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-1">
-              <h2 id={`${id}-preview`} className="font-semibold text-primary">
-                {t("preview")}
-              </h2>
-              <p className="text-xs text-secondary">{t("save_gate_help")}</p>
-            </div>
-            {previewQuery.isError && localError === null ? (
-              <IconButton
-                icon="refresh-ccw"
-                label={t("retry_preview")}
-                disabled={running}
-                onClick={() => {
-                  setError(null);
-                  void previewQuery.refetch();
+                      </article>
+                    );
+                  })
+                ) : (
+                  <>
+                    <div
+                      ref={(element) => {
+                        listElements.current.sort = element;
+                      }}
+                      className="relative flex flex-col gap-3"
+                      style={listStyle("sort")}
+                    >
+                      {definition.sort.map((sort, index) => (
+                        <FieldCard
+                          key={sort.field}
+                          label={t(`field_${sort.field}`)}
+                          removeLabel={`${t("remove_sort")}: ${t(`field_${sort.field}`)}`}
+                          {...cardDragProps({ field: sort.field, shelf: "sort", index })}
+                          onRemove={() => {
+                            updateDetailSort(index, "");
+                          }}
+                        >
+                          <FormField
+                            as="select"
+                            id={`${id}-detail-sort-${index}`}
+                            label={t("sort_field")}
+                            value={sort.field}
+                            error={fieldError(`sort.${index}.field`)}
+                            onChange={(event) => {
+                              const controlId = event.currentTarget.id;
+                              updateDetailSort(index, event.target.value);
+                              // Changing the field remounts this keyed row; retain keyboard focus.
+                              requestAnimationFrame(() => {
+                                document
+                                  .querySelector<HTMLSelectElement>(`#${CSS.escape(controlId)}`)
+                                  ?.focus();
+                              });
+                            }}
+                          >
+                            {definition.columns.map((column) => (
+                              <option
+                                key={column.field}
+                                value={column.field}
+                                disabled={definition.sort.some(
+                                  (item, sortIndex) =>
+                                    sortIndex !== index && item.field === column.field,
+                                )}
+                              >
+                                {t(`field_${column.field}`)}
+                              </option>
+                            ))}
+                          </FormField>
+                          <FormField
+                            as="select"
+                            id={`${id}-detail-direction-${index}`}
+                            label={t("sort_direction")}
+                            value={sort.direction}
+                            error={fieldError(`sort.${index}.direction`)}
+                            onChange={(event) => {
+                              const direction = event.target.value;
+                              if (direction === "asc" || direction === "desc")
+                                updateDetailSort(index, sort.field, direction);
+                            }}
+                          >
+                            <option value="asc">{t("ascending")}</option>
+                            <option value="desc">{t("descending")}</option>
+                          </FormField>
+                        </FieldCard>
+                      ))}
+                      {incomingPlaceholder("sort")}
+                      {dragPreview ? (
+                        <div aria-hidden="true" className="absolute inset-0 z-10" />
+                      ) : null}
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={definition.sort.length >= definition.columns.length}
+                      onClick={() => {
+                        const field = definition.columns.find(
+                          (column) => !definition.sort.some((sort) => sort.field === column.field),
+                        );
+                        if (field) updateDetailSort(definition.sort.length, field.field);
+                      }}
+                    >
+                      {t("add_sort")}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </DisclosureSection>
+          </aside>
+          <SourcePreviewPanel
+            id={`${id}-preview`}
+            title={t("preview")}
+            description={t("save_gate_help")}
+            actions={
+              previewQuery.isError && localError === null ? (
+                <IconButton
+                  icon="refresh-ccw"
+                  label={t("retry_preview")}
+                  disabled={running}
+                  onClick={() => {
+                    setError(null);
+                    void previewQuery.refetch();
+                  }}
+                />
+              ) : null
+            }
+          >
+            {error ? (
+              <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                {error.message}
+              </p>
+            ) : null}
+            {stale && !running && error === null ? (
+              <output className="block rounded-lg bg-warning/10 p-3 text-sm text-primary">
+                {t("stale_preview")}
+              </output>
+            ) : null}
+            {!preview ? (
+              <p className="p-6 text-center text-sm text-secondary">{t("preview_empty")}</p>
+            ) : (
+              <StructuredReportTable
+                definition={preview.definition}
+                result={preview.result}
+                text={text}
+                pagination={{
+                  state: pagination,
+                  onChange: (updater) => {
+                    previewGeneration.current += 1;
+                    setError(null);
+                    if (preview.signature === signature) setLastGoodPreview(preview);
+                    setPagination(updater);
+                  },
+                  pending: running || (stale && !serverError),
+                  loading: running,
+                  hasNext: error === null && preview.result.pagination.hasNext,
                 }}
               />
-            ) : null}
-          </div>
-          {running ? (
-            <output className="flex items-center gap-2 text-sm text-secondary">
-              <Icon name="loader-circle" className="animate-spin" size="sm" />
-              {t("loading")}
-            </output>
-          ) : null}
-          {error ? (
-            <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              {error.message}
-            </p>
-          ) : null}
-          {preview && (stale || error || running) ? (
-            <output className="block rounded-lg bg-warning/10 p-3 text-sm text-primary">
-              {t("stale_preview")}
-            </output>
-          ) : null}
-          {!preview ? (
-            <p className="p-6 text-center text-sm text-secondary">{t("preview_empty")}</p>
-          ) : (
-            <StructuredReportTable
-              definition={preview.definition}
-              result={preview.result}
-              text={text}
-              pagination={{
-                state: pagination,
-                onChange: (updater) => {
-                  previewGeneration.current += 1;
-                  setError(null);
-                  if (preview.signature === signature) setLastGoodPreview(preview);
-                  setPagination(updater);
-                },
-                pending: running || (stale && !serverError),
-                hasNext: error === null && preview.result.pagination.hasNext,
-              }}
-            />
-          )}
-        </section>
-      </div>
-      <Modal
-        open={confirmRemove}
-        onClose={() => {
-          setConfirmRemove(false);
-        }}
-        ariaLabelledby={`${id}-remove-title`}
-        panelClassName="w-full max-w-md space-y-4 rounded-2xl bg-container p-6 shadow-xl"
-      >
-        <h2 id={`${id}-remove-title`} className="text-lg font-semibold text-primary">
-          {t("remove_report_title")}
-        </h2>
-        <p className="text-sm text-secondary">{t("remove_report_description")}</p>
-        <div className="flex justify-end gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setConfirmRemove(false);
-            }}
-          >
-            {t("cancel")}
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => {
-              setConfirmRemove(false);
-              onRemove();
-            }}
-          >
-            {t("remove_report")}
-          </Button>
+            )}
+          </SourcePreviewPanel>
         </div>
-      </Modal>
-    </section>
+      </section>
+    </>
   );
 }

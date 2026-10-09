@@ -10,7 +10,7 @@ class Sureql::ReportDefinition
   UUID = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i
   DATE_BUCKETS = Sureql::Pivot::DATE_BUCKETS
   FIELDS = {
-    "category" => { kind: "text", column: "category_id", label_column: "category_name", dimension: true, detail: true, aggregations: %w[count_distinct], operators: %w[equals] },
+    "category" => { kind: "text", column: "category_id", label_column: "category_name", dimension: true, detail: true, aggregations: %w[count_distinct], operators: %w[equals not_equals] },
     "account" => { kind: "text", column: "account_id", label_column: "account_name", dimension: true, detail: true, aggregations: %w[count_distinct], operators: %w[equals] },
     "date" => { kind: "date", column: "date", dimension: true, detail: true, aggregations: %w[count_distinct], operators: %w[last] },
     "currency" => { kind: "currency", column: "currency", dimension: true, detail: true, aggregations: %w[count_distinct], operators: %w[equals] },
@@ -58,7 +58,7 @@ class Sureql::ReportDefinition
     invalid!("catalog", "execution")
   end
 
-  def call(input, pagination: nil)
+  def call(input, pagination: nil, all_columns: false)
     spec = validate!(input)
     page = validate_pagination!(pagination)
     source = source_sql(spec.fetch("filters"))
@@ -69,7 +69,7 @@ class Sureql::ReportDefinition
     row_currency = spec.fetch("rows").any? { |dimension| dimension["field"] == "currency" }
     invalid!("rows", "mixed_currencies") if monetary && !row_currency && currencies.size > 1
 
-    sql = report_sql(source, spec, page: page)
+    sql = report_sql(source, spec, page: page, all_columns: all_columns)
     raw = connection.exec_query(sql).first.fetch("payload")
     payload = raw.is_a?(String) ? JSON.parse(raw) : raw
     payload.merge(
@@ -320,7 +320,10 @@ class Sureql::ReportDefinition
           # Match the database's current_date, inclusive, with no future rows.
           "#{column} BETWEEN CURRENT_DATE - #{filter.fetch('value') - 1} AND CURRENT_DATE"
         elsif filter["field"] == "category" && filter["value"].empty?
-          "#{column} IS NULL"
+          "#{column} IS #{filter["operator"] == "not_equals" ? "NOT " : ""}NULL"
+        elsif filter["operator"] == "not_equals"
+          # Null-safe inequality retains uncategorized transactions.
+          "#{column} IS DISTINCT FROM #{connection.quote(filter.fetch('value'))}"
         else
           "#{column} = #{connection.quote(filter.fetch('value'))}"
         end
@@ -404,7 +407,7 @@ class Sureql::ReportDefinition
       dimensions.each_index.map { |index| "d.#{prefix}#{index} IS NOT DISTINCT FROM #{alias_name}.#{prefix}#{index}" }.presence&.join(" AND ") || "TRUE"
     end
 
-    def report_sql(source, spec, page:)
+    def report_sql(source, spec, page:, all_columns:)
       rows = spec.fetch("rows")
       columns = spec.fetch("columns")
       row_columns = dimension_columns(rows, "r")
@@ -423,7 +426,7 @@ class Sureql::ReportDefinition
         ranked_rows AS (SELECT *, ROW_NUMBER() OVER (ORDER BY #{axis_order(spec, 'rows', 'r')}) AS row_rank FROM row_groups),
         ranked_columns AS (SELECT *, ROW_NUMBER() OVER (ORDER BY #{axis_order(spec, 'columns', 'c')}) AS column_rank FROM column_groups),
         selected_rows AS (SELECT * FROM ranked_rows WHERE row_rank > #{page.fetch("offset")} AND row_rank <= #{page.fetch("offset") + page.fetch("limit")}),
-        selected_columns AS (SELECT * FROM ranked_columns WHERE column_rank <= #{MAX_COLUMNS}),
+        selected_columns AS (SELECT * FROM ranked_columns#{all_columns ? "" : " WHERE column_rank <= #{MAX_COLUMNS}"}),
         grouped_cells AS (
           SELECT #{cell_selection.join(', ')} FROM dimensional_source AS d
           INNER JOIN selected_rows AS r ON #{axis_join(rows, 'r', 'r')}
@@ -441,7 +444,7 @@ class Sureql::ReportDefinition
           'pagination', jsonb_build_object(
             'limit', #{page.fetch("limit")}, 'offset', #{page.fetch("offset")},
             'hasNext', EXISTS(SELECT 1 FROM ranked_rows WHERE row_rank > #{page.fetch("offset") + page.fetch("limit")})),
-          'truncated', EXISTS(SELECT 1 FROM ranked_columns WHERE column_rank > #{MAX_COLUMNS})
+          'truncated', #{all_columns ? "FALSE" : "EXISTS(SELECT 1 FROM ranked_columns WHERE column_rank > #{MAX_COLUMNS})"}
         )::text AS payload
       SQL
     end

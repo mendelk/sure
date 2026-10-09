@@ -25,6 +25,14 @@ import {
 import type { SpaBootstrap } from "./bootstrap";
 import { Icon, type IconName } from "./icon";
 import { useDismiss } from "./use-dismiss";
+import {
+  AccountIdSchema,
+  type AccountId,
+  type CategoryId,
+  type MerchantId,
+  type TagId,
+  type TransactionId,
+} from "./ids";
 
 type TransactionType = "income" | "expense" | "transfer";
 type AmountOperator = "equal" | "greater" | "less";
@@ -39,7 +47,7 @@ export type TransactionRouteSearch = {
   types?: TransactionType[];
   status?: ("pending" | "confirmed")[];
   accounts?: string[];
-  account_ids?: string[];
+  account_ids?: AccountId[];
   categories?: string[];
   merchants?: string[];
   tags?: string[];
@@ -47,14 +55,13 @@ export type TransactionRouteSearch = {
   excluded_merchants?: string[];
   excluded_tags?: string[];
   excluded_accounts?: string[];
-  excluded_account_ids?: string[];
+  excluded_account_ids?: AccountId[];
   excluded_types?: TransactionType[];
   excluded_status?: ("pending" | "confirmed")[];
 };
 
 const ARRAY_FILTERS = [
   "accounts",
-  "account_ids",
   "categories",
   "merchants",
   "tags",
@@ -62,7 +69,6 @@ const ARRAY_FILTERS = [
   "excluded_merchants",
   "excluded_tags",
   "excluded_accounts",
-  "excluded_account_ids",
 ] as const;
 
 export function validateTransactionSearch(input: Record<string, unknown>): TransactionRouteSearch {
@@ -106,6 +112,12 @@ export function validateTransactionSearch(input: Record<string, unknown>): Trans
 
   for (const filter of ARRAY_FILTERS) {
     const values = arrayValue(input[filter] ?? input[`q[${filter}][]`]);
+    if (values.length > 0) result[filter] = values;
+  }
+  for (const filter of ["account_ids", "excluded_account_ids"] as const) {
+    const values = arrayValue(input[filter] ?? input[`q[${filter}][]`]).map((value) =>
+      AccountIdSchema.parse(value),
+    );
     if (values.length > 0) result[filter] = values;
   }
 
@@ -758,11 +770,11 @@ function MerchantMenu({
       transactions: string;
     };
   };
-  categoryId?: string;
+  categoryId?: CategoryId;
   categoryName?: string;
-  merchantId: string;
+  merchantId: MerchantId;
   merchantName: string;
-  transactionId?: string;
+  transactionId?: TransactionId;
 }) {
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState<"bottom" | "top">("bottom");
@@ -1196,10 +1208,10 @@ function filterDefinitions({
   merchants,
   tags,
 }: {
-  accounts: ReferenceOption[];
-  categories: ReferenceOption[];
-  merchants: ReferenceOption[];
-  tags: ReferenceOption[];
+  accounts: ReferenceOption<AccountId>[];
+  categories: ReferenceOption<CategoryId>[];
+  merchants: ReferenceOption<MerchantId>[];
+  tags: ReferenceOption<TagId>[];
 }): SlackFilterDefinition[] {
   return [
     {
@@ -1525,11 +1537,11 @@ function TransactionSearchBox({
   tags,
   updateSearch,
 }: {
-  accounts: ReferenceOption[];
-  categories: ReferenceOption[];
-  merchants: ReferenceOption[];
+  accounts: ReferenceOption<AccountId>[];
+  categories: ReferenceOption<CategoryId>[];
+  merchants: ReferenceOption<MerchantId>[];
   routeSearch: TransactionRouteSearch;
-  tags: ReferenceOption[];
+  tags: ReferenceOption<TagId>[];
   updateSearch: (changes: Partial<TransactionRouteSearch>) => void;
 }) {
   const [text, setText] = useState(routeSearch.search ?? "");
@@ -1910,16 +1922,16 @@ function TransactionFilterPanel({
   );
 }
 
-function FilterCheckboxes({
+function FilterCheckboxes<TValue extends string>({
   emptyLabel,
   onChange,
   options,
   selected,
 }: {
   emptyLabel: string;
-  onChange: (values: string[]) => void;
-  options: { id: string; name: string }[];
-  selected: string[];
+  onChange: (values: TValue[]) => void;
+  options: { id: TValue; name: string }[];
+  selected: TValue[];
 }) {
   const [query, setQuery] = useState("");
   const visible = options.filter((option) =>

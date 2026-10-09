@@ -17,7 +17,15 @@ import {
   updateTransferStatus,
   type ReferenceOption,
   type SpaTransactionDetail,
+  type TransactionUpdateInput,
 } from "./api/transactions";
+import {
+  TransactionIdSchema,
+  type CategoryId,
+  type TransactionId,
+  type MerchantId,
+  type TagId,
+} from "./ids";
 import type { SpaBootstrap } from "./bootstrap";
 import { useDismiss } from "./use-dismiss";
 
@@ -55,7 +63,8 @@ function formatShortDate(isoDate: string): string {
 
 export function TransactionDetailDrawer() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
-  const { transactionId } = useParams({ from: "/transactions/$transactionId" });
+  const params = useParams({ from: "/transactions/$transactionId" });
+  const transactionId = TransactionIdSchema.parse(params.transactionId);
   const navigate = useNavigate({ from: "/transactions/$transactionId" });
   const detailQuery = useQuery(
     transactionDetailQueryOptions(bootstrap.apiPaths.transactions, transactionId),
@@ -332,11 +341,11 @@ export function CategorySelect({
   selectedCategoryId,
 }: {
   bootstrap: Bootstrap;
-  categories: ReferenceOption[];
+  categories: ReferenceOption<CategoryId>[];
   disabled?: boolean;
-  initialCategory?: { id: string; name: string; color: string; icon: string } | null;
-  onSelect: (categoryId: string) => void;
-  selectedCategoryId: string;
+  initialCategory?: { id: CategoryId; name: string; color: string; icon: string } | null;
+  onSelect: (categoryId: CategoryId | "") => void;
+  selectedCategoryId: CategoryId | "";
 }) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -403,9 +412,9 @@ export function CategorySelect({
         (
           old:
             | {
-                categories: ReferenceOption[];
-                merchants: ReferenceOption[];
-                tags: ReferenceOption[];
+                categories: ReferenceOption<CategoryId>[];
+                merchants: ReferenceOption<MerchantId>[];
+                tags: ReferenceOption<TagId>[];
               }
             | undefined,
         ) => {
@@ -453,7 +462,7 @@ export function CategorySelect({
       </div>
 
       {isOpen && disabled !== true ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg shadow-border-xs">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg">
           <div className="relative mb-1">
             <input
               autoComplete="off"
@@ -562,10 +571,10 @@ export function MerchantSelect({
 }: {
   bootstrap: Bootstrap;
   disabled?: boolean;
-  initialMerchant?: { id: string; name: string; logo_url?: string | null } | null;
-  merchants: ReferenceOption[];
-  onSelect: (merchantId: string) => void;
-  selectedMerchantId: string;
+  initialMerchant?: { id: MerchantId; name: string; logo_url?: string | null } | null;
+  merchants: ReferenceOption<MerchantId>[];
+  onSelect: (merchantId: MerchantId | "") => void;
+  selectedMerchantId: MerchantId | "";
 }) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -637,9 +646,9 @@ export function MerchantSelect({
         (
           old:
             | {
-                categories: ReferenceOption[];
-                merchants: ReferenceOption[];
-                tags: ReferenceOption[];
+                categories: ReferenceOption<CategoryId>[];
+                merchants: ReferenceOption<MerchantId>[];
+                tags: ReferenceOption<TagId>[];
               }
             | undefined,
         ) => {
@@ -690,7 +699,7 @@ export function MerchantSelect({
       </div>
 
       {isOpen && disabled !== true ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg shadow-border-xs">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg">
           <div className="focus-ring-within mb-1 flex items-center rounded-lg border border-secondary bg-container transition-shadow">
             <div className="relative w-full">
               <input
@@ -802,10 +811,10 @@ export function TagSelect({
 }: {
   bootstrap: Bootstrap;
   disabled?: boolean;
-  initialTags?: Array<{ id: string; name: string; color?: string }>;
-  onSelect: (tagIds: string[]) => void;
-  selectedTagIds: string[];
-  tags: ReferenceOption[];
+  initialTags?: Array<{ id: TagId; name: string; color?: string }>;
+  onSelect: (tagIds: TagId[]) => void;
+  selectedTagIds: TagId[];
+  tags: ReferenceOption<TagId>[];
 }) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -873,9 +882,9 @@ export function TagSelect({
         (
           old:
             | {
-                categories: ReferenceOption[];
-                merchants: ReferenceOption[];
-                tags: ReferenceOption[];
+                categories: ReferenceOption<CategoryId>[];
+                merchants: ReferenceOption<MerchantId>[];
+                tags: ReferenceOption<TagId>[];
               }
             | undefined,
         ) => {
@@ -925,7 +934,7 @@ export function TagSelect({
       </div>
 
       {isOpen && disabled !== true ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg shadow-border-xs">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg">
           <div className="relative mb-1">
             <input
               autoComplete="off"
@@ -1024,7 +1033,7 @@ function TransactionEditableForm({
   );
 
   const save = useMutation({
-    mutationFn: (input: Record<string, unknown>) =>
+    mutationFn: (input: NonNullable<TransactionUpdateInput>) =>
       updateTransaction(bootstrap.apiPaths.transactions, transaction.id, input),
     onError: () => {
       setSaveState("error");
@@ -1038,20 +1047,33 @@ function TransactionEditableForm({
       setSaveState("idle");
     },
   });
+  const defaultValues: {
+    category_id: CategoryId | "";
+    date: string;
+    excluded: boolean;
+    merchant_id: MerchantId | "";
+    name: string;
+    notes: string;
+    tag_ids: TagId[];
+  } = {
+    category_id: transaction.category?.id ?? "",
+    date: transaction.date,
+    excluded: transaction.excluded,
+    merchant_id: transaction.merchant?.id ?? "",
+    name: transaction.name,
+    notes: transaction.notes ?? "",
+    tag_ids: transaction.tags.map((tag) => tag.id),
+  };
 
   const form = useForm({
-    defaultValues: {
-      category_id: transaction.category?.id ?? "",
-      date: transaction.date,
-      excluded: transaction.excluded,
-      merchant_id: transaction.merchant?.id ?? "",
-      name: transaction.name,
-      notes: transaction.notes ?? "",
-      tag_ids: transaction.tags.map((tag) => tag.id),
-    },
+    defaultValues,
   });
 
-  function saveField(field: string, value: unknown, baseline: unknown) {
+  function saveField<K extends keyof NonNullable<TransactionUpdateInput>>(
+    field: K,
+    value: NonNullable<TransactionUpdateInput>[K],
+    baseline: unknown,
+  ) {
     if (value === baseline) return;
     setSaveState("saving");
     save.mutate({ [field]: value });
@@ -1124,7 +1146,11 @@ function TransactionEditableForm({
                 merchants={merchants}
                 onSelect={(merchantId) => {
                   field.handleChange(merchantId);
-                  saveField("merchant_id", merchantId || null, transaction.merchant?.id ?? "");
+                  saveField(
+                    "merchant_id",
+                    merchantId === "" ? null : merchantId,
+                    transaction.merchant?.id ?? "",
+                  );
                 }}
                 selectedMerchantId={field.state.value}
               />
@@ -1140,7 +1166,11 @@ function TransactionEditableForm({
               initialCategory={transaction.category}
               onSelect={(categoryId) => {
                 field.handleChange(categoryId);
-                saveField("category_id", categoryId || null, transaction.category?.id ?? "");
+                saveField(
+                  "category_id",
+                  categoryId === "" ? null : categoryId,
+                  transaction.category?.id ?? "",
+                );
               }}
               selectedCategoryId={field.state.value}
             />
@@ -1237,8 +1267,15 @@ function TransferMatcher({
   );
 
   const match = useMutation({
-    mutationFn: (input: { method: "existing"; matched_entry_id: string }) =>
-      createTransferMatch(bootstrap.apiPaths.transactions, transaction.id, input),
+    mutationFn: async (counterpartId: TransactionId) => {
+      const counterpart = await queryClient.query(
+        transactionDetailQueryOptions(bootstrap.apiPaths.transactions, counterpartId),
+      );
+      return createTransferMatch(bootstrap.apiPaths.transactions, transaction.id, {
+        method: "existing",
+        matched_entry_id: counterpart.entry_id,
+      });
+    },
     onError: (error) => {
       setMatcherError(error instanceof TransactionApiError ? error.message : "Match failed");
     },
@@ -1251,7 +1288,6 @@ function TransferMatcher({
   });
 
   const candidates = candidatesQuery.data?.candidates ?? [];
-  const isOutflow = transaction.signed_amount_cents > 0;
 
   return (
     <Section title="Match transfer">
@@ -1270,9 +1306,10 @@ function TransferMatcher({
       ) : (
         <ul className="space-y-2">
           {candidates.map((candidate) => {
-            const counterpart = isOutflow
-              ? candidate.inflow_transaction
-              : candidate.outflow_transaction;
+            const counterpart =
+              candidate.outflow_transaction_id === transaction.id
+                ? candidate.inflow_transaction
+                : candidate.outflow_transaction;
             return (
               <li
                 className="flex items-center justify-between gap-3 rounded-lg border border-tertiary px-3 py-2"
@@ -1289,7 +1326,7 @@ function TransferMatcher({
                   className="focus-ring shrink-0 rounded-lg button-bg-primary px-2.5 py-1 text-xs font-medium text-inverse disabled:opacity-50"
                   disabled={match.isPending}
                   onClick={() => {
-                    match.mutate({ matched_entry_id: counterpart.id, method: "existing" });
+                    match.mutate(counterpart.id);
                   }}
                   type="button"
                 >

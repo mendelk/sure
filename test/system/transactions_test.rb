@@ -157,6 +157,30 @@ class TransactionsTest < ApplicationSystemTestCase
     assert_no_selector "#upcoming"
   end
 
+  test "matches an existing transfer using the counterpart entry identity" do
+    outflow = create_transaction("Transfer match outflow", Date.current, 123.45)
+    inflow = accounts(:investment).entries.create!(
+      name: "Transfer match inflow",
+      date: Date.current,
+      amount: -123.45,
+      currency: "USD",
+      entryable: Transaction.new
+    )
+    assert_not_equal inflow.id, inflow.entryable.id
+
+    visit "/transactions/#{outflow.entryable.id}"
+    within "[role='dialog']" do
+      find("summary", text: /\AMatch transfer\z/i).click
+      within find("li", text: "Transfer match inflow") do
+        click_button "Match"
+      end
+      assert_no_selector "summary", text: /\AMatch transfer\z/i
+      assert_selector "summary", text: /\AMatching transfer\z/i
+    end
+    transfer = Transfer.find_by!(outflow_transaction_id: outflow.entryable.id)
+    assert_equal inflow.entryable.id, transfer.inflow_transaction_id
+  end
+
   private
     def create_transaction(name, date, amount, merchant: nil, category: nil)
       accounts(:depository).entries.create!(

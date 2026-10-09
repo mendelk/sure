@@ -60,11 +60,19 @@ export async function fetchReportCatalog(endpoint: string, options?: { signal?: 
 export async function executeStructuredReport(
   endpoint: string,
   report: ReportDefinition,
-  options?: { signal?: AbortSignal; pagination?: { limit: number; offset: number } },
+  options?: {
+    signal?: AbortSignal;
+    pagination?: { limit: number; offset: number };
+    allColumns?: boolean;
+  },
 ) {
   const payload = await postReport(
     endpoint,
-    { report, ...(options?.pagination ? { pagination: options.pagination } : {}) },
+    {
+      report,
+      ...(options?.pagination ? { pagination: options.pagination } : {}),
+      ...(options?.allColumns === true ? { all_columns: true } : {}),
+    },
     options?.signal,
   );
   const parsed = StructuredReportResultSchema.safeParse(payload);

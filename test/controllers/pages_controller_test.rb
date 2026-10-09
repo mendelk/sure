@@ -9,6 +9,42 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     @family = @user.family
   end
 
+  test "SureQL preview pages preserve take limits and authorization beyond fifty rows" do
+    account = @family.accounts.create!(name: "SureQL pages", owner: @user, balance: 0, currency: "USD", accountable: Depository.new)
+    entries = 105.times.map do |index|
+      create_transaction(account: account, name: format("SureQL page %03d", index + 1), amount: 809.25)
+    end
+    private_account = @family.accounts.create!(name: "Private SureQL pages", owner: users(:family_member), balance: 0, currency: "USD", accountable: Depository.new)
+    create_transaction(account: private_account, name: "SureQL page 000", amount: 809.25)
+    source = "from transactions\nfilter amount == 809.25\nsort {name}\nselect {id, name, amount}\ntake 100"
+
+    [ 0, 10, 50, 90 ].each do |offset|
+      post dashboard_monarch_run_path, params: { source: source, pagination: { limit: 10, offset: offset } }, as: :json
+      assert_response :ok
+      result = response.parsed_body
+      assert_equal entries.slice(offset, 10).map(&:id), result.fetch("rows").map { |row| row.fetch("id") }
+      assert_equal 10, result.fetch("row_count")
+      assert_equal({ "limit" => 10, "offset" => offset, "hasNext" => offset < 90 }, result.fetch("pagination"))
+      assert_not result.fetch("truncated")
+    end
+
+    post dashboard_monarch_run_path, params: { source: source, pagination: { limit: 10, offset: 100 } }, as: :json
+    assert_response :ok
+    exhausted = response.parsed_body
+    assert_empty exhausted.fetch("rows")
+    assert_equal [ "id", "name", "amount" ], exhausted.fetch("columns")
+    assert_not exhausted.fetch("pagination").fetch("hasNext")
+  end
+
+  test "SureQL preview rejects unsafe page bounds" do
+    [ { limit: 101, offset: 0 }, { limit: 10, offset: -1 }, { limit: "10.5", offset: 0 }, "invalid" ].each do |pagination|
+      post dashboard_monarch_run_path, params: { source: "from transactions", pagination: pagination }, as: :json
+      assert_response :unprocessable_entity
+      assert response.parsed_body.key?("error")
+      assert_not response.parsed_body.key?("rows")
+    end
+  end
+
   test "structured report catalog is authorized without requiring raw source" do
     private_account = @family.accounts.create!(name: "Private catalog account", owner: users(:family_member), balance: 0, currency: "EUR", accountable: Depository.new)
     create_transaction(account: private_account, currency: "EUR", amount: 123)

@@ -8,8 +8,8 @@ require "sureql"
 #      compiler.
 #   2. Guard the compiled SQL is a read-only SELECT/WITH (defense in depth;
 #      prqlc only emits SELECT, but this blocks future regressions).
-#   3. Enforce MAX_ROWS via LIMIT clamping so the playground can't scan
-#      unbounded result sets.
+#   3. Bound each preview page with a lookahead row, or enforce MAX_ROWS
+#      for non-paginated playground and consumer requests.
 #   4. Execute via exec_query and return columns + row hashes + typed field metadata.
 #   5. Field metadata stays scoped to the executed result: ordered names, raw
 #      database types from the adapter, normalized pivot kinds, row nullability,
@@ -17,7 +17,7 @@ require "sureql"
 class Sureql::Executor
   MAX_ROWS = 50
 
-  Result = Data.define(:sql, :columns, :rows, :row_count, :truncated, :source_key, :fields)
+  Result = Data.define(:sql, :columns, :rows, :row_count, :truncated, :source_key, :fields, :pagination)
 
   FORBIDDEN_STATEMENT = /\b(insert|update|delete|drop|create|alter|grant|revoke|copy|vacuum|truncate|call|do)\b/i
 
@@ -25,16 +25,28 @@ class Sureql::Executor
     @user = user
   end
 
-  def call(source)
+  def call(source, pagination: nil)
     compiler = Sureql::Compiler.new(@user)
     sql = compiler.call(source)
     source_key = detect_source(source)
-    limited_sql, limit_truncated = enforce_limit(sql)
-    validate_select!(limited_sql)
+    validate_select!(sql)
+    page = normalize_pagination(pagination) unless pagination.nil?
+    if page
+      base_sql = sql.rstrip.delete_suffix(";").rstrip
+      limited_sql = "SELECT * FROM (#{base_sql}) AS sureql_page LIMIT #{page[:limit] + 1} OFFSET #{page[:offset]}"
+    else
+      limited_sql, limit_truncated = enforce_limit(sql)
+    end
 
     query_result = ActiveRecord::Base.connection.exec_query(limited_sql)
     rows = query_result.map(&:to_h)
-    truncated = limit_truncated || rows.size >= MAX_ROWS
+    if page
+      page[:hasNext] = rows.size > page[:limit]
+      rows.pop if page[:hasNext]
+      truncated = false
+    else
+      truncated = limit_truncated || rows.size >= MAX_ROWS
+    end
 
     Result.new(
       sql: limited_sql,
@@ -43,12 +55,25 @@ class Sureql::Executor
       row_count: rows.size,
       truncated: truncated,
       source_key: source_key,
-      fields: field_metadata(query_result, rows)
+      fields: field_metadata(query_result, rows),
+      pagination: page
     )
   end
 
   private
     Field = Data.define(:name, :db_type, :kind, :nullable, :capabilities)
+
+    def normalize_pagination(pagination)
+      unless pagination.respond_to?(:key?) && pagination.respond_to?(:[])
+        raise Sureql::CompileError, "Pagination must include a limit and offset."
+      end
+      limit = pagination[:limit] || pagination["limit"] || 10
+      offset = pagination[:offset] || pagination["offset"] || 0
+      unless limit.to_s.match?(/\A\d+\z/) && offset.to_s.match?(/\A\d+\z/) && limit.to_i.between?(1, 100)
+        raise Sureql::CompileError, "Pagination limit must be between 1 and 100 and offset must be nonnegative."
+      end
+      { limit: limit.to_i, offset: offset.to_i }
+    end
 
     # First `from <name>` line determines which UI renderer to use.
     # Returns nil for unresolvable sources (compiler will have raised).
