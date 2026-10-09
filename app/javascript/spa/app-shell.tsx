@@ -10,25 +10,24 @@ import { useDismiss } from "./use-dismiss";
 
 type NavItem = {
   label: string;
-  path: keyof SpaBootstrap["railsPaths"];
   icon: IconName;
-  spaPath?: "/transactions" | "/dashboards";
-};
+} & (
+  | { spaPath: "/transactions" | "/dashboards" | "/sources"; path?: never }
+  | { path: keyof SpaBootstrap["railsPaths"]; spaPath?: never }
+);
 
-// Matches the desktop nav of the Rails layout (layouts/application.html.erb):
-// Home, Dashboards, Transactions, Reports, Budgets. Plan/insights previews stay on the
-// Rails side until they gain SPA routes.
+// Sources are independently managed in the SPA. The remaining navigation
+// matches the Rails app until those sections gain SPA routes.
 const NAV_ITEMS: NavItem[] = [
   { label: "Home", path: "home", icon: "pie-chart" },
   {
     label: "Dashboards",
-    path: "dashboards",
     icon: "layout-dashboard",
     spaPath: "/dashboards",
   },
+  { label: "Sources", icon: "box", spaPath: "/sources" },
   {
     label: "Transactions",
-    path: "transactions",
     icon: "credit-card",
     spaPath: "/transactions",
   },
@@ -38,7 +37,9 @@ const NAV_ITEMS: NavItem[] = [
 
 function RailNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
   const { bootstrap } = useRouteContext({ from: "__root__" });
-  const active = item.spaPath ? pathname === item.spaPath : pathname.startsWith(`/${item.path}`);
+  const active = item.spaPath
+    ? pathname === item.spaPath || pathname.startsWith(`${item.spaPath}/`)
+    : pathname.startsWith(`/${item.path}`);
 
   const content = (
     <div className="flex grow flex-col gap-1 lg:flex-row lg:items-center">
@@ -686,7 +687,9 @@ function BreadcrumbBar({
       ? "Transactions"
       : pathname.startsWith("/dashboards")
         ? "Dashboards"
-        : "Home";
+        : pathname.startsWith("/sources")
+          ? "Sources"
+          : "Home";
 
   return (
     <div className="hidden lg:flex items-center justify-between gap-2 mb-6 sticky top-0 z-10 -mx-3 lg:-mx-10 px-3 lg:px-10 py-4 bg-surface border-b border-tertiary">

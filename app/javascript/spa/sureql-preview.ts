@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { executeSureqlQuery, type SureqlResult } from "./api/transactions";
 
+const DEFAULT_PREVIEW_PAGINATION = { limit: 10, offset: 0 };
+
 export type SureqlPreviewStatus = "idle" | "running" | "success" | "error";
 
 export interface SureqlPreview {
@@ -15,7 +17,7 @@ export interface SureqlPreview {
   error: string | null;
   /** Draft text currently in flight, if any. */
   runningQuery: string | null;
-  run: (endpoint: string, source: string) => void;
+  run: (endpoint: string, source: string, pagination?: { limit: number; offset: number }) => void;
   reset: () => void;
 }
 
@@ -33,7 +35,7 @@ export function useSureqlPreview(): SureqlPreview {
   const [error, setError] = useState<string | null>(null);
   const [runningQuery, setRunningQuery] = useState<string | null>(null);
   const requestRef = useRef(0);
-  const runningRef = useRef<string | null>(null);
+  const runningRef = useRef<{ source: string; limit: number; offset: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const reset = useCallback(() => {
@@ -57,44 +59,56 @@ export function useSureqlPreview(): SureqlPreview {
     [],
   );
 
-  const run = useCallback((endpoint: string, source: string) => {
-    if (source.trim().length === 0) return;
-    if (runningRef.current === source) return;
+  const run = useCallback(
+    (endpoint: string, source: string, pagination = DEFAULT_PREVIEW_PAGINATION) => {
+      if (source.trim().length === 0) return;
+      const running = runningRef.current;
+      if (
+        running?.source === source &&
+        running.limit === pagination.limit &&
+        running.offset === pagination.offset
+      )
+        return;
 
-    requestRef.current += 1;
-    const requestId = requestRef.current;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    runningRef.current = source;
-    setRunningQuery(source);
-    setStatus("running");
-    setError(null);
+      requestRef.current += 1;
+      const requestId = requestRef.current;
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      runningRef.current = { source, ...pagination };
+      setRunningQuery(source);
+      setStatus("running");
+      setError(null);
 
-    void (async () => {
-      try {
-        const data = await executeSureqlQuery(endpoint, source, { signal: controller.signal });
-        if (requestRef.current !== requestId) return;
-        runningRef.current = null;
-        abortRef.current = null;
-        setAttemptedQuery(source);
-        setResultQuery(source);
-        setResult(data);
-        setError(null);
-        setRunningQuery(null);
-        setStatus("success");
-      } catch (reason: unknown) {
-        if (requestRef.current !== requestId) return;
-        if (reason instanceof DOMException && reason.name === "AbortError") return;
-        runningRef.current = null;
-        abortRef.current = null;
-        setAttemptedQuery(source);
-        setRunningQuery(null);
-        setStatus("error");
-        setError(reason instanceof Error ? reason.message : "Preview failed. Run again.");
-      }
-    })();
-  }, []);
+      void (async () => {
+        try {
+          const data = await executeSureqlQuery(endpoint, source, {
+            signal: controller.signal,
+            pagination,
+          });
+          if (requestRef.current !== requestId) return;
+          runningRef.current = null;
+          abortRef.current = null;
+          setAttemptedQuery(source);
+          setResultQuery(source);
+          setResult(data);
+          setError(null);
+          setRunningQuery(null);
+          setStatus("success");
+        } catch (reason: unknown) {
+          if (requestRef.current !== requestId) return;
+          if (reason instanceof DOMException && reason.name === "AbortError") return;
+          runningRef.current = null;
+          abortRef.current = null;
+          setAttemptedQuery(source);
+          setRunningQuery(null);
+          setStatus("error");
+          setError(reason instanceof Error ? reason.message : "Preview failed. Run again.");
+        }
+      })();
+    },
+    [],
+  );
 
   return { status, attemptedQuery, resultQuery, result, error, runningQuery, run, reset };
 }

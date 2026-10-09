@@ -1,9 +1,89 @@
 en:
   report_builder:
-    add_visual_report: Build report
-    new_report: New report
-    configure_report: Configure report
+    sources: Sources
+    create_source: Create source
+    edit_source: Edit source
+    choose_source: Choose a source
+    use_source: Use source
+    save_source: Save source
+    source_name: Source name
+    source_type: Source type
+    source_mode: Mode
+    source_mode_aggregate: Aggregate
+    source_mode_detail: Details
+    source_no_sources: No sources yet
+    source_not_found: Source not found
+    source_not_found_help: This source is not available in your browser-local catalog.
+    source_back_to_sources: Back to sources
+    source_dataset: Dataset
+    source_sureql: SureQL
+    source_sureql_preview_help: Run the query to preview its results. Save becomes available after a successful preview of the exact current query.
+    source_sureql_preview_empty: Run the query to see its preview.
+    source_structured: Structured
+    source_configuration: Source configuration
+    source_preview_error: Preview error
+    source_sql: Generated SQL
+    source_table: Table
+    source_chart: Chart
+    source_visible_columns: Visible columns
+    source_show_all_columns: Show all columns
+    source_chart_type: Chart type
+    source_category_field: Category field
+    source_value_field: Value field
+    source_chart_line: Line
+    source_chart_bar: Bar
+    source_chart_pie: Pie
+    source_automatic: Automatic
+    source_missing_field: "Missing field: %{field}"
+    source_choose_first: Choose a source first.
+    source_missing_columns: "Unavailable columns: %{columns}"
+    source_no_visible_columns: No selected columns remain in this source.
+    source_results_label: "%{name} results"
+    source_edit_label: "Edit source %{name}"
+    source_chart_label: "%{name} chart"
+    source_table_label: "%{name} table"
+    source_chart_invalid_fields: Choose compatible category and value fields. Source data is shown below.
+    source_chart_no_values: No chartable values. Source data is shown below.
+    source_chart_invalid_values: Selected fields contain unsupported values. Source data is shown below.
+    source_chart_missing_currency: Currency information is missing. Source data is shown below.
+    source_chart_negative_pie: Pie charts do not support negative values. Source data is shown below.
+    source_truncated: Source results were truncated. Narrow the source query or filters to see all data.
+    source_dashboard_name: Dashboard name
+    source_save_dashboard_name: Save dashboard name
+    source_cancel_dashboard_name: Cancel renaming dashboard
+    source_rename_dashboard: Rename dashboard
+    source_new_dashboard: New dashboard
+    source_untitled_dashboard: "Untitled %{count}"
+    source_add_table: Add table
+    source_add_chart: Add chart
+    source_delete_dashboard: Delete dashboard
+    source_delete_dashboard_title: Delete dashboard?
+    source_delete_dashboard_help: This dashboard and its layout will be removed. Your sources and transactions are kept.
+    source_reset_starter: Reset starter dashboard
+    source_reset_title: Reset dashboards and sources?
+    source_reset_help: All dashboards, layouts, and sources will be replaced by a fresh starter dashboard and its sources. Your transactions are kept. This cannot be undone.
+    source_reset_dashboard: Reset dashboards and sources
+    source_no_dashboards: No dashboards yet
+    source_no_visualizations: No visualizations yet
+    source_add_help: Add a table or chart and choose a shared source.
+    source_close: Close
     back_to_dashboard: Back to dashboard
+    edit_layout: Edit layout
+    save_layout: Save layout
+    cancel_layout: Cancel
+    undo_layout: Undo layout change
+    redo_layout: Redo layout change
+    layout_grid: Grid
+    layout_grid_item: Grid item
+    layout_content: Content
+    layout_richtext: Rich text
+    layout_richtext_content: Text
+    layout_column_span: Column span
+    layout_height: Height
+    layout_height_mode: Height mode
+    layout_height_fixed: Fixed
+    layout_height_auto: Auto
+    layout_help: Drag grid items to reorder them. Drop any component into a grid item's content slot, including grids, grid items, tables, charts, and rich text. Select a Table or Chart to choose an existing source or create one. Save layout to keep your changes, or Cancel to discard them.
     loading: Running report…
     report_error: Report error
     no_results: No matching transactions.
@@ -11,7 +91,6 @@ en:
     builder_description: Arrange fields in the sidebar. Your preview updates automatically after every change.
     detail_builder_description: Choose transaction columns in the sidebar. Your preview updates automatically after every change.
     cancel: Cancel
-    remove_report: Remove report
     save_report: Save report
     report_name: Report name
     report_type: Report type
@@ -70,6 +149,7 @@ en:
     retry_preview: Retry preview
     pagination: Table pagination
     rows_per_page: Rows per page
+    per_page: per page
     previous_page: Previous
     next_page: Next
     page_label: "Page %{page}"
@@ -77,8 +157,6 @@ en:
     save_gate_help: Changes preview automatically. Save becomes available after a successful preview of the exact current settings.
     stale_preview: Showing the last successful preview while the current settings update or need attention.
     preview_empty: Your preview will appear automatically when the report settings are valid.
-    remove_report_title: Remove this report?
-    remove_report_description: This report will be removed from the dashboard. Your transactions will not be changed.
     session_expired: Your session has expired. Sign in again to run this report.
     invalid_response: The server returned an invalid report response.
     request_failed: The report request could not be completed. Please try again.
@@ -98,7 +176,6 @@ en:
     row_total: Row total
     missing_cell: "—"
     missing_cell_help: A dash indicates a missing intersection or a null aggregate. Zero is displayed as a number.
-    detail_missing_cell_help: A dash indicates a missing transaction value. Uncategorized transactions are labeled Uncategorized. Zero is displayed as a number.
     uncategorized: Uncategorized
     field_category: Category
     field_account: Account
@@ -124,3 +201,4 @@ en:
     bucket_year: Year
     operator_last: In the last
     operator_equals: Equals
+    operator_not_equals: Not equals

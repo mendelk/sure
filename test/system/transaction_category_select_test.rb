@@ -31,28 +31,13 @@ class TransactionCategorySelectTest < ApplicationSystemTestCase
   test "can clear a category from an existing transaction" do
     transaction = transactions(:one)
     transaction.update!(category: categories(:food_and_drink))
-    entry = transaction.entry
-
+    visit "/transactions/#{transaction.id}"
+    click_button "txn-category-trigger"
+    click_button "(uncategorized)"
+    assert_selector "#txn-category-trigger", text: "Select a Category"
+    assert_button "txn-category-trigger", disabled: false
     visit transactions_url
-
-    page.execute_script <<~JS
-      const frame = document.querySelector("turbo-frame#drawer")
-      frame.src = "#{transaction_url(entry)}"
-    JS
-
-    within "turbo-frame#drawer", visible: :all do
-      assert_selector "[data-controller='category-select']"
-
-      within "[data-controller='category-select']" do
-        find("button", match: :first).click
-        find("button[data-category-id='']").click
-      end
-    end
-
-    assert_selector(
-      "##{ActionView::RecordIdentifier.dom_id(entry)}",
-      text: "Uncategorized"
-    )
+    assert_selector "##{ActionView::RecordIdentifier.dom_id(transaction.entry)}", text: "Uncategorized"
 
     assert_nil transaction.reload.category_id
   end

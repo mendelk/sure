@@ -120,9 +120,8 @@ class PagesController < ApplicationController
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
-  # Compiles sureql (with authz) and executes it, returning SQL plus the
-  # first MAX_ROWS rows. For `transactions` queries that select `id`, also
-  # returns server-rendered transaction rows reusing the entries partials.
+  # Compiles authorized SureQL and returns a bounded page when pagination is
+  # supplied, otherwise the first MAX_ROWS rows and optional rendered HTML.
   def monarch_run
     if params.key?(:catalog) || params.key?(:report)
       render_structured_report_run
@@ -133,9 +132,9 @@ class PagesController < ApplicationController
       render_pivot_run(source, params[:pivot])
       return
     end
-    result = Sureql::Executor.new(Current.user).call(source)
+    result = Sureql::Executor.new(Current.user).call(source, pagination: params[:pagination])
     html = begin
-      monarch_results_html(result)
+      result.pagination ? nil : monarch_results_html(result)
     rescue StandardError => e
       # Never turn a row-render failure into an HTML 500 (the frontend
       # would show a JSON-parse error). Fall back to the generic table.
@@ -149,7 +148,8 @@ class PagesController < ApplicationController
       row_count: result.row_count,
       truncated: result.truncated,
       html: html,
-      fields: result.fields.map(&:to_h)
+      fields: result.fields.map(&:to_h),
+      pagination: result.pagination
     }
   rescue Sureql::UnknownSourceError, Sureql::CompileError => e
     render json: { error: e.message }, status: :unprocessable_entity
@@ -169,7 +169,7 @@ class PagesController < ApplicationController
       end
       render json: reports.catalog
     else
-      render json: reports.call(params[:report], pagination: params[:pagination])
+      render json: reports.call(params[:report], pagination: params[:pagination], all_columns: params[:all_columns] == true)
     end
   rescue Sureql::ReportDefinition::InvalidError => e
     render json: { error: e.message, field: e.field }, status: :unprocessable_entity

@@ -1,5 +1,18 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
+import { ReportPaginationSchema } from "../report-definition";
+import {
+  AccountIdSchema,
+  CategoryIdSchema,
+  MerchantIdSchema,
+  RecurringTransactionIdSchema,
+  TagIdSchema,
+  type CategoryId,
+  type MerchantId,
+  type TagId,
+  type TransactionId,
+  type TransferId,
+} from "../ids";
 import {
   PIVOT_AGGREGATIONS,
   PivotFieldMetadataSchema,
@@ -26,18 +39,21 @@ import {
 } from "./generated";
 
 export type TransactionCollection = z.infer<typeof GetApiV1Transactions200Response>;
-export type TransactionQuery = z.input<typeof GetApiV1TransactionsQueryParams>;
+export type TransactionQuery = Omit<
+  z.infer<typeof GetApiV1TransactionsQueryParams>,
+  keyof z.$brand
+>;
 export type SpaTransaction = TransactionCollection["transactions"][number];
-export type TransactionUpdateInput = z.input<typeof PatchApiV1TransactionsIdBody>["transaction"];
-export type TransactionCreateInput = z.input<typeof PostApiV1TransactionsBody>["transaction"];
+export type TransactionUpdateInput = z.infer<typeof PatchApiV1TransactionsIdBody>["transaction"];
+export type TransactionCreateInput = z.infer<typeof PostApiV1TransactionsBody>["transaction"];
 export type SpaTransactionDetail = z.infer<typeof GetApiV1TransactionsId200Response>;
 export type TransferMatchCandidates = z.infer<
   typeof GetApiV1TransactionsTransactionIdTransferMatchCandidates200Response
 >;
-export type TransferMatchInput = z.input<
+export type TransferMatchInput = z.infer<
   typeof PostApiV1TransactionsTransactionIdTransferMatchBody
 >["transfer_match"];
-export type TransferUpdateInput = z.input<typeof PatchApiV1TransfersIdBody>["transfer"];
+export type TransferUpdateInput = z.infer<typeof PatchApiV1TransfersIdBody>["transfer"];
 
 export class TransactionApiError extends Error {
   constructor(
@@ -92,7 +108,7 @@ async function requestTransactions(
   );
 }
 
-export function transactionDetailQueryOptions(basePath: string, id: string) {
+export function transactionDetailQueryOptions(basePath: string, id: TransactionId) {
   return queryOptions({
     queryKey: ["spa", "transaction", basePath, id] as const,
     queryFn: ({ signal }) => requestTransactionDetail(basePath, id, signal),
@@ -109,6 +125,7 @@ export const SureqlResultSchema = z.object({
   truncated: z.boolean(),
   html: z.optional(z.nullable(z.string())),
   fields: z.optional(z.array(PivotFieldMetadataSchema)),
+  pagination: z.optional(z.nullable(ReportPaginationSchema)),
 });
 
 export type SureqlResult = z.infer<typeof SureqlResultSchema>;
@@ -188,7 +205,7 @@ export async function executeSureqlPivot(
 export async function executeSureqlQuery(
   endpoint: string,
   source: string,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; pagination?: { limit: number; offset: number } },
 ): Promise<SureqlResult> {
   const response = await fetch(endpoint, {
     method: "POST",
@@ -196,7 +213,10 @@ export async function executeSureqlQuery(
       "Content-Type": "application/json",
       "X-CSRF-Token": readCsrfToken(),
     },
-    body: JSON.stringify({ source }),
+    body: JSON.stringify({
+      source,
+      ...(options?.pagination ? { pagination: options.pagination } : {}),
+    }),
     signal: options?.signal,
   });
 
@@ -244,16 +264,13 @@ async function requestJson(url: string, method: string, body?: unknown): Promise
 }
 export async function updateTransaction(
   basePath: string,
-  id: string,
+  id: TransactionId,
   input: NonNullable<TransactionUpdateInput>,
 ): Promise<SpaTransactionDetail> {
-  const normalizedInput = { ...input };
-  if (normalizedInput.category_id === "") normalizedInput.category_id = null;
-  if (normalizedInput.merchant_id === "") normalizedInput.merchant_id = null;
   const { id: transactionId } = PatchApiV1TransactionsIdParams.parse({ id });
-  PatchApiV1TransactionsIdBody.parse({ transaction: normalizedInput });
+  PatchApiV1TransactionsIdBody.parse({ transaction: input });
   const payload = await requestJson(`${basePath}/${transactionId}`, "PATCH", {
-    transaction: normalizedInput,
+    transaction: input,
   });
   return GetApiV1TransactionsId200Response.parse(payload);
 }
@@ -268,7 +285,7 @@ export async function createTransaction(
 
 export async function updateTransferStatus(
   transfersPath: string,
-  transferId: string,
+  transferId: TransferId,
   input: NonNullable<TransferUpdateInput>,
 ): Promise<void> {
   const { id } = PatchApiV1TransfersIdParams.parse({ id: transferId });
@@ -276,7 +293,10 @@ export async function updateTransferStatus(
   await requestJson(`${transfersPath}/${id}`, "PATCH", { transfer: input });
 }
 
-export function transferMatchCandidatesQueryOptions(basePath: string, transactionId: string) {
+export function transferMatchCandidatesQueryOptions(
+  basePath: string,
+  transactionId: TransactionId,
+) {
   return queryOptions({
     queryKey: ["spa", "transfer-match-candidates", basePath, transactionId] as const,
     queryFn: ({ signal }) => requestCandidates(basePath, transactionId, signal),
@@ -287,11 +307,11 @@ export function transferMatchCandidatesQueryOptions(basePath: string, transactio
 
 async function requestCandidates(
   basePath: string,
-  transactionId: string,
+  transactionId: TransactionId,
   signal?: AbortSignal,
 ): Promise<TransferMatchCandidates> {
   const params = GetApiV1TransactionsTransactionIdTransferMatchCandidatesParams.parse({
-    transactionId,
+    transaction_id: transactionId,
   });
   const response = await fetch(`${basePath}/${params.transaction_id}/transfer_match_candidates`, {
     credentials: "same-origin",
@@ -315,18 +335,20 @@ async function requestCandidates(
 
 export async function createTransferMatch(
   basePath: string,
-  transactionId: string,
+  transactionId: TransactionId,
   input: NonNullable<TransferMatchInput>,
 ): Promise<void> {
-  const params = PostApiV1TransactionsTransactionIdTransferMatchParams.parse({ transactionId });
+  const params = PostApiV1TransactionsTransactionIdTransferMatchParams.parse({
+    transaction_id: transactionId,
+  });
   PostApiV1TransactionsTransactionIdTransferMatchBody.parse({ transfer_match: input });
   await requestJson(`${basePath}/${params.transaction_id}/transfer_match`, "POST", {
     transfer_match: input,
   });
 }
 
-export type ReferenceOption = {
-  id: string;
+export type ReferenceOption<TId extends string> = {
+  id: TId;
   name: string;
   color?: string;
   icon?: string;
@@ -344,12 +366,22 @@ export function referenceDataQueryOptions(
     queryKey: ["spa", "reference", categoriesPath, merchantsPath, tagsPath, accountsPath] as const,
     queryFn: async ({ signal }) => {
       const [categories, merchants, tags, accounts] = await Promise.all([
-        requestReferenceList(`${categoriesPath}?per_page=100`, "categories", signal),
-        requestReferenceList(merchantsPath, null, signal),
-        requestReferenceList(tagsPath, null, signal),
+        requestReferenceList(
+          `${categoriesPath}?per_page=100`,
+          "categories",
+          CategoryIdSchema,
+          signal,
+        ),
+        requestReferenceList(merchantsPath, null, MerchantIdSchema, signal),
+        requestReferenceList(tagsPath, null, TagIdSchema, signal),
         accountsPath === undefined
           ? Promise.resolve([])
-          : requestReferenceList(`${accountsPath}?per_page=100`, "accounts", signal),
+          : requestReferenceList(
+              `${accountsPath}?per_page=100`,
+              "accounts",
+              AccountIdSchema,
+              signal,
+            ),
       ]);
       return { accounts, categories, merchants, tags };
     },
@@ -361,7 +393,7 @@ export function referenceDataQueryOptions(
 export async function createCategory(
   categoriesPath: string,
   name: string,
-): Promise<ReferenceOption> {
+): Promise<ReferenceOption<CategoryId>> {
   const payload = await requestJson(categoriesPath, "POST", {
     category: {
       name,
@@ -371,7 +403,7 @@ export async function createCategory(
   if (typeof payload === "object" && payload !== null && "id" in payload) {
     const record = payload as Record<string, unknown>;
     return {
-      id: typeof record.id === "string" ? record.id : "",
+      id: CategoryIdSchema.parse(record.id),
       name: typeof record.name === "string" ? record.name : name,
       color: typeof record.color === "string" ? record.color : "#6471eb",
       icon: typeof record.icon === "string" ? record.icon : "shapes",
@@ -383,7 +415,7 @@ export async function createCategory(
 export async function createMerchant(
   merchantsPath: string,
   name: string,
-): Promise<ReferenceOption> {
+): Promise<ReferenceOption<MerchantId>> {
   const payload = await requestJson(merchantsPath, "POST", {
     merchant: {
       name,
@@ -392,14 +424,14 @@ export async function createMerchant(
   if (typeof payload === "object" && payload !== null && "id" in payload) {
     const record = payload as Record<string, unknown>;
     return {
-      id: typeof record.id === "string" ? record.id : "",
+      id: MerchantIdSchema.parse(record.id),
       name: typeof record.name === "string" ? record.name : name,
       logoUrl: typeof record.logo_url === "string" ? record.logo_url : undefined,
     };
   }
   throw new TransactionApiError("Failed to create merchant", 500);
 }
-export async function createTag(tagsPath: string, name: string): Promise<ReferenceOption> {
+export async function createTag(tagsPath: string, name: string): Promise<ReferenceOption<TagId>> {
   const payload = await requestJson(tagsPath, "POST", {
     tag: {
       name,
@@ -408,7 +440,7 @@ export async function createTag(tagsPath: string, name: string): Promise<Referen
   if (typeof payload === "object" && payload !== null && "id" in payload) {
     const record = payload as Record<string, unknown>;
     return {
-      id: typeof record.id === "string" ? record.id : "",
+      id: TagIdSchema.parse(record.id),
       name: typeof record.name === "string" ? record.name : name,
       color: typeof record.color === "string" ? record.color : undefined,
     };
@@ -416,9 +448,19 @@ export async function createTag(tagsPath: string, name: string): Promise<Referen
   throw new TransactionApiError("Failed to create tag", 500);
 }
 
-function parseReferenceList(list: unknown[]): ReferenceOption[] {
+function parseReferenceList<TId extends string>(
+  list: unknown[],
+  idSchema: z.ZodMiniType<TId>,
+): ReferenceOption<TId>[] {
   return list
-    .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+    .filter(
+      (item): item is Record<string, unknown> =>
+        typeof item === "object" &&
+        item !== null &&
+        "id" in item &&
+        typeof item.id === "string" &&
+        item.id.length > 0,
+    )
     .map((item) => {
       const parent: unknown = item.parent;
       const parentName =
@@ -429,7 +471,7 @@ function parseReferenceList(list: unknown[]): ReferenceOption[] {
           ? parent.name
           : undefined;
       return {
-        id: typeof item.id === "string" ? item.id : "",
+        id: idSchema.parse(item.id),
         name: typeof item.name === "string" ? item.name : "",
         color: typeof item.color === "string" ? item.color : undefined,
         icon: typeof item.icon === "string" ? item.icon : undefined,
@@ -445,11 +487,12 @@ function parseReferenceList(list: unknown[]): ReferenceOption[] {
     .filter((item) => item.id.length > 0 && item.name.length > 0);
 }
 
-async function requestReferenceList(
+async function requestReferenceList<TId extends string>(
   path: string,
   wrapperKey: string | null,
+  idSchema: z.ZodMiniType<TId>,
   signal?: AbortSignal,
-): Promise<ReferenceOption[]> {
+): Promise<ReferenceOption<TId>[]> {
   const response = await fetch(path, {
     credentials: "same-origin",
     headers: { Accept: "application/json" },
@@ -462,12 +505,12 @@ async function requestReferenceList(
     const record: Record<string, unknown> = { ...payload };
     list = record[wrapperKey];
   }
-  return Array.isArray(list) ? parseReferenceList(list) : [];
+  return Array.isArray(list) ? parseReferenceList(list, idSchema) : [];
 }
 
 async function requestTransactionDetail(
   basePath: string,
-  id: string,
+  id: TransactionId,
   signal?: AbortSignal,
 ): Promise<SpaTransactionDetail> {
   const { id: transactionId } = GetApiV1TransactionsIdParams.parse({ id });
@@ -491,7 +534,7 @@ async function requestTransactionDetail(
 }
 
 export const UpcomingRecurringTransactionSchema = z.object({
-  id: z.string(),
+  id: RecurringTransactionIdSchema,
   amount: z.string(),
   amount_cents: z.number(),
   currency: z.string(),
@@ -512,7 +555,7 @@ export const UpcomingRecurringTransactionSchema = z.object({
   account: z.optional(
     z.nullable(
       z.object({
-        id: z.string(),
+        id: AccountIdSchema,
         name: z.string(),
         account_type: z.optional(z.nullable(z.string())),
       }),
@@ -521,7 +564,7 @@ export const UpcomingRecurringTransactionSchema = z.object({
   destination_account: z.optional(
     z.nullable(
       z.object({
-        id: z.string(),
+        id: AccountIdSchema,
         name: z.string(),
         account_type: z.optional(z.nullable(z.string())),
       }),
@@ -530,7 +573,7 @@ export const UpcomingRecurringTransactionSchema = z.object({
   merchant: z.optional(
     z.nullable(
       z.object({
-        id: z.string(),
+        id: MerchantIdSchema,
         name: z.string(),
         logo_url: z.optional(z.nullable(z.string())),
       }),

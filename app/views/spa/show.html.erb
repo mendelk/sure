@@ -1,4 +1,10 @@
-<% page_title = request.path.start_with?("/dashboards") ? "Dashboards" : "Transactions" %>
+<% page_title = if request.path.start_with?("/dashboards")
+     "Dashboards"
+   elsif request.path.start_with?("/sources")
+     "Sources"
+   else
+     "Transactions"
+   end %>
 <% content_for :title, "#{page_title} · #{product_name}" %>
 <% bootstrap = {
   currentUser: {

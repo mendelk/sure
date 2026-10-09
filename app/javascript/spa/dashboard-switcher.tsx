@@ -2,15 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "./icon";
 import { useDismiss } from "./use-dismiss";
 import type { Dashboard } from "./dashboard-storage";
+import type { DashboardId } from "./ids";
 
 export function DashboardSwitcher({
   activeDashboardId,
   dashboards,
   onSelect,
 }: {
-  activeDashboardId: string;
+  activeDashboardId: DashboardId;
   dashboards: Dashboard[];
-  onSelect: (dashboardId: string) => void;
+  onSelect: (dashboardId: DashboardId) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -58,7 +59,7 @@ export function DashboardSwitcher({
       </button>
 
       {isOpen ? (
-        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-56 rounded-lg bg-container p-1.5 shadow-lg shadow-border-xs">
+        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-56 rounded-lg bg-container p-1.5 shadow-lg">
           <div className="relative mb-1">
             <input
               aria-label="Search dashboards"

@@ -6,6 +6,7 @@
  * OpenAPI spec version: v1
  */
 import * as zod from 'zod/mini';
+import { AccountIdSchema, CategoryIdSchema, EntryIdSchema, ExternalIdSchema, MerchantIdSchema, TagIdSchema, TransactionIdSchema, TransferIdSchema } from "../ids";
 
 /**
  * Returns global ledger history for accessible accounts, including disabled accounts but excluding accounts pending deletion.
@@ -14,9 +15,9 @@ import * as zod from 'zod/mini';
 export const GetApiV1TransactionsQueryParams = /*#__PURE__*/ zod.object({
   "page": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.int()).check(/*#__PURE__*/ zod.describe('Page number (default: 1)')),
   "per_page": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.int()).check(/*#__PURE__*/ zod.describe('Items per page (default: 25, max: 100)')),
-  "account_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Filter by account ID')),
-  "category_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Filter by category ID')),
-  "merchant_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Filter by merchant ID')),
+  "account_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.string(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Filter by account ID')),
+  "category_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.string(), CategoryIdSchema)).check(/*#__PURE__*/ zod.describe('Filter by category ID')),
+  "merchant_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.string(), MerchantIdSchema)).check(/*#__PURE__*/ zod.describe('Filter by merchant ID')),
   "start_date": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.iso.date()).check(/*#__PURE__*/ zod.describe('Filter transactions from this date')),
   "end_date": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.iso.date()).check(/*#__PURE__*/ zod.describe('Filter transactions until this date')),
   "amount": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.number()).check(/*#__PURE__*/ zod.describe('Filter by absolute amount (use with amount_operator)')),
@@ -25,10 +26,10 @@ export const GetApiV1TransactionsQueryParams = /*#__PURE__*/ zod.object({
   "max_amount": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.number()).check(/*#__PURE__*/ zod.describe('Legacy alias for amount with less operator')),
   "type": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['income', 'expense'])).check(/*#__PURE__*/ zod.describe('Filter by transaction type')),
   "search": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Search by name, notes, or merchant name')),
-  "account_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Filter by multiple account IDs')),
-  "category_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Filter by multiple category IDs')),
-  "merchant_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Filter by multiple merchant IDs')),
-  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Filter by tag IDs')),
+  "account_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.string(), AccountIdSchema))).check(/*#__PURE__*/ zod.describe('Filter by multiple account IDs')),
+  "category_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.string(), CategoryIdSchema))).check(/*#__PURE__*/ zod.describe('Filter by multiple category IDs')),
+  "merchant_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.string(), MerchantIdSchema))).check(/*#__PURE__*/ zod.describe('Filter by multiple merchant IDs')),
+  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.string(), TagIdSchema))).check(/*#__PURE__*/ zod.describe('Filter by tag IDs')),
   "types": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.enum(['income', 'expense', 'transfer']))).check(/*#__PURE__*/ zod.describe('Filter by transaction types')),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.enum(['pending', 'confirmed']))).check(/*#__PURE__*/ zod.describe('Filter by transaction status')),
   "accounts": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Filter by multiple account names')),
@@ -39,7 +40,7 @@ export const GetApiV1TransactionsQueryParams = /*#__PURE__*/ zod.object({
   "excluded_merchants": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Exclude matching merchant names (slack-style negative filter)')),
   "excluded_tags": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Exclude matching tag names (slack-style negative filter)')),
   "excluded_accounts": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Exclude matching account names (slack-style negative filter)')),
-  "excluded_account_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Exclude matching account IDs (slack-style negative filter)')),
+  "excluded_account_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.string(), AccountIdSchema))).check(/*#__PURE__*/ zod.describe('Exclude matching account IDs (slack-style negative filter)')),
   "excluded_types": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.enum(['income', 'expense', 'transfer']))).check(/*#__PURE__*/ zod.describe('Exclude transaction types (slack-style negative filter)')),
   "excluded_status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.enum(['pending', 'confirmed']))).check(/*#__PURE__*/ zod.describe('Exclude transaction statuses (slack-style negative filter)'))
 }).brand("GetApiV1TransactionsQueryParams")
@@ -58,8 +59,8 @@ export const getApiV1Transactions200ResponsePaginationTotalPagesMin = 0;
 
 export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "transactions": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
-  "entry_id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(getApiV1Transactions200ResponseTransactionsItemAmountCentsMin)),
@@ -67,7 +68,7 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "currency": /*#__PURE__*/ zod.string(),
   "name": /*#__PURE__*/ zod.string(),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
-  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
   "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
@@ -75,36 +76,36 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
   "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url())
 }),/*#__PURE__*/ zod.null()])),
   "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "color": /*#__PURE__*/ zod.string()
 })),
   "transfer": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransferIdSchema),
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
@@ -154,20 +155,20 @@ export const GetApiV1Transactions422Response = /*#__PURE__*/ zod.strictObject({
  */
 export const PostApiV1TransactionsBody = /*#__PURE__*/ zod.object({
   "transaction": /*#__PURE__*/ zod.object({
-  "account_id": /*#__PURE__*/ zod.uuid().check(/*#__PURE__*/ zod.describe('Account ID (required)')),
+  "account_id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema).check(/*#__PURE__*/ zod.describe('Account ID (required)')),
   "date": /*#__PURE__*/ zod.iso.date().check(/*#__PURE__*/ zod.describe('Transaction date')),
   "amount": /*#__PURE__*/ zod.number().check(/*#__PURE__*/ zod.describe('Transaction amount')),
   "name": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Transaction name/description')),
   "description": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Alternative to name field')),
   "notes": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Additional notes')),
   "currency": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Currency code (defaults to family currency)')),
-  "category_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Category ID')),
-  "merchant_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Merchant ID')),
+  "category_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)).check(/*#__PURE__*/ zod.describe('Category ID')),
+  "merchant_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema)).check(/*#__PURE__*/ zod.describe('Merchant ID')),
   "nature": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['income', 'expense', 'inflow', 'outflow'])).check(/*#__PURE__*/ zod.describe('Transaction nature (determines sign)')),
-  "external_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Optional external idempotency key scoped to account and source')),
+  "external_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)).check(/*#__PURE__*/ zod.describe('Optional external idempotency key scoped to account and source')),
   "source": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Optional source namespace for external_id. Requires external_id and defaults to api when external_id is provided')),
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether provider syncs should preserve user-supplied transaction changes')),
-  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.uuid())).check(/*#__PURE__*/ zod.describe('Array of tag IDs'))
+  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema))).check(/*#__PURE__*/ zod.describe('Array of tag IDs'))
 })
 }).brand("PostApiV1TransactionsBody")
 
@@ -176,8 +177,8 @@ export const postApiV1Transactions200ResponseAmountCentsMin = 0;
 
 
 export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
-  "entry_id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(postApiV1Transactions200ResponseAmountCentsMin)),
@@ -185,7 +186,7 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "currency": /*#__PURE__*/ zod.string(),
   "name": /*#__PURE__*/ zod.string(),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
-  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
   "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
@@ -193,36 +194,36 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
   "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url())
 }),/*#__PURE__*/ zod.null()])),
   "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "color": /*#__PURE__*/ zod.string()
 })),
   "transfer": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransferIdSchema),
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
@@ -238,8 +239,8 @@ export const postApiV1Transactions201ResponseAmountCentsMin = 0;
 
 
 export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
-  "entry_id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(postApiV1Transactions201ResponseAmountCentsMin)),
@@ -247,7 +248,7 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "currency": /*#__PURE__*/ zod.string(),
   "name": /*#__PURE__*/ zod.string(),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
-  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
   "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
@@ -255,36 +256,36 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
   "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url())
 }),/*#__PURE__*/ zod.null()])),
   "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "color": /*#__PURE__*/ zod.string()
 })),
   "transfer": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransferIdSchema),
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
@@ -309,7 +310,7 @@ export const PostApiV1Transactions422Response = /*#__PURE__*/ zod.strictObject({
  * @summary Retrieve a transaction
  */
 export const GetApiV1TransactionsIdParams = /*#__PURE__*/ zod.object({
-  "id": /*#__PURE__*/ zod.uuid().check(/*#__PURE__*/ zod.describe('Transaction ID'))
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Transaction ID'))
 }).brand("GetApiV1TransactionsIdParams")
 
 export const getApiV1TransactionsId200ResponseAmountCentsMin = 0;
@@ -317,8 +318,8 @@ export const getApiV1TransactionsId200ResponseAmountCentsMin = 0;
 
 
 export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
-  "entry_id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(getApiV1TransactionsId200ResponseAmountCentsMin)),
@@ -326,7 +327,7 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "currency": /*#__PURE__*/ zod.string(),
   "name": /*#__PURE__*/ zod.string(),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
-  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
   "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
@@ -334,36 +335,36 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
   "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url())
 }),/*#__PURE__*/ zod.null()])),
   "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "color": /*#__PURE__*/ zod.string()
 })),
   "transfer": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransferIdSchema),
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
@@ -388,7 +389,7 @@ export const GetApiV1TransactionsId404Response = /*#__PURE__*/ zod.strictObject(
  * @summary Update a transaction
  */
 export const PatchApiV1TransactionsIdParams = /*#__PURE__*/ zod.object({
-  "id": /*#__PURE__*/ zod.uuid().check(/*#__PURE__*/ zod.describe('Transaction ID'))
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Transaction ID'))
 }).brand("PatchApiV1TransactionsIdParams")
 
 export const PatchApiV1TransactionsIdBody = /*#__PURE__*/ zod.object({
@@ -399,10 +400,11 @@ export const PatchApiV1TransactionsIdBody = /*#__PURE__*/ zod.object({
   "description": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Alternative to name field')),
   "notes": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "currency": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Currency code')),
-  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()),
-  "merchant_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "merchant_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema)),
   "nature": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['income', 'expense', 'inflow', 'outflow'])),
-  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.uuid())).check(/*#__PURE__*/ zod.describe('Array of tag IDs to assign. Omit to preserve existing tags; use [] to clear all tags.')),
+  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema))).check(/*#__PURE__*/ zod.describe('Array of tag IDs to assign. Omit to preserve existing tags; use [] to clear all tags.')),
+  "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether provider syncs should preserve user-supplied transaction changes')),
   "excluded": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Exclude the transaction from reports and budgets. Omit to preserve the current value.'))
 }))
 }).brand("PatchApiV1TransactionsIdBody")
@@ -412,8 +414,8 @@ export const patchApiV1TransactionsId200ResponseAmountCentsMin = 0;
 
 
 export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
-  "entry_id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(patchApiV1TransactionsId200ResponseAmountCentsMin)),
@@ -421,7 +423,7 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "currency": /*#__PURE__*/ zod.string(),
   "name": /*#__PURE__*/ zod.string(),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
-  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
   "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
@@ -429,36 +431,36 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
   "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url())
 }),/*#__PURE__*/ zod.null()])),
   "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "color": /*#__PURE__*/ zod.string()
 })),
   "transfer": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransferIdSchema),
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
@@ -483,7 +485,7 @@ export const PatchApiV1TransactionsId404Response = /*#__PURE__*/ zod.strictObjec
  * @summary List transfer match candidates
  */
 export const GetApiV1TransactionsTransactionIdTransferMatchCandidatesParams = /*#__PURE__*/ zod.object({
-  "transaction_id": /*#__PURE__*/ zod.uuid().check(/*#__PURE__*/ zod.describe('Transaction ID'))
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Transaction ID'))
 }).brand("GetApiV1TransactionsTransactionIdTransferMatchCandidatesParams")
 
 export const getApiV1TransactionsTransactionIdTransferMatchCandidates200ResponseCandidatesItemDateDiffMin = 0;
@@ -492,30 +494,30 @@ export const getApiV1TransactionsTransactionIdTransferMatchCandidates200Response
 
 export const GetApiV1TransactionsTransactionIdTransferMatchCandidates200Response = /*#__PURE__*/ zod.strictObject({
   "candidates": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "inflow_transaction_id": /*#__PURE__*/ zod.uuid(),
-  "outflow_transaction_id": /*#__PURE__*/ zod.uuid(),
+  "inflow_transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "outflow_transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
   "date_diff": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(getApiV1TransactionsTransactionIdTransferMatchCandidates200ResponseCandidatesItemDateDiffMin)).check(/*#__PURE__*/ zod.describe('Days between the two entries')),
   "inflow_transaction": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid().check(/*#__PURE__*/ zod.describe('Transaction ID')),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Transaction ID')),
   "name": /*#__PURE__*/ zod.string(),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Absolute amount, formatted')),
   "signed_amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.describe('Signed amount in currency minor units (negative = inflow)')),
   "currency": /*#__PURE__*/ zod.string(),
   "account": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string()
 })
 }),
   "outflow_transaction": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid().check(/*#__PURE__*/ zod.describe('Transaction ID')),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Transaction ID')),
   "name": /*#__PURE__*/ zod.string(),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Absolute amount, formatted')),
   "signed_amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.describe('Signed amount in currency minor units (negative = inflow)')),
   "currency": /*#__PURE__*/ zod.string(),
   "account": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string()
 })
 })
@@ -545,19 +547,19 @@ export const GetApiV1TransactionsTransactionIdTransferMatchCandidates404Response
  * @summary Create a transfer match
  */
 export const PostApiV1TransactionsTransactionIdTransferMatchParams = /*#__PURE__*/ zod.object({
-  "transaction_id": /*#__PURE__*/ zod.uuid().check(/*#__PURE__*/ zod.describe('Transaction ID'))
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Transaction ID'))
 }).brand("PostApiV1TransactionsTransactionIdTransferMatchParams")
 
 export const PostApiV1TransactionsTransactionIdTransferMatchBody = /*#__PURE__*/ zod.object({
   "transfer_match": /*#__PURE__*/ zod.object({
   "method": /*#__PURE__*/ zod.enum(['existing', 'new']).check(/*#__PURE__*/ zod.describe('existing links the transaction to another existing transaction (matched_entry_id); new creates a counterpart transaction on target_account_id.')),
-  "matched_entry_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Entry ID of the existing transaction to match against (method=existing).')),
-  "target_account_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Account to create the counterpart transaction on (method=new).'))
+  "matched_entry_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema)).check(/*#__PURE__*/ zod.describe('Entry ID of the existing transaction to match against (method=existing).')),
+  "target_account_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Account to create the counterpart transaction on (method=new).'))
 })
 }).brand("PostApiV1TransactionsTransactionIdTransferMatchBody")
 
 export const PostApiV1TransactionsTransactionIdTransferMatch200Response = /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransferIdSchema),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
@@ -570,8 +572,8 @@ export const PostApiV1TransactionsTransactionIdTransferMatch200Response = /*#__P
   "destination_fee_amount": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Fee deducted from the destination account')),
   "destination_fee_currency": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "inflow_transaction": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
-  "entry_id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.describe('Signed amount in currency minor units')),
@@ -579,14 +581,14 @@ export const PostApiV1TransactionsTransactionIdTransferMatch200Response = /*#__P
   "name": /*#__PURE__*/ zod.string(),
   "kind": /*#__PURE__*/ zod.string(),
   "account": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
 })
 }),
   "outflow_transaction": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
-  "entry_id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.describe('Signed amount in currency minor units')),
@@ -594,7 +596,7 @@ export const PostApiV1TransactionsTransactionIdTransferMatch200Response = /*#__P
   "name": /*#__PURE__*/ zod.string(),
   "kind": /*#__PURE__*/ zod.string(),
   "account": /*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
 })
@@ -635,7 +637,7 @@ export const PostApiV1TransactionsTransactionIdTransferMatch422Response = /*#__P
  * @summary Update a transfer
  */
 export const PatchApiV1TransfersIdParams = /*#__PURE__*/ zod.object({
-  "id": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Transfer ID'))
+  "id": /*#__PURE__*/ zod.pipe(zod.string(), TransferIdSchema).check(/*#__PURE__*/ zod.describe('Transfer ID'))
 }).brand("PatchApiV1TransfersIdParams")
 
 export const PatchApiV1TransfersIdBody = /*#__PURE__*/ zod.object({

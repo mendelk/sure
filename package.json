@@ -1,5 +1,7 @@
 {
   "devDependencies": {
+    "@babel/parser": "^7.29.9",
+    "@babel/types": "^7.29.8",
     "@ogs-gmbh/oxlint-presets": "^1.2.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.20",
@@ -42,6 +44,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.10",
     "@monaco-editor/react": "^4.7.0",
+    "@puckeditor/core": "^0.23.0",
     "@tanstack/charts": "^0.18.0",
     "@tanstack/react-form": "^1.33.5",
     "@tanstack/react-query": "^5.102.8",
@@ -51,7 +54,6 @@
     "monaco-editor": "^0.56.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-grid-layout": "^2.2.4",
     "usehooks-ts": "^3.1.1",
     "zod": "^4.6.5"
   },

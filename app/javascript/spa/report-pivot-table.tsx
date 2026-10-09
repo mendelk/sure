@@ -1,17 +1,11 @@
-import { useId, useMemo, useState } from "react";
+import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  createCoreRowModel,
-  createPaginatedRowModel,
-  rowPaginationFeature,
-  tableFeatures,
-  useTable,
-  type ColumnDef,
-  type OnChangeFn,
-  type PaginationState,
-  type ReactTable,
-} from "@tanstack/react-table";
-import { Button } from "./components/button";
-import { FormField } from "./components/form-field";
+  Table,
+  type ColumnStyle,
+  type TableFeatures,
+  type TablePagination,
+} from "./components/table";
 import type {
   AggregateReportDefinition,
   AggregateReportResult,
@@ -20,44 +14,7 @@ import type {
   ReportDefinition,
   StructuredReportResult,
 } from "./report-definition";
-
-export type ReportTablePagination = {
-  state: PaginationState;
-  onChange: OnChangeFn<PaginationState>;
-  pending: boolean;
-  hasNext: boolean;
-};
-
-type ColumnStyle = { numeric?: boolean; rowHeader?: boolean; nowrap?: boolean; total?: boolean };
-type ColumnStyles = ReadonlyMap<string, ColumnStyle>;
-type ReportRow = { id: string } | { key: string };
-const REPORT_TABLE_FEATURES = tableFeatures({
-  rowPaginationFeature,
-  coreRowModel: createCoreRowModel(),
-  paginatedRowModel: createPaginatedRowModel(),
-});
-type ReportFeatures = typeof REPORT_TABLE_FEATURES;
-
-function useReportTable<Row extends ReportRow>(
-  data: Row[],
-  columns: ColumnDef<ReportFeatures, Row>[],
-  pagination?: ReportTablePagination,
-) {
-  const [localPagination, setLocalPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: 10,
-  });
-  return useTable({
-    features: REPORT_TABLE_FEATURES,
-    data,
-    columns,
-    getRowId: (row) => ("id" in row ? row.id : row.key),
-    manualPagination: pagination !== undefined,
-    pageCount: pagination ? pagination.state.pageIndex + 1 + Number(pagination.hasNext) : undefined,
-    state: { pagination: pagination?.state ?? localPagination },
-    onPaginationChange: pagination?.onChange ?? setLocalPagination,
-  });
-}
+import type { SourceColumn, SourceData, SourceRow } from "./source";
 
 export function StructuredReportTable({
   definition,
@@ -68,7 +25,7 @@ export function StructuredReportTable({
   definition: ReportDefinition;
   result: StructuredReportResult;
   text: ReportBuilderText;
-  pagination?: ReportTablePagination;
+  pagination?: TablePagination;
 }) {
   if (definition.mode === "detail" && result.mode === "detail")
     return <DetailReportTable result={result} text={text} pagination={pagination} />;
@@ -89,143 +46,6 @@ export function StructuredReportTable({
   );
 }
 
-function cellClass(style?: ColumnStyle) {
-  return `px-4 py-3 text-primary ${style?.numeric === true ? "whitespace-nowrap text-right tabular-nums" : "text-left"} ${style?.nowrap === true ? "whitespace-nowrap" : ""} ${style?.total === true || style?.rowHeader === true ? "font-medium" : ""}`;
-}
-
-function ReportTableView<Row extends ReportRow>({
-  table,
-  styles,
-  text,
-  label,
-  result,
-  pagination,
-}: {
-  table: ReactTable<ReportFeatures, Row>;
-  styles: ColumnStyles;
-  text: ReportBuilderText;
-  label: string;
-  result: StructuredReportResult;
-  pagination?: ReportTablePagination;
-}) {
-  const id = useId();
-  const t = (key: string) => text[key] ?? key;
-  const state = table.state.pagination;
-  const offset = pagination ? result.pagination.offset : state.pageIndex * state.pageSize;
-  const rows = table.getRowModel().rows;
-  const pending = pagination?.pending ?? false;
-  return (
-    <>
-      {rows.length === 0 ? (
-        <p className="p-6 text-center text-secondary">{t("no_results")}</p>
-      ) : (
-        <section
-          aria-label={label}
-          aria-busy={pending}
-          className="max-h-96 overflow-auto rounded-xl border border-primary focus-ring"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll this named table region.
-          tabIndex={0}
-        >
-          <table className="w-full border-collapse text-sm">
-            <caption className="sr-only">{label}</caption>
-            <thead className="bg-surface text-secondary">
-              {table.getHeaderGroups().map((group) => (
-                <tr key={group.id} className="border-b border-primary">
-                  {group.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      colSpan={header.colSpan}
-                      scope={header.column.columns.length > 0 ? "colgroup" : "col"}
-                      className={
-                        header.column.columns.length > 0
-                          ? "px-4 py-3 text-center font-medium"
-                          : `${cellClass(styles.get(header.column.id))} font-medium`
-                      }
-                    >
-                      {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="divide-y divide-subdued bg-container">
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getAllCells().map((cell) => {
-                    const style = styles.get(cell.column.id);
-                    const content = <table.FlexRender cell={cell} />;
-                    return style?.rowHeader === true ? (
-                      <th key={cell.id} scope="row" className={cellClass(style)}>
-                        {content}
-                      </th>
-                    ) : (
-                      <td key={cell.id} className={cellClass(style)}>
-                        {content}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-      <nav
-        aria-label={t("pagination")}
-        className="flex flex-wrap items-center justify-between gap-3"
-      >
-        <FormField
-          as="select"
-          id={`${id}-page-size`}
-          label={t("rows_per_page")}
-          value={state.pageSize}
-          disabled={pending}
-          containerClassName="w-36"
-          onChange={(event) => {
-            const pageSize = Number(event.target.value);
-            table.setPagination({ pageIndex: 0, pageSize });
-          }}
-        >
-          {[10, 25, 50, 100].map((size) => (
-            <option key={size} value={size}>
-              {size}
-            </option>
-          ))}
-        </FormField>
-        <p aria-live="polite" className="text-xs text-secondary">
-          {t("page_range")
-            .replace("%{start}", String(rows.length > 0 ? offset + 1 : 0))
-            .replace("%{end}", String(rows.length > 0 ? offset + rows.length : 0))}
-          {" · "}
-          {t("page_label").replace("%{page}", String(Math.floor(offset / state.pageSize) + 1))}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={pending || !table.getCanPreviousPage()}
-            onClick={() => {
-              table.previousPage();
-            }}
-          >
-            {t("previous_page")}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={pending || !table.getCanNextPage()}
-            onClick={() => {
-              table.nextPage();
-            }}
-          >
-            {t("next_page")}
-          </Button>
-        </div>
-      </nav>
-    </>
-  );
-}
-
 function AggregateReportTable({
   definition,
   result,
@@ -235,7 +55,7 @@ function AggregateReportTable({
   definition: AggregateReportDefinition;
   result: AggregateReportResult;
   text: ReportBuilderText;
-  pagination?: ReportTablePagination;
+  pagination?: TablePagination;
 }) {
   const model = useMemo(() => {
     const t = (key: string) => text[key] ?? key;
@@ -276,7 +96,7 @@ function AggregateReportTable({
     }
     type Row = AggregateReportResult["rows"][number];
     const styles = new Map<string, ColumnStyle>();
-    const columns: ColumnDef<ReportFeatures, Row>[] =
+    const columns: ColumnDef<TableFeatures, Row>[] =
       definition.rows.length > 0
         ? definition.rows.map((dimension, index) => {
             const id = `row-${dimension.id}`;
@@ -311,7 +131,7 @@ function AggregateReportTable({
         });
       }
     }
-    const totals: ColumnDef<ReportFeatures, Row>[] = result.measures.map((measure, index) => {
+    const totals: ColumnDef<TableFeatures, Row>[] = result.measures.map((measure, index) => {
       const id = `total-${measure.id}`;
       styles.set(id, { numeric: true, total: true });
       return {
@@ -325,7 +145,6 @@ function AggregateReportTable({
     else columns.push(...totals);
     return { columns, styles };
   }, [definition, result, text]);
-  const table = useReportTable(result.rows, model.columns, pagination);
   return (
     <div className="space-y-3">
       {result.truncated ? (
@@ -344,10 +163,11 @@ function AggregateReportTable({
             .join(" / ")}
         </p>
       ) : null}
-      <ReportTableView
-        table={table}
+      <Table
+        data={result.rows}
+        columns={model.columns}
         styles={model.styles}
-        result={result}
+        offset={result.pagination.offset}
         text={text}
         label={text.result_table}
         pagination={pagination}
@@ -366,7 +186,7 @@ function DetailReportTable({
 }: {
   result: DetailReportResult;
   text: ReportBuilderText;
-  pagination?: ReportTablePagination;
+  pagination?: TablePagination;
 }) {
   const model = useMemo(() => {
     const formatters = new Map<string, Intl.NumberFormat>();
@@ -387,7 +207,7 @@ function DetailReportTable({
       return (formatter.format as (amount: string | number) => string)(value);
     }
     const styles = new Map<string, ColumnStyle>();
-    const columns: ColumnDef<ReportFeatures, DetailReportResult["rows"][number]>[] =
+    const columns: ColumnDef<TableFeatures, DetailReportResult["rows"][number]>[] =
       result.columns.map((column, index) => {
         styles.set(column.field, {
           numeric: column.field === "amount",
@@ -402,18 +222,79 @@ function DetailReportTable({
       });
     return { columns, styles };
   }, [result, text]);
-  const table = useReportTable(result.rows, model.columns, pagination);
   return (
-    <div className="space-y-3">
-      <ReportTableView
-        table={table}
-        styles={model.styles}
-        result={result}
-        text={text}
-        label={text.detail_result_table}
-        pagination={pagination}
-      />
-      <p className="text-xs text-secondary">{text.detail_missing_cell_help}</p>
-    </div>
+    <Table
+      data={result.rows}
+      columns={model.columns}
+      styles={model.styles}
+      offset={result.pagination.offset}
+      text={text}
+      label={text.detail_result_table}
+      pagination={pagination}
+    />
+  );
+}
+
+export function SourceResultTable({
+  data,
+  columns,
+  text,
+  label,
+  pagination,
+}: {
+  data: SourceData;
+  columns: SourceColumn[];
+  text: ReportBuilderText;
+  label: string;
+  pagination?: TablePagination;
+}) {
+  const model = useMemo(() => {
+    const formatters = new Map<string, Intl.NumberFormat>();
+    const styles = new Map<string, ColumnStyle>();
+    const tableColumns: ColumnDef<TableFeatures, SourceRow>[] = columns.map((column) => {
+      styles.set(column.key, {
+        numeric: column.kind === "number" || column.kind === "currency",
+        nowrap: column.kind === "date",
+      });
+      return {
+        id: column.key,
+        header: column.label,
+        cell: ({ row }) => {
+          const value = row.original.values[column.key];
+          if (value === null || value === undefined || value === "")
+            return column.key === "category" ? text.uncategorized : text.missing_cell;
+          if (column.kind !== "currency") return String(value);
+          const currency = column.currency ?? row.original.currency;
+          if (!currency) return String(value);
+          let formatter = formatters.get(currency);
+          if (!formatter) {
+            try {
+              formatter = new Intl.NumberFormat(document.documentElement.lang || undefined, {
+                style: "currency",
+                currency,
+                maximumFractionDigits: 20,
+              });
+            } catch {
+              return `${value} ${currency}`;
+            }
+            formatters.set(currency, formatter);
+          }
+          // eslint-disable-next-line typescript/no-unsafe-type-assertion -- ECMA-402 formats exact decimal strings without lossy number conversion.
+          return (formatter.format as (amount: string | number) => string)(value);
+        },
+      };
+    });
+    return { columns: tableColumns, styles };
+  }, [columns, text]);
+  return (
+    <Table
+      data={data.rows}
+      columns={model.columns}
+      styles={model.styles}
+      offset={data.result.pagination.offset}
+      text={text}
+      label={label}
+      pagination={pagination}
+    />
   );
 }

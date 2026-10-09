@@ -1,26 +1,32 @@
 import * as z from "zod/mini";
 import { PIVOT_AGGREGATIONS, PIVOT_DATE_BUCKETS } from "./pivot-chart-contract";
+import {
+  ReportDimensionIdSchema,
+  ReportMeasureIdSchema,
+  ReportRowIdSchema,
+  ReportColumnIdSchema,
+} from "./ids";
 
 export const ReportDimensionSchema = z.object({
-  id: z.string(),
+  id: ReportDimensionIdSchema,
   field: z.string(),
   dateBucket: z.optional(z.enum(PIVOT_DATE_BUCKETS)),
 });
 export const ReportValueSchema = z.object({
-  id: z.string(),
+  id: ReportMeasureIdSchema,
   field: z.string(),
   aggregation: z.enum(PIVOT_AGGREGATIONS),
 });
 export const ReportFilterSchema = z.object({
   field: z.string(),
-  operator: z.enum(["last", "equals"]),
+  operator: z.enum(["last", "equals", "not_equals"]),
   value: z.union([z.string(), z.number()]),
   unit: z.optional(z.literal("days")),
 });
 export const ReportSortSchema = z.object({
   axis: z.enum(["rows", "columns"]),
-  measure: z.optional(z.string()),
-  dimension: z.optional(z.string()),
+  measure: z.optional(ReportMeasureIdSchema),
+  dimension: z.optional(ReportDimensionIdSchema),
   direction: z.enum(["asc", "desc"]),
 });
 export const AggregateReportDefinitionSchema = z.object({
@@ -83,7 +89,7 @@ export const ReportCatalogSchema = z.object({
       detail: z.boolean(),
       aggregations: z.array(z.enum(PIVOT_AGGREGATIONS)),
       dateBuckets: z.array(z.enum(PIVOT_DATE_BUCKETS)),
-      operators: z.array(z.enum(["last", "equals"])),
+      operators: z.array(z.enum(["last", "equals", "not_equals"])),
       options: z.array(z.object({ value: z.string(), label: z.string() })),
     }),
   ),
@@ -92,7 +98,7 @@ export type ReportCatalog = z.infer<typeof ReportCatalogSchema>;
 export type ReportField = ReportCatalog["fields"][number];
 
 const AxisGroupSchema = z.object({
-  key: z.string(),
+  key: ReportColumnIdSchema,
   values: z.array(z.unknown()),
   labels: z.array(z.string()),
 });
@@ -107,7 +113,7 @@ export const AggregateReportResultSchema = z.object({
   sql: z.string(),
   rows: z.array(
     z.object({
-      key: z.string(),
+      key: ReportRowIdSchema,
       values: z.array(z.unknown()),
       labels: z.array(z.string()),
       totals: z.array(MeasureCellSchema),
@@ -116,14 +122,14 @@ export const AggregateReportResultSchema = z.object({
   columns: z.array(AxisGroupSchema),
   cells: z.array(
     z.object({
-      rowKey: z.string(),
-      columnKey: z.string(),
+      rowKey: ReportRowIdSchema,
+      columnKey: ReportColumnIdSchema,
       values: z.array(MeasureCellSchema),
     }),
   ),
   measures: z.array(
     z.object({
-      id: z.string(),
+      id: ReportMeasureIdSchema,
       label: z.string(),
       format: z.enum(["number", "currency"]),
       currency: z.nullable(z.string()),
@@ -138,14 +144,14 @@ export const DetailReportResultSchema = z
     sql: z.string(),
     columns: z.array(
       z.object({
-        field: z.enum(DETAIL_FIELDS),
+        field: z.string(),
         label: z.string(),
         kind: z.enum(["text", "date", "number", "currency"]),
       }),
     ),
     rows: z.array(
       z.object({
-        id: z.string(),
+        id: ReportRowIdSchema,
         currency: z.string(),
         values: z.array(MeasureCellSchema),
       }),
@@ -181,13 +187,13 @@ export function defaultReportDefinition(): AggregateReportDefinition {
     version: 1,
     source: "transactions",
     mode: "aggregate",
-    rows: [{ id: "category", field: "category" }],
-    columns: [{ id: "month", field: "date", dateBucket: "month" }],
-    values: [{ id: "total", field: "amount", aggregation: "sum" }],
+    rows: [{ id: ReportDimensionIdSchema.parse("category"), field: "category" }],
+    columns: [{ id: ReportDimensionIdSchema.parse("month"), field: "date", dateBucket: "month" }],
+    values: [{ id: ReportMeasureIdSchema.parse("total"), field: "amount", aggregation: "sum" }],
     filters: [{ field: "date", operator: "last", value: 90, unit: "days" }],
     sort: [
-      { axis: "rows", measure: "total", direction: "desc" },
-      { axis: "columns", dimension: "month", direction: "asc" },
+      { axis: "rows", measure: ReportMeasureIdSchema.parse("total"), direction: "desc" },
+      { axis: "columns", dimension: ReportDimensionIdSchema.parse("month"), direction: "asc" },
     ],
   };
 }

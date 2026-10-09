@@ -1,7 +1,11 @@
 import { defineConfig } from "orval";
+import brandSpaApiIds from "./config/orval/spa-id-branding";
 
 export default defineConfig({
   spaTransactions: {
+    hooks: {
+      afterAllFilesWrite: brandSpaApiIds,
+    },
     input: {
       target: "./docs/api/openapi.yaml",
       override: {

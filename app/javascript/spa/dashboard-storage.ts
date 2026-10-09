@@ -1,339 +1,421 @@
-import type { Layout, LayoutItem } from "react-grid-layout";
+import type { RichText } from "@puckeditor/core";
 import * as z from "zod/mini";
-import { PivotChartConfigSchema, type PivotChartConfig } from "./pivot-chart-contract";
-import { ReportDefinitionSchema, type ReportDefinition } from "./report-definition";
+import {
+  AggregateReportDefinitionSchema,
+  DetailReportColumnSchema,
+  DetailReportDefinitionSchema,
+  DetailReportSortSchema,
+  ReportDefinitionSchema,
+  ReportDimensionSchema,
+  ReportFilterSchema,
+  ReportSortSchema,
+  ReportValueSchema,
+} from "./report-definition";
+import { generateSourceId, type Source } from "./source";
+import {
+  SourceIdSchema,
+  DashboardIdSchema,
+  LayoutItemIdSchema,
+  ReportDimensionIdSchema,
+  ReportMeasureIdSchema,
+  type SourceId,
+  type DashboardId,
+  type LayoutItemId,
+  type UserId,
+} from "./ids";
 
-// One source-controlled starter screen for first use and repeated design
-// review: a useful transactions table sized for the editor plus results.
-// Independent of fixture IDs, current dates, random values, and
-// developer-local data — plain literals only. Editable after install like
-// any saved snapshot.
 export const STARTER_QUERY = "from transactions\nsort {-date}\ntake 10";
 
-export const STARTER_DASHBOARD_ID = "starter-dashboard";
-export const STARTER_DASHBOARD_NAME = "My dashboard";
-export const STARTER_REPORT_ID = "sureql-report";
-export const STARTER_REPORT_NAME = "Recent transactions";
-
-export const STARTER_PIE_REPORT_ID = "sureql-category-pie";
-export const STARTER_PIE_REPORT_NAME = "Spending by category (30 days)";
-export const STARTER_PIE_QUERY =
-  'from transactions\nderive cutoff = s"current_date - 30"\nfilter date > cutoff\njoin c=categories (==category_id)\nselect {c.name, amount}';
-export const STARTER_PIE_PIVOT: PivotChartConfig = {
-  version: 1,
-  category: { field: "name", limit: 12 },
-  measures: [{ field: "amount", aggregation: "sum" }],
-  chartType: "pie",
-  sort: "value_desc",
-  valueFormat: "currency",
+export type DashboardLayoutProps = {
+  Grid: { id: LayoutItemId; content: DashboardLayoutContent };
+  GridItem: {
+    id: LayoutItemId;
+    content: DashboardLayoutContent;
+    columnSpan: number;
+    height: number | "auto";
+  };
+  Table: { id: LayoutItemId; sourceId: SourceId | ""; visibleColumns: string[] };
+  Chart: {
+    id: LayoutItemId;
+    sourceId: SourceId | "";
+    chartType: "line" | "bar" | "pie";
+    categoryField: string;
+    valueField: string;
+  };
+  RichText: { id: LayoutItemId; content: RichText };
 };
 
-export const STARTER_LAYOUT: Layout = [
-  {
-    i: STARTER_REPORT_ID,
-    x: 0,
-    y: 0,
-    w: 12,
-    h: 4,
-    minW: 4,
-    minH: 3,
-  },
-  {
-    i: STARTER_PIE_REPORT_ID,
-    x: 0,
-    y: 4,
-    w: 4,
-    h: 5,
-    minW: 4,
-    minH: 3,
-  },
-];
+export type DashboardLayoutContent = {
+  [Type in keyof DashboardLayoutProps]: { type: Type; props: DashboardLayoutProps[Type] };
+}[keyof DashboardLayoutProps][];
 
-// Feature-local snapshot for the /dashboards prototype only. It stores a
-// plain dashboard array; each dashboard keeps its own report cards and grid
-// positions. Keep this shape local until the report-entity slice defines a
-// durable domain model.
-const DashboardLayoutItemSchema = z.object({
-  i: z.string(),
-  x: z.number(),
-  y: z.number(),
-  w: z.number(),
-  h: z.number(),
-  minW: z.optional(z.number()),
-  minH: z.optional(z.number()),
-  maxW: z.optional(z.number()),
-  maxH: z.optional(z.number()),
-});
-
-const DashboardReportSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  query: z.optional(z.string()),
-  definition: z.optional(ReportDefinitionSchema),
-  presentation: z.optional(z.enum(["table", "chart"])),
-  pivot: z.optional(PivotChartConfigSchema),
-});
-
-const DashboardSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  reports: z.array(DashboardReportSchema),
-  layout: z.array(DashboardLayoutItemSchema),
-});
-
-const DashboardSnapshotSchema = z.object({
-  dashboards: z.optional(z.array(DashboardSchema)),
-  // Legacy single-dashboard fields, migrated to a one-item array on read.
-  dashboardName: z.optional(z.string()),
-  reports: z.optional(z.array(DashboardReportSchema)),
-  reportName: z.optional(z.string()),
-  query: z.optional(z.string()),
-  layout: z.optional(z.array(DashboardLayoutItemSchema)),
-});
-export type DashboardReport = {
-  id: string;
-  name: string;
-} & (
-  | { definition: ReportDefinition; presentation: "table"; query?: never; pivot?: never }
-  | { query: string; presentation: "table" | "chart"; pivot?: PivotChartConfig; definition?: never }
-);
+// Keep domain IDs intact: Puck's recursive mapped types turn branded strings into objects.
+export type DashboardLayoutData = {
+  root: { props: Record<string, never> };
+  content: DashboardLayoutContent;
+};
 
 export interface Dashboard {
-  id: string;
+  id: DashboardId;
   name: string;
-  reports: DashboardReport[];
-  layout: Layout;
+  layout: DashboardLayoutData;
 }
 
 export interface DashboardSnapshot {
+  formatVersion: 4;
+  sources: Source[];
   dashboards: Dashboard[];
 }
 
-export function generateDashboardId(): string {
-  const parts = crypto.getRandomValues(new Uint32Array(4));
-  return `dashboard-${Array.from(parts, (part) => part.toString(16).padStart(8, "0")).join("")}`;
-}
-
-export function starterDashboard(): Dashboard {
+export function emptyDashboardLayout(): DashboardLayoutData {
   return {
-    id: STARTER_DASHBOARD_ID,
-    name: STARTER_DASHBOARD_NAME,
-    reports: [
-      {
-        id: STARTER_REPORT_ID,
-        name: STARTER_REPORT_NAME,
-        query: STARTER_QUERY,
-        presentation: "table",
-      },
-      {
-        id: STARTER_PIE_REPORT_ID,
-        name: STARTER_PIE_REPORT_NAME,
-        query: STARTER_PIE_QUERY,
-        presentation: "chart",
-        pivot: STARTER_PIE_PIVOT,
-      },
+    root: { props: {} },
+    content: [
+      { type: "Grid", props: { id: LayoutItemIdSchema.parse("dashboard-grid"), content: [] } },
     ],
-    layout: structuredClone(STARTER_LAYOUT),
   };
 }
 
-export function starterSnapshot(): DashboardSnapshot {
-  return { dashboards: [starterDashboard()] };
+export function appendDashboardVisualization(
+  layout: DashboardLayoutData,
+  type: "Table" | "Chart",
+  sourceId: SourceId,
+): DashboardLayoutData {
+  const grid = layout.content.find((item) => item.props.id === "dashboard-grid");
+  if (grid === undefined || grid.type !== "Grid") return layout;
+  const ids = new Set<string>();
+  collectLayoutIds(layout.content, ids);
+  const baseId = `grid-item-${type.toLowerCase()}`;
+  let id = baseId;
+  let suffix = 2;
+  while (ids.has(id) || ids.has(`${id}-visualization`)) id = `${baseId}-${suffix++}`;
+  const visualization: DashboardLayoutData["content"][number] =
+    type === "Table"
+      ? {
+          type,
+          props: {
+            id: LayoutItemIdSchema.parse(`${id}-visualization`),
+            sourceId,
+            visibleColumns: [],
+          },
+        }
+      : {
+          type,
+          props: {
+            id: LayoutItemIdSchema.parse(`${id}-visualization`),
+            sourceId,
+            chartType: "line",
+            categoryField: "",
+            valueField: "",
+          },
+        };
+  return {
+    ...layout,
+    content: layout.content.map((item) =>
+      item === grid
+        ? {
+            ...grid,
+            props: {
+              ...grid.props,
+              content: [
+                ...grid.props.content,
+                {
+                  type: "GridItem",
+                  props: {
+                    id: LayoutItemIdSchema.parse(id),
+                    content: [visualization],
+                    columnSpan: type === "Table" ? 12 : 4,
+                    height: type === "Table" ? 4 : 5,
+                  },
+                },
+              ],
+            },
+          }
+        : item,
+    ),
+  };
 }
 
-export function dashboardStorageKey(userId: string): string {
+function collectLayoutIds(content: DashboardLayoutData["content"], ids: Set<string>): void {
+  for (const item of content) {
+    ids.add(item.props.id);
+    if (item.type === "Grid" || item.type === "GridItem") collectLayoutIds(item.props.content, ids);
+  }
+}
+
+// Layout owns only presentation and references. The catalog is independently
+// validated, so recursive slots cannot smuggle dashboard-owned query settings.
+const DashboardContentSchema: z.ZodMiniType<DashboardLayoutData["content"][number]> = z.lazy(() =>
+  z.discriminatedUnion("type", [
+    z.strictObject({
+      type: z.literal("Grid"),
+      props: z.strictObject({ id: LayoutItemIdSchema, content: z.array(DashboardContentSchema) }),
+    }),
+    z.strictObject({
+      type: z.literal("GridItem"),
+      props: z.strictObject({
+        id: LayoutItemIdSchema,
+        content: z.array(DashboardContentSchema),
+        columnSpan: z.int().check(z.minimum(1), z.maximum(12)),
+        height: z.union([z.literal("auto"), z.int().check(z.minimum(3), z.maximum(12))]),
+      }),
+    }),
+    z.strictObject({
+      type: z.literal("Table"),
+      props: z.strictObject({
+        id: LayoutItemIdSchema,
+        sourceId: z.union([SourceIdSchema, z.literal("")]),
+        visibleColumns: z.array(z.string()),
+      }),
+    }),
+    z.strictObject({
+      type: z.literal("Chart"),
+      props: z.strictObject({
+        id: LayoutItemIdSchema,
+        sourceId: z.union([SourceIdSchema, z.literal("")]),
+        chartType: z.enum(["line", "bar", "pie"]),
+        categoryField: z.string(),
+        valueField: z.string(),
+      }),
+    }),
+    z.strictObject({
+      type: z.literal("RichText"),
+      props: z.strictObject({ id: LayoutItemIdSchema, content: z.string() }),
+    }),
+  ]),
+);
+
+export const DashboardLayoutSchema = z.strictObject({
+  root: z.strictObject({ props: z.strictObject({}) }),
+  content: z
+    .array(DashboardContentSchema)
+    .check(
+      z.refine((content) =>
+        content.some((item) => item.type === "Grid" && item.props.id === "dashboard-grid"),
+      ),
+    ),
+});
+
+const NonEmptyStringSchema = z.string().check(z.refine((value) => value.trim().length > 0));
+// API schemas accept response evolution by stripping unknown keys. Persisted
+// configuration must instead reject unknown settings, including old pivot data.
+const StrictReportDefinitionSchema = z
+  .discriminatedUnion("mode", [
+    z.strictObject({
+      ...AggregateReportDefinitionSchema.shape,
+      rows: z.array(z.strictObject(ReportDimensionSchema.shape)),
+      columns: z.array(z.strictObject(ReportDimensionSchema.shape)),
+      values: z.array(z.strictObject(ReportValueSchema.shape)),
+      filters: z.array(z.strictObject(ReportFilterSchema.shape)),
+      sort: z.array(z.strictObject(ReportSortSchema.shape)),
+    }),
+    z.strictObject({
+      ...DetailReportDefinitionSchema.shape,
+      columns: z.array(z.strictObject(DetailReportColumnSchema.shape)),
+      filters: z.array(z.strictObject(ReportFilterSchema.shape)),
+      sort: z.array(z.strictObject(DetailReportSortSchema.shape)),
+    }),
+  ])
+  .check(z.refine((definition) => ReportDefinitionSchema.safeParse(definition).success));
+const SourceSchema = z.strictObject({
+  id: SourceIdSchema,
+  name: NonEmptyStringSchema,
+  configuration: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("structured"), definition: StrictReportDefinitionSchema }),
+    z.strictObject({ kind: z.literal("sureql"), query: NonEmptyStringSchema }),
+  ]),
+});
+const DashboardSchema = z.strictObject({
+  id: DashboardIdSchema,
+  name: NonEmptyStringSchema,
+  layout: DashboardLayoutSchema,
+});
+const DashboardSnapshotSchema = z.strictObject({
+  formatVersion: z.literal(4),
+  sources: z.array(SourceSchema),
+  dashboards: z.array(DashboardSchema),
+});
+
+export function generateDashboardId(): DashboardId {
+  const parts = crypto.getRandomValues(new Uint32Array(4));
+  return DashboardIdSchema.parse(
+    `dashboard-${Array.from(parts, (part) => part.toString(16).padStart(8, "0")).join("")}`,
+  );
+}
+
+export function starterSnapshot(): DashboardSnapshot {
+  const transactionsId = generateSourceId();
+  const spendingId = generateSourceId();
+  return {
+    formatVersion: 4,
+    sources: [
+      {
+        id: transactionsId,
+        name: "Recent transactions",
+        configuration: { kind: "sureql", query: STARTER_QUERY },
+      },
+      {
+        id: spendingId,
+        name: "Spending by category (30 days)",
+        configuration: {
+          kind: "structured",
+          definition: {
+            version: 1,
+            source: "transactions",
+            mode: "aggregate",
+            // The executor requires a row currency dimension for monetary
+            // aggregates. Currency columns also expose each original unit.
+            rows: [
+              { id: ReportDimensionIdSchema.parse("category"), field: "category" },
+              { id: ReportDimensionIdSchema.parse("row_currency"), field: "currency" },
+            ],
+            columns: [{ id: ReportDimensionIdSchema.parse("column_currency"), field: "currency" }],
+            values: [
+              { id: ReportMeasureIdSchema.parse("spending"), field: "amount", aggregation: "sum" },
+            ],
+            filters: [{ field: "date", operator: "last", value: 30, unit: "days" }],
+            sort: [],
+          },
+        },
+      },
+    ],
+    dashboards: [
+      {
+        id: DashboardIdSchema.parse("starter-dashboard"),
+        name: "My dashboard",
+        layout: {
+          root: { props: {} },
+          content: [
+            {
+              type: "Grid",
+              props: {
+                id: LayoutItemIdSchema.parse("dashboard-grid"),
+                content: [
+                  {
+                    type: "GridItem",
+                    props: {
+                      id: LayoutItemIdSchema.parse("grid-item-transactions"),
+                      content: [
+                        {
+                          type: "Table",
+                          props: {
+                            id: LayoutItemIdSchema.parse("transactions-table"),
+                            sourceId: transactionsId,
+                            visibleColumns: [],
+                          },
+                        },
+                      ],
+                      columnSpan: 12,
+                      height: 4,
+                    },
+                  },
+                  {
+                    type: "GridItem",
+                    props: {
+                      id: LayoutItemIdSchema.parse("grid-item-spending"),
+                      content: [
+                        {
+                          type: "Chart",
+                          props: {
+                            id: LayoutItemIdSchema.parse("spending-chart"),
+                            sourceId: spendingId,
+                            chartType: "pie",
+                            categoryField: "",
+                            valueField: "",
+                          },
+                        },
+                      ],
+                      columnSpan: 4,
+                      height: 5,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
+
+export function dashboardStorageKey(userId: UserId): string {
   return `sure:dashboards:${userId}`;
 }
 
-// Deterministic survivor: the requested dashboard when it still exists,
-// otherwise the first remaining dashboard. Undefined when none remain.
+// Keep the selected dashboard when possible, otherwise choose the first survivor.
 export function selectActiveDashboard(
   snapshot: DashboardSnapshot,
-  requestedId: string | undefined,
+  requestedId: DashboardId | undefined,
 ): Dashboard | undefined {
-  if (snapshot.dashboards.length === 0) return undefined;
-  if (requestedId !== undefined) {
-    const match = snapshot.dashboards.find((dashboard) => dashboard.id === requestedId);
-    if (match !== undefined) return match;
-  }
-  return snapshot.dashboards[0];
+  return (
+    snapshot.dashboards.find((dashboard) => dashboard.id === requestedId) ?? snapshot.dashboards[0]
+  );
 }
 
-// Defensive read: malformed JSON, schema drift, or unavailable storage all
-// fall back to undefined so the page boots its starter screen and still runs.
-export function readDashboardSnapshot(userId: string): DashboardSnapshot | undefined {
+function validatedSnapshot(input: unknown): DashboardSnapshot | undefined {
+  const result = DashboardSnapshotSchema.safeParse(input);
+  if (!result.success) return undefined;
+  const sourceIds = new Set<SourceId>();
+  for (const source of result.data.sources) {
+    if (sourceIds.has(source.id)) return undefined;
+    sourceIds.add(source.id);
+  }
+  const dashboardIds = new Set<DashboardId>();
+  for (const dashboard of result.data.dashboards) {
+    if (dashboardIds.has(dashboard.id)) return undefined;
+    dashboardIds.add(dashboard.id);
+    if (!validLayoutContent(dashboard.layout.content, new Set(), sourceIds)) return undefined;
+  }
+  return result.data;
+}
+
+function validLayoutContent(
+  content: DashboardLayoutData["content"],
+  ids: Set<LayoutItemId>,
+  sourceIds: Set<SourceId>,
+): boolean {
+  for (const item of content) {
+    const id = item.props.id;
+    if (id.length === 0 || id !== id.trim() || ids.has(id)) return false;
+    ids.add(id);
+    if (
+      (item.type === "Table" || item.type === "Chart") &&
+      item.props.sourceId !== "" &&
+      !sourceIds.has(item.props.sourceId)
+    )
+      return false;
+    if (
+      (item.type === "Grid" || item.type === "GridItem") &&
+      !validLayoutContent(item.props.content, ids, sourceIds)
+    )
+      return false;
+  }
+  return true;
+}
+
+// Malformed snapshots and earlier versions are rejected, not migrated.
+export function readDashboardSnapshot(userId: UserId): DashboardSnapshot | undefined {
   try {
     const raw = window.localStorage.getItem(dashboardStorageKey(userId));
-    if (raw === null) return undefined;
-    const parsed: unknown = JSON.parse(raw);
-    const result = DashboardSnapshotSchema.safeParse(parsed);
-    if (!result.success) return undefined;
-    if (result.data.dashboards !== undefined) return normalizeDashboards(result.data.dashboards);
-
-    return migrateLegacySnapshot(result.data);
+    return raw === null ? undefined : validatedSnapshot(JSON.parse(raw));
   } catch {
     return undefined;
   }
 }
 
-function normalizeDashboards(
-  storedDashboards: z.infer<typeof DashboardSchema>[],
-): DashboardSnapshot | undefined {
-  const ids = new Set<string>();
-  const dashboards: Dashboard[] = [];
-  for (const storedDashboard of storedDashboards) {
-    const normalized = normalizeDashboard(storedDashboard);
-    if (normalized === undefined || ids.has(normalized.id)) return undefined;
-    ids.add(normalized.id);
-    dashboards.push(normalized);
-  }
-  return { dashboards };
-}
-
-function normalizeDashboard(
-  storedDashboard: z.infer<typeof DashboardSchema>,
-): Dashboard | undefined {
-  const id = storedDashboard.id.trim();
-  const storedName = storedDashboard.name.trim();
-  if (id.length === 0) return undefined;
-  const reports = normalizeReports(storedDashboard.reports);
-  if (reports === undefined) return undefined;
-  const layout = normalizeLayout(
-    storedDashboard.layout,
-    new Set(reports.map((report) => report.id)),
-  );
-  if (layout === undefined) return undefined;
-  return {
-    id,
-    name: storedName.length === 0 ? STARTER_DASHBOARD_NAME : storedName,
-    reports,
-    layout,
-  };
-}
-
-function migrateLegacySnapshot(
-  stored: Omit<z.infer<typeof DashboardSnapshotSchema>, "dashboards">,
-): DashboardSnapshot | undefined {
-  const storedName = stored.dashboardName?.trim();
-  const reports =
-    stored.reports === undefined
-      ? migrateLegacyReport(stored.reportName, stored.query)
-      : normalizeReports(stored.reports);
-  if (reports === undefined) return undefined;
-  if (stored.layout === undefined) return undefined;
-  const layout = normalizeLayout(stored.layout, new Set(reports.map((report) => report.id)));
-  if (layout === undefined) return undefined;
-  return {
-    dashboards: [
-      {
-        id: STARTER_DASHBOARD_ID,
-        name:
-          storedName === undefined || storedName.length === 0 ? STARTER_DASHBOARD_NAME : storedName,
-        reports,
-        layout,
-      },
-    ],
-  };
-}
-
-function migrateLegacyReport(
-  storedName: string | undefined,
-  storedQuery: string | undefined,
-): DashboardReport[] | undefined {
-  const query = storedQuery?.trim();
-  if (query === undefined || query.length === 0) return undefined;
-  const name = storedName?.trim();
-  return [
-    {
-      id: STARTER_REPORT_ID,
-      name: name === undefined || name.length === 0 ? STARTER_REPORT_NAME : name,
-      query,
-      presentation: "table",
-    },
-  ];
-}
-
-function normalizeReports(
-  storedReports: z.infer<typeof DashboardReportSchema>[],
-): DashboardReport[] | undefined {
-  const ids = new Set<string>();
-  const reports: DashboardReport[] = [];
-  for (const storedReport of storedReports) {
-    const id = storedReport.id.trim();
-    const name = storedReport.name.trim();
-    const query = storedReport.query?.trim();
-    const definition = storedReport.definition;
-    if (
-      id.length === 0 ||
-      name.length === 0 ||
-      ids.has(id) ||
-      (definition === undefined && (query === undefined || query.length === 0))
-    )
-      return undefined;
-    ids.add(id);
-    const pivot = normalizePivotConfig(storedReport.pivot);
-    const presentation = storedReport.presentation ?? "table";
-    if (definition !== undefined) reports.push({ id, name, definition, presentation: "table" });
-    else if (query !== undefined && query.length > 0) {
-      reports.push({
-        id,
-        name,
-        query,
-        presentation,
-        ...(pivot === undefined ? {} : { pivot }),
-      });
-    }
-  }
-  return reports;
-}
-
-function normalizePivotConfig(
-  storedPivot: z.infer<typeof PivotChartConfigSchema> | undefined,
-): PivotChartConfig | undefined {
-  if (storedPivot === undefined) return undefined;
-  const parsed = PivotChartConfigSchema.safeParse(storedPivot);
-  if (!parsed.success) return undefined;
-  return parsed.data;
-}
-
-function normalizeLayout(
-  storedLayout: z.infer<typeof DashboardLayoutItemSchema>[],
-  reportIds: Set<string>,
-): Layout | undefined {
-  const layoutIds = new Set<string>();
-  const layout: LayoutItem[] = [];
-  for (const item of storedLayout) {
-    if (!reportIds.has(item.i) || layoutIds.has(item.i)) return undefined;
-    layoutIds.add(item.i);
-    layout.push({
-      i: item.i,
-      x: item.x,
-      y: item.y,
-      w: item.w,
-      h: item.h,
-      minW: item.minW,
-      minH: item.minH,
-      maxW: item.maxW,
-      maxH: item.maxH,
-    });
-  }
-  if (layoutIds.size !== reportIds.size) return undefined;
-  return layout;
-}
-
-// Best-effort write: private-mode/quota failures must never break the page.
-export function writeDashboardSnapshot(userId: string, snapshot: DashboardSnapshot): void {
+// Private-mode and quota failures must not prevent the current session working.
+export function writeDashboardSnapshot(userId: UserId, snapshot: DashboardSnapshot): void {
   try {
-    window.localStorage.setItem(dashboardStorageKey(userId), JSON.stringify(snapshot));
+    const validated = validatedSnapshot(snapshot);
+    if (validated === undefined) return;
+    window.localStorage.setItem(dashboardStorageKey(userId), JSON.stringify(validated));
   } catch {
-    // Storage unavailable — the session still works, persistence is skipped.
+    // Persistence is best-effort at the existing browser-local boundary.
   }
 }
 
-// Install the starter only when the current user's key is absent, so first
-// use and design review are deterministic but customizations are never
-// overwritten. Returns the snapshot the page should boot with.
-export function loadOrInstallStarterSnapshot(userId: string): DashboardSnapshot {
+export function loadOrInstallStarterSnapshot(userId: UserId): DashboardSnapshot {
   const existing = readDashboardSnapshot(userId);
   if (existing !== undefined) return existing;
   const starter = starterSnapshot();
@@ -342,11 +424,17 @@ export function loadOrInstallStarterSnapshot(userId: string): DashboardSnapshot 
 }
 
 export type DashboardRouteSearch = {
-  dashboard?: string;
+  dashboard?: DashboardId;
+  layout?: boolean;
+  component?: LayoutItemId;
 };
 
 export function validateDashboardSearch(input: Record<string, unknown>): DashboardRouteSearch {
-  const dashboard = input.dashboard;
-  if (typeof dashboard === "string" && dashboard.trim().length > 0) return { dashboard };
-  return {};
+  const result: DashboardRouteSearch = {};
+  const dashboard = DashboardIdSchema.safeParse(input.dashboard);
+  if (dashboard.success) result.dashboard = dashboard.data;
+  const component = LayoutItemIdSchema.safeParse(input.component);
+  if (component.success) result.component = component.data;
+  if (input.layout === true || input.layout === "true") result.layout = true;
+  return result;
 }

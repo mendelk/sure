@@ -12,8 +12,6 @@
 
 @import "./driverjs.css";
 @import "./release-highlights.css";
-/* react-grid-layout v2.2.4 MIT | https://github.com/react-grid-layout/react-grid-layout — vendored from css/styles.css */
-@import "./react-grid-layout.css";
 
 @import "./date-picker-dark-mode.css";
 @import "./print-report.css";

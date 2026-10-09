@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod/mini";
 import { useSpaPaths } from "./paths";
+import { AccountIdSchema, type AccountId } from "../ids";
 
 const MoneySchema = z.object({
   amount: z.string(),
@@ -14,7 +15,7 @@ const BalanceSheetPointSchema = z.object({
 });
 
 const BalanceSheetAccountSchema = z.object({
-  id: z.string(),
+  id: AccountIdSchema,
   name: z.string(),
   classification: z.enum(["asset", "liability"]),
   account_type: z.string(),
@@ -39,7 +40,7 @@ export type Summary = {
   currency: string;
   net_worth_series: [string, string][];
   accounts: Array<{
-    id: string;
+    id: AccountId;
     name: string;
     classification: "asset" | "liability";
     account_type: string;

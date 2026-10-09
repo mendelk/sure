@@ -2,6 +2,8 @@
 import "monaco-editor/editor/contrib/suggest/browser/suggestController.js";
 // eslint-disable-next-line import/no-unassigned-import -- Monaco word-navigation commands register by side effect
 import "monaco-editor/editor/contrib/wordOperations/browser/wordOperations.js";
+// eslint-disable-next-line import/no-unassigned-import -- Generated SQL uses Monaco's bundled SQL syntax definition.
+import "monaco-editor/languages/definitions/sql/register.js";
 import * as monacoEditor from "monaco-editor/editor.js";
 import { Editor, loader } from "@monaco-editor/react";
 import type * as MonacoType from "monaco-editor";
@@ -484,5 +486,31 @@ export function SureqlEditor({
         </div>
       </div>
     </section>
+  );
+}
+
+export function SqlPreview({ sql, label }: { sql: string; label: string }) {
+  const theme = useSyncExternalStore(subscribeTheme, resolveMonacoTheme, () => "vs");
+  return (
+    <div className="h-96 overflow-hidden rounded-xl border border-primary">
+      <Editor
+        height="100%"
+        language="sql"
+        value={sql}
+        theme={theme}
+        wrapperProps={{ role: "application", "aria-label": label }}
+        options={{
+          readOnly: true,
+          domReadOnly: true,
+          fontSize: 14,
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          minimap: { enabled: false },
+          scrollBeyondLastLine: false,
+          padding: { top: 12, bottom: 12 },
+          stickyScroll: { enabled: false },
+          automaticLayout: true,
+        }}
+      />
+    </div>
   );
 }
