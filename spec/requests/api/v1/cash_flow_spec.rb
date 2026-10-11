@@ -57,7 +57,7 @@ RSpec.describe 'API V1 Cash Flow', type: :request do
         run_test!
       end
 
-      response '401', 'unauthorized' do
+      response '401', 'missing or invalid API credentials, including browser-session-only requests' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
         let(:'X-Api-Key') { 'invalid-key' }

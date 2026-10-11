@@ -111,7 +111,10 @@ class SimplefinEntry::ProcessorTest < ActiveSupport::TestCase
       pending: true
     }
 
-    SimplefinEntry::Processor.new(tx, simplefin_account: @simplefin_account).process
+    Setting.stubs(:syncs_include_pending).returns(true)
+    with_env_overrides SIMPLEFIN_INCLUDE_PENDING: nil do
+      SimplefinEntry::Processor.new(tx, simplefin_account: @simplefin_account).process
+    end
 
     entry = @account.entries.find_by!(external_id: "simplefin_tx_pending_flag_1", source: "simplefin")
     sf = entry.transaction.extra.fetch("simplefin")
@@ -133,7 +136,10 @@ class SimplefinEntry::ProcessorTest < ActiveSupport::TestCase
       pending: true
     }
 
-    SimplefinEntry::Processor.new(tx, simplefin_account: @simplefin_account).process
+    Setting.stubs(:syncs_include_pending).returns(true)
+    with_env_overrides SIMPLEFIN_INCLUDE_PENDING: nil do
+      SimplefinEntry::Processor.new(tx, simplefin_account: @simplefin_account).process
+    end
 
     entry = @account.entries.find_by!(external_id: "simplefin_tx_pending_zero_posted_1", source: "simplefin")
     # For depository accounts, processor prefers posted, then transacted; posted==0 should be treated as missing
@@ -250,7 +256,10 @@ class SimplefinEntry::ProcessorTest < ActiveSupport::TestCase
       # Note: NO pending flag set
     }
 
-    SimplefinEntry::Processor.new(tx, simplefin_account: @simplefin_account).process
+    Setting.stubs(:syncs_include_pending).returns(true)
+    with_env_overrides SIMPLEFIN_INCLUDE_PENDING: nil do
+      SimplefinEntry::Processor.new(tx, simplefin_account: @simplefin_account).process
+    end
 
     entry = @account.entries.find_by!(external_id: "simplefin_tx_inferred_pending_1", source: "simplefin")
     sf = entry.transaction.extra.fetch("simplefin")

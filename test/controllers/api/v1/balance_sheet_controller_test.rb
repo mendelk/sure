@@ -59,6 +59,24 @@ class Api::V1::BalanceSheetControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "API credentials scope account rows independently of the browser session" do
+    own = @family.accounts.create!(
+      name: "API account", owner: @user, currency: "USD", balance: 10, accountable: Depository.new
+    )
+    browser_user = users(:empty)
+    browser_account = browser_user.family.accounts.create!(
+      name: "Browser account", owner: browser_user, currency: "USD", balance: 20, accountable: Depository.new
+    )
+    sign_in browser_user
+
+    get "/api/v1/balance_sheet", headers: api_headers(@auth)
+
+    assert_response :success
+    account_ids = response.parsed_body.fetch("accounts").map { |account| account.fetch("id") }
+    assert_includes account_ids, own.id
+    refute_includes account_ids, browser_account.id
+  end
+
   test "should authenticate with browser session for read access" do
     sign_in @user
 
