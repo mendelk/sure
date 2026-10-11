@@ -36,7 +36,7 @@ export function DashboardsPage() {
   const t = (key: string) => text[key];
   const [titleEditor, setTitleEditor] = useState<{ id: DashboardId; draft: string } | null>(null);
   const [pendingVisualization, setPendingVisualization] = useState<"Table" | "Chart" | null>(null);
-  const [selectedSourceId, setSelectedSourceId] = useState<SourceId | "">("");
+  const [selectedSourceId, setSelectedSourceId] = useState<SourceId>();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
@@ -261,7 +261,7 @@ export function DashboardsPage() {
                   <Button
                     size="sm"
                     onClick={() => {
-                      setSelectedSourceId("");
+                      setSelectedSourceId(undefined);
                       setPendingVisualization("Table");
                     }}
                   >
@@ -271,7 +271,7 @@ export function DashboardsPage() {
                     size="sm"
                     variant="secondary"
                     onClick={() => {
-                      setSelectedSourceId("");
+                      setSelectedSourceId(undefined);
                       setPendingVisualization("Chart");
                     }}
                   >

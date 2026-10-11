@@ -1,0 +1,45 @@
+/* Adapt Puck's semantic tokens, not its private CSS-module selectors. */
+[data-dashboard-layout-editor] {
+  --puck-font-family: var(--font-sans);
+  --puck-font-family-monospaced: var(--font-mono);
+  --puck-color-surface: var(--color-container);
+  --puck-color-surface-muted: var(--color-container-inset);
+  --puck-color-surface-subtle: var(--color-surface);
+  --puck-color-surface-inverse: var(--utility-bg-inverse);
+  --puck-color-border: var(--utility-border-secondary);
+  --puck-color-border-hover: var(--utility-border-primary);
+  --puck-color-border-muted: var(--utility-border-subdued);
+  --puck-color-border-inverse: var(--utility-border-inverse);
+  --puck-color-text: var(--utility-text-primary);
+  --puck-color-text-secondary: var(--utility-text-secondary);
+  --puck-color-text-muted: var(--utility-text-secondary);
+  --puck-color-text-subtle: var(--utility-text-subdued);
+  --puck-color-text-inverse: var(--utility-text-inverse);
+  --puck-color-interactive: var(--color-link);
+  --puck-color-interactive-hover: var(--color-link);
+  --puck-color-interactive-active: var(--color-link);
+  --puck-color-interactive-subtle: var(--color-surface-inset);
+  --puck-color-interactive-soft: var(--color-container-inset);
+  --puck-color-interactive-soft-hover: var(--color-container-inset-hover);
+  --puck-color-interactive-neutral-hover: var(--color-container-hover);
+  --puck-color-interactive-inverse-hover: var(--color-link);
+  --puck-color-interactive-inverse-active: var(--color-link);
+  --puck-color-focus-ring: var(--color-focus-ring);
+  --puck-color-selection-bg: color-mix(in srgb, var(--color-info) 8%, transparent);
+  --puck-color-selection-border: var(--color-info);
+  --puck-color-line-placeholder: var(--color-info);
+  --puck-color-highlight: var(--color-info);
+  --puck-color-bg-disabled: var(--utility-button-bg-disabled);
+  --puck-color-text-disabled: var(--utility-text-subdued);
+  --puck-color-overlay-backdrop: var(--utility-bg-overlay);
+
+  /* Puck's outline otherwise falls back to an undefined text-primary token. */
+  --puck-outline-color-text: var(--utility-text-primary);
+  --puck-outline-color-icon: var(--utility-text-secondary);
+  --puck-drawer-item-color-bg: var(--color-container-inset);
+  --puck-drawer-item-color-text-hover: var(--utility-text-primary);
+  --puck-drawer-category-color-text-hover: var(--utility-text-primary);
+
+  /* A hover border identifies the block without washing out live content. */
+  --puck-slot-component-color-overlay: transparent;
+}

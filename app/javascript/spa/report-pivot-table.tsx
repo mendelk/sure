@@ -59,14 +59,20 @@ function AggregateReportTable({
 }) {
   const model = useMemo(() => {
     const t = (key: string) => text[key] ?? key;
-    const cells = new Map<string, Map<string, (string | number | null)[]>>();
-    for (const cell of result.cells) {
-      let row = cells.get(cell.rowKey);
-      if (!row) {
-        row = new Map();
-        cells.set(cell.rowKey, row);
+    const records = new Map(
+      result.metadata.rows.map((row, index) => [row.key, result.result[index]]),
+    );
+    const valueFields = new Map<string, Map<string, AggregateReportResult["metadata"]["fields"]>>();
+    for (const field of result.metadata.fields) {
+      if (field.columnKey === undefined || field.measureId === undefined) continue;
+      let group = valueFields.get(field.columnKey);
+      if (!group) {
+        group = new Map();
+        valueFields.set(field.columnKey, group);
       }
-      row.set(cell.columnKey, cell.values);
+      const fields = group.get(field.measureId) ?? [];
+      fields.push(field);
+      group.set(field.measureId, fields);
     }
     const currencyIndex = definition.rows.findIndex((dimension) => dimension.field === "currency");
     const formatters = new Map<string, Intl.NumberFormat>();
@@ -76,7 +82,7 @@ function AggregateReportTable({
       rowValues: unknown[],
     ) {
       if (value === null || value === undefined) return t("missing_cell");
-      const measure = result.measures[measureIndex];
+      const measure = result.metadata.measures[measureIndex];
       const rowCurrency = currencyIndex >= 0 ? rowValues[currencyIndex] : null;
       const currency = measure.currency ?? (typeof rowCurrency === "string" ? rowCurrency : null);
       const key =
@@ -94,7 +100,7 @@ function AggregateReportTable({
       // eslint-disable-next-line typescript/no-unsafe-type-assertion -- ECMA-402 accepts exact decimal strings; TypeScript omits this overload.
       return (formatter.format as (value: string | number) => string)(value);
     }
-    type Row = AggregateReportResult["rows"][number];
+    type Row = AggregateReportResult["metadata"]["rows"][number];
     const styles = new Map<string, ColumnStyle>();
     const columns: ColumnDef<TableFeatures, Row>[] =
       definition.rows.length > 0
@@ -110,36 +116,46 @@ function AggregateReportTable({
         : [{ id: "all", header: t("all_transactions"), cell: () => t("all_transactions") }];
     if (definition.rows.length === 0) styles.set("all", { rowHeader: true });
     if (definition.columns.length > 0) {
-      for (const column of result.columns) {
+      for (const column of result.metadata.columns) {
         columns.push({
           id: `group-${column.key}`,
           header: column.labels.join(" / "),
-          columns: result.measures.map((measure, index) => {
+          columns: result.metadata.measures.map((measure, index) => {
             const id = `cell-${column.key}-${measure.id}`;
             styles.set(id, { numeric: true });
             return {
               id,
               header: measure.label,
-              cell: ({ row }) =>
-                format(
-                  cells.get(row.original.key)?.get(column.key)?.[index],
+              cell: ({ row }) => {
+                const fields = valueFields.get(column.key)?.get(measure.id) ?? [];
+                const field =
+                  fields.find(
+                    (candidate) =>
+                      candidate.currency === null || candidate.currency === row.original.currency,
+                  ) ?? fields.at(0);
+                return format(
+                  field ? records.get(row.original.key)?.[field.key] : undefined,
                   index,
                   row.original.values,
-                ),
+                );
+              },
             };
           }),
         });
       }
     }
-    const totals: ColumnDef<TableFeatures, Row>[] = result.measures.map((measure, index) => {
-      const id = `total-${measure.id}`;
-      styles.set(id, { numeric: true, total: true });
-      return {
-        id,
-        header: measure.label,
-        cell: ({ row }) => format(row.original.totals[index], index, row.original.values),
-      };
-    });
+    const totals: ColumnDef<TableFeatures, Row>[] = result.metadata.measures.map(
+      (measure, index) => {
+        const id = `total-${measure.id}`;
+        styles.set(id, { numeric: true, total: true });
+        return {
+          id,
+          header: measure.label,
+          cell: ({ row }) =>
+            format(records.get(row.original.key)?.[measure.id], index, row.original.values),
+        };
+      },
+    );
     if (definition.columns.length > 0)
       columns.push({ id: "totals", header: t("row_total"), columns: totals });
     else columns.push(...totals);
@@ -164,7 +180,7 @@ function AggregateReportTable({
         </p>
       ) : null}
       <Table
-        data={result.rows}
+        data={result.metadata.rows}
         columns={model.columns}
         styles={model.styles}
         offset={result.pagination.offset}
@@ -207,8 +223,8 @@ function DetailReportTable({
       return (formatter.format as (amount: string | number) => string)(value);
     }
     const styles = new Map<string, ColumnStyle>();
-    const columns: ColumnDef<TableFeatures, DetailReportResult["rows"][number]>[] =
-      result.columns.map((column, index) => {
+    const columns: ColumnDef<TableFeatures, DetailReportResult["metadata"]["rows"][number]>[] =
+      result.metadata.fields.map((column) => {
         styles.set(column.field, {
           numeric: column.field === "amount",
           nowrap: column.field === "date",
@@ -217,14 +233,14 @@ function DetailReportTable({
           id: column.field,
           header: text[`field_${column.field}`] ?? column.label,
           cell: ({ row }) =>
-            format(row.original.values[index], column.field, row.original.currency),
+            format(result.result[row.index][column.key], column.field, row.original.currency),
         };
       });
     return { columns, styles };
   }, [result, text]);
   return (
     <Table
-      data={result.rows}
+      data={result.metadata.rows}
       columns={model.columns}
       styles={model.styles}
       offset={result.pagination.offset}

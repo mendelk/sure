@@ -75,10 +75,13 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_response :ok
     result = response.parsed_body
     assert_equal "aggregate", result.fetch("mode")
-    assert_equal [ nil ], result.fetch("rows").first.fetch("values")
-    assert_equal 13, result.fetch("rows").first.fetch("totals").first.to_d
-    assert_equal [ "2025-01" ], result.fetch("columns").first.fetch("labels")
-    assert_equal 13, result.fetch("cells").first.fetch("values").first.to_d
+    assert_equal [ nil ], result.fetch("metadata").fetch("rows").first.fetch("values")
+    assert_equal 13, result.fetch("result").first.fetch("total").to_d
+    assert_equal [ "2025-01" ], result.fetch("metadata").fetch("columns").first.fetch("labels")
+    field = result.fetch("metadata").fetch("fields").find { |item| item["role"] == "value" }
+    assert_equal 13, result.fetch("result").first.fetch(field.fetch("key")).to_d
+    assert_equal "currency", field.fetch("kind")
+    assert_equal "USD", field.fetch("currency")
     assert_not result.fetch("truncated")
   end
 
@@ -99,23 +102,23 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_response :ok
     first = response.parsed_body
     assert_equal "detail", first.fetch("mode")
-    assert_equal [ "amount", "name" ], first.fetch("columns").map { |column| column.fetch("field") }
-    assert_equal entries.first(10).map(&:id), first.fetch("rows").map { |row| row.fetch("id") }
-    assert_equal [ "USD", "EUR" ] * 5, first.fetch("rows").map { |row| row.fetch("currency") }
-    assert first.fetch("rows").all? { |row| row.fetch("values") == [ "-900719925474099.1234", "Duplicate" ] }
+    assert_equal [ "amount", "name" ], first.fetch("metadata").fetch("fields").map { |column| column.fetch("key") }
+    assert_equal entries.first(10).map(&:id), first.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
+    assert_equal [ "USD", "EUR" ] * 5, first.fetch("metadata").fetch("rows").map { |row| row.fetch("currency") }
+    assert first.fetch("result").all? { |row| row == { "amount" => "-900719925474099.1234", "name" => "Duplicate" } }
     assert first.fetch("pagination").fetch("hasNext")
     assert_not first.fetch("truncated")
 
     post dashboard_monarch_run_path, params: { report: report, pagination: { limit: 25, offset: 25 } }, as: :json
     assert_response :ok
     custom = response.parsed_body
-    assert_equal entries.slice(25, 25).map(&:id), custom.fetch("rows").map { |row| row.fetch("id") }
+    assert_equal entries.slice(25, 25).map(&:id), custom.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
     assert_equal({ "limit" => 25, "offset" => 25, "hasNext" => true }, custom.fetch("pagination"))
 
     post dashboard_monarch_run_path, params: { report: report, pagination: { limit: 25, offset: 50 } }, as: :json
     assert_response :ok
     last = response.parsed_body
-    assert_equal [ entries.last.id ], last.fetch("rows").map { |row| row.fetch("id") }
+    assert_equal [ entries.last.id ], last.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
     assert_not last.fetch("pagination").fetch("hasNext")
   end
 
@@ -134,19 +137,20 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     post dashboard_monarch_run_path, params: { report: report }, as: :json
     assert_response :ok
     empty = response.parsed_body
-    assert_equal [ "account", "amount" ], empty.fetch("columns").map { |column| column.fetch("field") }
-    assert_empty empty.fetch("rows")
+    assert_equal [ "account", "amount" ], empty.fetch("metadata").fetch("fields").map { |column| column.fetch("key") }
+    assert_empty empty.fetch("result")
     assert_not empty.fetch("truncated")
 
     report[:filters].first[:value] = shared_account.id
     post dashboard_monarch_run_path, params: { report: report }, as: :json
     assert_response :ok
-    row = response.parsed_body.fetch("rows").sole
-    assert_equal shared.id, row.fetch("id")
-    assert_equal shared_account.name, row.fetch("values").first
-    assert_kind_of String, row.fetch("values").last
-    assert_equal(-17, row.fetch("values").last.to_d)
-    assert_equal "USD", row.fetch("currency")
+    response_data = response.parsed_body
+    row = response_data.fetch("result").sole
+    assert_equal shared.id, response_data.fetch("metadata").fetch("rows").sole.fetch("id")
+    assert_equal shared_account.name, row.fetch("account")
+    assert_kind_of String, row.fetch("amount")
+    assert_equal(-17, row.fetch("amount").to_d)
+    assert_equal "USD", response_data.fetch("metadata").fetch("rows").sole.fetch("currency")
   end
 
   test "detail endpoint rejects aggregate shape and unselected sort fields" do

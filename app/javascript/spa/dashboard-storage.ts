@@ -34,15 +34,15 @@ export type DashboardLayoutProps = {
     columnSpan: number;
     height: number | "auto";
   };
-  Table: { id: LayoutItemId; sourceId: SourceId | ""; visibleColumns: string[] };
+  Table: { id: LayoutItemId; sourceId?: SourceId; visibleColumns: string[] };
   Chart: {
     id: LayoutItemId;
-    sourceId: SourceId | "";
+    sourceId?: SourceId;
     chartType: "line" | "bar" | "pie";
     categoryField: string;
     valueField: string;
   };
-  RichText: { id: LayoutItemId; content: RichText };
+  RichText: { id: LayoutItemId; sourceId?: SourceId; content: RichText };
 };
 
 export type DashboardLayoutContent = {
@@ -62,7 +62,7 @@ export interface Dashboard {
 }
 
 export interface DashboardSnapshot {
-  formatVersion: 4;
+  formatVersion: 6;
   sources: Source[];
   dashboards: Dashboard[];
 }
@@ -70,9 +70,7 @@ export interface DashboardSnapshot {
 export function emptyDashboardLayout(): DashboardLayoutData {
   return {
     root: { props: {} },
-    content: [
-      { type: "Grid", props: { id: LayoutItemIdSchema.parse("dashboard-grid"), content: [] } },
-    ],
+    content: [],
   };
 }
 
@@ -81,8 +79,7 @@ export function appendDashboardVisualization(
   type: "Table" | "Chart",
   sourceId: SourceId,
 ): DashboardLayoutData {
-  const grid = layout.content.find((item) => item.props.id === "dashboard-grid");
-  if (grid === undefined || grid.type !== "Grid") return layout;
+  const grid = layout.content.find((item) => item.type === "Grid");
   const ids = new Set<string>();
   collectLayoutIds(layout.content, ids);
   const baseId = `grid-item-${type.toLowerCase()}`;
@@ -109,6 +106,7 @@ export function appendDashboardVisualization(
             valueField: "",
           },
         };
+  if (grid === undefined) return { ...layout, content: [...layout.content, visualization] };
   return {
     ...layout,
     content: layout.content.map((item) =>
@@ -164,7 +162,7 @@ const DashboardContentSchema: z.ZodMiniType<DashboardLayoutData["content"][numbe
       type: z.literal("Table"),
       props: z.strictObject({
         id: LayoutItemIdSchema,
-        sourceId: z.union([SourceIdSchema, z.literal("")]),
+        sourceId: z.optional(SourceIdSchema),
         visibleColumns: z.array(z.string()),
       }),
     }),
@@ -172,7 +170,7 @@ const DashboardContentSchema: z.ZodMiniType<DashboardLayoutData["content"][numbe
       type: z.literal("Chart"),
       props: z.strictObject({
         id: LayoutItemIdSchema,
-        sourceId: z.union([SourceIdSchema, z.literal("")]),
+        sourceId: z.optional(SourceIdSchema),
         chartType: z.enum(["line", "bar", "pie"]),
         categoryField: z.string(),
         valueField: z.string(),
@@ -180,20 +178,18 @@ const DashboardContentSchema: z.ZodMiniType<DashboardLayoutData["content"][numbe
     }),
     z.strictObject({
       type: z.literal("RichText"),
-      props: z.strictObject({ id: LayoutItemIdSchema, content: z.string() }),
+      props: z.strictObject({
+        id: LayoutItemIdSchema,
+        sourceId: z.optional(SourceIdSchema),
+        content: z.string(),
+      }),
     }),
   ]),
 );
 
 export const DashboardLayoutSchema = z.strictObject({
   root: z.strictObject({ props: z.strictObject({}) }),
-  content: z
-    .array(DashboardContentSchema)
-    .check(
-      z.refine((content) =>
-        content.some((item) => item.type === "Grid" && item.props.id === "dashboard-grid"),
-      ),
-    ),
+  content: z.array(DashboardContentSchema),
 });
 
 const NonEmptyStringSchema = z.string().check(z.refine((value) => value.trim().length > 0));
@@ -231,7 +227,7 @@ const DashboardSchema = z.strictObject({
   layout: DashboardLayoutSchema,
 });
 const DashboardSnapshotSchema = z.strictObject({
-  formatVersion: z.literal(4),
+  formatVersion: z.literal(6),
   sources: z.array(SourceSchema),
   dashboards: z.array(DashboardSchema),
 });
@@ -247,7 +243,7 @@ export function starterSnapshot(): DashboardSnapshot {
   const transactionsId = generateSourceId();
   const spendingId = generateSourceId();
   return {
-    formatVersion: 4,
+    formatVersion: 6,
     sources: [
       {
         id: transactionsId,
@@ -381,7 +377,7 @@ function validLayoutContent(
     ids.add(id);
     if (
       (item.type === "Table" || item.type === "Chart") &&
-      item.props.sourceId !== "" &&
+      item.props.sourceId !== undefined &&
       !sourceIds.has(item.props.sourceId)
     )
       return false;
@@ -394,11 +390,11 @@ function validLayoutContent(
   return true;
 }
 
-// Malformed snapshots and earlier versions are rejected, not migrated.
 export function readDashboardSnapshot(userId: UserId): DashboardSnapshot | undefined {
   try {
     const raw = window.localStorage.getItem(dashboardStorageKey(userId));
-    return raw === null ? undefined : validatedSnapshot(JSON.parse(raw));
+    if (raw === null) return undefined;
+    return validatedSnapshot(JSON.parse(raw));
   } catch {
     return undefined;
   }

@@ -64,7 +64,7 @@ class Sureql::ReportDefinition
     source = source_sql(spec.fetch("filters"))
     return detail_result(source, spec, page: page) if spec["mode"] == "detail"
 
-    currencies = connection.exec_query("SELECT DISTINCT currency FROM (#{source}) AS report_currencies LIMIT 2").map { |row| row["currency"] }
+    currencies = connection.exec_query("SELECT DISTINCT currency FROM (#{source}) AS report_currencies ORDER BY currency").map { |row| row["currency"] }
     monetary = spec.fetch("values").any? { |value| monetary?(value) }
     row_currency = spec.fetch("rows").any? { |dimension| dimension["field"] == "currency" }
     invalid!("rows", "mixed_currencies") if monetary && !row_currency && currencies.size > 1
@@ -72,10 +72,16 @@ class Sureql::ReportDefinition
     sql = report_sql(source, spec, page: page, all_columns: all_columns)
     raw = connection.exec_query(sql).first.fetch("payload")
     payload = raw.is_a?(String) ? JSON.parse(raw) : raw
-    payload.merge(
-      "mode" => "aggregate",
-      "sql" => sql,
-      "measures" => spec.fetch("values").map do |value|
+    aggregate_result(payload, spec, sql: sql, currencies: currencies, row_currency: row_currency)
+  rescue Sureql::CompileError, Sureql::UnknownSourceError, ActiveRecord::StatementInvalid
+    invalid!("report", "execution")
+  end
+
+  private
+    # The SQL's pivot matrix is private. Consumers receive named record fields;
+    # axes retain only identity/labels, and field metadata owns presentation.
+    def aggregate_result(payload, spec, sql:, currencies:, row_currency:)
+      measures = spec.fetch("values").map do |value|
         {
           "id" => value.fetch("id"),
           "label" => text("measure_label", field: text("fields.#{value.fetch('field')}"), aggregation: text("aggregations.#{value.fetch('aggregation')}")),
@@ -83,12 +89,72 @@ class Sureql::ReportDefinition
           "currency" => monetary?(value) && !row_currency ? currencies.first : nil
         }
       end
-    )
-  rescue Sureql::CompileError, Sureql::UnknownSourceError, ActiveRecord::StatementInvalid
-    invalid!("report", "execution")
-  end
+      fields = spec.fetch("rows").map do |dimension|
+        {
+          "key" => dimension.fetch("id"), "field" => dimension.fetch("field"),
+          "label" => text("fields.#{dimension.fetch('field')}"),
+          "kind" => dimension["field"] == "date" ? "date" : "text",
+          "role" => "dimension", "currency" => nil
+        }.merge(dimension.slice("dateBucket"))
+      end
+      row_currency_index = spec.fetch("rows").index { |dimension| dimension["field"] == "currency" }
+      column_currency_index = spec.fetch("columns").index { |dimension| dimension["field"] == "currency" }
+      value_fields = []
+      if spec.fetch("columns").any?
+        payload.fetch("columns").each do |column|
+          measures.each_with_index do |measure, measure_index|
+            fixed_currency = measure["currency"] || (column.fetch("values")[column_currency_index] if column_currency_index)
+            field_currencies = measure["format"] == "currency" && fixed_currency.nil? && row_currency ? currencies : [ fixed_currency ]
+            field_currencies.each do |currency|
+              value_fields << {
+                "key" => [ "measure", measure.fetch("id"), column.fetch("key"), currency ].to_json,
+                "field" => spec.fetch("values")[measure_index].fetch("field"),
+                "label" => [ column.fetch("labels").join(" / "), measure.fetch("label"), currency ].compact_blank.join(" · "),
+                "kind" => measure.fetch("format"), "currency" => currency,
+                "role" => "value", "measureId" => measure.fetch("id"), "columnKey" => column.fetch("key")
+              }
+            end
+          end
+        end
+      end
+      fields.concat(value_fields)
+      measures.each_with_index do |measure, index|
+        fields << {
+          "key" => measure.fetch("id"), "field" => spec.fetch("values")[index].fetch("field"),
+          "label" => measure.fetch("label"), "kind" => measure.fetch("format"),
+          "currency" => measure["currency"], "role" => "total", "measureId" => measure.fetch("id")
+        }
+      end
+      cells = payload.fetch("cells").group_by { |cell| cell.fetch("rowKey") }
+      fixed_currency = measures.find { |measure| measure["format"] == "currency" }&.fetch("currency")
+      measure_indices = measures.each_with_index.to_h { |measure, index| [ measure.fetch("id"), index ] }
+      records = payload.fetch("rows").map do |row|
+        currency = row_currency_index ? row.fetch("values")[row_currency_index] : fixed_currency
+        row["currency"] = currency.to_s
+        record = spec.fetch("rows").each_with_index.to_h do |dimension, index|
+          value = row.fetch("values")[index]
+          [ dimension.fetch("id"), dimension["field"].in?(%w[date currency]) && !value.nil? ? value : row.fetch("labels")[index] ]
+        end
+        measures.each_with_index { |measure, index| record[measure.fetch("id")] = row.fetch("totals")[index] }
+        row.delete("totals")
+        row_cells = cells.fetch(row.fetch("key"), []).index_by { |cell| cell.fetch("columnKey") }
+        value_fields.each do |field|
+          measure_index = measure_indices.fetch(field.fetch("measureId"))
+          cell = row_cells[field.fetch("columnKey")]
+          record[field.fetch("key")] = field["kind"] == "currency" && field["currency"] && field["currency"] != currency ? nil : cell&.fetch("values")&.[](measure_index)
+        end
+        record
+      end
+      {
+        "mode" => "aggregate", "sql" => sql, "result" => records,
+        "metadata" => {
+          "fields" => fields, "rows" => payload.fetch("rows"), "columns" => payload.fetch("columns"),
+          "measures" => measures, "grouping" => spec.slice("rows", "columns")
+        },
+        "truncated" => payload.fetch("truncated"), "pagination" => payload.fetch("pagination")
+      }
+    end
 
-  private
     def connection
       ActiveRecord::Base.connection
     end
@@ -268,14 +334,18 @@ class Sureql::ReportDefinition
       rows.pop if has_next
       {
         "mode" => "detail", "sql" => sql,
-        "columns" => columns.map do |column|
-          key = column.fetch("field")
-          { "field" => key, "label" => text("fields.#{key}"), "kind" => FIELDS.fetch(key).fetch(:kind) }
+        "result" => rows.map do |row|
+          columns.each_with_index.to_h { |column, index| [ column.fetch("field"), row.fetch("value#{index}") ] }
         end,
-        "rows" => rows.map do |row|
-          { "id" => row.fetch("id"), "currency" => row.fetch("currency"),
-            "values" => columns.each_index.map { |index| row.fetch("value#{index}") } }
-        end,
+        "metadata" => {
+          "fields" => columns.map do |column|
+            key = column.fetch("field")
+            { "key" => key, "field" => key, "label" => text("fields.#{key}"),
+              "kind" => key == "amount" ? "currency" : key == "currency" ? "text" : FIELDS.fetch(key).fetch(:kind),
+              "role" => "detail", "currency" => nil }
+          end,
+          "rows" => rows.map { |row| row.slice("id", "currency") }
+        },
         "truncated" => false,
         "pagination" => page.merge("hasNext" => has_next)
       }

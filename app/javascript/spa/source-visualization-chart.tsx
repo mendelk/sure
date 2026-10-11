@@ -39,7 +39,7 @@ export function sourceChartMapping(
   settings: ChartSettings,
 ): SourceChartMapping | SourceChartError {
   const categories = categoryColumns(data.columns);
-  const category = settings.categoryField
+  const selectedCategory = settings.categoryField
     ? categories.find((column) => column.key === settings.categoryField)
     : settings.chartType === "line"
       ? (categories.find((column) => column.kind === "date") ?? categories[0])
@@ -48,6 +48,14 @@ export function sourceChartMapping(
   const value = settings.valueField
     ? values.find((column) => column.key === settings.valueField)
     : values[0];
+  const scalarAggregate =
+    settings.categoryField === "" &&
+    data.result.mode === "aggregate" &&
+    data.result.metadata.grouping.rows.length === 0 &&
+    data.result.metadata.grouping.columns.length === 0;
+  const category =
+    selectedCategory ??
+    (scalarAggregate && value ? { key: "", label: value.label, kind: "text" as const } : undefined);
   if (!category || !value) return "source_chart_invalid_fields";
   const groups = new Map<string, SourceChartGroup>();
   for (const row of data.rows) {
@@ -59,7 +67,7 @@ export function sourceChartMapping(
     if (settings.chartType === "pie" && number < 0) return "source_chart_negative_pie";
     const currency = value.currency ?? row.currency;
     if (value.kind === "currency" && !currency) return "source_chart_missing_currency";
-    const categoryValue = row.values[category.key];
+    const categoryValue = scalarAggregate ? value.label : row.values[category.key];
     if (categoryValue === null || categoryValue === undefined || categoryValue === "")
       return "source_chart_invalid_values";
     let group = groups.get(currency);
@@ -120,11 +128,21 @@ function SourceChartGroupView({
   chartType: ChartSettings["chartType"];
   label: string;
 }) {
+  const formatter = useMemo(
+    () =>
+      new Intl.NumberFormat(
+        document.documentElement.lang || undefined,
+        mapping.value.kind === "currency" && group.currency
+          ? { style: "currency", currency: group.currency }
+          : { maximumFractionDigits: 20 },
+      ),
+    [mapping.value.kind, group.currency],
+  );
   const definition = useMemo(() => {
     const chartTooltip = {
       use: tooltip,
       format: ({ datum }) =>
-        `${mapping.category.label}: ${datum.label}\n${mapping.value.label}: ${datum.value.toLocaleString()}`,
+        `${mapping.category.key === "" ? "" : `${mapping.category.label}: ${datum.label}\n`}${mapping.value.label}: ${formatter.format(datum.value)}`,
     } satisfies ChartTooltipInput<SourceChartPoint>;
     if (chartType === "pie") {
       const pieData = pie(group.points, { value: (point) => point.value, gapAngle: 0.02 });
@@ -165,12 +183,22 @@ function SourceChartGroupView({
           scale: scaleLinear,
           nice: true,
           grid: true,
-          axis: { label: [mapping.value.label, group.currency].filter(Boolean).join(" · ") },
+          axis: {
+            label: [mapping.value.label, group.currency].filter(Boolean).join(" · "),
+            ticks: { format: (value: number) => formatter.format(value) },
+          },
         },
       },
       tooltip: chartTooltip,
     });
-  }, [group, mapping.category.label, mapping.value.label, chartType]);
+  }, [
+    group,
+    mapping.category.key,
+    mapping.category.label,
+    mapping.value.label,
+    chartType,
+    formatter,
+  ]);
   const chartLabel = [label, group.currency].filter(Boolean).join(" · ");
   return (
     <div className="rounded-xl border border-secondary bg-container p-3 shadow-border-xs">
@@ -180,10 +208,7 @@ function SourceChartGroupView({
         {group.points.map((point) => (
           <li key={point.id} className="flex items-baseline justify-between gap-2">
             <span>{point.label}</span>
-            <span className="tabular-nums">
-              {point.value}
-              {mapping.value.kind === "currency" && group.currency ? ` ${group.currency}` : ""}
-            </span>
+            <span className="tabular-nums">{formatter.format(point.value)}</span>
           </li>
         ))}
       </ul>
