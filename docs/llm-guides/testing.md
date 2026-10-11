@@ -20,6 +20,12 @@ behavioral tests or factories. RSpec/rswag is the explicit exception for
 - Use VCR for external API calls and existing cassettes in `test/vcr_cassettes/`.
   Keep credentials out of recordings; filters and shared setup live in
   [`test/test_helper.rb`](../../test/test_helper.rb).
+- Match controller assertions to current route ownership. SPA routes no longer
+  render retired ERB drawers; do not retain their markup or translated-copy assertions.
+- Provider metadata/date tests must explicitly enable pending imports and clear
+  environment overrides with `with_env_overrides`, rather than rely on deployment defaults.
+- Separate PostgreSQL sessions in lock tests must use the configured database
+  identity: this repository uses `user`, while Rails also accepts `username`.
 
 For example, when testing an orchestrator, set the command expectation before
 calling the subject, then check the subject's returned result:

@@ -34,6 +34,11 @@ class Api::V1::CashFlowsController < Api::V1::BaseController
   end
 
   private
+    # This public endpoint requires API credentials, even with a browser cookie.
+    def authenticate_session
+      false
+    end
+
     def invalid_query(error, message)
       render json: { error: error, message: message }, status: :unprocessable_entity
     end

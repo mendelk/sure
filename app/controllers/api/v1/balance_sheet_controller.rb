@@ -38,7 +38,7 @@ class Api::V1::BalanceSheetController < Api::V1::BaseController
     # Every account the user can see, with its current balance already
     # normalized to the family currency.
     def account_rows
-      Current.user.accessible_accounts.map do |account|
+      current_resource_owner.accessible_accounts.map do |account|
         {
           id: account.id,
           name: account.name,

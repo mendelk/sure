@@ -448,15 +448,19 @@ spending can therefore differ from the gross monthly figures, while net savings
 agrees. Surplus and deficit nodes balance the central flow. Clients own layout,
 formatting, and structural colors; all financial aggregation stays on Sure.
 
-The public endpoint uses the standard OAuth/API-key authentication and does not
-accept browser sessions. Responses are private and not HTTP-cacheable; native
-clients retain their own authenticated, identity-scoped offline cache.
+The public endpoint requires OAuth or an API key even when a browser cookie is
+present. Missing or invalid API credentials return `401`; browser sessions cannot
+rescue them. Responses are private and not HTTP-cacheable; native clients retain
+their own authenticated, identity-scoped offline cache.
 
 The Turbo dashboard fetches `/dashboard/cash_flow` through a normal web controller,
 with session authentication, onboarding checks, and the current user's preview
 gate. It honors the impersonated browser identity and finance-account scope. Both
 endpoints use `IncomeStatement::CashFlowGraph` and `IncomeStatement::Sankey`, sharing
 the graph representation and aggregation without sharing authentication paths.
+
+Balance-sheet account rows are scoped to the authenticated API credential owner,
+even if a different browser user is signed in.
 
 The web dashboard keeps its original Sankey unchanged and renders the new
 server-calculated chart directly below it only for users with preview features
