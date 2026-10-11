@@ -195,6 +195,8 @@ function selectComponentSource(
       return { ...item, props: { ...item.props, sourceId } };
     if (item.type === "Chart" && item.props.id === componentId)
       return { ...item, props: { ...item.props, sourceId } };
+    if (item.type === "RichText" && item.props.id === componentId)
+      return { ...item, props: { ...item.props, sourceId } };
     if (item.type === "Grid" || item.type === "GridItem") {
       const children = selectComponentSource(item.props.content, componentId, sourceId);
       if (children !== item.props.content) {

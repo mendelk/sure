@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Layout composes Puck authoring, source-bound rich text, and visualization fields. */
 import {
   Puck,
   Render,
@@ -22,6 +23,8 @@ import {
 } from "react";
 // eslint-disable-next-line import/no-unassigned-import -- Puck's editor stylesheet.
 import "@puckeditor/core/puck.css";
+// eslint-disable-next-line import/no-unassigned-import -- Scoped Sure theme adapter.
+import "./dashboard-layout.css";
 import { Button } from "./components/button";
 import { FormField } from "./components/form-field";
 import { DashboardLayoutSchema } from "./dashboard-storage";
@@ -30,6 +33,7 @@ import type { Dashboard, DashboardLayoutData, DashboardLayoutProps } from "./das
 import type { ReportBuilderText } from "./report-definition";
 import type { Source } from "./source";
 import { SourcePicker } from "./source-picker";
+import { SourceVariableAutocomplete, SourceVariablePreview } from "./rich-text-source";
 import {
   SourceVisualization,
   TableColumnsField,
@@ -48,8 +52,8 @@ type PuckLayoutProps = {
     (Type extends "Grid" | "GridItem"
       ? { content: Slot<PuckLayoutProps> }
       : Type extends "RichText"
-        ? { content: DashboardLayoutProps["RichText"]["content"] }
-        : { sourceId: string });
+        ? { content: DashboardLayoutProps["RichText"]["content"]; sourceId?: string }
+        : { sourceId?: string });
 };
 
 type DashboardLayoutOptions = {
@@ -72,6 +76,8 @@ type FocusRichTextEditor = (editor: ActiveRichTextEditor) => void;
 // Puck retains its initial config. Live catalog updates must cross that boundary
 // without remounting Puck and discarding the layout draft.
 const SourceCatalogContext = createContext<Source[]>([]);
+const RichTextLayoutContext = createContext<DashboardLayoutData | null>(null);
+const RichTextEditorContext = createContext<ActiveRichTextEditor | null>(null);
 
 function useDashboardConfig(
   { endpoint, onCreateSource, onEditSource, text }: DashboardLayoutOptions,
@@ -85,13 +91,13 @@ function useDashboardConfig(
         onChange,
         id,
       }: {
-        value: string;
-        onChange: (value: string) => void;
+        value: string | undefined;
+        onChange: (value: string | undefined) => void;
         id: string;
       }) => (
         <SourceReferenceField
           id={id}
-          value={value === "" ? "" : SourceIdSchema.parse(value)}
+          value={value === undefined ? undefined : SourceIdSchema.parse(value)}
           onChange={onChange}
           onCreateSource={onCreateSource}
           onEditSource={onEditSource}
@@ -122,10 +128,6 @@ function useDashboardConfig(
           label: text.layout_grid,
           fields: { content: { type: "slot", allow: ["GridItem"] } },
           defaultProps: { content: [] },
-          resolvePermissions: ({ props }) =>
-            props.id === "dashboard-grid"
-              ? { delete: false, duplicate: false, drag: false }
-              : { delete: true, duplicate: true, drag: true },
           render: ({ content: Content }) => (
             <Content className="grid min-w-0 grid-cols-12 items-start gap-3" />
           ),
@@ -194,7 +196,7 @@ function useDashboardConfig(
               ),
             },
           },
-          defaultProps: { sourceId: "", visibleColumns: [] },
+          defaultProps: { visibleColumns: [] },
           render: ({ id, sourceId, visibleColumns, puck }) => (
             <div ref={puck.dragRef} data-dashboard-table={id} className="min-h-0 min-w-0 flex-1">
               <DashboardSourceVisualization
@@ -203,7 +205,7 @@ function useDashboardConfig(
                 view={{
                   type: "Table",
                   props: {
-                    sourceId: sourceId === "" ? "" : SourceIdSchema.parse(sourceId),
+                    sourceId: sourceId === undefined ? undefined : SourceIdSchema.parse(sourceId),
                     visibleColumns,
                   },
                 }}
@@ -248,7 +250,7 @@ function useDashboardConfig(
               ),
             },
           },
-          defaultProps: { sourceId: "", chartType: "line", categoryField: "", valueField: "" },
+          defaultProps: { chartType: "line", categoryField: "", valueField: "" },
           render: ({ id, sourceId, chartType, categoryField, valueField, puck }) => (
             <div ref={puck.dragRef} data-dashboard-chart={id} className="min-h-0 min-w-0 flex-1">
               <DashboardSourceVisualization
@@ -257,7 +259,7 @@ function useDashboardConfig(
                 view={{
                   type: "Chart",
                   props: {
-                    sourceId: sourceId === "" ? "" : SourceIdSchema.parse(sourceId),
+                    sourceId: sourceId === undefined ? undefined : SourceIdSchema.parse(sourceId),
                     chartType,
                     categoryField,
                     valueField,
@@ -272,22 +274,30 @@ function useDashboardConfig(
           label: text.layout_richtext,
           inline: true,
           fields: {
+            sourceId: sourceField,
             content: {
               type: "richtext",
               contentEditable: true,
+              visible: false,
               label: text.layout_richtext_content,
-              renderMenu: renderRichTextMenu,
               renderInlineMenu: renderRichTextMenu,
             },
           },
           defaultProps: { content: "" },
-          render: ({ id, content, puck }) => (
+          render: ({ id, sourceId, content, puck }) => (
             <div
               ref={puck.dragRef}
               data-dashboard-richtext={id}
               className="min-h-0 min-w-0 overflow-auto rounded-xl bg-container p-4 text-primary"
             >
-              {content}
+              <DashboardRichTextContent
+                id={id}
+                sourceId={sourceId}
+                content={content}
+                editing={onFocusEditor !== undefined}
+                endpoint={endpoint}
+                text={text}
+              />
             </div>
           ),
         },
@@ -394,7 +404,7 @@ function TableColumnsEditor(props: {
 }) {
   const sources = useContext(SourceCatalogContext);
   const sourceId = useLayoutPuck((state) =>
-    state.selectedItem?.type === "Table" ? state.selectedItem.props.sourceId : "",
+    state.selectedItem?.type === "Table" ? state.selectedItem.props.sourceId : undefined,
   );
   return <TableColumnsField {...props} source={sources.find((source) => source.id === sourceId)} />;
 }
@@ -411,7 +421,7 @@ function ChartAxisEditor({
 }) {
   const sources = useContext(SourceCatalogContext);
   const sourceId = useLayoutPuck((state) =>
-    state.selectedItem?.type === "Chart" ? state.selectedItem.props.sourceId : "",
+    state.selectedItem?.type === "Chart" ? state.selectedItem.props.sourceId : undefined,
   );
   const source = sources.find((item) => item.id === sourceId);
   return field === "category" ? (
@@ -420,12 +430,75 @@ function ChartAxisEditor({
     <ChartValueField {...props} source={source} />
   );
 }
+function findRichTextTemplate(
+  content: DashboardLayoutData["content"],
+  id: string,
+): string | undefined {
+  for (const item of content) {
+    if (item.type === "RichText" && item.props.id === id && typeof item.props.content === "string")
+      return item.props.content;
+    if (item.type === "Grid" || item.type === "GridItem") {
+      const found = findRichTextTemplate(item.props.content, id);
+      if (found !== undefined) return found;
+    }
+  }
+  return undefined;
+}
+
+function DashboardRichTextContent({
+  id,
+  sourceId,
+  content,
+  editing,
+  endpoint,
+  text,
+}: {
+  id: string;
+  sourceId: string | undefined;
+  content: DashboardLayoutProps["RichText"]["content"];
+  editing: boolean;
+  endpoint: string;
+  text: ReportBuilderText;
+}) {
+  const layout = useContext(RichTextLayoutContext);
+  const activeEditor = useContext(RichTextEditorContext);
+  const source = useContext(SourceCatalogContext).find((item) => item.id === sourceId);
+  const template = layout ? findRichTextTemplate(layout.content, id) : undefined;
+  if (sourceId === undefined || template === undefined)
+    return <div className="prose">{content}</div>;
+  const preview = (
+    <SourceVariablePreview template={template} source={source} endpoint={endpoint} text={text} />
+  );
+  if (!editing) return preview;
+  return (
+    <div className="space-y-4">
+      <div className="prose">{content}</div>
+      {activeEditor?.id === id && (
+        <SourceVariableAutocomplete
+          editor={activeEditor.editor}
+          source={source}
+          endpoint={endpoint}
+          text={text}
+        />
+      )}
+      <section
+        aria-label={text.layout_richtext_preview}
+        className="space-y-2 border-t border-secondary pt-3"
+      >
+        <h3 className="text-xs font-medium text-secondary">{text.layout_richtext_preview}</h3>
+        {preview}
+      </section>
+    </div>
+  );
+}
 
 export function DashboardLayout(options: DashboardLayoutOptions) {
   const config = useDashboardConfig(options);
   return (
     <SourceCatalogContext.Provider value={options.sources}>
-      <Render config={config} data={options.dashboard.layout} />
+      <RichTextLayoutContext.Provider value={options.dashboard.layout}>
+        <Render config={config} data={options.dashboard.layout} />
+      </RichTextLayoutContext.Provider>
     </SourceCatalogContext.Provider>
   );
 }
@@ -491,7 +564,9 @@ function TrackRichTextEditor({
   editor,
   children,
   onFocusEditor,
-}: RichTextMenuProps & { onFocusEditor: FocusRichTextEditor }) {
+}: RichTextMenuProps & {
+  onFocusEditor: FocusRichTextEditor;
+}) {
   const id = useLayoutPuck((state) =>
     state.selectedItem?.type === "RichText" ? state.selectedItem.props.id : undefined,
   );
@@ -506,7 +581,18 @@ function TrackRichTextEditor({
       editor?.off("focus", rememberEditor);
     };
   }, [onFocusEditor, editor, id]);
-  return <RichTextMenu>{children}</RichTextMenu>;
+  return (
+    <RichTextMenu>
+      <RichTextMenu.Group>
+        <RichTextMenu.HeadingSelect />
+        <RichTextMenu.ListSelect />
+      </RichTextMenu.Group>
+      {children}
+      <RichTextMenu.Group>
+        <RichTextMenu.AlignSelect />
+      </RichTextMenu.Group>
+    </RichTextMenu>
+  );
 }
 
 function RestoreLayoutSelection({ id }: { id: LayoutItemId }) {
@@ -527,44 +613,54 @@ function RestoreLayoutSelection({ id }: { id: LayoutItemId }) {
 export function DashboardLayoutEditor(options: DashboardLayoutEditorOptions) {
   const activeEditor = useRef<ActiveRichTextEditor | null>(null);
   const [initialLayout] = useState(options.dashboard.layout);
+  const [focusedEditor, setFocusedEditor] = useState<ActiveRichTextEditor | null>(null);
   const onFocusEditor = useCallback((next: ActiveRichTextEditor) => {
     // Save blurs inline editing and closes its menu before the click handler runs.
     activeEditor.current = next;
+    setFocusedEditor(next);
   }, []);
   const config = useDashboardConfig(options, onFocusEditor);
   return (
     <SourceCatalogContext.Provider value={options.sources}>
-      <section aria-label={options.text.edit_layout} className="space-y-3">
-        <p className="text-sm text-secondary">{options.text.layout_help}</p>
-        <Puck
-          config={config}
-          data={initialLayout}
-          iframe={{ enabled: false }}
-          onChange={(data) => {
-            options.onDraftChange(
-              DashboardLayoutSchema.parse({ root: { props: {} }, content: data.content }),
-            );
-          }}
-        >
-          {options.initialComponentId !== undefined && (
-            <RestoreLayoutSelection id={options.initialComponentId} />
-          )}
-          <header className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-xl font-semibold text-primary">{options.dashboard.name}</h1>
-            <LayoutEditorActions {...options} activeEditor={activeEditor} />
-          </header>
-          <div className="mt-4 flex min-w-0 flex-col gap-4 lg:flex-row">
-            <aside className="space-y-4 rounded-xl border border-secondary bg-container p-3 lg:w-64 lg:shrink-0">
-              <Puck.Components />
-              <Puck.Outline />
-              <Puck.Fields />
-            </aside>
-            <div className="min-w-0 flex-1 pt-12">
-              <Puck.Preview />
-            </div>
-          </div>
-        </Puck>
-      </section>
+      <RichTextLayoutContext.Provider value={options.dashboard.layout}>
+        <RichTextEditorContext.Provider value={focusedEditor}>
+          <section
+            aria-label={options.text.edit_layout}
+            data-dashboard-layout-editor=""
+            className="space-y-3"
+          >
+            <p className="text-sm text-secondary">{options.text.layout_help}</p>
+            <Puck
+              config={config}
+              data={initialLayout}
+              iframe={{ enabled: false }}
+              onChange={(data) => {
+                options.onDraftChange(
+                  DashboardLayoutSchema.parse({ root: { props: {} }, content: data.content }),
+                );
+              }}
+            >
+              {options.initialComponentId !== undefined && (
+                <RestoreLayoutSelection id={options.initialComponentId} />
+              )}
+              <header className="flex flex-wrap items-center justify-between gap-3">
+                <h1 className="text-xl font-semibold text-primary">{options.dashboard.name}</h1>
+                <LayoutEditorActions {...options} activeEditor={activeEditor} />
+              </header>
+              <div className="mt-4 flex min-w-0 flex-col gap-4 lg:flex-row">
+                <aside className="w-full self-start space-y-4 rounded-xl border border-secondary bg-container p-3 lg:w-64 lg:shrink-0">
+                  <Puck.Components />
+                  <Puck.Outline />
+                  <Puck.Fields />
+                </aside>
+                <div className="min-w-0 flex-1 pt-12">
+                  <Puck.Preview />
+                </div>
+              </div>
+            </Puck>
+          </section>
+        </RichTextEditorContext.Provider>
+      </RichTextLayoutContext.Provider>
     </SourceCatalogContext.Provider>
   );
 }

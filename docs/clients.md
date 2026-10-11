@@ -44,13 +44,19 @@ when no preference is saved. If browser storage is unavailable, toggling still
 works for the current session. The mobile navigation drawer remains separate.
 
 Dashboards at `/dashboards` use a user-scoped browser-local snapshot with
-`formatVersion: 4`, containing a shared source catalog and independent dashboard layouts.
+`formatVersion: 6`, containing a shared source catalog and independent dashboard layouts.
 New dashboard IDs and all source IDs are random 128-bit identifiers.
 A source has an ID, a name, and configuration only: either a structured
 `ReportDefinition` or a SureQL query. It does not own layout or visualization
 settings. This remains a browser-local prototype; there is no backend source
-CRUD or cross-device synchronization. Incompatible older or malformed snapshots
-are reset to the starter rather than migrated.
+CRUD or cross-device synchronization. Only the current snapshot format is
+accepted; older formats are not migrated. Incompatible or malformed snapshots
+are reset to the starter. Layout drafts must match the current layout schema;
+invalid drafts are discarded rather than migrated.
+
+Table, chart, and rich text `sourceId` properties are optional UUIDs. No selection
+is `undefined` in application state and omitted from persisted JSON; empty
+strings and `null` are not valid source IDs.
 
 Manage sources on their own pages: `/sources` lists the catalog,
 `/sources/new` creates a source, and `/sources/<id>/edit` edits one.
@@ -79,24 +85,69 @@ it grows or shrinks with that content. Switching back to Fixed starts at four
 rows. The selected mode is saved with the layout.
 Grid item content slots accept any configured Puck component,
 including nested **Grid** and **GridItem** containers, standalone **Table** and
-**Chart** blocks, and **RichText** blocks. Grid slots accept grid items; only the
-starter root grid is fixed and cannot be dragged, duplicated, or deleted.
+**Chart** blocks, and **RichText** blocks. Grid slots accept grid items. Every
+Grid, including the starter grid, can be dragged, duplicated, and deleted.
+Deleting a Grid removes its contained blocks, not their shared sources.
+New dashboards start with an empty layout; layouts do not require a Grid.
+**Add table** and **Add chart** append a grid item to the first root-level Grid
+when one exists, otherwise they append a standalone block at the dashboard root.
 Blocks can be reordered and moved between containers or to the root using
-Puck's outline as well as the canvas. Root-level blocks are saved alongside the
-starter grid. Select a Table or Chart block to choose its **Source**, create a
+Puck's outline as well as the canvas. Select a Table, Chart, or Rich text block to choose its **Source**, create a
 source on its own page, or edit the selected source. Per-user sessionStorage
 retains unsaved layout drafts across source-page navigation and reloads.
 Saving returns to the native Puck selection with the new source selected;
 canceling retains the previous source and layout settings.
 A new Table inserted from the palette starts unconfigured.
-RichText uses Puck's built-in `richtext` field, native formatting controls, and
-inline editing. Dashboards without visualizations can still be edited and contain
-rich text. **Undo layout change** and **Redo layout change** operate on the
-draft. **Save layout** persists it in browser storage; **Cancel** discards it.
+RichText is edited directly in its block in the dashboard pane, not in the
+sidebar. Click the text while editing the layout to use Puck's formatting
+toolbar. Headings and other rich-text formatting use the application's prose
+typography consistently in the editor, live source preview, and saved dashboard.
+Source-variable suggestions appear below the text while typing a matching path,
+without persistent variable help text.
+Source selection remains in the sidebar. Dashboards without visualizations can
+still be edited and contain rich text. **Undo layout change** and **Redo layout
+change** operate on the draft. **Save layout** persists it in browser storage;
+**Cancel** discards it.
+
+Rich text can optionally reference one shared source. Type brace-delimited
+dot/bracket paths such as `Latest payment: {result[0].name} — {result[0]["amount"]}`.
+The lookup root uses the normalized source response: `result` is a flat array of named records,
+and `metadata` describes fields, original currencies, and structured grouping.
+An ungrouped sum with measure ID `total` is `{result[0].total}`, not an indexed
+pivot total. All source pages are fetched, respecting SureQL `take` limits; an
+empty result still supports `{result.length}`.
+
+In edit mode, the text keeps its expressions and a **Live preview** below it
+shows resolved values. Saving stores the template, never the resolved values.
+Selecting, creating, editing, or clearing its source uses the same picker and
+draft-return flow as tables and charts. Existing rich text without a source is
+unchanged. Missing paths, malformed paths, and unavailable sources leave their
+expressions visible; null values become blank, while zero and false are retained.
+Numeric field values use locale-aware formatting. Currency fields use their
+fixed `metadata.fields[].currency` when present, otherwise the original currency
+of `metadata.rows[resultIndex]`; for example, USD `"-58.0000"` becomes `-$58.00`.
+Currency formatting uses the currency's minor-unit precision (USD: two decimals;
+JPY: none) and never converts the amount. Decimal strings are formatted directly,
+without a lossy JavaScript number conversion. Missing currency metadata leaves
+the original value visible rather than guessing a unit.
+Objects and arrays are serialized as JSON text. Values are inserted only into
+text, not HTML attributes or URLs, and cannot introduce HTML. Inline formatting
+is preserved, including expressions split across formatting marks; expressions
+do not span paragraphs or hard line breaks. Only own properties are accessible;
+prototype-related keys and executable expressions are not supported.
+
+While typing inside `{…}`, the Text field's formatting toolbar offers matching
+source paths. Arrow keys select a suggestion; Enter, Tab, or clicking inserts it;
+Escape dismisses the list. Suggestions are bounded to the first 200 available
+paths with eight matches shown; manually typed paths can address any fetched row.
+
 The editor combines Puck's component palette, outline, and fields with an
 unscaled preview. Layout is flow-based rather than absolute x/y positioning;
 size changes use fields instead of corner resize handles. Cards stack in a
 single column below the medium screen breakpoint.
+The editor's palette, outline, fields, and action bars follow Sure's light and
+dark themes. Hovered and selected outline rows retain readable labels; canvas
+hover highlights use a border without tinting the live table or chart content.
 Removing a component or deleting a dashboard preserves its sources in the shared
 catalog. A source can appear repeatedly within a dashboard or across dashboards;
 there is no source deletion UI. Confirming **Reset dashboards and sources**
@@ -156,7 +207,34 @@ produce an honest warning with a table fallback rather than fabricated data.
 
 Chart hover tooltips use the selected source-column labels and actual category
 values, not generic `x` / `y` channels or internal row positions. Line, bar, and
-pie charts share this mapping; numeric values retain locale-aware formatting.
+pie charts share this mapping. Chart axes, hover values, and accessible values
+use locale-aware number or original-currency formatting. An aggregate without
+row or column dimensions uses the selected measure label as its single category.
+
+### Structured response contract
+
+`POST /dashboard/monarch/run` with a structured `report` returns a flat `result`
+array, plus `metadata`, `mode`, `sql`, `truncated`, and `pagination`. Transaction
+records use the selected field names. Aggregate records use row-dimension IDs
+and measure IDs as property names; a report with no grouping returns one record, such as
+`[{ "total": "-58.0000" }]`. Null sums and zero counts remain distinct for an
+empty aggregate source.
+SureQL row objects are adapted into the same frontend record/field metadata model.
+
+`metadata.fields` describes each record key with its source field, label, kind,
+role, and currency. Monetary measures have `kind: "currency"`; counts and other
+numeric measures have `kind: "number"`. `metadata.rows` is aligned with `result`
+and supplies stable row identities and original currency, even when Currency is
+not a selected transaction field. Aggregate metadata also contains row/column
+axis values and labels, measure descriptors, and the grouping definition.
+
+Grouped pivot records include stable dynamic cell keys described by the field's
+`measureId` and `columnKey`. Consumers use those descriptors rather than decoding
+the key; the old positional `cells[].values[]` response is not exposed. Named
+measure properties contain full row totals, including omitted column groups.
+Average and distinct-count totals are computed over the full source, not summed
+from displayed cells. Pagination still selects whole pivot rows, and all-page
+consumers merge records together with their aligned row metadata.
 
 ### Structured source builder
 

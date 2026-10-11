@@ -676,9 +676,7 @@ class DashboardsTest < ApplicationSystemTestCase
     visit dashboards_url
     snapshot = dashboard_snapshot
     layout = active_dashboard(snapshot).fetch("layout")
-    grid = layout.fetch("content").first
-    grid.fetch("props")["content"] = []
-    layout["content"] = [ { "type" => "RichText", "props" => { "id" => "notes-editor", "content" => "" } }, grid ]
+    layout["content"] = [ { "type" => "RichText", "props" => { "id" => "notes-editor", "content" => "" } } ]
     write_snapshot(snapshot)
     visit dashboards_url
     click_button "Edit layout"
@@ -693,6 +691,122 @@ class DashboardsTest < ApplicationSystemTestCase
     visit dashboards_url
     assert_selector "[data-dashboard-richtext]", text: "Dashboard notes saved without visualizations."
     assert_selector "table td", text: "Dashboard Groceries Test"
+  end
+
+  test "rich text resolves source paths across formatting without treating values as HTML" do
+    name = 'Source value <img src=x onerror="window.richTextInjected=true">'
+    create_transaction(name, Date.current, 813.25)
+    template = '<p>Purchase: <strong>{result[0].na</strong><em>me}</em> / {result[0]["amount"]} / {result[0].zero} / {result[0].flag} / [{result[0].notes}] / {result[0].missing} / {result[0].__proto__}.</p>'
+    source = install_rich_text_source("from transactions\nfilter amount == 813.25\nderive {zero = 0, flag = false}\ntake 1", template, linked: false)
+    assert_selector "[data-dashboard-richtext]", text: "{result[0].name}"
+
+    click_button "Edit layout"
+    find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']").click
+    within("aside") { select source.fetch("name"), from: "Source" }
+    within "[data-richtext-preview]" do
+      assert_selector "strong", text: name
+      assert_text "813.25 / 0 / false / [] / {result[0].missing} / {result[0].__proto__}."
+      assert_no_selector "img, script"
+    end
+    click_button "Save layout"
+    page.refresh
+    within "[data-dashboard-richtext='source-notes']" do
+      assert_selector "strong", text: name
+      assert_no_selector "img, script"
+    end
+    assert_nil page.evaluate_script("window.richTextInjected")
+    props = component_by_id("source-notes").fetch("props")
+    assert_equal source.fetch("id"), props.fetch("sourceId")
+    assert_includes props.fetch("content"), "{result[0].missing}"
+    assert_not_includes props.fetch("content"), name
+  end
+
+  test "rich text autocomplete saves expressions and replaces an existing variable suffix" do
+    install_rich_text_source(%(from transactions\nfilter name == "Dashboard Groceries Test"\ntake 1), "")
+    click_button "Edit layout"
+    editor = find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']")
+    editor.click
+    editor.send_keys("Latest {result[0].na")
+    assert_selector "[data-dashboard-richtext='source-notes'] [role='option']", text: "{result[0].name}"
+    editor.send_keys(:enter)
+    assert_equal "Latest {result[0].name}", editor.text
+    within("[data-richtext-preview]") { assert_text "Latest Dashboard Groceries Test" }
+    click_button "Save layout"
+    page.refresh
+    assert_selector "[data-dashboard-richtext='source-notes']", text: "Latest Dashboard Groceries Test"
+    assert_includes component_by_id("source-notes").fetch("props").fetch("content"), "{result[0].name}"
+
+    click_button "Edit layout"
+    editor = find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']")
+    editor.click
+    editor.send_keys(:end, :left, :left, :left)
+    assert_selector "[data-dashboard-richtext='source-notes'] [role='option']", text: "{result[0].name}"
+    editor.send_keys(:tab)
+    assert_equal "Latest {result[0].name}", editor.text
+    click_button "Cancel"
+  end
+
+  test "a source created from rich text attaches to its draft and shared edits update the value" do
+    query = %(from transactions\nfilter name == "Dashboard Groceries Test"\ntake 1)
+    install_rich_text_source(query, "<p>Amount: {result[0].amount}</p>", linked: false)
+    click_button "Edit layout"
+    find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']").click
+    create_source("Notes amount", query)
+    assert_field "Source", with: source_named("Notes amount").fetch("id")
+    within("[data-richtext-preview]") { assert_text "Amount: 42.5" }
+    click_button "Edit source"
+    set_query(query.sub("take 1", "derive {amount = 99}\ntake 1"))
+    run_preview
+    save_source
+    within("[data-richtext-preview]") { assert_text "Amount: 99" }
+    click_button "Save layout"
+    page.refresh
+    assert_selector "[data-dashboard-richtext='source-notes']", text: "Amount: 99"
+    assert_equal source_named("Notes amount").fetch("id"), component_by_id("source-notes").fetch("props").fetch("sourceId")
+    assert_equal "<p>Amount: {result[0].amount}</p>", component_by_id("source-notes").fetch("props").fetch("content")
+  end
+
+  test "rich text can address source rows beyond a table's first page" do
+    51.times { |index| create_transaction(format("Rich text row %02d", index + 1), Date.current, 814.25) }
+    install_rich_text_source("from transactions\nfilter amount == 814.25\nsort {name}\ntake 51", "<p>Last: {result[50].name}; count: {result.length}</p>")
+    assert_selector "[data-dashboard-richtext='source-notes']", text: "Last: Rich text row 51; count: 51"
+  end
+
+  test "clearing a rich text source preserves its template and can be rebound after reload" do
+    source = install_rich_text_source(%(from transactions\nfilter name == "Dashboard Groceries Test"\ntake 1), "<p>Latest: {result[0].name}</p>")
+    assert_selector "[data-dashboard-richtext='source-notes']", text: "Latest: Dashboard Groceries Test"
+    sources = dashboard_snapshot.fetch("sources")
+    click_button "Edit layout"
+    find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']").click
+    select I18n.t("report_builder.choose_source"), from: "Source"
+    click_button "Save layout"
+    visit dashboards_url
+    assert_selector "[data-dashboard-richtext='source-notes']", text: "Latest: {result[0].name}"
+    refute component_by_id("source-notes").fetch("props").key?("sourceId")
+    assert_equal sources, dashboard_snapshot.fetch("sources")
+
+    click_button "Edit layout"
+    find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']").click
+    select source.fetch("name"), from: "Source"
+    click_button "Save layout"
+    visit dashboards_url
+    assert_selector "[data-dashboard-richtext='source-notes']", text: "Latest: Dashboard Groceries Test"
+    assert_equal source.fetch("id"), component_by_id("source-notes").fetch("props").fetch("sourceId")
+  end
+
+  test "rich text uses each aggregate row currency" do
+    account = @user.family.accounts.create!(name: "Rich text currencies", owner: @user, currency: "USD", balance: 0, accountable: Depository.new)
+    { "EUR" => 12.34, "JPY" => 100, "USD" => -58 }.each do |currency, amount|
+      account.entries.create!(name: "Source currency", date: Date.current, amount: amount, currency: currency, entryable: Transaction.new)
+    end
+    definition = {
+      version: 1, source: "transactions", mode: "aggregate",
+      rows: [ { id: "row_currency", field: "currency" } ], columns: [],
+      values: [ { id: "total", field: "amount", aggregation: "sum" } ],
+      filters: [ { field: "account", operator: "equals", value: account.id } ], sort: []
+    }
+    install_rich_text_source(definition, "<p>EUR {result[0].total}; JPY {result[1].total}; USD {result[2].total}</p>")
+    assert_selector "[data-dashboard-richtext='source-notes']", text: "EUR €12.34; JPY ¥100; USD -$58.00"
   end
 
   test "deleting a nested visualization preserves sibling rich text and its source" do
@@ -743,6 +857,19 @@ class DashboardsTest < ApplicationSystemTestCase
     create_dashboard("Fresh start")
     add_visualization("Table", "Recent transactions")
     assert_selector "table td", text: "Dashboard Groceries Test"
+  end
+
+  test "older snapshots reset to a usable starter without migrating saved content" do
+    visit dashboards_url
+    snapshot = dashboard_snapshot
+    snapshot["formatVersion"] = 5
+    snapshot.fetch("dashboards").first["name"] = "Old dashboard"
+    previous_source_ids = snapshot.fetch("sources").map { |source| source.fetch("id") }
+    write_snapshot(snapshot)
+    visit dashboards_url
+    assert_selected_dashboard("My dashboard")
+    assert_selector "table td", text: "Dashboard Groceries Test"
+    assert_empty previous_source_ids & dashboard_snapshot.fetch("sources").map { |source| source.fetch("id") }
   end
 
   test "malformed snapshots reset to a usable starter" do
@@ -807,6 +934,23 @@ class DashboardsTest < ApplicationSystemTestCase
   end
 
   private
+    def install_rich_text_source(query, template, linked: true)
+      visit dashboards_url
+      snapshot = dashboard_snapshot
+      source = snapshot.fetch("sources").first
+      source["configuration"] = query.is_a?(Hash) ? { "kind" => "structured", "definition" => query } : { "kind" => "sureql", "query" => query }
+      layout = active_dashboard(snapshot).fetch("layout")
+      grid = layout.fetch("content").find { |item| item.fetch("type") == "Grid" }
+      grid.fetch("props")["content"] = []
+      layout["content"] = [ {
+        "type" => "RichText",
+        "props" => { "id" => "source-notes", "content" => template, **(linked ? { "sourceId" => source.fetch("id") } : {}) }
+      }, grid ]
+      write_snapshot(snapshot)
+      visit dashboards_url
+      source
+    end
+
     def preview_rows
       page.evaluate_script("Array.from(document.querySelectorAll('#source-editor tbody tr'), row => row.textContent)")
     end
@@ -928,7 +1072,6 @@ class DashboardsTest < ApplicationSystemTestCase
           return JSON.parse(window.localStorage.getItem(`sure:dashboards:${bootstrap.currentUser.id}`));
         })()
       JS
-      assert_equal 4, snapshot.fetch("formatVersion")
       snapshot
     end
 
@@ -952,7 +1095,7 @@ class DashboardsTest < ApplicationSystemTestCase
     def visualization(type, source_id, dashboard_id: nil)
       snapshot = dashboard_snapshot
       dashboard = dashboard_id ? snapshot.fetch("dashboards").find { |item| item.fetch("id") == dashboard_id } : active_dashboard(snapshot)
-      components(dashboard.fetch("layout")).find { |item| item.fetch("type") == type && item.fetch("props").fetch("sourceId") == source_id } || flunk("Missing #{type} for #{source_id}")
+      components(dashboard.fetch("layout")).find { |item| item.fetch("type") == type && item.fetch("props")["sourceId"] == source_id } || flunk("Missing #{type} for #{source_id}")
     end
 
     def component_by_id(id)

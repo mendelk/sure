@@ -26,7 +26,7 @@ function useSourceFields(source: Source | undefined, endpoint: string, all?: "al
   const options = source ? sourceQueryOptions(endpoint, source, all) : undefined;
   return useQuery<SourceData>({
     ...options,
-    queryKey: options?.queryKey ?? ["source", ""],
+    queryKey: options?.queryKey ?? ["source", undefined],
     queryFn: options?.queryFn ?? skipToken,
   });
 }

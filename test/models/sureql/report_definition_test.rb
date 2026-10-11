@@ -21,16 +21,16 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
 
     result = @reports.call(definition)
     assert_equal "aggregate", result.fetch("mode")
-    rows = result.fetch("rows")
+    rows = result.fetch("metadata").fetch("rows")
     assert_equal [ categories(:one).id, categories(:income).id, nil ].sort_by(&:to_s), rows.map { |row| row.fetch("values").first }.sort_by(&:to_s)
-    assert_equal [ "2025-01", "2025-02" ], result.fetch("columns").map { |column| column.fetch("labels").first }
+    assert_equal [ "2025-01", "2025-02" ], result.fetch("metadata").fetch("columns").map { |column| column.fetch("labels").first }
     uncategorized = rows.find { |row| row.fetch("values") == [ nil ] }
     assert_equal [ I18n.t("report_definition.uncategorized") ], uncategorized.fetch("labels")
-    assert_equal 3, uncategorized.fetch("totals").first.to_d
-    zero_row = rows.find { |row| row.fetch("values") == [ categories(:one).id ] }
-    cells = result.fetch("cells").select { |cell| cell.fetch("rowKey") == zero_row.fetch("key") }
-    assert_equal 1, cells.size
-    assert_equal 0, cells.first.fetch("values").first.to_d
+    assert_equal 3, result.fetch("result")[rows.index(uncategorized)].fetch("sum").to_d
+    zero_index = rows.index { |row| row.fetch("values") == [ categories(:one).id ] }
+    zero_row = result.fetch("result")[zero_index]
+    fields = result.fetch("metadata").fetch("fields").select { |field| field["role"] == "value" }
+    assert_equal [ 0, nil ], fields.map { |field| zero_row.fetch(field.fetch("key"))&.to_d }
     assert_not result.fetch("truncated")
   end
 
@@ -39,18 +39,18 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     add(11, category: category)
     add(19)
     result = @reports.call(definition)
-    assert_equal 2, result.fetch("rows").size
-    assert_equal 1, result.fetch("rows").map { |row| row.fetch("labels") }.uniq.size
-    assert_equal 2, result.fetch("rows").map { |row| row.fetch("key") }.uniq.size
-    assert_equal [ 11, 19 ], result.fetch("rows").map { |row| row.fetch("totals").first.to_d }.sort
+    assert_equal 2, result.fetch("metadata").fetch("rows").size
+    assert_equal 1, result.fetch("metadata").fetch("rows").map { |row| row.fetch("labels") }.uniq.size
+    assert_equal 2, result.fetch("metadata").fetch("rows").map { |row| row.fetch("key") }.uniq.size
+    assert_equal [ 11, 19 ], result.fetch("result").map { |row| row.fetch("sum").to_d }.sort
   end
 
   test "category rename preserves stable identity" do
     category = categories(:one)
     add(11, category: category)
-    before = @reports.call(definition).fetch("rows").first
+    before = @reports.call(definition).fetch("metadata").fetch("rows").first
     category.update!(name: "Renamed report category")
-    after = @reports.call(definition).fetch("rows").first
+    after = @reports.call(definition).fetch("metadata").fetch("rows").first
     assert_equal before.fetch("key"), after.fetch("key")
     assert_equal [ "Renamed report category" ], after.fetch("labels")
   end
@@ -63,11 +63,12 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
       { id: "distinct_categories", field: "category", aggregation: "count_distinct" },
       { id: "sum", field: "amount", aggregation: "sum" }
     ]))
-    total = result.fetch("rows").first.fetch("totals")
-    assert_in_delta 160.0 / 61, total[0].to_d, 0.000001
-    assert_equal 1, total[1].to_i
-    assert_equal 160, total[2].to_d
-    assert_equal [ 1, 1 ], result.fetch("cells").map { |cell| cell.fetch("values")[1].to_i }
+    total = result.fetch("result").first
+    assert_in_delta 160.0 / 61, total.fetch("average").to_d, 0.000001
+    assert_equal 1, total.fetch("distinct_categories").to_i
+    assert_equal 160, total.fetch("sum").to_d
+    fields = result.fetch("metadata").fetch("fields").select { |field| field["role"] == "value" && field["measureId"] == "distinct_categories" }
+    assert_equal [ 1, 1 ], fields.map { |field| total.fetch(field.fetch("key")).to_i }
   end
 
   test "row measure ordering ranks complete row totals rather than individual cells" do
@@ -75,8 +76,8 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     add(60, category: categories(:one), date: @february)
     add(100, category: categories(:income))
     result = @reports.call(definition(sort: [ { axis: "rows", measure: "sum", direction: "desc" } ]))
-    assert_equal [ categories(:one).id, categories(:income).id ], result.fetch("rows").map { |row| row.fetch("values").first }
-    assert_equal [ 120, 100 ], result.fetch("rows").map { |row| row.fetch("totals").first.to_d }
+    assert_equal [ categories(:one).id, categories(:income).id ], result.fetch("metadata").fetch("rows").map { |row| row.fetch("values").first }
+    assert_equal [ 120, 100 ], result.fetch("result").map { |row| row.fetch("sum").to_d }
   end
 
   test "row ordering uses the actual average over all matching transactions" do
@@ -87,8 +88,8 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
       values: [ { id: "average", field: "amount", aggregation: "average" } ],
       sort: [ { axis: "rows", measure: "average", direction: "desc" } ]
     ))
-    assert_equal [ categories(:income).id, categories(:one).id ], result.fetch("rows").map { |row| row.fetch("values").first }
-    assert_equal [ 20, 10 ], result.fetch("rows").map { |row| row.fetch("totals").first.to_d }
+    assert_equal [ categories(:income).id, categories(:one).id ], result.fetch("metadata").fetch("rows").map { |row| row.fetch("values").first }
+    assert_equal [ 20, 10 ], result.fetch("result").map { |row| row.fetch("average").to_d }
   end
 
   test "authorization scopes source filters catalog and grand totals including shared accounts" do
@@ -112,18 +113,18 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     # Catalog authorization is not sufficient: a hand-written private filter
     # must still yield no data, and owned/shared rows both reach execution.
     private_result = @reports.call(definition(filters: [ { field: "account", operator: "equals", value: private_account.id } ]))
-    assert_empty private_result.fetch("rows")
+    assert_empty private_result.fetch("metadata").fetch("rows")
     shared_result = @reports.call(definition(filters: [ { field: "account", operator: "equals", value: shared_account.id } ]))
-    assert_equal 17, shared_result.fetch("rows").first.fetch("totals").first.to_d
+    assert_equal 17, shared_result.fetch("result").first.fetch("sum").to_d
     own_result = @reports.call(definition(rows: [], columns: []))
-    assert_equal 13, own_result.fetch("rows").first.fetch("totals").first.to_d
+    assert_equal 13, own_result.fetch("result").first.fetch("sum").to_d
   end
 
   test "a user without accessible accounts sees neither catalog options nor financial data" do
     add(100)
     reports = Sureql::ReportDefinition.new(users(:empty))
     assert reports.catalog.fetch(:fields).all? { |field| field.fetch(:options).empty? }
-    assert_empty reports.call(definition(filters: [])).fetch("rows")
+    assert_empty reports.call(definition(filters: [])).fetch("metadata").fetch("rows")
   end
 
   test "mixed money requires row currency or a single currency source filter" do
@@ -136,14 +137,14 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     end
     assert_equal "rows", error.field
     result = @reports.call(definition(rows: [ { id: "currency", field: "currency" } ]))
-    assert_equal [ "EUR", "USD" ], result.fetch("rows").map { |row| row.fetch("values").first }
-    assert_equal [ 20, 10 ], result.fetch("rows").map { |row| row.fetch("totals").first.to_d }
-    assert_nil result.fetch("measures").first.fetch("currency")
+    assert_equal [ "EUR", "USD" ], result.fetch("metadata").fetch("rows").map { |row| row.fetch("values").first }
+    assert_equal [ 20, 10 ], result.fetch("result").map { |row| row.fetch("sum").to_d }
+    assert_nil result.fetch("metadata").fetch("measures").first.fetch("currency")
     result = @reports.call(definition(filters: account_filter + [ { field: "currency", operator: "equals", value: "USD" } ]))
-    assert_equal 10, result.fetch("rows").first.fetch("totals").first.to_d
-    assert_equal "USD", result.fetch("measures").first.fetch("currency")
+    assert_equal 10, result.fetch("result").first.fetch("sum").to_d
+    assert_equal "USD", result.fetch("metadata").fetch("measures").first.fetch("currency")
     result = @reports.call(definition(values: [ { id: "count", field: "transaction_count", aggregation: "count" } ]))
-    assert_equal 2, result.fetch("rows").first.fetch("totals").first.to_i
+    assert_equal 2, result.fetch("result").first.fetch("count").to_i
   end
 
   test "last days includes both boundaries and excludes earlier and future dates" do
@@ -153,7 +154,7 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     add(100, date: today)
     add(1000, date: today + 1)
     result = @reports.call(definition(rows: [], columns: [], filters: account_filter + [ { field: "date", operator: "last", unit: "days", value: 2 } ]))
-    assert_equal 110, result.fetch("rows").first.fetch("totals").first.to_d
+    assert_equal 110, result.fetch("result").first.fetch("sum").to_d
   end
 
   test "empty grand totals preserve null aggregates and zero counts" do
@@ -161,9 +162,33 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
       { id: "sum", field: "amount", aggregation: "sum" },
       { id: "count", field: "transaction_count", aggregation: "count" }
     ]))
-    assert_equal [ nil, "0" ], result.fetch("rows").first.fetch("totals")
-    assert_empty result.fetch("cells")
+    assert_equal [ { "sum" => nil, "count" => "0" } ], result.fetch("result")
     assert_not result.fetch("truncated")
+  end
+
+  test "scalar aggregates expose named decimal values and their currency" do
+    add(-58)
+    result = @reports.call(definition(
+      rows: [], columns: [], values: [ { id: "total", field: "amount", aggregation: "sum" } ]
+    ))
+    assert_equal [ "total" ], result.fetch("result").sole.keys
+    assert_kind_of String, result.fetch("result").sole.fetch("total")
+    assert_equal(-58, result.fetch("result").sole.fetch("total").to_d)
+    field = result.fetch("metadata").fetch("fields").sole
+    assert_equal "total", field.fetch("key")
+    assert_equal "currency", field.fetch("kind")
+    assert_equal "USD", field.fetch("currency")
+    assert_not result.key?("cells")
+  end
+
+  test "flat dimension fields cannot overwrite a measure with the same source field name" do
+    add(12, category: categories(:one))
+    result = @reports.call(definition(
+      rows: [ { id: "row_category", field: "category" } ], columns: [],
+      values: [ { id: "category", field: "amount", aggregation: "sum" } ]
+    ))
+    assert_equal categories(:one).name, result.fetch("result").sole.fetch("row_category")
+    assert_equal 12, result.fetch("result").sole.fetch("category").to_d
   end
 
   test "pivot pages retain complete cells and totals include omitted columns" do
@@ -184,22 +209,23 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     Transaction.insert_all!(transactions)
     Entry.insert_all!(entries)
     result = @reports.call(definition(sort: [ { axis: "rows", measure: "sum", direction: "desc" } ]))
-    assert_equal 10, result.fetch("rows").size
-    assert_equal 24, result.fetch("columns").size
-    assert_equal 10 * 24, result.fetch("cells").size
+    assert_equal 10, result.fetch("metadata").fetch("rows").size
+    assert_equal 24, result.fetch("metadata").fetch("columns").size
+    fields = result.fetch("metadata").fetch("fields").select { |field| field["role"] == "value" }
+    assert result.fetch("result").all? { |row| fields.all? { |field| row.fetch(field.fetch("key")).to_d == row.fetch("sum").to_d / 25 } }
     assert result.fetch("truncated")
-    assert_equal [ categories.last.fetch(:id) ], result.fetch("rows").first.fetch("values")
-    assert_equal 51 * 25, result.fetch("rows").first.fetch("totals").first.to_d
-    assert_equal [ categories.fetch(41).fetch(:id) ], result.fetch("rows").last.fetch("values")
-    assert_equal "2024-12", result.fetch("columns").last.fetch("labels").first
+    assert_equal [ categories.last.fetch(:id) ], result.fetch("metadata").fetch("rows").first.fetch("values")
+    assert_equal 51 * 25, result.fetch("result").first.fetch("sum").to_d
+    assert_equal [ categories.fetch(41).fetch(:id) ], result.fetch("metadata").fetch("rows").last.fetch("values")
+    assert_equal "2024-12", result.fetch("metadata").fetch("columns").last.fetch("labels").first
 
     complete = @reports.call(definition(sort: [ { axis: "rows", measure: "sum", direction: "desc" } ]), pagination: { limit: 100, offset: 0 }, all_columns: true)
-    assert_equal 51, complete.fetch("rows").size
-    assert_equal 25, complete.fetch("columns").size
+    assert_equal 51, complete.fetch("metadata").fetch("rows").size
+    assert_equal 25, complete.fetch("metadata").fetch("columns").size
     assert_not complete.fetch("truncated")
-    assert_equal "2025-01", complete.fetch("columns").last.fetch("labels").first
-    cell = complete.fetch("cells").find { |item| item.fetch("rowKey") == complete.fetch("rows").first.fetch("key") && item.fetch("columnKey") == complete.fetch("columns").last.fetch("key") }
-    assert_equal 51, cell.fetch("values").first.to_d
+    assert_equal "2025-01", complete.fetch("metadata").fetch("columns").last.fetch("labels").first
+    field = complete.fetch("metadata").fetch("fields").find { |item| item["columnKey"] == complete.fetch("metadata").fetch("columns").last.fetch("key") }
+    assert_equal 51, complete.fetch("result").first.fetch(field.fetch("key")).to_d
   end
 
   test "pivot offsets page ranked whole groups without changing totals or column groups" do
@@ -214,19 +240,20 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     last = @reports.call(spec, pagination: { limit: 2, offset: 4 })
     empty = @reports.call(spec, pagination: { limit: 2, offset: 6 })
 
-    assert_equal [ 606, 505 ], first.fetch("rows").map { |row| row.fetch("totals").first.to_d }
-    assert_equal [ 404, 303 ], second.fetch("rows").map { |row| row.fetch("totals").first.to_d }
-    assert_equal [ 202, 101 ], last.fetch("rows").map { |row| row.fetch("totals").first.to_d }
+    assert_equal [ 606, 505 ], first.fetch("result").map { |row| row.fetch("sum").to_d }
+    assert_equal [ 404, 303 ], second.fetch("result").map { |row| row.fetch("sum").to_d }
+    assert_equal [ 202, 101 ], last.fetch("result").map { |row| row.fetch("sum").to_d }
     assert first.fetch("pagination").fetch("hasNext")
     assert second.fetch("pagination").fetch("hasNext")
     assert_not last.fetch("pagination").fetch("hasNext")
-    assert_equal first.fetch("columns"), second.fetch("columns")
-    assert_equal first.fetch("columns"), last.fetch("columns")
-    assert_equal second.fetch("rows").map { |row| row.fetch("key") }.sort, second.fetch("cells").map { |cell| cell.fetch("rowKey") }.uniq.sort
+    assert_equal first.fetch("metadata").fetch("columns"), second.fetch("metadata").fetch("columns")
+    assert_equal first.fetch("metadata").fetch("columns"), last.fetch("metadata").fetch("columns")
+    fields = second.fetch("metadata").fetch("fields").select { |field| field["role"] == "value" }
+    assert_equal [ [ 4, 400 ], [ 3, 300 ] ], second.fetch("result").map { |row| fields.map { |field| row.fetch(field.fetch("key")).to_d } }
     assert_not second.fetch("truncated")
-    assert_empty empty.fetch("rows")
-    assert_empty empty.fetch("cells")
-    assert_equal first.fetch("columns"), empty.fetch("columns")
+    assert_empty empty.fetch("metadata").fetch("rows")
+    assert_empty empty.fetch("result")
+    assert_equal first.fetch("metadata").fetch("columns"), empty.fetch("metadata").fetch("columns")
     assert_not empty.fetch("pagination").fetch("hasNext")
   end
 
@@ -237,9 +264,9 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
       rows: [ { id: "month", field: "date", dateBucket: "month" } ], columns: [],
       sort: [ { axis: "rows", dimension: "month", direction: "desc" } ]
     ))
-    assert_equal [ "2025-02", "2025-01" ], result.fetch("rows").map { |row| row.fetch("labels").first }
-    assert_equal [ "2025-02-01", "2025-01-01" ], result.fetch("rows").map { |row| row.fetch("values").first }
-    assert_equal [ 20, 10 ], result.fetch("rows").map { |row| row.fetch("totals").first.to_d }
+    assert_equal [ "2025-02", "2025-01" ], result.fetch("metadata").fetch("rows").map { |row| row.fetch("labels").first }
+    assert_equal [ "2025-02-01", "2025-01-01" ], result.fetch("metadata").fetch("rows").map { |row| row.fetch("values").first }
+    assert_equal [ 20, 10 ], result.fetch("result").map { |row| row.fetch("sum").to_d }
   end
 
   test "execution errors do not expose database or compiler details" do
@@ -286,8 +313,8 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     add(12)
     add(100, category: categories(:one))
     result = @reports.call(definition(filters: account_filter + [ { field: "category", operator: "equals", value: "" } ]))
-    assert_equal [ nil ], result.fetch("rows").first.fetch("values")
-    assert_equal 12, result.fetch("rows").first.fetch("totals").first.to_d
+    assert_equal [ nil ], result.fetch("metadata").fetch("rows").first.fetch("values")
+    assert_equal 12, result.fetch("result").first.fetch("sum").to_d
   end
 
   test "category not equals retains other categories and uncategorized transactions" do
@@ -296,7 +323,7 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     add(12)
     add(1000, category: categories(:income), excluded: true)
     result = @reports.call(definition(filters: account_filter + [ { field: "category", operator: "not_equals", value: categories(:one).id } ]))
-    totals = result.fetch("rows").to_h { |row| [ row.fetch("values").first, row.fetch("totals").first.to_d ] }
+    totals = result.fetch("metadata").fetch("rows").each_with_index.to_h { |row, index| [ row.fetch("values").first, result.fetch("result")[index].fetch("sum").to_d ] }
     assert_equal({ categories(:income).id => 7, nil => 12 }, totals)
   end
 
@@ -305,7 +332,7 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     add(7, category: categories(:income))
     add(12)
     result = @reports.call(definition(filters: account_filter + [ { field: "category", operator: "not_equals", value: "" } ]))
-    totals = result.fetch("rows").to_h { |row| [ row.fetch("values").first, row.fetch("totals").first.to_d ] }
+    totals = result.fetch("metadata").fetch("rows").each_with_index.to_h { |row, index| [ row.fetch("values").first, result.fetch("result")[index].fetch("sum").to_d ] }
     assert_equal({ categories(:one).id => 100, categories(:income).id => 7 }, totals)
   end
 
@@ -316,14 +343,14 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     result = @reports.call(detail_definition(columns: %w[amount category account name date].map { |field| { field: field } }))
 
     assert_equal "detail", result.fetch("mode")
-    assert_equal %w[amount category account name date], result.fetch("columns").map { |column| column.fetch("field") }
-    assert_equal %w[number text text text date], result.fetch("columns").map { |column| column.fetch("kind") }
-    assert_equal [ usd.id, *[ first.id, second.id ].sort ], result.fetch("rows").map { |row| row.fetch("id") }
-    assert_equal [ "900719925474099.1234", I18n.t("report_definition.uncategorized"), @account.name, "USD entry", "2025-02-15" ], result.fetch("rows").first.fetch("values")
-    duplicate_rows = result.fetch("rows").last(2)
-    assert_equal duplicate_rows.first.fetch("values"), duplicate_rows.last.fetch("values")
-    assert_equal [ "-900719925474099.1234", categories(:one).name, @account.name, "Duplicate", "2025-01-15" ], duplicate_rows.first.fetch("values")
-    assert_equal [ "USD", "EUR", "EUR" ], result.fetch("rows").map { |row| row.fetch("currency") }
+    assert_equal %w[amount category account name date], result.fetch("metadata").fetch("fields").map { |column| column.fetch("key") }
+    assert_equal %w[currency text text text date], result.fetch("metadata").fetch("fields").map { |column| column.fetch("kind") }
+    assert_equal [ usd.id, *[ first.id, second.id ].sort ], result.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
+    assert_equal({ "amount" => "900719925474099.1234", "category" => I18n.t("report_definition.uncategorized"), "account" => @account.name, "name" => "USD entry", "date" => "2025-02-15" }, result.fetch("result").first)
+    duplicate_rows = result.fetch("result").last(2)
+    assert_equal({ "amount" => "-900719925474099.1234", "category" => categories(:one).name, "account" => @account.name, "name" => "Duplicate", "date" => "2025-01-15" }, duplicate_rows.first)
+    assert_equal duplicate_rows.first, duplicate_rows.last
+    assert_equal [ "USD", "EUR", "EUR" ], result.fetch("metadata").fetch("rows").map { |row| row.fetch("currency") }
     assert_not result.fetch("truncated")
   end
 
@@ -340,9 +367,9 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
       { field: "name", direction: "desc" }
     ]))
 
-    assert_equal [ latest.id, negative.id, named.id, *[ small.id, tie.id ].sort, large.id ], result.fetch("rows").map { |row| row.fetch("id") }
+    assert_equal [ latest.id, negative.id, named.id, *[ small.id, tie.id ].sort, large.id ], result.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
     ascending = @reports.call(detail_definition(sort: [ { field: "date", direction: "asc" } ]))
-    assert_equal [ *[ small.id, large.id, tie.id, named.id, negative.id ].sort, latest.id ], ascending.fetch("rows").map { |row| row.fetch("id") }
+    assert_equal [ *[ small.id, large.id, tie.id, named.id, negative.id ].sort, latest.id ], ascending.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
   end
 
   test "detail sorts category and account by displayed labels rather than ids" do
@@ -354,7 +381,7 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     result = @reports.call(detail_definition(filters: [], sort: [
       { field: "account", direction: "asc" }, { field: "category", direction: "asc" }
     ]))
-    matching = result.fetch("rows").select { |row| [ categorized.id, uncategorized.id, other_entry.id ].include?(row.fetch("id")) }
+    matching = result.fetch("metadata").fetch("rows").select { |row| [ categorized.id, uncategorized.id, other_entry.id ].include?(row.fetch("id")) }
     assert_equal [ other_entry.id, uncategorized.id, categorized.id ], matching.map { |row| row.fetch("id") }
   end
 
@@ -368,16 +395,16 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     custom = @reports.call(spec, pagination: { limit: 7, offset: 7 })
     empty = @reports.call(spec, pagination: { limit: 10, offset: 21 })
 
-    assert_equal entries.first(10).map(&:id), first.fetch("rows").map { |row| row.fetch("id") }
-    assert_equal entries.slice(10, 10).map(&:id), second.fetch("rows").map { |row| row.fetch("id") }
-    assert_equal [ entries.last.id ], last.fetch("rows").map { |row| row.fetch("id") }
-    assert_equal entries.slice(7, 7).map(&:id), custom.fetch("rows").map { |row| row.fetch("id") }
+    assert_equal entries.first(10).map(&:id), first.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
+    assert_equal entries.slice(10, 10).map(&:id), second.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
+    assert_equal [ entries.last.id ], last.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
+    assert_equal entries.slice(7, 7).map(&:id), custom.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
     assert first.fetch("pagination").fetch("hasNext")
     assert second.fetch("pagination").fetch("hasNext")
     assert_not last.fetch("pagination").fetch("hasNext")
     assert_not first.fetch("truncated")
-    assert_equal first.fetch("rows"), @reports.call(spec).fetch("rows")
-    assert_empty empty.fetch("rows")
+    assert_equal first.fetch("metadata").fetch("rows"), @reports.call(spec).fetch("metadata").fetch("rows")
+    assert_empty empty.fetch("metadata").fetch("rows")
     assert_not empty.fetch("pagination").fetch("hasNext")
   end
 
@@ -413,18 +440,17 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
       { field: "currency", operator: "equals", value: "EUR" }
     ]), pagination: { limit: 1, offset: 1 })
 
-    assert_equal [ earlier.id ], result.fetch("rows").map { |row| row.fetch("id") }
+    assert_equal [ earlier.id ], result.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
     assert_not result.fetch("truncated")
     assert_not result.fetch("pagination").fetch("hasNext")
   end
 
   test "detail retains ordered column metadata without matching transactions" do
     result = @reports.call(detail_definition(columns: [ { field: "currency" }, { field: "amount" } ], sort: []))
-    assert_equal [
-      { "field" => "currency", "label" => I18n.t("report_definition.fields.currency"), "kind" => "currency" },
-      { "field" => "amount", "label" => I18n.t("report_definition.fields.amount"), "kind" => "number" }
-    ], result.fetch("columns")
-    assert_empty result.fetch("rows")
+    fields = result.fetch("metadata").fetch("fields")
+    assert_equal %w[currency amount], fields.map { |field| field.fetch("key") }
+    assert_equal %w[text currency], fields.map { |field| field.fetch("kind") }
+    assert_empty result.fetch("metadata").fetch("rows")
     assert_not result.fetch("truncated")
   end
 
@@ -440,16 +466,16 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     excluded = add(902, excluded: true)
     valuation = create_valuation(account: @account, amount: 903, date: @january)
     result = @reports.call(detail_definition(filters: []))
-    ids = result.fetch("rows").map { |row| row.fetch("id") }
+    ids = result.fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
     assert_includes ids, owned.id
     assert_includes ids, shared.id
     [ private_entry, foreign_entry, excluded, valuation ].each { |entry| assert_not_includes ids, entry.id }
     [ private_account, foreign_account ].each do |account|
       filtered = @reports.call(detail_definition(filters: [ { field: "account", operator: "equals", value: account.id } ]))
-      assert_empty filtered.fetch("rows")
+      assert_empty filtered.fetch("metadata").fetch("rows")
       assert_not filtered.fetch("truncated")
     end
-    assert_empty Sureql::ReportDefinition.new(users(:empty)).call(detail_definition).fetch("rows")
+    assert_empty Sureql::ReportDefinition.new(users(:empty)).call(detail_definition).fetch("metadata").fetch("rows")
   end
 
   test "detail rejects aggregate shapes duplicate fields unselected sorts and unsupported capabilities" do
@@ -479,7 +505,7 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     end
     entry = add(1)
     full_sort = %w[date name account category amount currency].map { |field| { field: field, direction: "asc" } }
-    assert_equal [ entry.id ], @reports.call(detail_definition(sort: full_sort)).fetch("rows").map { |row| row.fetch("id") }
+    assert_equal [ entry.id ], @reports.call(detail_definition(sort: full_sort)).fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
   end
 
   private

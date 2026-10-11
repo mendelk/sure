@@ -15,8 +15,8 @@ export function SourcePicker({
   id,
 }: {
   sources: Source[];
-  value: SourceId | "";
-  onChange: (sourceId: SourceId | "") => void;
+  value: SourceId | undefined;
+  onChange: (sourceId: SourceId | undefined) => void;
   onCreateSource: () => void;
   onEditSource?: (source: Source) => void;
   text: ReportBuilderText;
@@ -30,10 +30,12 @@ export function SourcePicker({
         as="select"
         id={id ?? generatedId}
         label={text.source}
-        value={value}
+        value={value ?? ""}
         onChange={(event) => {
           onChange(
-            event.currentTarget.value === "" ? "" : SourceIdSchema.parse(event.currentTarget.value),
+            event.currentTarget.value === ""
+              ? undefined
+              : SourceIdSchema.parse(event.currentTarget.value),
           );
         }}
       >

@@ -108,69 +108,76 @@ export const ReportPaginationSchema = z.object({
   offset: z.int().check(z.gte(0)),
   hasNext: z.boolean(),
 });
-export const AggregateReportResultSchema = z.object({
-  mode: z.literal("aggregate"),
-  sql: z.string(),
-  rows: z.array(
-    z.object({
-      key: ReportRowIdSchema,
-      values: z.array(z.unknown()),
-      labels: z.array(z.string()),
-      totals: z.array(MeasureCellSchema),
-    }),
-  ),
-  columns: z.array(AxisGroupSchema),
-  cells: z.array(
-    z.object({
-      rowKey: ReportRowIdSchema,
-      columnKey: ReportColumnIdSchema,
-      values: z.array(MeasureCellSchema),
-    }),
-  ),
-  measures: z.array(
-    z.object({
-      id: ReportMeasureIdSchema,
-      label: z.string(),
-      format: z.enum(["number", "currency"]),
-      currency: z.nullable(z.string()),
-    }),
-  ),
-  truncated: z.boolean(),
-  pagination: ReportPaginationSchema,
+const ReportRecordSchema = z.record(z.string(), MeasureCellSchema);
+const ResultFieldSchema = z.object({
+  key: z.string(),
+  field: z.string(),
+  label: z.string(),
+  kind: z.enum(["text", "date", "number", "currency"]),
+  currency: z.nullable(z.string()),
+  role: z.enum(["dimension", "value", "total", "detail"]),
+  measureId: z.optional(ReportMeasureIdSchema),
+  columnKey: z.optional(ReportColumnIdSchema),
+  dateBucket: z.optional(z.enum(PIVOT_DATE_BUCKETS)),
 });
+export const AggregateReportResultSchema = z
+  .object({
+    mode: z.literal("aggregate"),
+    sql: z.string(),
+    result: z.array(ReportRecordSchema),
+    metadata: z.object({
+      fields: z.array(ResultFieldSchema),
+      rows: z.array(
+        z.object({
+          key: ReportRowIdSchema,
+          values: z.array(z.unknown()),
+          labels: z.array(z.string()),
+          currency: z.string(),
+        }),
+      ),
+      columns: z.array(AxisGroupSchema),
+      measures: z.array(
+        z.object({
+          id: ReportMeasureIdSchema,
+          label: z.string(),
+          format: z.enum(["number", "currency"]),
+          currency: z.nullable(z.string()),
+        }),
+      ),
+      grouping: z.object({
+        rows: z.array(ReportDimensionSchema),
+        columns: z.array(ReportDimensionSchema),
+      }),
+    }),
+    truncated: z.boolean(),
+    pagination: ReportPaginationSchema,
+  })
+  .check(z.refine((response) => response.result.length === response.metadata.rows.length));
 export const DetailReportResultSchema = z
   .object({
     mode: z.literal("detail"),
     sql: z.string(),
-    columns: z.array(
-      z.object({
-        field: z.string(),
-        label: z.string(),
-        kind: z.enum(["text", "date", "number", "currency"]),
-      }),
-    ),
-    rows: z.array(
-      z.object({
-        id: ReportRowIdSchema,
-        currency: z.string(),
-        values: z.array(MeasureCellSchema),
-      }),
-    ),
+    result: z.array(ReportRecordSchema),
+    metadata: z.object({
+      fields: z.array(ResultFieldSchema),
+      rows: z.array(z.object({ id: ReportRowIdSchema, currency: z.string() })),
+    }),
     truncated: z.boolean(),
     pagination: ReportPaginationSchema,
   })
   .check(
-    z.refine((result) =>
-      result.rows.every(
-        (row) =>
-          row.values.length === result.columns.length &&
-          result.columns.every(
-            (column, index) =>
-              column.field !== "amount" ||
-              row.values[index] === null ||
-              typeof row.values[index] === "string",
+    z.refine(
+      (response) =>
+        response.result.length === response.metadata.rows.length &&
+        response.result.every((row) =>
+          response.metadata.fields.every(
+            (column) =>
+              Object.hasOwn(row, column.key) &&
+              (column.field !== "amount" ||
+                row[column.key] === null ||
+                typeof row[column.key] === "string"),
           ),
-      ),
+        ),
     ),
   );
 export const StructuredReportResultSchema = z.discriminatedUnion("mode", [

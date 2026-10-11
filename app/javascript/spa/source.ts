@@ -147,17 +147,18 @@ async function allStructuredResults(
         offset: page.pagination.offset + page.pagination.limit,
       },
     });
-    if (result.mode === "detail" && page.mode === "detail")
-      for (const row of page.rows) result.rows.push(row);
-    else if (result.mode === "aggregate" && page.mode === "aggregate") {
-      // Each page owns complete row groups and their cells/totals. Columns
-      // and measures describe the global axes, not page-local aggregates.
-      for (const row of page.rows) result.rows.push(row);
-      for (const cell of page.cells) result.cells.push(cell);
+    if (result.mode === "detail" && page.mode === "detail") {
+      result.result.push(...page.result);
+      result.metadata.rows.push(...page.metadata.rows);
+    } else if (result.mode === "aggregate" && page.mode === "aggregate") {
+      // Pages contain whole row groups. Field and column metadata describe
+      // the complete source, including currencies outside the current page.
+      result.result.push(...page.result);
+      result.metadata.rows.push(...page.metadata.rows);
     } else throw new Error("Unexpected source result mode");
     result.truncated ||= page.truncated;
   }
-  result.pagination = { limit: Math.max(1, result.rows.length), offset: 0, hasNext: false };
+  result.pagination = { limit: Math.max(1, result.result.length), offset: 0, hasNext: false };
   return result;
 }
 
@@ -175,9 +176,10 @@ export function normalizeSureqlResult(result: SureqlResult): SourceData {
 function sureqlDetailResult(result: SureqlResult): DetailReportResult {
   const metadata = new Map(pivotFieldsForResult(result).map((field) => [field.name, field]));
   const fields = result.columns.length > 0 ? result.columns : [...metadata.keys()];
-  const columns: DetailReportResult["columns"] = fields.map((field) => {
+  const columns: DetailReportResult["metadata"]["fields"] = fields.map((field) => {
     const kind = metadata.get(field)?.kind;
     return {
+      key: field,
       field,
       label: field,
       kind:
@@ -186,26 +188,34 @@ function sureqlDetailResult(result: SureqlResult): DetailReportResult {
           : kind === "number" || kind === "currency"
             ? kind
             : "text",
+      role: "detail",
+      currency: null,
     };
   });
   const occurrences = new Map<string, number>();
   return {
     mode: "detail",
     sql: result.sql,
-    columns,
-    rows: result.rows.map((row) => {
-      const serialized = JSON.stringify(row);
-      const occurrence = occurrences.get(serialized) ?? 0;
-      occurrences.set(serialized, occurrence + 1);
-      return {
-        id: ReportRowIdSchema.parse(`${serialized}:${occurrence}`),
-        currency: typeof row.currency === "string" ? row.currency : "",
-        values: columns.map((column) => {
-          const cell = scalarCell(row[column.field]);
-          return column.field === "amount" && cell !== null ? String(cell) : cell;
+    result: result.rows.map((row) =>
+      Object.fromEntries(
+        columns.map((column) => {
+          const cell = scalarCell(row[column.key]);
+          return [column.key, column.field === "amount" && cell !== null ? String(cell) : cell];
         }),
-      };
-    }),
+      ),
+    ),
+    metadata: {
+      fields: columns,
+      rows: result.rows.map((row) => {
+        const serialized = JSON.stringify(row);
+        const occurrence = occurrences.get(serialized) ?? 0;
+        occurrences.set(serialized, occurrence + 1);
+        return {
+          id: ReportRowIdSchema.parse(`${serialized}:${occurrence}`),
+          currency: typeof row.currency === "string" ? row.currency : "",
+        };
+      }),
+    },
     truncated: result.truncated,
     // Complete chart results and bounded field queries have no server cursor.
     pagination: result.pagination ?? {
@@ -219,17 +229,16 @@ function sureqlDetailResult(result: SureqlResult): DetailReportResult {
 function normalizeDetailResult(result: DetailReportResult): SourceData {
   return {
     result,
-    columns: result.columns.map((column) => ({
-      key: column.field,
+    columns: result.metadata.fields.map((column) => ({
+      key: column.key,
       label: column.label,
       kind: column.kind,
+      currency: column.currency,
     })),
-    rows: result.rows.map((row) => ({
-      id: row.id,
-      currency: row.currency,
-      values: Object.fromEntries(
-        result.columns.map((column, index) => [column.field, row.values[index]]),
-      ),
+    rows: result.result.map((values, index) => ({
+      id: result.metadata.rows[index].id,
+      currency: result.metadata.rows[index].currency,
+      values,
     })),
   };
 }
@@ -238,90 +247,61 @@ function dimensionKey(dimension: AggregateReportDefinition["rows"][number]): str
   return dimension.dateBucket ? `${dimension.field}:${dimension.dateBucket}` : dimension.field;
 }
 
-function dimensionLabel(dimension: AggregateReportDefinition["rows"][number]): string {
-  const label = dimension.field.charAt(0).toUpperCase() + dimension.field.slice(1);
-  return dimension.dateBucket ? `${label} · ${dimension.dateBucket}` : label;
-}
-
-function axisCurrency(values: unknown[], index: number): string | null {
-  const currency = index < 0 ? undefined : values[index];
-  return typeof currency === "string" && currency.length > 0 ? currency : null;
-}
-
 function normalizeAggregateResult(
   result: AggregateReportResult,
   definition: AggregateReportDefinition,
 ): SourceData {
-  const rowCurrencyIndex = definition.rows.findIndex((dimension) => dimension.field === "currency");
-  const columnCurrencyIndex = definition.columns.findIndex(
-    (dimension) => dimension.field === "currency",
-  );
-  const rowCurrencies = [
-    ...new Set(result.rows.map((row) => axisCurrency(row.values, rowCurrencyIndex))),
-  ];
-  const columns: SourceColumn[] = definition.rows.map((dimension) => ({
-    key: dimensionKey(dimension),
-    label: dimensionLabel(dimension),
-    kind: dimension.field === "date" ? "date" : "text",
-  }));
-  const valueColumns: {
-    key: string;
-    columnKey: string;
-    measureIndex: number;
-    currency: string | null;
-    rowCurrency: boolean;
-  }[] = [];
-  for (const column of result.columns) {
-    for (const [measureIndex, measure] of result.measures.entries()) {
-      const fixedCurrency = measure.currency ?? axisCurrency(column.values, columnCurrencyIndex);
-      const splitByRowCurrency =
-        measure.format === "currency" && fixedCurrency === null && rowCurrencyIndex >= 0;
-      const currencies =
-        splitByRowCurrency && rowCurrencies.length > 0 ? rowCurrencies : [fixedCurrency];
-      for (const currency of currencies) {
-        const key = JSON.stringify(["measure", measure.id, column.key, currency]);
-        const groupLabel = column.labels.join(" / ");
-        const label = [groupLabel, measure.label, currency].filter(Boolean).join(" · ");
-        columns.push({ key, label, kind: measure.format, currency });
-        valueColumns.push({
-          key,
-          columnKey: column.key,
-          measureIndex,
-          currency,
-          rowCurrency: splitByRowCurrency,
-        });
-      }
+  const columns: SourceColumn[] = [];
+  const bindings: { key: string; field: string; currency?: string }[] = [];
+  const hasColumnGroups = definition.columns.length > 0;
+  const rowCurrencies = [...new Set(result.metadata.rows.map((row) => row.currency))];
+  const hasRowCurrency = definition.rows.some((dimension) => dimension.field === "currency");
+  for (const field of result.metadata.fields) {
+    if (field.role === "total" && hasColumnGroups) continue;
+    const dimension = definition.rows.find((item) => item.id === field.key);
+    // Stored chart/table field IDs remain stable presentation identities.
+    // Record properties use the report's named IDs, not pivot encodings.
+    const splitCurrency =
+      field.role === "total" &&
+      field.kind === "currency" &&
+      field.currency === null &&
+      hasRowCurrency;
+    for (const currency of splitCurrency ? rowCurrencies : [field.currency]) {
+      const key = dimension
+        ? dimensionKey(dimension)
+        : field.role === "total"
+          ? JSON.stringify(["measure", field.key, "[]", currency])
+          : field.key;
+      columns.push({
+        key,
+        label:
+          field.role === "total"
+            ? [field.label, currency].filter(Boolean).join(" · ")
+            : field.label,
+        kind: field.kind,
+        currency,
+      });
+      bindings.push({
+        key,
+        field: field.key,
+        currency: splitCurrency ? (currency ?? undefined) : undefined,
+      });
     }
   }
-  const cellsByRow = new Map<string, Map<string, (string | number | null)[]>>();
-  for (const cell of result.cells) {
-    let cells = cellsByRow.get(cell.rowKey);
-    if (cells === undefined) {
-      cells = new Map();
-      cellsByRow.set(cell.rowKey, cells);
-    }
-    cells.set(cell.columnKey, cell.values);
-  }
-  const rows: SourceRow[] = result.rows.map((row) => {
-    const currency = axisCurrency(row.values, rowCurrencyIndex);
-    const values: SourceRow["values"] = Object.fromEntries(
-      definition.rows.map((dimension, index) => [
-        dimensionKey(dimension),
-        row.values[index] === null || row.values[index] === undefined
-          ? (row.labels[index] ?? null)
-          : dimension.field === "date" || dimension.field === "currency"
-            ? scalarCell(row.values[index])
-            : (row.labels[index] ?? scalarCell(row.values[index])),
-      ]),
-    );
-    const cells = cellsByRow.get(row.key);
-    for (const column of valueColumns) {
-      values[column.key] =
-        column.rowCurrency && column.currency !== currency
-          ? null
-          : (cells?.get(column.columnKey)?.[column.measureIndex] ?? null);
-    }
-    return { id: ReportRowIdSchema.parse(row.key), currency: currency ?? "", values };
+  const rows = result.result.map((record, index) => {
+    const row = result.metadata.rows[index];
+    return {
+      id: ReportRowIdSchema.parse(row.key),
+      currency: row.currency,
+      values: Object.fromEntries(
+        bindings.map((binding) => [
+          binding.key,
+          binding.currency !== undefined && binding.currency !== row.currency
+            ? null
+            : record[binding.field],
+        ]),
+      ),
+    };
   });
   return { result, columns, rows };
 }
