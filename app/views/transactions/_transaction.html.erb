@@ -17,17 +17,6 @@
       <div class="pr-4 lg:pr-10 flex items-center gap-3 lg:gap-4 col-span-7 min-w-0 max-md:flex-1"
            data-transaction-columns-target="nameCell"
            data-on-class="lg:col-span-5">
-        <%= check_box_tag dom_id(entry, "selection"),
-            disabled: transaction.transfer.present?,
-            class: "checkbox checkbox--light hidden lg:block",
-            data: {
-              id: entry.id,
-              entry_type: entry.entryable_type,
-              "bulk-select-target": "row",
-              action: "bulk-select#toggleRowSelection",
-              checkbox_toggle_target: "selectionEntry"
-            } %>
-
         <div class="flex md:hidden items-center gap-1 col-span-2 relative shrink-0">
           <%= render "transactions/transaction_category", transaction: transaction, variant: "mobile", in_split_group: in_split_group %>
           <% if transaction_security_logo_url.present? %>

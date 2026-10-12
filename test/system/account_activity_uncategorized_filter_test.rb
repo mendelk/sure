@@ -5,6 +5,8 @@ class AccountActivityUncategorizedFilterTest < ApplicationSystemTestCase
   include ActionView::RecordIdentifier
 
   setup do
+    ensure_tailwind_build
+    ensure_spa_build
     sign_in @user = users(:family_admin)
     @account = accounts(:depository)
     @uncategorized = create_transaction(account: @account, name: "Uncategorized Filter Target", category: nil)

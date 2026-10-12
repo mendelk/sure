@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Router composes the shared SPA route surfaces and validators. */
 import {
   Outlet,
   createRootRouteWithContext,
@@ -8,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import type { SpaBootstrap } from "./bootstrap";
 import { AppShell } from "./app-shell";
+import { AccountDetailPage, validateAccountSearch } from "./account-detail-page";
 import { DashboardsPage } from "./dashboards-page";
 import { validateDashboardSearch } from "./dashboard-storage";
 import { DashboardWorkspaceProvider } from "./dashboard-workspace";
@@ -18,6 +20,7 @@ import {
   validateSourceReturnSearch,
 } from "./source-pages";
 import { validateNewTransactionSearch, NewTransactionPage } from "./new-transaction-page";
+import { BulkUpdateDrawer, validateBulkUpdateSearch } from "./bulk-update-drawer";
 import { TransactionDetailDrawer } from "./transaction-detail-page";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
 type RouterContext = {
@@ -27,6 +30,26 @@ type RouterContext = {
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: WorkspaceRoot,
   notFoundComponent: NotFoundPage,
+});
+
+const accountDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/accounts/$accountId",
+  validateSearch: validateAccountSearch,
+  component: AccountDetailPage,
+});
+
+const accountTransactionRoute = createRoute({
+  getParentRoute: () => accountDetailRoute,
+  path: "transactions/$transactionId",
+  component: TransactionDetailDrawer,
+});
+
+const newAccountTransactionRoute = createRoute({
+  getParentRoute: () => accountDetailRoute,
+  path: "transactions/new",
+  validateSearch: validateNewTransactionSearch,
+  component: NewTransactionPage,
 });
 
 const transactionsRoute = createRoute({
@@ -47,6 +70,13 @@ const newTransactionRoute = createRoute({
   path: "new",
   validateSearch: validateNewTransactionSearch,
   component: NewTransactionPage,
+});
+
+const bulkUpdateTransactionRoute = createRoute({
+  getParentRoute: () => transactionsRoute,
+  path: "bulk_update/new",
+  validateSearch: validateBulkUpdateSearch,
+  component: BulkUpdateDrawer,
 });
 
 const dashboardsRoute = createRoute({
@@ -88,7 +118,12 @@ const editSourceRoute = createRoute({
 });
 
 const routeTree = rootRoute.addChildren([
-  transactionsRoute.addChildren([transactionDetailRoute, newTransactionRoute]),
+  accountDetailRoute.addChildren([accountTransactionRoute, newAccountTransactionRoute]),
+  transactionsRoute.addChildren([
+    transactionDetailRoute,
+    newTransactionRoute,
+    bulkUpdateTransactionRoute,
+  ]),
   dashboardsRoute.addChildren([dashboardsIndexRoute]),
   sourcesRoute.addChildren([sourcesIndexRoute, newSourceRoute, editSourceRoute]),
 ]);

@@ -36,6 +36,119 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_enqueued_with(job: SyncJob)
   end
 
+  test "JSON creation returns identifiers and protects manual transaction details" do
+    assert_difference [ "Entry.count", "Transaction.count" ], 1 do
+      post transactions_url, params: creation_params, as: :json
+    end
+
+    assert_response :created
+    created_entry = Entry.find(response.parsed_body.fetch("entry_id"))
+    assert_equal({
+      "id" => created_entry.entryable_id,
+      "entry_id" => created_entry.id,
+      "account_id" => created_entry.account_id
+    }, response.parsed_body)
+    assert_equal(-100, created_entry.amount)
+    assert_equal "Creation notes", created_entry.notes
+    assert_equal [ tags(:one).id ], created_entry.transaction.tag_ids
+    assert created_entry.user_modified?
+    assert created_entry.protected_from_sync?
+    assert created_entry.locked?(:amount)
+    assert created_entry.locked?(:date)
+    assert created_entry.transaction.locked?(:category_id)
+    assert created_entry.transaction.locked?(:tag_ids)
+    assert_not created_entry.linked?
+    assert_nil created_entry.external_id
+    assert_nil created_entry.source
+    assert_enqueued_with(job: SyncJob)
+  end
+
+  test "JSON validation failure returns errors without creating records" do
+    params = creation_params
+    params[:entry][:name] = ""
+
+    assert_no_difference [ "Entry.count", "Transaction.count" ] do
+      post transactions_url, params: params, as: :json
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal "application/json", response.media_type
+    assert_includes response.parsed_body.fetch("errors"), "Name can't be blank"
+    assert_equal response.parsed_body.fetch("errors").to_sentence, response.parsed_body.fetch("error")
+  end
+
+  test "JSON creation rejects missing and inaccessible accounts without writes" do
+    inaccessible_account = families(:empty).accounts.create!(
+      name: "Private account", balance: 0, currency: "USD", accountable: Depository.new
+    )
+    [ "", inaccessible_account.id ].each do |account_id|
+      params = creation_params
+      params[:entry][:account_id] = account_id
+
+      assert_no_difference [ "Entry.count", "Transaction.count" ] do
+        post transactions_url, params: params, as: :json
+      end
+
+      assert_response :unprocessable_entity
+      assert response.parsed_body.fetch("error").present?
+      assert response.parsed_body.fetch("errors").any?
+    end
+  end
+
+  test "JSON creation requires full control on an accessible account" do
+    sign_in users(:family_member)
+    share = account_shares(:credit_card_shared_with_member)
+
+    [ "read_only", "read_write" ].each do |permission|
+      share.update!(permission: permission)
+      params = creation_params
+      params[:entry][:account_id] = share.account_id
+
+      assert_no_difference [ "Entry.count", "Transaction.count" ] do
+        post transactions_url, params: params, as: :json
+      end
+
+      assert_response :forbidden
+      assert_equal({ "error" => I18n.t("accounts.not_authorized") }, response.parsed_body)
+    end
+  end
+
+  test "creation rejects invalid custom exchange rates for JSON and HTML callers" do
+    [ "invalid", "0", "-1" ].each do |rate|
+      params = creation_params
+      params[:entry][:currency] = "EUR"
+      params[:entry][:entryable_attributes][:exchange_rate] = rate
+
+      [ :json, :html ].each do |format|
+        assert_no_difference [ "Entry.count", "Transaction.count" ] do
+          post transactions_url(format: format), params: params
+        end
+
+        assert_response :unprocessable_entity
+        assert_equal "application/json", response.media_type
+        assert response.parsed_body.fetch("errors").any? { |error| error.downcase.include?("exchange rate") }
+      end
+    end
+  end
+
+  test "JSON idempotency keys are scoped to the authorized account" do
+    params = creation_params
+    first_entry_id = nil
+
+    assert_difference [ "Entry.count", "Transaction.count" ], 2 do
+      post transactions_url, params: params, as: :json
+      assert_response :created
+      first_entry_id = response.parsed_body.fetch("entry_id")
+
+      params[:entry][:account_id] = accounts(:credit_card).id
+      post transactions_url, params: params, as: :json
+      assert_response :created
+    end
+
+    assert_not_equal first_entry_id, response.parsed_body.fetch("entry_id")
+    assert_equal accounts(:credit_card).id, response.parsed_body.fetch("account_id")
+  end
+
   test "resubmitting the same idempotency key does not create a duplicate transaction" do
     idempotency_key = SecureRandom.uuid
     params = {
@@ -53,20 +166,20 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     }
 
     assert_difference [ "Entry.count", "Transaction.count" ], 1 do
-      post transactions_url, params: params
+      post transactions_url, params: params, as: :json
     end
-    assert_response :redirect
+    assert_response :created
     first_entry = Entry.order(:created_at).last
+    first_response = response.parsed_body
 
-    # Simulates a double-click or a browser retry: same form, same
-    # idempotency key, submitted again after the first request already
-    # completed and committed.
-    assert_no_difference [ "Entry.count", "Transaction.count" ] do
-      post transactions_url, params: params
+    assert_no_enqueued_jobs only: SyncJob do
+      assert_no_difference [ "Entry.count", "Transaction.count" ] do
+        post transactions_url, params: params, as: :json
+      end
     end
-    assert_response :redirect
-    assert_equal "Transaction created", flash[:notice]
-    assert_redirected_to account_url(first_entry.account)
+    assert_response :ok
+    assert_equal first_response, response.parsed_body
+    assert_equal first_entry.entryable_id, response.parsed_body.fetch("id")
   end
 
   test "the idempotency key does not mark the created transaction as provider-linked" do
@@ -124,12 +237,12 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
           entryable_type: "Transaction",
           idempotency_key: idempotency_key
         }
-      }
+      }, as: :json
     end
 
-    assert_response :redirect
-    assert_redirected_to account_url(winning_entry.account)
-    assert_equal "Transaction created", flash[:notice]
+    assert_response :ok
+    assert_equal winning_entry.entryable_id, response.parsed_body.fetch("id")
+    assert_equal winning_entry.id, response.parsed_body.fetch("entry_id")
   end
 
   test "a RecordNotUnique with no matching entry is not silently swallowed" do
@@ -160,9 +273,7 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "create without an idempotency key still creates a transaction as before" do
-    # A raw POST that doesn't go through the rendered form (e.g. a script)
-    # simply skips the idempotency check rather than being rejected - the
-    # form always supplies a key in normal browser usage.
+    # Raw POST callers can omit the key and keep their existing behavior.
     assert_difference [ "Entry.count", "Transaction.count" ], 2 do
       2.times do
         post transactions_url, params: {
@@ -181,7 +292,7 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "create without an account re-renders the form instead of raising" do
+  test "HTML create without an account returns JSON errors instead of the retired form" do
     assert_no_difference [ "Entry.count", "Transaction.count" ] do
       post transactions_url, params: {
         entry: {
@@ -200,6 +311,8 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :unprocessable_entity
+    assert_equal "application/json", response.media_type
+    assert response.parsed_body.fetch("errors").any?
   end
 
   test "updates with transaction details" do
@@ -696,142 +809,6 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_not entry.protected_from_sync?
   end
 
-  test "new renders category and merchant selectors in German" do
-    get new_transaction_url(locale: "de")
-
-    assert_response :success
-
-    assert_select "[data-controller='category-select']" do
-      assert_select "input[type='search'][placeholder=?]", "Kategorien suchen"
-      assert_select "[data-category-select-create-label-value=?]", "„__CATEGORY_NAME__“ erstellen"
-      assert_select "[data-category-select-create-error-message-value=?]", "Kategorie konnte nicht erstellt werden"
-    end
-
-    assert_select "[data-controller='merchant-select']" do
-      assert_select "input[type='search'][placeholder=?]", "Händler suchen oder erstellen"
-      assert_select "[data-merchant-select-error-message-value=?]", "Händler konnte nicht erstellt werden"
-      assert_select "[data-merchant-select-target='createForm']", text: /Erstellen/
-    end
-  end
-
-  test "new groups subcategories immediately after their parent in the category select" do
-    get new_transaction_url
-    assert_response :success
-
-    doc = Nokogiri::HTML::Document.parse(response.body)
-    trigger = doc.at_css("#category_id_trigger")
-    assert_not_nil trigger, "expected the category select trigger button to render"
-
-    wrapper = trigger.ancestors(".relative").first
-    category_values = wrapper.css("[data-value]").map { |node| node["data-value"] }
-
-    parent_index = category_values.index(categories(:food_and_drink).id)
-    child_index = category_values.index(categories(:subcategory).id)
-
-    assert_not_nil parent_index
-    assert_not_nil child_index
-    assert_equal parent_index + 1, child_index
-
-    child_option = wrapper.at_css("[data-category-id='#{categories(:subcategory).id}']")
-    assert_not_nil child_option, "expected the subcategory option to render"
-    assert child_option.at_css("[data-testid='category-select-subcategory-indicator']"),
-           "expected the subcategory option to show the hierarchy indicator used in Settings"
-  end
-
-  test "new renders a search box for account selection" do
-    get new_transaction_url
-    assert_response :success
-
-    doc = Nokogiri::HTML::Document.parse(response.body)
-    trigger = doc.at_css("#account_id_trigger")
-    assert_not_nil trigger, "expected the account select trigger button to render"
-
-    wrapper = trigger.ancestors(".relative").first
-    assert_not_nil wrapper.at_css("input[type='search']"), "expected a search input inside the account select"
-  end
-
-  test "new with duplicate_entry_id pre-fills form from source transaction" do
-    @entry.reload
-
-    get new_transaction_url(duplicate_entry_id: @entry.id)
-    assert_response :success
-    assert_select "input[name='entry[name]'][value=?]", @entry.name
-    assert_select "input[type='number'][name='entry[amount]']" do |elements|
-      assert_equal sprintf("%.2f", @entry.amount.abs), elements.first["value"]
-    end
-    assert_select "input[type='hidden'][name='entry[entryable_attributes][merchant_id]']"
-  end
-
-  test "new with invalid duplicate_entry_id renders empty form" do
-    get new_transaction_url(duplicate_entry_id: -1)
-    assert_response :success
-    assert_select "input[name='entry[name]']" do |elements|
-      assert_nil elements.first["value"]
-    end
-  end
-
-  test "new with duplicate_entry_id from another family does not prefill form" do
-    other_family = families(:empty)
-    other_account = other_family.accounts.create!(name: "Other", balance: 0, currency: "USD", accountable: Depository.new)
-    other_entry = create_transaction(account: other_account, name: "Should not leak", amount: 50)
-
-    get new_transaction_url(duplicate_entry_id: other_entry.id)
-    assert_response :success
-    assert_select "input[name='entry[name]']" do |elements|
-      assert_nil elements.first["value"]
-    end
-  end
-
-  test "new preloads transaction form option data" do
-    family = families(:empty)
-    user = users(:empty)
-    sign_in user
-
-    manual_account_ids = []
-    4.times do |idx|
-      account = family.accounts.create!(
-        name: "Manual Account #{idx}",
-        balance: 0,
-        currency: "USD",
-        accountable: Depository.new
-      )
-      assert Account.manual.active.exists?(id: account.id), "Account should be included in the manual active scope"
-      manual_account_ids << account.id
-      family.categories.create!(
-        name: "Category #{idx}",
-        color: "#000000",
-        lucide_icon: "shapes"
-      )
-      family.merchants.create!(name: "Merchant #{idx}")
-      family.tags.create!(name: "Tag #{idx}")
-    end
-
-    inaccessible_account = families(:dylan_family).accounts.create!(
-      name: "Other Family Account",
-      balance: 0,
-      currency: "EUR",
-      accountable: Depository.new
-    )
-
-    queries = capture_sql_queries { get new_transaction_url }
-
-    assert_response :success
-    assert_select "input[name='entry[account_id]']"
-    assert_select "input[name='entry[entryable_attributes][category_id]']"
-    assert_select "input[name='entry[entryable_attributes][merchant_id]']"
-    assert_select "form[data-transaction-form-account-currencies-value]" do |forms|
-      account_currencies = JSON.parse(forms.first["data-transaction-form-account-currencies-value"])
-      manual_account_ids.each do |account_id|
-        assert_equal "USD", account_currencies[account_id.to_s]
-      end
-      assert_nil account_currencies[inaccessible_account.id.to_s]
-    end
-
-    assert_empty queries.grep(/FROM "account_providers" WHERE "account_providers"\."account_id" =/)
-    assert_operator queries.grep(/FROM "active_storage_attachments" WHERE "active_storage_attachments"\."record_id" =/).size, :<=, 1
-    assert_operator queries.grep(/SELECT "categories"\.\* FROM "categories" WHERE "categories"\."family_id" =/).size, :<=, 1
-  end
-
   test "unlock clears import_locked flag" do
     family = families(:empty)
     sign_in users(:empty)
@@ -967,8 +944,9 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
             exchange_rate: "1.5"
           }
         }
-      }
+      }, as: :json
     end
+    assert_response :created
 
     created_entry = Entry.order(:created_at).last
     assert_equal "EUR", created_entry.currency
@@ -998,29 +976,37 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
             category_id: Category.first.id
           }
         }
-      }
+      }, as: :json
     end
+    assert_response :created
 
     created_entry = Entry.order(:created_at).last
+    assert_equal "EUR", created_entry.currency
+    assert_equal 100, created_entry.amount
     assert_nil created_entry.transaction.extra["exchange_rate"]
   end
 
 
   private
 
-    def capture_sql_queries
-      queries = []
-      callback = lambda do |_name, _started, _finished, _unique_id, payload|
-        next if payload[:cached]
-        next if %w[SCHEMA TRANSACTION].include?(payload[:name])
-
-        queries << payload[:sql].squish
-      end
-
-      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
-        yield
-      end
-
-      queries
+    def creation_params
+      {
+        entry: {
+          account_id: @entry.account_id,
+          name: "New transaction",
+          date: Date.current,
+          currency: "USD",
+          amount: "100",
+          nature: "inflow",
+          notes: "Creation notes",
+          entryable_type: "Transaction",
+          idempotency_key: SecureRandom.uuid,
+          entryable_attributes: {
+            category_id: categories(:food_and_drink).id,
+            merchant_id: Merchant.first.id,
+            tag_ids: [ tags(:one).id ]
+          }
+        }
+      }
     end
 end

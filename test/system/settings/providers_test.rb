@@ -4,6 +4,7 @@ require_relative "../../support/financekit_test_helper"
 class Settings::ProvidersTest < ApplicationSystemTestCase
   include FinancekitTestHelper
   setup do
+    ensure_spa_build
     @user = users(:family_admin)
     @family = families(:dylan_family)
     login_as @user
@@ -21,7 +22,7 @@ class Settings::ProvidersTest < ApplicationSystemTestCase
     end
 
     assert_current_path account_path(@source.account)
-    assert_selector "header h2", text: "Test Wallet"
+    assert_selector "main h1", text: "Test Wallet"
     assert_text "Synthetic shop"
 
     visit accounts_path

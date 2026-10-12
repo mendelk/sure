@@ -2,30 +2,36 @@ require "application_system_test_case"
 
 class TransactionCategorySelectTest < ApplicationSystemTestCase
   setup do
+    ensure_spa_build
     sign_in @user = users(:family_admin)
   end
 
   test "can create a category from the transaction form" do
-    visit new_transaction_url
+    account = accounts(:depository)
+    visit new_transaction_url(account_id: account.id)
 
-    assert_difference "Category.count", +1 do
-      find("[data-controller='category-select'] button").click
-
-      within "[data-controller='category-select']" do
+    within "[role='dialog']" do
+      assert_difference "Category.count", +1 do
+        click_button "txn-category-trigger"
         fill_in "Search categories", with: "Inline Test Category"
-
-        assert_text 'Create "Inline Test Category"'
         click_button 'Create "Inline Test Category"'
-
-        assert_selector(
-          "[data-category-select-target='option'][aria-selected='true']",
-          text: "Inline Test Category",
-          visible: :all
-        )
+        assert_selector "#txn-category-trigger", text: "Inline Test Category"
       end
+
+      fill_in "Description", with: "Purchase with inline category"
+      fill_in "Amount", with: "25"
     end
 
-    assert Category.exists?(name: "Inline Test Category")
+    assert_difference [ "Entry.count", "Transaction.count" ], +1 do
+      within "[role='dialog']" do
+        click_button "Create transaction"
+      end
+      assert_no_selector "[role='dialog']"
+    end
+
+    category = @user.family.categories.find_by!(name: "Inline Test Category")
+    entry = account.entries.find_by!(name: "Purchase with inline category")
+    assert_equal category.id, entry.transaction.category_id
   end
 
   test "can clear a category from an existing transaction" do

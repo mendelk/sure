@@ -8,16 +8,6 @@ module LoansHelper
     ]
   end
 
-  # How leveraged the loan was at drawdown, as a design-system colour. Bands are
-  # Loan's; the colours are this layer's.
-  def loan_leverage_band_class(band)
-    {
-      conservative: "text-success",
-      moderate: "text-warning",
-      high: "text-destructive"
-    }.fetch(band, "text-secondary")
-  end
-
   # The rate types the form offers, plus the loan's own when a provider wrote
   # one the form does not know (#100 decision 8). Without it the select has no
   # matching option, the browser submits the first one, and saving any other

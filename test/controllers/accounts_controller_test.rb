@@ -16,16 +16,17 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p.ml-auto.privacy-sensitive"
   end
 
-  test "show filters account activity to uncategorized transactions" do
+  test "show filters account activity with legacy and SPA query parameters" do
     uncategorized = create_transaction(account: @account, name: "Uncategorized Filter Target", category: nil)
     categorized = create_transaction(account: @account, name: "Categorized Filter Decoy", category: categories(:food_and_drink))
 
-    get account_url(@account, q: { uncategorized: "1" })
-
-    assert_response :success
-    assert_select "input#q_uncategorized[checked]"
-    assert_match uncategorized.name, response.body
-    assert_no_match categorized.name, response.body
+    [ { q: { uncategorized: "1" } }, { uncategorized: true, search: "Filter" } ].each do |query|
+      get account_url(@account, format: :json), params: query
+      assert_response :success
+      entries = response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }
+      assert_includes entries.map { |entry| entry["id"] }, uncategorized.id
+      assert_not_includes entries.map { |entry| entry["id"] }, categorized.id
+    end
   end
 
   test "index delegates whole-row account clicks to the account link" do
@@ -162,31 +163,30 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "show renders the balance chart as drag-selectable for a custom date range" do
-    get account_url(@account)
+  test "HTML show renders the SPA without computing financial presentation" do
+    Account::PageData.expects(:new).never
+    Loan.any_instance.expects(:payoff_projection).never
+    AccountStatement::Coverage.expects(:for_year).never
+
+    get account_url(accounts(:loan), tab: "statements")
 
     assert_response :success
-    assert_select "#lineChart[data-time-series-chart-selectable-value='true']"
+    assert_select "#spa-root"
   end
 
-  test "show honors a custom start_date/end_date range" do
+  test "show honors a custom start_date/end_date range and safely rejects a backwards range" do
     start_date = 15.days.ago.to_date
-    end_date = Date.current
-
-    get account_url(@account), params: { start_date: start_date.to_s, end_date: end_date.to_s }
+    get account_url(@account, format: :json), params: { start_date: start_date.iso8601, end_date: Date.current.iso8601 }
 
     assert_response :success
-    # If the params were ignored, the user's default preset would render as the
-    # checked option instead of the custom row.
-    assert_select "a[role='menuitemradio'][aria-checked='true'][href*='period=']", count: 0
-    assert_select "a[role='menuitemradio'][aria-checked='true'][href*='start_date=']", count: 1
-  end
+    period = response.parsed_body.dig("chart", "period")
+    assert_nil period["key"]
+    assert_equal start_date.iso8601, period["start_date"]
+    assert_equal Date.current.iso8601, period["end_date"]
 
-  test "show renders without missing translations" do
-    get account_url(@account)
-
+    get account_url(@account, format: :json), params: { start_date: Date.tomorrow.iso8601, end_date: Date.yesterday.iso8601 }
     assert_response :success
-    assert_empty response.body.scan(/translation missing: [\w.]+/).uniq
+    assert_equal "last_30_days", response.parsed_body.dig("chart", "period", "key")
   end
 
   test "sync all requests fresh Plaid transactions before syncing the family" do
@@ -211,314 +211,277 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to accounts_url
   end
 
-  test "show avoids N+1 transfer queries across paginated entries" do
-    queries = capture_sql_queries { get account_url(@account) }
-    assert_response :success
-
-    # Per-row transfer lookups (N+1 pattern) hit transfers with a single id
-    # Preloading batches them into IN(...) — assert no single-id lookups remain
-    per_row_transfer = queries.count { |q|
-      q.match?(/FROM "transfers".*WHERE.*"(inflow|outflow)_transaction_id"/) &&
-        !q.include?(" IN (")
-    }
-    assert_equal 0, per_row_transfer, "N+1 per-row transfer queries detected (#{per_row_transfer})"
-  end
-
-  test "show delegates whole-row trade clicks to the drawer link" do
-    investment_account = accounts(:investment)
-    entry = entries(:trade)
-
-    get account_url(investment_account)
-
-    assert_response :success
-    doc = Nokogiri::HTML::Document.parse(response.body)
-    row = doc.at_css("turbo-frame##{dom_id(entry.entryable)} [data-controller='clickable-row']")
-    drawer_link = row.at_css("a[data-clickable-row-target='link']")
-
-    assert_equal "click->clickable-row#open", row["data-action"]
-    assert_equal entry_path(entry), drawer_link["href"]
-  end
-
-  test "show avoids N+1 split-parent queries across paginated entries" do
-    queries = capture_sql_queries { get account_url(@account) }
-    assert_response :success
-
-    # Per-row child-entry existence checks (N+1) hit entries with a single parent_entry_id
-    # @split_parent_entry_ids preloads this in one batch IN query
-    per_row_split = queries.count { |q|
-      q.match?(/FROM "entries".*WHERE.*"parent_entry_id"/) && !q.include?(" IN (")
-    }
-    assert_equal 0, per_row_split, "N+1 per-row split-parent queries detected (#{per_row_split})"
-  end
-
-  test "show groups split transactions into a single split-group row when grouping is enabled" do
+  test "show serializes mixed activity with account-context movement signs and excludes split parents" do
+    investment = accounts(:investment)
+    trade = entries(:trade)
+    valuation = investment.entries.create!(date: Date.current, name: "Opening value", amount: 123, currency: investment.currency, entryable: Valuation.new(kind: "opening_anchor"))
+    transaction = create_transaction(account: investment, name: "Split source", amount: 100)
+    transaction.split!([ { name: "One", amount: 60 }, { name: "Two", amount: 40 } ])
     @user.update!(preferences: { "show_split_grouped" => true })
-    entry = create_transaction(name: "Grocery Store", amount: 100, account: @account)
-    entry.split!([
-      { name: "Food", amount: 60 },
-      { name: "Household", amount: 40 }
-    ])
 
-    get account_url(@account)
+    get account_url(investment, format: :json)
 
     assert_response :success
-    assert_select ".split-group", count: 1
-    assert_select ".split-group" do
-      assert_select "p", text: "Food", count: 0
-    end
-  end
+    rows = response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }
+    assert_not_includes rows.map { |row| row["id"] }, transaction.id
+    assert_equal (-trade.amount_money).format, rows.find { |row| row["id"] == trade.id }["amount"]
+    assert_equal valuation.amount_money.format, rows.find { |row| row["id"] == valuation.id }["amount"]
+    children = rows.select { |row| row.dig("split_parent", "id") == transaction.id }
+    assert_equal 2, children.size
+    assert children.all? { |row| row["transaction"].present? }
 
-  test "show renders split children as flat rows when grouping is disabled" do
     @user.update!(preferences: { "show_split_grouped" => false })
-    entry = create_transaction(name: "Grocery Store", amount: 100, account: @account)
-    entry.split!([
-      { name: "Food", amount: 60 },
-      { name: "Household", amount: 40 }
-    ])
-
-    get account_url(@account)
-
+    get account_url(investment, format: :json)
     assert_response :success
-    assert_select ".split-group", count: 0
+    assert response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }.all? { |row| row["split_parent"].nil? }
   end
 
-  test "show avoids N+1 queries when loading split parents for grouped display" do
+  test "show keeps excluded entries and supports search on nontransaction activity" do
+    trade = entries(:trade)
+    trade.update!(excluded: true)
+    get account_url(accounts(:investment), format: :json), params: { search: trade.name }
+
+    assert_response :success
+    rows = response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }
+    row = rows.find { |entry| entry["id"] == trade.id }
+    assert row
+    assert row["excluded"]
+    assert_equal "trade", row["type"]
+  end
+
+  test "show keeps transfer and split parent queries batched across activity" do
     @user.update!(preferences: { "show_split_grouped" => true })
-    3.times do |i|
-      entry = create_transaction(name: "Grocery Store #{i}", amount: 100, account: @account)
-      entry.split!([
-        { name: "Food", amount: 60 },
-        { name: "Household", amount: 40 }
-      ])
+    3.times do |index|
+      create_transaction(account: @account, name: "Split #{index}", amount: 100).split!([ { name: "One", amount: 60 }, { name: "Two", amount: 40 } ])
     end
+    queries = capture_sql_queries { get account_url(@account, format: :json) }
 
-    queries = capture_sql_queries { get account_url(@account) }
     assert_response :success
-
-    # @split_parents loads all referenced split-parent entries in a single
-    # `WHERE "entries"."id" IN (...)` query — a per-row `"id" = $1` lookup
-    # would indicate the batching regressed into N+1.
-    per_row_split_parent = queries.count { |q|
-      q.match?(/FROM "entries".*WHERE.*"entries"\."id" = \$?\d+/) && !q.include?(" IN (")
-    }
-    assert_equal 0, per_row_split_parent, "N+1 per-row split-parent lookups detected (#{per_row_split_parent})"
+    per_row_transfer = queries.count { |query| query.match?(/FROM "transfers".*WHERE.*"(inflow|outflow)_transaction_id"/) && !query.include?(" IN (") }
+    assert_equal 0, per_row_transfer
+    per_row_parent = queries.count { |query| query.match?(/FROM "entries".*WHERE.*"entries"\."id" = \$?\d+/) && !query.include?(" IN (") }
+    assert_equal 0, per_row_parent
   end
 
-  test "show lazily loads statement tab data unless statements tab is active" do
+  test "show scopes both formats to accessible accounts" do
+    sign_in users(:family_member)
+    hidden = accounts(:investment)
+    hidden.update!(owner: users(:family_admin))
+    hidden.account_shares.destroy_all
+
+    [ :html, :json ].each do |format|
+      get account_url(hidden, format: format)
+      assert_response :not_found
+    end
+  end
+
+  test "show does not expose an inaccessible transfer counterpart" do
+    member = users(:family_member)
+    transfer = transfers(:one)
+    visible = transfer.outflow_transaction.entry.account
+    hidden = transfer.inflow_transaction.entry.account
+    [ visible, hidden ].each do |account|
+      account.update!(owner: @user)
+      account.account_shares.destroy_all
+    end
+    visible.account_shares.create!(user: member, permission: "read_only")
+    sign_in member
+
+    get account_url(visible, format: :json)
+
+    assert_response :success
+    assert_not_includes response.body, hidden.id
+    assert_not_includes response.body, hidden.name
+    payload = response.parsed_body
+    assert payload.dig("activity", "groups").flat_map { |group| group["entries"] }.none? { |row| row["selectable"] }
+    assert_empty payload.dig("activity", "new_actions")
+    assert_not_includes payload["actions"].map { |action| action["key"] }, "edit"
+    assert_nil payload["sync_action"]
+  end
+
+  test "only the selected tab is computed and legacy transactions tab normalizes to activity" do
     AccountStatement::Coverage.expects(:for_year).never
     AccountStatement.expects(:reconciliation_statuses_for).never
+    Account.any_instance.expects(:current_holdings).never
 
-    get account_url(@account)
-
+    get account_url(accounts(:investment), format: :json), params: { tab: "transactions" }
     assert_response :success
-    assert_select "select[name='statement_year']", count: 0
-    statements_path = account_path(@account, tab: "statements")
-    assert_select "turbo-frame[src='#{statements_path}']"
+    assert_equal "activity", response.parsed_body["active_tab"]
+    assert response.parsed_body["activity"]
+    assert_empty response.parsed_body["sections"]
   end
 
-  test "statements tab links escape turbo frame for full-page navigation" do
-    # Upload a statement to ensure table rows render
-    statement = AccountStatement.create_from_upload!(
-      family: @account.family,
-      file: uploaded_file(
-        filename: "test.pdf",
-        content_type: "application/pdf",
-        content: "%PDF-1.4 test content"
-      ),
-      account: @account
-    )
-
-
-    get account_url(@account, tab: "statements")
+  test "holdings tab uses current holdings without loading activity" do
+    Account::ActivityFeedData.expects(:new).never
+    get account_url(accounts(:investment), format: :json), params: { tab: "holdings" }
 
     assert_response :success
-
-    # Inbox link escapes frame
-    assert_select "a[href='#{account_statements_path}'][data-turbo-frame='_top']"
-
-    # Statement filename link escapes frame
-    assert_select "a[data-turbo-frame='_top']", text: statement.filename
-
-    # Eye/view icon escapes frame and opens in new tab
-    assert_select "a[target='_blank'][data-turbo-frame='_top'][aria-label='#{I18n.t("account_statements.table.view")}']"
-
-    # Edit icon escapes frame
-    assert_select "a[href='#{account_statement_path(statement)}'][data-turbo-frame='_top'][aria-label='#{I18n.t("account_statements.table.edit")}']"
-
-    # Unlink button escapes frame
-    assert_select "form[action='#{unlink_account_statement_path(statement)}'][data-turbo-frame='_top'] button"
+    payload = response.parsed_body
+    assert_nil payload["activity"]
+    rows = payload["sections"].first.dig("table", "rows")
+    expected = accounts(:investment).current_holdings.map(&:id)
+    assert_equal expected.sort, rows.reject { |row| row["id"] == "cash" }.map { |row| row["id"] }.sort
   end
 
-  test "statements tab shows coverage and upload for statement managers with account write access" do
-    get account_url(@account, tab: "statements")
+  test "statement managers receive coverage uploads and file actions" do
+    statement = AccountStatement.create_from_upload!(family: @account.family, account: @account,
+      file: uploaded_file(filename: "statement.pdf", content_type: "application/pdf", content: "%PDF-1.4 test content"))
+    Account::ActivityFeedData.expects(:new).never
+
+    get account_url(@account, format: :json), params: { tab: "statements" }
 
     assert_response :success
-    assert_select "input[type=file][accept='.pdf,.csv,.xlsx']"
-    assert_select "select[name='statement_year']"
-    assert_select "p", text: I18n.l(Date.current.prev_month.beginning_of_month, format: "%b %Y")
+    sections = response.parsed_body["sections"]
+    upload = sections.first["upload"]
+    assert_equal ".pdf,.csv,.xlsx", upload["accept"]
+    assert_equal @account.id, upload["account_id"]
+    assert_equal 12, sections.first.dig("coverage", "months").size
+    row = sections.last.dig("table", "rows").find { |item| item["id"] == statement.id }
+    assert_equal %w[download edit unlink view], row["actions"].map { |action| action["key"] }.sort
+    assert_equal "patch", row["actions"].find { |action| action["key"] == "unlink" }["method"]
   end
 
-  test "statements tab lazy frame returns matching frame content" do
-    frame_id = dom_id(@account, :statements_tab)
-
-    get account_url(@account, tab: "statements"), headers: { "Turbo-Frame" => frame_id }
-
-    assert_response :success
-    assert_select "turbo-frame##{frame_id}", count: 1
-    assert_select "select[name='statement_year']"
-    assert_select "turbo-frame##{dom_id(@account, :container)}", count: 0
-  end
-
-  test "statements tab filters historical coverage by year" do
-    account = Account.create!(
-      family: @user.family,
-      owner: @user,
-      name: "Historical Checking",
-      balance: 0,
-      currency: "USD",
-      accountable: Depository.new
-    )
-    statement = AccountStatement.create_from_upload!(
-      family: @user.family,
-      account: account,
-      file: uploaded_file(filename: "historical.csv", content_type: "text/csv")
-    )
+  test "statement coverage honors selected years and preserves the complete file list" do
+    statement = AccountStatement.create_from_upload!(family: @account.family, account: @account,
+      file: uploaded_file(filename: "historical.csv", content_type: "text/csv"))
     statement.update!(period_start_on: Date.new(2024, 2, 1), period_end_on: Date.new(2024, 2, 29))
 
     travel_to Date.new(2026, 5, 6) do
-      get account_url(account, tab: "statements")
-
+      get account_url(@account, format: :json), params: { tab: "statements", statement_year: 2024 }
       assert_response :success
-      assert_select "select[name='statement_year'] option[selected='selected']", text: "2026"
-      assert_select "p", text: "May 2026"
-      assert_select "p", text: "Not expected"
+      sections = response.parsed_body["sections"]
+      assert_equal 2024, sections.first.dig("coverage", "selected_year")
+      february = sections.first.dig("coverage", "months").find { |month| month["key"] == "2024-02-01" }
+      assert_equal "covered", february["status"]
+      assert_includes sections.last.dig("table", "rows").map { |row| row["id"] }, statement.id
 
-      get account_url(account, tab: "statements", statement_year: 2024)
-
+      get account_url(@account, format: :json), params: { tab: "statements", statement_year: 1900 }
       assert_response :success
-      assert_select "select[name='statement_year'] option[selected='selected']", text: "2024"
-      assert_select "p", text: "Jan 2024"
-      assert_select "p", text: "Feb 2024"
-      assert_select "p", text: "Covered"
-      assert_select "p", text: "Missing"
-      assert_select "p", text: "Not expected"
+      assert_equal 2026, response.parsed_body["sections"].first.dig("coverage", "selected_year")
     end
   end
 
-  test "statements tab hides upload for read only account access" do
-    sign_in users(:family_member)
-
-    get account_url(accounts(:credit_card), tab: "statements")
-
+  test "statement uploads require both account write permission and document manager role" do
+    member = users(:family_member)
+    sign_in member
+    get account_url(accounts(:credit_card), format: :json), params: { tab: "statements" }
     assert_response :success
-    assert_select "input[type=file]", count: 0
+    assert_nil response.parsed_body["sections"].first["upload"]
+
+    member.update!(role: "guest")
+    owned = accounts(:credit_card)
+    owned.update!(owner: member)
+    get account_url(owned, format: :json), params: { tab: "statements" }
+    assert_response :success
+    assert_nil response.parsed_body["sections"].first["upload"]
   end
 
-  test "account activity marks trade amounts as privacy-sensitive" do
-    trade_entry = entries(:trade)
-    expected_amount = ApplicationController.helpers.format_money(-trade_entry.amount_money)
-
-    get account_url(accounts(:investment))
-
+  test "investment chart views normalize unsupported values" do
+    get account_url(accounts(:investment), format: :json), params: { chart_view: "gains" }
     assert_response :success
-    assert_select "turbo-frame##{dom_id(trade_entry)} p.privacy-sensitive", text: expected_amount, count: 1
+    assert_equal "gains", response.parsed_body.dig("chart", "view")
+    assert_equal I18n.t("UI.account.chart.title.total_gains"), response.parsed_body.dig("chart", "title")
+
+    get account_url(@account, format: :json), params: { chart_view: "gains", tab: "holdings" }
+    assert_response :success
+    assert_equal "balance", response.parsed_body.dig("chart", "view")
+    assert_equal "activity", response.parsed_body["active_tab"]
   end
 
-  test "account activity keeps excluded entries visible so they can be restored" do
-    trade_entry = entries(:trade)
-    trade_entry.update!(excluded: true)
-
-    get account_url(accounts(:investment))
-
-    assert_response :success
-    assert_select "turbo-frame##{dom_id(trade_entry)}"
-  end
-
-  test "renders investment account with gains chart view" do
-    get account_url(accounts(:investment), chart_view: "gains")
-
-    assert_response :success
-    assert_select "option[value=gains][selected]"
-    assert_select "p", text: I18n.t("UI.account.chart.title.total_gains")
-  end
-
-  # The chart and the Schedule tab's forecast card read one projection. The
-  # chart used to build one and the Schedule partial a second, for the same
-  # date, on every render of a loan's page.
-  test "a loan account page builds its payoff projection once for the chart and the Schedule tab" do
-    loan_account = accounts(:loan)
-    projection = loan_account.loan.payoff_projection(as_of: Date.current)
+  test "loan chart and schedule share one payoff projection" do
+    account = accounts(:loan)
+    projection = account.loan.payoff_projection(as_of: Date.current)
     Loan.any_instance.expects(:payoff_projection).once.returns(projection)
 
-    get account_url(loan_account)
+    get account_url(account, format: :json), params: { tab: "schedule" }
 
     assert_response :success
-    assert_includes response.body, I18n.t("loans.tabs.schedule.forecasted_payoff_date")
+    assert_equal account.loan.term_months, response.parsed_body["sections"].first.dig("table", "rows").size
   end
 
-  test "remembers selected per_page across account navigation" do
-    other_account = accounts(:credit_card)
-
-    get account_url(@account, per_page: 50)
-    assert_response :success
-    assert_select "select[name='per_page'] option[value='50'][selected]"
-
-    get account_url(other_account)
-    assert_response :success
-    assert_select "select[name='per_page'] option[value='50'][selected]"
-  end
-
-  test "falls back to default per_page when nothing was stored yet" do
-    get account_url(@account)
-    assert_response :success
-    assert_select "select[name='per_page'] option[value='10'][selected]"
-  end
-
-  test "activity pagination keeps activity tab when loaded from holdings tab" do
-    investment = accounts(:investment)
-
-    11.times do |i|
-      Entry.create!(
-        account: investment,
-        name: "Test investment activity #{i}",
-        date: Date.current - i.days,
-        amount: 10 + i,
-        currency: investment.currency,
-        entryable: Transaction.new
-      )
+  test "all account types advertise their supported tabs and only return the active section" do
+    expected = {
+      depository: %w[activity statements], investment: %w[activity holdings statements],
+      crypto: %w[activity holdings statements], loan: %w[activity overview schedule statements],
+      property: %w[activity overview statements], vehicle: %w[activity overview statements],
+      credit_card: %w[activity statements], other_asset: %w[activity statements], other_liability: %w[activity statements]
+    }
+    expected.each do |fixture, tabs|
+      get account_url(accounts(fixture), format: :json), params: { tab: "unknown" }
+      assert_response :success
+      payload = response.parsed_body
+      assert_equal tabs, payload["tabs"].map { |tab| tab["id"] }
+      assert_equal "activity", payload["active_tab"]
+      assert_empty payload["sections"]
+      assert_empty response.body.scan(/translation missing: [\w.]+/)
+      %w[select_entry selected_entries loading unavailable retry].each { |key| assert payload["text"][key].is_a?(String) }
     end
-
-    get account_url(investment, tab: "holdings")
-
-    assert_response :success
-    assert_select "a[href*='page=2'][href*='tab=activity']"
-    assert_select "a[href*='page=2'][href*='tab=holdings']", count: 0
   end
 
-  test "account activity constrains long category labels before the amount on wide screens" do
-    category = categories(:food_and_drink)
-    category.update!(name: "Super Long Category Name That Should Stop Before The Amount On Wide Screens Too")
+  test "pending filters preserve nontransaction activity under confirmed and combined statuses" do
+    investment = accounts(:investment)
+    pending = create_transaction(account: investment, name: "Pending activity", amount: 20)
+    pending.entryable.update!(extra: { "enable_banking" => { "pending" => true } })
+    trade = entries(:trade)
 
-    entry = @account.entries.create!(
-      name: "Wide category verification",
-      date: Date.current,
-      amount: 187.65,
-      currency: @account.currency,
-      entryable: Transaction.new(category: category)
-    )
+    get account_url(investment, format: :json), params: { status: [ "pending" ] }
+    assert_response :success
+    rows = response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }
+    assert_equal [ pending.id ], rows.map { |row| row["id"] }
+    assert rows.first.dig("transaction", "pending")
 
-    get account_url(@account, tab: "activity")
+    get account_url(investment, format: :json), params: { q: { status: [ "confirmed" ] } }
+    assert_response :success
+    rows = response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }
+    assert_includes rows.map { |row| row["id"] }, trade.id
+    assert_not_includes rows.map { |row| row["id"] }, pending.id
+
+    get account_url(investment, format: :json), params: { status: [ "confirmed", "pending" ] }
+    assert_response :success
+    rows = response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }
+    assert_includes rows.map { |row| row["id"] }, trade.id
+    assert_includes rows.map { |row| row["id"] }, pending.id
+  end
+
+  test "property and vehicle overview return typed details without activity data" do
+    Account::ActivityFeedData.expects(:new).never
+    %i[property vehicle].each do |fixture|
+      get account_url(accounts(fixture), format: :json), params: { tab: "overview" }
+      assert_response :success
+      payload = response.parsed_body
+      assert_nil payload["activity"]
+      assert payload["sections"].first["cards"].any?
+      assert payload["sections"].first["actions"].any? { |action| action["key"] == "edit" }
+    end
+  end
+
+  test "activity groups serialize account-currency balances and reconciliation values" do
+    get account_url(@account, format: :json)
 
     assert_response :success
-    assert_select "##{dom_id(entry.entryable, "category_menu_desktop")}"
-    assert_select "##{dom_id(entry.entryable, "category_menu_desktop")}.min-w-0"
-    assert_select "##{dom_id(entry.entryable, "category_menu_desktop")}.overflow-hidden"
-    assert_select "##{dom_id(entry.entryable, "category_menu_desktop")} button.block"
-    assert_select "##{dom_id(entry.entryable, "category_menu_desktop")} button.w-full"
-    assert_select "##{dom_id(entry.entryable, "category_menu_desktop")} button.overflow-hidden"
-    assert_select "##{dom_id(entry.entryable, "category_menu_desktop")} [data-testid='category-name']"
-    assert_select "div.hidden.md\\:flex.min-w-0"
+    balance = balances(:two)
+    group = response.parsed_body.dig("activity", "groups").find { |item| item["date"] == balance.date.iso8601 }
+    assert group
+    assert_equal balance.end_balance_money.format, group["balance"]
+    expected = UI::Account::BalanceReconciliation.new(balance: balance, account: @account).reconciliation_items
+    assert_equal expected.map { |item| item[:label] }, group["reconciliation"].map { |item| item["label"] }
+    assert_equal expected.map { |item| item[:value].format }, group["reconciliation"].map { |item| item["value"] }
+    assert group["reconciliation"].all? { |item| item["tooltip"].present? && item["style"].present? }
   end
+
+  test "remembers supported per_page and normalizes invalid page sizes" do
+    get account_url(@account, format: :json), params: { per_page: 50 }
+    assert_response :success
+    assert_equal 50, response.parsed_body.dig("activity", "pagination", "per_page")
+    get account_url(accounts(:credit_card), format: :json)
+    assert_response :success
+    assert_equal 50, response.parsed_body.dig("activity", "pagination", "per_page")
+    get account_url(@account, format: :json), params: { per_page: 999, page: -5 }
+    assert_response :success
+    assert_equal 100, response.parsed_body.dig("activity", "pagination", "per_page")
+    assert_equal 1, response.parsed_body.dig("activity", "pagination", "page")
+  end
+
 
   test "should sync account" do
     post sync_account_url(@account)

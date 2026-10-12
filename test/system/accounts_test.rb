@@ -2,6 +2,7 @@ require "application_system_test_case"
 
 class AccountsTest < ApplicationSystemTestCase
   setup do
+    ensure_spa_build
     sign_in @user = users(:family_admin)
 
     Family.any_instance.stubs(:get_link_token).returns("test-link-token")
@@ -104,37 +105,9 @@ class AccountsTest < ApplicationSystemTestCase
       end
     end
 
-    # The account page issues a Turbo morph refresh shortly after it loads
-    # (`turbo_refreshes_with method: :morph` reacting to a family-stream
-    # broadcast). Opening the menu while that refresh is in flight can detach the
-    # node mid-click ("Node with given id does not belong to the document") or
-    # wipe the just-opened edit form — neither of which Capybara auto-retries.
-    # Retry until the edit form is present so the test is deterministic instead
-    # of racing the broadcast (mirrors PropertyTest#open_account_edit_dialog).
     def open_account_edit_dialog
-      3.times do
-        # A prior (slow) attempt may have already opened the edit form.
-        return if has_field?("Account name", wait: 0)
-
-        begin
-          within_testid("account-menu") do
-            # Open the menu only when it's closed. DS::Menu's trigger toggles
-            # (menu_controller#toggle), so blindly re-clicking an already-open
-            # menu would close it and hide "Edit", turning a slow-but-successful
-            # modal load into a fresh flake.
-            unless has_selector?("[role='menu']", visible: true, wait: 0)
-              find("button").click
-            end
-            click_on "Edit"
-          end
-        rescue Selenium::WebDriver::Error::WebDriverError => e
-          raise unless e.message.match?(
-            /does not belong to the document|stale element reference/i,
-          )
-          next
-        end
-        return if has_field?("Account name", wait: 2)
-      end
+      click_button I18n.t("accounts.show.spa.account_menu")
+      click_on I18n.t("accounts.show.menu.edit")
       assert_field "Account name"
     end
 
@@ -158,11 +131,7 @@ class AccountsTest < ApplicationSystemTestCase
 
       click_button "Create Account"
 
-      within_testid("account-sidebar-tabs") do
-        click_on "All"
-        find("details", text: Accountable.from_type(accountable_type).display_name).click
-        assert_text account_name
-      end
+      assert_text account_name
 
       visit accounts_url
       assert_text account_name
@@ -173,9 +142,7 @@ class AccountsTest < ApplicationSystemTestCase
       assert_equal notes, created_account[:notes]
 
       visit account_url(created_account)
-      # Let the initial page (and any immediate Turbo morph) settle before
-      # opening the edit dialog — same race as open_account_edit_dialog.
-      assert_selector "h2", text: account_name
+      assert_selector "h1", text: account_name
 
       updated_institution_name = "[system test] Updated Institution"
       updated_institution_domain = "updated.example.com"
@@ -194,32 +161,17 @@ class AccountsTest < ApplicationSystemTestCase
       assert_equal updated_notes, created_account[:notes]
     end
 
-    # Fill + submit the account edit dialog, retrying when a Turbo morph
-    # detaches nodes mid-interaction (Chrome: "Node with given id does not
-    # belong to the document"). Mirrors open_account_edit_dialog.
     def update_account_details(name:, institution_name:, institution_domain:, notes:)
-      3.times do
-        begin
-          open_account_edit_dialog unless has_field?("Account name", wait: 0)
-
-          fill_in "Account name", with: name
-          unless has_field?("Institution name", wait: 0)
-            find("summary", text: "Additional details").click
-          end
-          fill_in "Institution name", with: institution_name
-          fill_in "Institution domain", with: institution_domain
-          fill_in "Notes", with: notes
-          click_button "Update Account"
-
-          return if has_selector?("h2", text: name, wait: 2)
-        rescue Selenium::WebDriver::Error::WebDriverError => e
-          raise unless e.message.match?(
-            /does not belong to the document|stale element reference/i,
-          )
-        end
+      open_account_edit_dialog
+      fill_in "Account name", with: name
+      unless has_field?("Institution name", wait: 0)
+        find("summary", text: "Additional details").click
       end
-
-      assert_selector "h2", text: name
+      fill_in "Institution name", with: institution_name
+      fill_in "Institution domain", with: institution_domain
+      fill_in "Notes", with: notes
+      click_button "Update Account"
+      assert_selector "h1", text: name
     end
 
     def humanized_accountable(accountable_type)

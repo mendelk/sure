@@ -2,6 +2,7 @@ require "application_system_test_case"
 
 class PropertiesEditTest < ApplicationSystemTestCase
   setup do
+    ensure_spa_build
     sign_in @user = users(:family_admin)
 
     Family.any_instance.stubs(:get_link_token).returns("test-link-token")
@@ -12,49 +13,16 @@ class PropertiesEditTest < ApplicationSystemTestCase
   end
 
   test "can persist property subtype" do
-    click_link "[system test] Property Account"
+    assert_selector "h1", text: "[system test] Property Account"
     open_account_edit_dialog
     assert_field "account_accountable_attributes_subtype", with: "single_family_home"
   end
 
   private
 
-    # The account page issues a Turbo morph refresh shortly after it loads
-    # (`turbo_refreshes_with method: :morph` reacting to a family-stream
-    # broadcast). If the edit modal is opened while that refresh is in flight,
-    # the morph re-renders the page and wipes the just-loaded `#modal`
-    # turbo-frame before the dialog is interactive — and can detach the menu
-    # node mid-click ("Node with given id does not belong to the document"),
-    # which Capybara does not auto-retry. Open via the account menu and retry
-    # until the edit form is present so the test is deterministic instead of
-    # racing the broadcast.
     def open_account_edit_dialog
-      3.times do
-        # A prior (slow) attempt may have already opened the edit form. Check
-        # the field is enabled, not just present — the select briefly exists
-        # but disabled while the form finishes hydrating, and assert_field's
-        # default matcher (used by the caller) excludes disabled fields.
-        return if has_field?("account_accountable_attributes_subtype", wait: 0)
-
-        begin
-          within_testid("account-menu") do
-            # Open the menu only when it's closed. DS::Menu's trigger toggles
-            # (menu_controller#toggle), so blindly re-clicking an already-open
-            # menu would close it and hide "Edit", turning a slow-but-successful
-            # modal load into a fresh flake.
-            unless has_selector?("[role='menu']", visible: true, wait: 0)
-              find("button").click
-            end
-            click_on "Edit"
-          end
-        rescue Selenium::WebDriver::Error::WebDriverError => e
-          raise unless e.message.match?(
-            /does not belong to the document|stale element reference/i,
-          )
-          next
-        end
-        return if has_field?("account_accountable_attributes_subtype", wait: 2)
-      end
+      click_button I18n.t("accounts.show.spa.account_menu")
+      click_on I18n.t("accounts.show.menu.edit")
       assert_field "account_accountable_attributes_subtype"
     end
 

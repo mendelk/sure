@@ -1,220 +1,225 @@
 require "application_system_test_case"
 
-# The one thing the Ruby and controller-level tests cannot say.
-#
-# Loan::PayoffChartTest proves the payload is right, and the controller test
-# proves it reaches the data attribute. Neither proves a line is PAINTED --
-# which is the failure mode this chart has already been reported for once.
-#
-# So these assertions are deliberately about the rendered SVG and the DOM
-# around it: that each series exists as a path with real geometry and a
-# stroke that will mark the screen, in both themes; that the description and
-# the keyboard give a screen-reader or keyboard user the figures;
-# and that the live region stays quiet under a pointer. A test that
-# re-checked payoff dates here would be re-running Loan::PayoffChartTest
-# through a browser, slowly.
 class LoanPayoffChartTest < ApplicationSystemTestCase
-  # Pinned so the schedule, the projection and therefore the number of drawn
-  # series are the same run to run. The loan opens 2026-01-01 over 24 months,
-  # so this sits mid-term with real history behind it and real term ahead.
+  # A loan halfway through its term has recorded history and a future payoff.
   TODAY = Date.new(2027, 1, 15)
   SERIES = %w[actual scheduled projected].freeze
+  CHART_SELECTOR = "svg.ts-chart[role='img'][tabindex='0']".freeze
 
   setup do
+    ensure_spa_build
     sign_in @user = users(:family_admin)
   end
 
-  test "the chart paints all three lines, in the light theme and the dark" do
+  test "the chart paints recorded, scheduled and projected balances in both themes" do
     travel_to TODAY do
       account = on_contract_loan_account
 
       visit account_path(account, period: "all_time")
-      assert_selector "[data-controller='loan-payoff-chart'] svg"
-
+      chart_svg
+      page.execute_script("document.documentElement.setAttribute('data-theme', 'light')")
       assert_series_painted
       strokes_in_light = SERIES.to_h { |key| [ key, stroke_of(key) ] }
 
-      # The strokes are live CSS variables, so the browser repaints them from
-      # the dark palette without a redraw; nothing in the controller watches
-      # the theme. Wait on the computed stroke itself.
       page.execute_script("document.documentElement.setAttribute('data-theme', 'dark')")
       wait_until { stroke_of("actual") != strokes_in_light["actual"] }
       assert_series_painted
-      assert_not_equal strokes_in_light["actual"], stroke_of("actual"),
-        "the recorded line must repaint from the dark theme's token"
+      SERIES.each do |key|
+        assert_not_equal strokes_in_light[key], stroke_of(key),
+          "the #{key} line must repaint from the dark theme's token"
+      end
     end
   end
 
-  # The SVG names the balance and every payoff date in its label, the
-  # same text is real DOM, and it points at no table that is not there.
-  test "the SVG carries its description and no data table" do
+  test "the accessible chart description gives the real balance and payoff dates" do
     travel_to TODAY do
       account = on_contract_loan_account
-      payload = Loan::PayoffChart.new(account.loan, as_of: TODAY, period: all_time_period).payload
+      schedule = account.loan.amortization_schedule
+      projection = account.loan.payoff_projection(as_of: TODAY)
 
       visit account_path(account, period: "all_time")
-      svg = find("[data-controller='loan-payoff-chart'] svg")
+      description = chart_svg["aria-label"]
 
-      assert_equal payload[:aria_description], svg["aria-label"]
-      assert_nil svg["aria-details"], "the chart must not point at a table"
-      assert_selector "p.sr-only", text: payload[:aria_description], visible: :all
-      assert_no_selector "##{ActionView::RecordIdentifier.dom_id(account, :chart)} table", visible: :all
+      assert_includes description, account.balance_money.format
+      assert_includes description, I18n.l(schedule.payoff_date, format: :long)
+      assert_includes description, I18n.l(projection.payoff_date, format: :long)
+      assert_no_selector "[role='slider']"
     end
   end
 
-  # Every plotted date is reachable from the keyboard, and only the
-  # keyboard talks to the live region -- a pointer sweeping the chart would
-  # otherwise announce on every movement.
-  test "arrow keys step the tooltip through the plotted dates and only they announce" do
+  test "keyboard navigation groups the figures by date and only keyboard focus announces" do
     travel_to TODAY do
       account = on_contract_loan_account
+      payload = payoff_payload(account)
+      dates = plotted_dates(payload)
 
       visit account_path(account, period: "all_time")
-      svg = find("[data-controller='loan-payoff-chart'] svg")
-      assert_equal "0", svg["tabindex"], "the chart must be focusable"
+      svg = chart_svg
+      svg.send_keys(:home)
+      assert_tooltip_at_date(payload, dates.first, announcing: true)
+      first = find(".ts-chart-tooltip").text
 
       svg.send_keys(:arrow_right)
-      tooltip = find("[data-controller='loan-payoff-chart'] div[aria-live='polite']", visible: :all)
-      first = tooltip.text(:all)
-      assert_match I18n.t("UI.account.chart.loan.scheduled"), first
-      assert_includes tooltip[:class].to_s.split, "chart-tooltip"
-      assert_includes tooltip[:class].to_s.split, "z-50"
+      assert_tooltip_at_date(payload, dates.second, announcing: true)
+      assert_not_equal first, find(".ts-chart-tooltip").text,
+        "the arrow key must move to the next plotted date"
 
-      svg.send_keys(:arrow_right)
-      assert_not_equal first, tooltip.text(:all), "the second press moves to the next date"
+      # At today's date the recorded balance and projection start coincide.
+      svg.send_keys(:home, *Array.new(dates.index(TODAY.iso8601), :arrow_right))
+      assert_tooltip_at_date(payload, TODAY.iso8601, announcing: true)
 
       svg.send_keys(:escape)
-      assert_no_selector "[data-controller='loan-payoff-chart'] div[aria-live='polite']", visible: :all
+      assert_no_selector ".ts-chart-tooltip"
 
-      # A pointer sweep shows the tooltip but never turns it into a live region.
-      page.execute_script(<<~JS)
-        const rect = document.querySelector("[data-controller='loan-payoff-chart'] svg rect[style*='cursor']");
-        const box = rect.getBoundingClientRect();
-        rect.dispatchEvent(new PointerEvent("pointermove", { clientX: box.left + box.width / 2, clientY: box.top + box.height / 2, bubbles: true }));
-      JS
-      assert_selector "[data-controller='loan-payoff-chart'] div.chart-tooltip", text: I18n.t("UI.account.chart.loan.scheduled")
-      assert_no_selector "[data-controller='loan-payoff-chart'] div[aria-live='polite']", visible: :all
+      point_at_date(dates.first)
+      assert_tooltip_at_date(payload, dates.first, announcing: false)
     end
   end
 
-  # The tooltip formats its date and its money in the request's locale, which
-  # the payload carries because the layout hard-codes `lang="en"`. Asserted
-  # against what the browser's own Intl produces for German, so the expected
-  # strings are not guessed; and against the English forms, so a formatter
-  # that ignored the locale would fail here.
-  test "the tooltip is formatted in the user's locale" do
+  test "the tooltip uses German dates and server-formatted currency for every series" do
     @user.update!(locale: "de")
 
     travel_to TODAY do
       account = on_contract_loan_account
+      payload = I18n.with_locale(:de) { payoff_payload(account) }
 
       visit account_path(account, period: "all_time")
-      svg = find("[data-controller='loan-payoff-chart'] svg")
-      svg.send_keys(:arrow_right)
-      tooltip = find("[data-controller='loan-payoff-chart'] div[aria-live='polite']", visible: :all)
-      # The tooltip is one div per line; Capybara joins them without separators.
-      text = tooltip.text(:all)
+      assert_selector "html[lang='de']"
+      chart_svg.send_keys(:home)
+      assert_tooltip_at_date(payload, "2026-01-01", locale: "de", announcing: true)
 
-      german_date = page.evaluate_script("new Intl.DateTimeFormat('de', { month: 'short', year: 'numeric' }).format(new Date(2026, 0, 1))")
-      german_money = page.evaluate_script("new Intl.NumberFormat('de', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(500000)")
-      assert text.start_with?(german_date), "expected the tooltip to open with #{german_date.inspect}, got #{text.inspect}"
-      assert_not text.start_with?("Jan 2026"), "d3's English month name must not leak through"
-      # Intl separates the number and the symbol with a no-break space that
-      # Capybara's text normalises to a plain one; compare on plain spaces.
-      assert_includes text.gsub(/[[:space:]]/, " "), german_money.gsub(/[[:space:]]/, " ")
-      assert_not_includes text, "$500,000", "the English money format must not leak through"
+      text = find(".ts-chart-tooltip").text
+      assert_includes text, "500.000,00 $"
+      assert_not_includes text, "$500,000"
+      assert_not text.start_with?(formatted_date("2026-01-01", locale: "en")),
+        "the date must not use the English locale"
     end
   end
 
-  # Codex on we-promise/sure#3474: d3's default time ticks print English month
-  # names, so a German page showed a German tooltip over an English axis. A
-  # one-year window ticks by month; each month tick must read as the browser's
-  # own German short month, and never as d3's English month name.
-  test "the axis labels its month ticks in the user's locale" do
+  test "the axis labels its dates in German" do
     @user.update!(locale: "de")
 
     travel_to TODAY do
       account = on_contract_loan_account
 
       visit account_path(account, period: "last_365_days")
-      find("[data-controller='loan-payoff-chart'] svg path[data-series='scheduled']")
-      ticks = page.evaluate_script(<<~JS)
-        Array.from(document.querySelectorAll("[data-controller='loan-payoff-chart'] svg g[transform^='translate(0,'] g.tick"))
-          .map((tick) => tick.__data__)
-          .filter((date) => date.getDate() === 1 && date.getMonth() !== 0)
-          .map((date) => ({
-            label: Array.from(document.querySelectorAll("[data-controller='loan-payoff-chart'] svg g[transform^='translate(0,'] g.tick"))
-              .find((tick) => tick.__data__.getTime() === date.getTime()).textContent,
-            german: new Intl.DateTimeFormat("de", { month: "short" }).format(date),
-            english: new Intl.DateTimeFormat("en", { month: "long" }).format(date),
-          }))
-      JS
+      svg = chart_svg
+      ticks = svg.all("text[data-ts-key^='x-tick-label:number:']")
+      assert ticks.any?, "the chart must show date ticks"
 
-      assert ticks.any?, "a one-year window must have month ticks, or this asserts nothing"
       ticks.each do |tick|
-        assert_equal tick["german"], tick["label"], "a month tick must be labelled in German"
-        assert_not_equal tick["english"], tick["label"], "d3's English month name must not leak through"
+        timestamp = tick["data-ts-key"].split(":").last.to_i
+        date = Time.at(timestamp / 1000.0).utc.to_date.iso8601
+        assert_equal formatted_date(date, locale: "de"), tick.text,
+          "an axis date must use the user's locale"
+        assert_not_equal formatted_date(date, locale: "en"), tick.text
       end
     end
   end
 
-  # Codex on we-promise/sure#3474: the heading showed the cursor's own month
-  # while every row showed the nearest point's balance, so a cursor just before
-  # a payment date named one month over the next payment's figures. The pointer
-  # now snaps to the payment dates, as the keyboard does.
-  test "a pointer just before a payment date heads the tooltip with that payment's month" do
+  test "a pointer before a payment date names the date whose figures it shows" do
     travel_to TODAY do
       account = on_contract_loan_account
-      payload = Loan::PayoffChart.new(account.loan, as_of: TODAY, period: all_time_period).payload
-      dates = payload[:scheduled].map { |point| Date.iso8601(point[:date]) }
-      payment = dates.each_cons(2).map(&:last).find { |date| (date - 2).month != date.month && date - 2 > dates.first }
-      assert payment, "the schedule must have a payment date two days into a new month, or this asserts nothing"
-      cursor = payment - 2
+      payload = payoff_payload(account)
+      payment = payload[:scheduled].find do |point|
+        date = Date.iso8601(point[:date])
+        date - 2 > TODAY && (date - 2).month != date.month
+      end
+      assert payment, "the schedule must include a future payment at the start of a month"
+      payment_date = Date.iso8601(payment[:date])
+      cursor = payment_date - 2
 
       visit account_path(account, period: "all_time")
-      find("[data-controller='loan-payoff-chart'] svg path[data-series='scheduled']")
-      heading = page.evaluate_script(<<~JS)
-        (() => {
-          const at = (iso) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d).getTime(); };
-          const start = at("#{payload[:domain_start]}");
-          const finish = at("#{payload[:domain_end]}");
-          const rect = document.querySelector("[data-controller='loan-payoff-chart'] svg rect[style*='cursor']");
-          const box = rect.getBoundingClientRect();
-          const clientX = box.left + ((at("#{cursor.iso8601}") - start) / (finish - start)) * box.width;
-          rect.dispatchEvent(new PointerEvent("pointermove", { clientX, clientY: box.top + box.height / 2, bubbles: true }));
-          return document.querySelector("[data-controller='loan-payoff-chart'] div.chart-tooltip").firstElementChild.textContent;
-        })()
-      JS
+      chart_svg
+      point_at_date(cursor.iso8601)
 
-      expected = page.evaluate_script("new Intl.DateTimeFormat('#{payload[:locale]}', { month: 'short', year: 'numeric' }).format(new Date(#{payment.year}, #{payment.month - 1}, 1))")
-      cursor_month = page.evaluate_script("new Intl.DateTimeFormat('#{payload[:locale]}', { month: 'short', year: 'numeric' }).format(new Date(#{cursor.year}, #{cursor.month - 1}, 1))")
-      assert_not_equal expected, cursor_month, "the cursor must sit in a different month from the payment, or this asserts nothing"
-      assert_equal expected, heading, "the heading must name the payment whose figures the tooltip shows"
+      assert_tooltip_at_date(payload, payment[:date], announcing: false)
+      assert_not find(".ts-chart-tooltip").text.start_with?(formatted_date(cursor.iso8601)),
+        "the heading must name the plotted payment, not the cursor's date"
     end
   end
 
   private
-    def assert_series_painted
-      SERIES.each do |key|
-        path = find("[data-controller='loan-payoff-chart'] svg path[data-series='#{key}']")
-
-        assert path["d"].to_s.start_with?("M"), "the #{key} line has no geometry"
-        assert_not_equal "none", stroke_of(key),
-          "the #{key} line has geometry but no resolved stroke, so it does not mark the screen -- #101 exactly"
-      end
-      # The greyed remainder of the recorded line is a token too; it must
-      # resolve without any fallback colour in the controller.
-      shadow = page.evaluate_script("getComputedStyle(document.querySelector(\"svg path[data-series-shadow='actual']\")).stroke")
-      assert_not_equal "none", shadow, "the greyed recorded line has no resolved stroke"
+    def chart_svg
+      find(CHART_SELECTOR)
     end
 
-    # `stroke: none` is the initial value, and it is what an unresolvable
-    # colour leaves behind -- the whole point of reading the computed style
-    # rather than the attribute we wrote.
+    def series_path(key)
+      chart_svg.find("g.ts-chart__line[data-ts-key^='#{key}:'] path")
+    end
+
+    def assert_series_painted
+      SERIES.each do |key|
+        path = series_path(key)
+        assert path["d"].to_s.start_with?("M"), "the #{key} line must have geometry"
+        assert page.evaluate_script("arguments[0].getTotalLength() > 0", path),
+          "the #{key} line must have a visible length"
+        assert_not_equal "none", stroke_of(key), "the #{key} line must have a resolved stroke"
+        assert_not_equal "rgba(0, 0, 0, 0)", stroke_of(key),
+          "the #{key} line must not be transparent"
+      end
+    end
+
     def stroke_of(key)
-      page.evaluate_script(
-        "getComputedStyle(document.querySelector(\"svg path[data-series='#{key}']\")).stroke"
-      )
+      page.evaluate_script("getComputedStyle(arguments[0]).stroke", series_path(key))
+    end
+
+    def payoff_payload(account)
+      Loan::PayoffChart.new(account.loan, as_of: TODAY, period: all_time_period).payload
+    end
+
+    def plotted_dates(payload)
+      SERIES.flat_map { |key| payload[key.to_sym].map { |point| point[:date] } }.uniq.sort
+    end
+
+    def formatted_date(date, locale: "en")
+      page.evaluate_script(<<~JS)
+        new Intl.DateTimeFormat(#{locale.to_json}, {
+          year: "numeric", month: "short", day: "numeric", timeZone: "UTC"
+        }).format(new Date(#{date.to_json} + "T00:00:00Z"))
+      JS
+    end
+
+    def assert_tooltip_at_date(payload, date, locale: "en", announcing:)
+      heading = formatted_date(date, locale: locale)
+      assert_selector ".ts-chart-tooltip", text: heading
+      tooltip = find(".ts-chart-tooltip")
+      assert tooltip.text.start_with?(heading), "the grouped tooltip must open with its plotted date"
+
+      SERIES.each do |key|
+        point = payload[key.to_sym].find { |candidate| candidate[:date] == date }
+        next unless point
+
+        label = I18n.with_locale(locale) { I18n.t("UI.account.chart.loan.#{key}") }
+        money = Money.new(point[:balance], payload[:currency]).format(locale: locale)
+        assert_includes tooltip.text.gsub(/[[:space:]]/, " "), "#{label}: #{money}".gsub(/[[:space:]]/, " ")
+      end
+      if announcing
+        assert_selector ".ts-chart-tooltip[role='status'][aria-live='polite']", text: heading
+      else
+        assert_no_selector ".ts-chart-tooltip[aria-live='polite']"
+      end
+    end
+
+    # Use the rendered axis's linear mapping rather than assumed chart margins.
+    def point_at_date(date)
+      page.execute_script(<<~JS, chart_svg)
+        const svg = arguments[0];
+        const ticks = Array.from(svg.querySelectorAll("text[data-ts-key^='x-tick-label:number:']"));
+        const first = ticks[0];
+        const last = ticks[ticks.length - 1];
+        const timeOf = (tick) => Number(tick.dataset.tsKey.split(":").at(-1));
+        const date = Date.parse(#{date.to_json} + "T00:00:00Z");
+        const point = svg.createSVGPoint();
+        point.x = Number(first.getAttribute("x")) +
+          ((date - timeOf(first)) / (timeOf(last) - timeOf(first))) *
+          (Number(last.getAttribute("x")) - Number(first.getAttribute("x")));
+        point.y = svg.viewBox.baseVal.height / 2;
+        const client = point.matrixTransform(svg.getScreenCTM());
+        svg.dispatchEvent(new PointerEvent("pointermove", {
+          clientX: client.x, clientY: client.y, bubbles: true
+        }));
+      JS
     end
 
     # Capybara retries its own matchers; a value read through evaluate_script

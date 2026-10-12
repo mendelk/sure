@@ -2,20 +2,20 @@ require "application_system_test_case"
 
 class TransactionsFormExchangeRateTest < ApplicationSystemTestCase
   setup do
+    ensure_spa_build
     @user = users(:family_admin)
     @family = @user.family
-    @account_usd = accounts(:depository) # USD account
+    @account_usd = accounts(:depository)
     sign_in @user
 
-    # Set up real exchange rates for testing
-    @eur_usd_rate = ExchangeRate.create!(
+    ExchangeRate.create!(
       from_currency: "EUR",
       to_currency: "USD",
       date: Date.current,
       rate: 1.1
     )
 
-    @gbp_usd_rate = ExchangeRate.create!(
+    ExchangeRate.create!(
       from_currency: "GBP",
       to_currency: "USD",
       date: Date.current,
@@ -24,128 +24,130 @@ class TransactionsFormExchangeRateTest < ApplicationSystemTestCase
   end
 
   test "changing amount currency to different currency shows exchange rate UI" do
-    visit new_transaction_path
+    open_transaction_drawer
 
-    # Select USD account (which is in USD)
-    select_ds("Account", @account_usd)
+    assert_equal "USD", find_field("Currency").value
+    assert_no_selector "section[aria-label='Exchange rate']"
 
-    # Currency defaults to USD (same as account)
-    # Change currency to EUR
-    find("select[data-money-field-target='currency']").find("option[value='EUR']").select_option
+    select_currency("EUR")
 
-    # Exchange rate UI should appear
-    assert_selector "[data-transaction-form-target='exchangeRateContainer']", visible: true
+    assert_field "Exchange rate (EUR → USD)", visible: true
   end
 
   test "changing amount currency to same as account currency hides exchange rate UI" do
-    visit new_transaction_path
+    open_transaction_drawer
+    select_currency("EUR")
+    assert_field "Exchange rate (EUR → USD)", visible: true
 
-    # Select USD account
-    select_ds("Account", @account_usd)
+    select_currency("USD")
 
-    # Change to EUR first
-    find("select[data-money-field-target='currency']").find("option[value='EUR']").select_option
-
-    # Verify exchange rate UI is shown
-    assert_selector "[data-transaction-form-target='exchangeRateContainer']", visible: true
-
-    # Change back to USD (same as account)
-    find("select[data-money-field-target='currency']").find("option[value='USD']").select_option
-
-    # Exchange rate UI should hide
-    assert_selector "[data-transaction-form-target='exchangeRateContainer']", visible: false
+    assert_no_selector "section[aria-label='Exchange rate']"
   end
 
   test "exchange rate field is prefilled when rate is available" do
-    visit new_transaction_path
+    open_transaction_drawer
+    select_currency("GBP")
 
-    # Select USD account
-    select_ds("Account", @account_usd)
-
-    # Change to GBP (exchange rate is set up in fixtures)
-    find("select[data-money-field-target='currency']").find("option[value='GBP']").select_option
-
-    # Wait for exchange rate container to become visible
-    assert_selector "[data-transaction-form-target='exchangeRateContainer']", visible: true
-
-    # Exchange rate is fetched asynchronously — wait for the field value.
-    assert_equal "1.27", wait_for_exchange_rate_value("1.27")
+    assert_equal 1.27.to_d, wait_for_exchange_rate_value(1.27)
+    fill_in "Amount", with: "100"
+    within "section[aria-label='Exchange rate']" do
+      assert_text "Amount in account currency: 127.00 USD"
+    end
   end
 
-  test "exchange rate field is empty when rate not found" do
-    visit new_transaction_path
+  test "missing exchange rate can be entered manually to create a transaction" do
+    ExchangeRate.stubs(:find_or_fetch_rate)
+                .with(from: "CHF", to: "USD", date: Date.current)
+                .returns(nil)
+    open_transaction_drawer
+    select_currency("CHF")
 
-    # Select USD account
-    select_ds("Account", @account_usd)
+    assert_text "No exchange rate is available for this date. Enter the rate manually."
+    assert_field "Exchange rate (CHF → USD)", with: ""
 
-    # Change to CHF (Swiss Franc - no rate set up in fixtures)
-    find("select[data-money-field-target='currency']").find("option[value='CHF']").select_option
+    within "[role='dialog']" do
+      fill_in "Description", with: "Manual CHF purchase"
+      fill_in "Amount", with: "100"
+      fill_in "Exchange rate (CHF → USD)", with: "1.12"
+      assert_text "Amount in account currency: 112.00 USD"
+    end
 
-    # Wait for exchange rate container to become visible (manual rate entry mode)
-    assert_selector "[data-transaction-form-target='exchangeRateContainer']", visible: true
+    assert_difference [ "Entry.count", "Transaction.count" ], +1 do
+      within "[role='dialog']" do
+        click_button "Create transaction"
+      end
+      assert_no_selector "[role='dialog']"
+    end
 
-    # Exchange rate section should be visible but field should be empty (manual entry)
-    exchange_rate_field = find("[data-transaction-form-target='exchangeRateField']")
-    assert_empty exchange_rate_field.value
+    entry = @account_usd.entries.find_by!(name: "Manual CHF purchase")
+    assert_equal "CHF", entry.currency
+    assert_equal 100.to_d, entry.amount
+    assert_equal 1.12.to_d, entry.transaction.exchange_rate.to_d
   end
 
   test "exchange rate is recalculated when currency changes" do
-    visit new_transaction_path
+    open_transaction_drawer
+    select_currency("EUR")
+    first_rate = wait_for_exchange_rate_value(1.1)
 
-    # Select USD account
-    select_ds("Account", @account_usd)
+    select_currency("GBP")
+    second_rate = wait_for_exchange_rate_value(1.27)
 
-    # Change to EUR
-    find("select[data-money-field-target='currency']").find("option[value='EUR']").select_option
-
-    # Wait for EUR rate to load (async fetch)
-    assert_selector "[data-transaction-form-target='exchangeRateContainer']", visible: true
-    first_rate = wait_for_exchange_rate_value("1.10")
-
-    # Change to GBP
-    find("select[data-money-field-target='currency']").find("option[value='GBP']").select_option
-
-    # Wait for the field to flip from EUR→GBP; reading immediately is flaky
-    # because the previous value stays until the fetch completes.
-    assert_selector "[data-transaction-form-target='exchangeRateContainer']", visible: true
-    second_rate = wait_for_exchange_rate_value("1.27")
-
-    # Rates should be different
+    assert_equal 1.1.to_d, first_rate
+    assert_equal 1.27.to_d, second_rate
     assert_not_equal first_rate, second_rate
   end
 
   test "changing account also recalculates exchange rate for current currency" do
-    # Create a second account in EUR
     eur_account = @family.accounts.create!(
       name: "EUR Account",
       balance: 1000,
       currency: "EUR",
       accountable: Depository.new
     )
+    ExchangeRate.create!(
+      from_currency: "GBP",
+      to_currency: "EUR",
+      date: Date.current,
+      rate: 1.16
+    )
+    open_transaction_drawer
+    select_currency("GBP")
+    assert_equal 1.27.to_d, wait_for_exchange_rate_value(1.27)
 
-    visit new_transaction_path
+    select_account(eur_account)
 
-    # Start with USD account, then currency EUR
-    select_ds("Account", @account_usd)
+    assert_field "Exchange rate (GBP → EUR)", visible: true
+    assert_equal 1.16.to_d, wait_for_exchange_rate_value(1.16)
 
-    find("select[data-money-field-target='currency']").find("option[value='EUR']").select_option
-
-    # Exchange rate shown (both USD and EUR exist, they differ)
-    assert_selector "[data-transaction-form-target='exchangeRateContainer']", visible: true
-    wait_for_exchange_rate_value("1.10")
-
-    # Switch to EUR account
-    select_ds("Account", eur_account)
-
-    # Now account is EUR and currency is EUR (same)
-    # Exchange rate UI should hide
-    assert_selector "[data-transaction-form-target='exchangeRateContainer']", visible: false
+    select_currency("EUR")
+    assert_no_selector "section[aria-label='Exchange rate']"
   end
 
   private
-    # JS sets the input's value property after an async fetch. Waiting on the
-    # HTML value= attribute is unreliable, so filter the node by .value.
+    def open_transaction_drawer
+      visit new_transaction_path
+      assert_selector "[role='dialog']", text: "New transaction"
+      select_account(@account_usd)
+    end
+
+    def select_account(account)
+      within "[role='dialog']" do
+        click_button "new-txn-account-trigger"
+        fill_in "Search accounts", with: account.name
+        click_button account.name, exact: true
+      end
+    end
+
+    def select_currency(code)
+      find_field("Currency").find("option[value='#{code}']").select_option
+    end
+
+    # Fetches update the input property asynchronously; compare its numeric
+    # value rather than requiring an incidental number of decimal places.
     def wait_for_exchange_rate_value(expected)
-      find("[data-transaction-form-target='exchangeRateField']") { |node| node.value == expected }.value
+      find_field("new-txn-exchange-rate") do |node|
+        node.value.present? && node.value.to_d == expected.to_d
+      end.value.to_d
     end
 end
