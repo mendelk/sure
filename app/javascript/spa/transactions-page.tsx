@@ -8,7 +8,7 @@ import {
   MenuItem,
   MenuItems,
 } from "@headlessui/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import {
@@ -16,6 +16,7 @@ import {
   TransactionApiError,
   transactionsQueryOptions,
   upcomingTransactionsQueryOptions,
+  updateTransferStatus,
   type ReferenceOption,
   type SpaTransaction,
   type TransactionCollection,
@@ -23,6 +24,7 @@ import {
   type UpcomingRecurringTransaction,
 } from "./api/transactions";
 import type { SpaBootstrap } from "./bootstrap";
+import { IconButton } from "./components/icon-button";
 import { Icon, type IconName } from "./icon";
 import { useDismiss } from "./use-dismiss";
 import {
@@ -668,8 +670,8 @@ function TransactionRow({
         >
           {transaction.name.slice(0, 1).toUpperCase()}
         </div>
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <Link
               className="truncate text-sm font-medium text-primary hover:underline"
               params={{ transactionId: transaction.id }}
@@ -682,6 +684,9 @@ function TransactionRow({
               <span className="rounded-full bg-container-inset px-2 py-0.5 text-[11px] font-medium text-secondary">
                 Pending
               </span>
+            ) : null}
+            {transaction.transfer ? (
+              <TransactionTransferMatch bootstrap={bootstrap} transfer={transaction.transfer} />
             ) : null}
           </div>
           <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-secondary">
@@ -752,6 +757,69 @@ function TransactionRow({
         {transaction.amount}
       </p>
     </li>
+  );
+}
+
+function TransactionTransferMatch({
+  bootstrap,
+  transfer,
+}: {
+  bootstrap: SpaBootstrap;
+  transfer: NonNullable<SpaTransaction["transfer"]>;
+}) {
+  const queryClient = useQueryClient();
+  const text = bootstrap.transactionTransferMatchText;
+  const decide = useMutation({
+    mutationFn: (status: "confirmed" | "rejected") =>
+      updateTransferStatus(bootstrap.apiPaths.transfers, transfer.id, { status }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] }),
+        queryClient.invalidateQueries({ queryKey: ["spa", "transaction"] }),
+      ]);
+    },
+  });
+
+  if (transfer.status === "confirmed") {
+    return (
+      <span aria-label={text.transfer_confirmed} title={text.transfer_confirmed}>
+        <Icon name="link-2" size="sm" />
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex max-w-full flex-wrap items-center gap-1">
+      <span className="shrink-0 rounded-full bg-container-inset px-2 py-0.5 text-xs font-medium text-secondary">
+        <span className="hidden lg:inline">{text.auto_matched}</span>
+        <span className="lg:hidden" title={text.auto_matched}>
+          {text.auto_matched_short}
+        </span>
+      </span>
+      <IconButton
+        disabled={decide.isPending}
+        icon="check"
+        label={text.confirm_match}
+        onClick={() => {
+          decide.mutate("confirmed");
+        }}
+        size="sm"
+      />
+      <IconButton
+        disabled={decide.isPending}
+        icon="x"
+        label={text.reject_match}
+        onClick={() => {
+          decide.mutate("rejected");
+        }}
+        size="sm"
+      />
+      {decide.error ? (
+        <span className="basis-full text-xs text-destructive" role="alert">
+          {decide.error.message}
+        </span>
+      ) : null}
+    </div>
   );
 }
 
