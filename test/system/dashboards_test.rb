@@ -359,10 +359,9 @@ class DashboardsTest < ApplicationSystemTestCase
     end
     add_visualization("Chart", "All chart columns")
     chart = visualization("Chart", source_named("All chart columns").fetch("id"))
-    click_button "Edit layout"
     select_component(chart)
     find_field("Value field").find(:option, text: today.iso8601).select_option
-    click_button "Save layout"
+    close_component_settings
     assert_selector "ul[aria-label^='All chart columns chart'] li span.tabular-nums", text: "25 USD", exact_text: true, visible: :all
   end
 
@@ -425,55 +424,41 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "section[aria-label='Unused accounts results'] table th", text: /balance/i
   end
 
-  test "source page reload preserves unsaved Puck settings and selection on cancel and save" do
+  test "source page reload preserves saved block settings and selection on cancel and save" do
     visit dashboards_url
     snapshot = dashboard_snapshot
     dashboard_id = active_dashboard(snapshot).fetch("id")
-    table = visualization("Table", source_named("Recent transactions").fetch("id"))
     alternate_source = source_named("Spending by category (30 days)")
-    click_button "Edit layout"
-    select_layout_item("grid-item-transactions")
-    fill_in "Column span", with: "6"
-    fill_in "Height", with: "7"
-    select_component(table)
+    resize_layout_item("transactions-table", columns: 6, rows: 7)
+    select_layout_item("transactions-table")
     select alternate_source.fetch("name"), from: "Source"
-    click_button "Create source"
+    saved = dashboard_snapshot
+    within("[data-dashboard-component-panel]") { click_button "Create source" }
     assert_source_page "/sources/new"
     page.refresh
-    assert_source_page "/sources/new"
     within("#source-editor") { click_button "Cancel" }
-    assert_button "Save layout"
     assert_equal dashboard_id, dashboard_id_from_url
-    assert_equal "true", Rack::Utils.parse_nested_query(URI.parse(page.current_url).query).fetch("layout")
+    assert_equal "transactions-table", Rack::Utils.parse_nested_query(URI.parse(page.current_url).query).fetch("component")
     assert_select "Source", selected: alternate_source.fetch("name")
-    select_layout_item("grid-item-transactions")
-    assert_field "Column span", with: "6"
-    assert_field "Height", with: "7"
-    assert_equal snapshot, dashboard_snapshot
+    assert_equal saved, dashboard_snapshot
+    assert_equal 6, component_by_id("transactions-table").fetch("position").fetch("w")
+    assert_equal 7, component_by_id("transactions-table").fetch("position").fetch("h")
 
-    select_component(table)
-    click_button "Create source"
+    within("[data-dashboard-component-panel]") { click_button "Create source" }
     assert_source_page "/sources/new"
     page.refresh
-    fill_source("Reloaded draft accounts", "from accounts\ntake 5")
+    fill_source("Reloaded accounts", "from accounts\ntake 5")
     run_preview
     save_source
-    assert_button "Save layout"
-    assert_select "Source", selected: "Reloaded draft accounts"
-    select_layout_item("grid-item-transactions")
-    assert_field "Column span", with: "6"
-    assert_field "Height", with: "7"
-    assert_equal active_dashboard(snapshot).fetch("layout"), active_dashboard(dashboard_snapshot).fetch("layout")
-    click_button "Save layout"
-    expected_layout = active_dashboard(snapshot).fetch("layout").deep_dup
-    expected_item = components(expected_layout).find { |item| item.fetch("props").fetch("id") == "grid-item-transactions" }
-    expected_item.fetch("props").merge!("columnSpan" => 6, "height" => 7)
-    expected_table = components(expected_layout).find { |item| item.fetch("props").fetch("id") == table.fetch("props").fetch("id") }
-    expected_table.fetch("props")["sourceId"] = source_named("Reloaded draft accounts").fetch("id")
-    assert_equal expected_layout, active_dashboard(dashboard_snapshot).fetch("layout")
+    assert_select "Source", selected: "Reloaded accounts"
+    expected = component_by_id("transactions-table")
+    assert_equal({ "x" => 0, "y" => 0, "w" => 6, "h" => 7 }, expected.fetch("position"))
+    assert_equal source_named("Reloaded accounts").fetch("id"), expected.fetch("props").fetch("sourceId")
+    assert_equal snapshot.fetch("sources").length + 1, dashboard_snapshot.fetch("sources").length
     page.refresh
-    assert_selector "section[aria-label='Reloaded draft accounts results'] table th", text: /balance/i
-    assert_equal expected_layout, active_dashboard(dashboard_snapshot).fetch("layout")
+    assert_select "Source", selected: "Reloaded accounts"
+    assert_selector "section[aria-label='Reloaded accounts results'] table th", text: /balance/i
+    assert_equal expected, component_by_id("transactions-table")
   end
 
   test "shared sources update every consumer while visualization settings and source lifetime stay independent" do
@@ -483,12 +468,11 @@ class DashboardsTest < ApplicationSystemTestCase
     shared_id = source_named("Shared transactions").fetch("id")
     add_visualization("Table", "Shared transactions")
     table = visualization("Table", shared_id)
-    click_button "Edit layout"
     select_component(table)
     uncheck "Show all columns"
     uncheck "amount"
     uncheck "currency"
-    click_button "Save layout"
+    close_component_settings
     within "section[aria-label='Shared transactions results']" do
       assert_selector "table td", text: "Dashboard Groceries Test"
       assert_no_selector "table th", text: /amount/i
@@ -498,12 +482,11 @@ class DashboardsTest < ApplicationSystemTestCase
     create_dashboard("Shared charts")
     add_visualization("Chart", "Shared transactions")
     chart = visualization("Chart", shared_id)
-    click_button "Edit layout"
     select_component(chart)
     select "Bar", from: "Chart type"
     select "name", from: "Category field"
     select "amount", from: "Value field"
-    click_button "Save layout"
+    close_component_settings
     assert_selector "[role='img'][aria-label^='Shared transactions chart']", wait: 10
     assert_text "Dashboard Groceries Test"
     second_dashboard_id = active_dashboard(dashboard_snapshot).fetch("id")
@@ -532,10 +515,8 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_equal chart_props, visualization("Chart", shared_id).fetch("props")
 
     sources = dashboard_snapshot.fetch("sources")
-    click_button "Edit layout"
     select_component(visualization("Chart", shared_id))
-    within("[data-puck-layer-tree-id='#{chart.fetch('props').fetch('id')}']") { click_button "Delete" }
-    click_button "Save layout"
+    within("[data-dashboard-component-panel]") { click_button "Delete component" }
     assert_equal sources, dashboard_snapshot.fetch("sources")
     click_button "Delete dashboard"
     within("#delete-dashboard-dialog") { click_button "Delete dashboard" }
@@ -544,59 +525,55 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "section[aria-label='Shared transactions results'] table td", text: "Dashboard Utilities Test"
   end
 
-  test "Puck source fields return from source pages with new choices and preserve canceled choices" do
+  test "component source fields return from source pages with new choices and preserve canceled choices" do
     visit dashboards_url
     snapshot = dashboard_snapshot
     source_id = source_named("Recent transactions").fetch("id")
     table = visualization("Table", source_id)
     chart = visualization("Chart", source_named("Spending by category (30 days)").fetch("id"))
-    click_button "Edit layout"
     select_component(table)
-    click_button "Create source"
+    within("[data-dashboard-component-panel]") { click_button "Create source" }
     assert_source_page "/sources/new"
     within "#source-editor" do
       fill_in "Source name", with: "Canceled source"
       click_button "Cancel"
     end
     assert_select "Source", selected: "Recent transactions"
-    click_button "Cancel"
+    close_component_settings
     assert_equal snapshot, dashboard_snapshot
 
-    click_button "Edit layout"
     select_component(table)
-    click_button "Create source"
+    within("[data-dashboard-component-panel]") { click_button "Create source" }
     fill_source("Created accounts", "from accounts\ntake 5")
     run_preview
     save_source
     assert_select "Source", selected: "Created accounts"
-    click_button "Save layout"
+    close_component_settings
     assert_selector "section[aria-label='Created accounts results'] table th", text: /balance/i
     created_id = source_named("Created accounts").fetch("id")
     assert_equal created_id, component_by_id(table.fetch("props").fetch("id")).fetch("props").fetch("sourceId")
 
-    click_button "Edit layout"
     select_component(chart)
     select "Recent transactions", from: "Source"
     assert_select "Source", selected: "Recent transactions"
-    click_button "Create source"
+    within("[data-dashboard-component-panel]") { click_button "Create source" }
     fill_source("Created chart transactions", "from transactions\nselect {name, amount, currency}")
     run_preview
     save_source
     assert_select "Source", selected: "Created chart transactions"
-    click_button "Save layout"
+    close_component_settings
     visit dashboards_url
     assert_equal source_named("Created chart transactions").fetch("id"), component_by_id(chart.fetch("props").fetch("id")).fetch("props").fetch("sourceId")
     assert_selector "section[aria-label='Created accounts results'] table th", text: /balance/i
   end
 
-  test "a table inserted from the Puck palette starts unconfigured and selects a source through its fields" do
+  test "a table added from the side panel selects a shared source through its settings" do
     visit dashboards_url
     existing_ids = components(active_dashboard(dashboard_snapshot).fetch("layout")).map { |item| item.fetch("props").fetch("id") }
-    click_button "Edit layout"
-    find("[data-testid='drawer-item:Table']").drag_to(find("[data-puck-dropzone='grid-item-transactions:content']"))
-    assert_equal "", find_field("Source").value
+    click_button "Add component"
+    within("[data-dashboard-component-panel]") { click_button "Add table" }
     select "Recent transactions", from: "Source"
-    click_button "Save layout"
+    close_component_settings
     added = components(active_dashboard(dashboard_snapshot).fetch("layout")).find { |item| !existing_ids.include?(item.fetch("props").fetch("id")) }
     assert_equal "Table", added.fetch("type")
     assert_equal source_named("Recent transactions").fetch("id"), added.fetch("props").fetch("sourceId")
@@ -604,87 +581,155 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_selector "section[aria-label='Recent transactions results'] table td", text: "Dashboard Groceries Test", count: 2
   end
 
-  test "discards canceled layout sizing and restores saved sizing after reload" do
+  test "corner sizing saves immediately without resetting component settings" do
+    original_window_size = page.current_window.size
+    page.current_window.resize_to(1600, 1600)
     visit dashboards_url
-    original_layout = active_dashboard(dashboard_snapshot).fetch("layout")
-    click_button "Edit layout"
-    select_layout_item("grid-item-transactions")
-    fill_in "Column span", with: "6"
-    fill_in "Height", with: "7"
-    click_button "Cancel"
-    assert_equal original_layout, active_dashboard(dashboard_snapshot).fetch("layout")
+    original = component_by_id("transactions-table").fetch("props")
+    sources = dashboard_snapshot.fetch("sources")
+    [ 20, 1, 20 ].each do |rows|
+      resize_layout_item("transactions-table", columns: 6, rows: rows)
+      assert_equal 6, component_by_id("transactions-table").fetch("position").fetch("w")
+      assert_equal rows, component_by_id("transactions-table").fetch("position").fetch("h")
+      page.refresh
+      assert_equal 6, component_by_id("transactions-table").fetch("position").fetch("w")
+      assert_equal rows, component_by_id("transactions-table").fetch("position").fetch("h")
+      assert_equal original, component_by_id("transactions-table").fetch("props")
+      assert_equal sources, dashboard_snapshot.fetch("sources")
+    end
+  ensure
+    page.current_window.resize_to(*original_window_size)
+  end
 
-    click_button "Edit layout"
-    select_layout_item("grid-item-transactions")
-    fill_in "Column span", with: "6"
-    fill_in "Height", with: "7"
-    click_button "Save layout"
-    expected_layout = original_layout.deep_dup
-    item = components(expected_layout).find { |block| block.fetch("props").fetch("id") == "grid-item-transactions" }
-    item.fetch("props").merge!("columnSpan" => 6, "height" => 7)
+  test "constrained tables scroll rows while keeping the header and pagination visible" do
+    12.times { |index| create_transaction(format("Sticky table row %02d", index), Date.current, 816.25) }
     visit dashboards_url
-    assert_equal expected_layout, active_dashboard(dashboard_snapshot).fetch("layout")
-    click_button "Edit layout"
-    select_layout_item("grid-item-transactions")
-    assert_field "Column span", with: "6"
-    assert_field "Height", with: "7"
-    click_button "Cancel"
+    set_query("from transactions\nfilter amount == 816.25\nsort {name}\nselect {name, amount}\ntake 12")
+    run_preview
+    save_source
+    close_component_settings
+    resize_layout_item("transactions-table", columns: 12, rows: 7)
+    card = find("[data-dashboard-grid-item='transactions-table']")
+    assert_selector "[data-dashboard-grid-item='transactions-table'] table tbody tr", count: 10
+    region = card.find("section[aria-label='Recent transactions table']")
+    header = region.find("thead")
+    first_row = region.find("tbody tr", match: :first)
+    pager = card.find("nav")
+    header_top = header.evaluate_script("this.getBoundingClientRect().top")
+    row_top = first_row.evaluate_script("this.getBoundingClientRect().top")
+    pager_top = pager.evaluate_script("this.getBoundingClientRect().top")
+    region.execute_script("this.scrollTop = 120")
+    assert_operator first_row.evaluate_script("this.getBoundingClientRect().top"), :<, row_top - 100
+    assert_in_delta header_top, header.evaluate_script("this.getBoundingClientRect().top"), 1
+    assert_in_delta pager_top, pager.evaluate_script("this.getBoundingClientRect().top"), 1
+    within(card) { click_button "Next" }
+    assert_selector "[data-dashboard-grid-item='transactions-table'] table td", text: "Sticky table row 10"
+    assert_selector "[data-dashboard-grid-item='transactions-table'] table tbody tr", count: 2
+  end
+
+  test "hover movement persists without opening settings or resetting component settings" do
+    visit dashboards_url
+    snapshot = dashboard_snapshot
+    content = active_dashboard(snapshot).fetch("layout").fetch("content")
+    table = content.find { |item| item.fetch("type") == "Table" }
+    table.fetch("position")["w"] = 6
+    table.fetch("props")["visibleColumns"] = [ "name" ]
+    chart = content.find { |item| item.fetch("type") == "Chart" }
+    chart.fetch("position").merge!("x" => 6, "y" => 0)
+    write_snapshot(snapshot)
+    page.refresh
+
+    card = find("[data-dashboard-grid-item='transactions-table']")
+    card.hover
+    card.find("[data-dashboard-drag-handle]").send_keys(:right)
+    assert_no_selector "[data-dashboard-component-panel]"
+    page.refresh
+
+    assert_equal 1, component_by_id("transactions-table").fetch("position").fetch("x")
+    assert_equal table.fetch("props"), component_by_id("transactions-table").fetch("props")
+    assert_equal snapshot.fetch("sources"), dashboard_snapshot.fetch("sources")
   end
 
   test "auto height follows intrinsic content and persists across reloads" do
+    original_window_size = page.current_window.size
+    page.current_window.resize_to(1600, 1600)
     visit dashboards_url
     snapshot = dashboard_snapshot
-    grid_item = components(active_dashboard(snapshot).fetch("layout")).find { |item| item.fetch("props").fetch("id") == "grid-item-transactions" }
-    grid_item.fetch("props")["content"] = [ {
-      "type" => "RichText", "props" => { "id" => "intrinsic-notes", "content" => "<p>Short notes.</p>" }
+    active_dashboard(snapshot).fetch("layout")["content"] = [ {
+      "type" => "RichText", "props" => { "id" => "intrinsic-notes", "content" => "Short notes." },
+      "position" => { "x" => 0, "y" => 0, "w" => 12, "h" => 20 }, "heightMode" => "fixed"
     } ]
     write_snapshot(snapshot)
     page.refresh
     assert_selector "[data-dashboard-richtext='intrinsic-notes']", text: "Short notes."
-    assert_equal 320, grid_item_height("grid-item-transactions")
+    fixed_height = grid_item_height("intrinsic-notes")
 
-    click_button "Edit layout"
-    select_layout_item("grid-item-transactions")
-    select "Auto", from: "Height mode"
-    click_button "Save layout"
+    select_layout_item("intrinsic-notes")
+    find("[role='switch'][aria-label='Auto height']").click
+    close_component_settings
     page.refresh
     assert_selector "[data-dashboard-richtext='intrinsic-notes']", text: "Short notes."
-    short_height = grid_item_height("grid-item-transactions")
-    content_height = find("[data-dashboard-richtext='intrinsic-notes']").evaluate_script("this.getBoundingClientRect().height")
-    assert_equal content_height, short_height
-    assert_operator short_height, :<, 240
-    assert_equal "auto", component_by_id("grid-item-transactions").fetch("props").fetch("height")
+    short_height = grid_item_height("intrinsic-notes")
+    assert_operator short_height, :<, fixed_height
+    assert_equal "auto", component_by_id("intrinsic-notes").fetch("heightMode")
 
     expanded = dashboard_snapshot
     notes = components(active_dashboard(expanded).fetch("layout")).find { |item| item.fetch("props").fetch("id") == "intrinsic-notes" }
-    notes.fetch("props")["content"] = 16.times.map { |index| "<p>Extra paragraph #{index + 1}.</p>" }.join
+    notes.fetch("props")["content"] = 16.times.map { |index| "Extra paragraph #{index + 1}." }.join("\n\n")
     write_snapshot(expanded)
     page.refresh
     assert_selector "[data-dashboard-richtext='intrinsic-notes']", text: "Extra paragraph 16."
-    assert_operator grid_item_height("grid-item-transactions"), :>, short_height + 240
+    expanded_height = grid_item_height("intrinsic-notes")
+    assert_operator expanded_height, :>, short_height + 240
 
-    click_button "Edit layout"
-    select_layout_item("grid-item-transactions")
-    assert_select "Height mode", selected: "Auto"
-    select "Fixed", from: "Height mode"
-    fill_in "Height", with: "3"
-    click_button "Save layout"
-    assert_equal 240, grid_item_height("grid-item-transactions")
+    select_layout_item("intrinsic-notes")
+    find("[role='switch'][aria-label='Auto height']").click
+    close_component_settings
+    assert_equal 20, component_by_id("intrinsic-notes").fetch("position").fetch("h")
+    resize_layout_item("intrinsic-notes", columns: 12, rows: 1)
+    page.refresh
+    assert_equal "fixed", component_by_id("intrinsic-notes").fetch("heightMode")
+    assert_equal 1, component_by_id("intrinsic-notes").fetch("position").fetch("h")
+    assert_operator grid_item_height("intrinsic-notes"), :<, expanded_height
+  ensure
+    page.current_window.resize_to(*original_window_size)
+  end
+
+  test "auto-height corner resizing changes width without stretching content height" do
+    visit dashboards_url
+    snapshot = dashboard_snapshot
+    active_dashboard(snapshot).fetch("layout")["content"] = [ {
+      "type" => "RichText", "props" => { "id" => "auto-notes", "content" => "Short notes." },
+      "position" => { "x" => 0, "y" => 0, "w" => 8, "h" => 4 }, "heightMode" => "auto"
+    } ]
+    write_snapshot(snapshot)
+    page.refresh
+    assert_selector "[data-dashboard-richtext='auto-notes']", text: "Short notes."
+    wait_for_grid_item("auto-notes")
+    height = grid_item_height("auto-notes")
+    resize_layout_item("auto-notes", columns: 6, vertical_delta: 176)
+    assert_equal 6, component_by_id("auto-notes").fetch("position").fetch("w")
+    assert_equal "auto", component_by_id("auto-notes").fetch("heightMode")
+    wait_for_grid_item("auto-notes")
+    assert_in_delta height, grid_item_height("auto-notes"), 1
+    page.refresh
+    assert_equal 6, component_by_id("auto-notes").fetch("position").fetch("w")
+    wait_for_grid_item("auto-notes")
+    assert_in_delta height, grid_item_height("auto-notes"), 1
   end
 
   test "root rich text persists without visualizations and survives adding a table" do
     visit dashboards_url
     snapshot = dashboard_snapshot
     layout = active_dashboard(snapshot).fetch("layout")
-    layout["content"] = [ { "type" => "RichText", "props" => { "id" => "notes-editor", "content" => "" } } ]
+    layout["content"] = [ { "type" => "RichText", "props" => { "id" => "notes-editor", "content" => "" }, "position" => { "x" => 0, "y" => 0, "w" => 12, "h" => 4 }, "heightMode" => "fixed" } ]
     write_snapshot(snapshot)
     visit dashboards_url
-    click_button "Edit layout"
-    editor = find("[data-dashboard-richtext='notes-editor'] .tiptap[contenteditable='true']")
+    select_layout_item("notes-editor")
+    editor = find("[data-dashboard-richtext='notes-editor'] .cm-content[contenteditable='true']")
     editor.click
-    assert_button "Bold", disabled: false
     editor.send_keys("Dashboard notes saved without visualizations.")
-    click_button "Save layout"
+    close_component_settings
     visit dashboards_url
     assert_selector "[data-dashboard-richtext]", text: "Dashboard notes saved without visualizations."
     add_visualization("Table", "Recent transactions")
@@ -696,19 +741,19 @@ class DashboardsTest < ApplicationSystemTestCase
   test "rich text resolves source paths across formatting without treating values as HTML" do
     name = 'Source value <img src=x onerror="window.richTextInjected=true">'
     create_transaction(name, Date.current, 813.25)
-    template = '<p>Purchase: <strong>{result[0].na</strong><em>me}</em> / {result[0]["amount"]} / {result[0].zero} / {result[0].flag} / [{result[0].notes}] / {result[0].missing} / {result[0].__proto__}.</p>'
+    template = 'Purchase: **{result[0].na**_me}_ / {result[0]["amount"]} / {result[0].zero} / {result[0].flag} / [{result[0].notes}] / {result[0].missing} / {result[0].__proto__}.'
     source = install_rich_text_source("from transactions\nfilter amount == 813.25\nderive {zero = 0, flag = false}\ntake 1", template, linked: false)
     assert_selector "[data-dashboard-richtext]", text: "{result[0].name}"
 
-    click_button "Edit layout"
-    find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']").click
-    within("aside") { select source.fetch("name"), from: "Source" }
+    select_layout_item("source-notes")
+    find("[data-dashboard-richtext='source-notes'] .cm-content[contenteditable='true']").click
+    within("[data-dashboard-component-panel]") { select source.fetch("name"), from: "Source" }
     within "[data-richtext-preview]" do
       assert_selector "strong", text: name
       assert_text "813.25 / 0 / false / [] / {result[0].missing} / {result[0].__proto__}."
       assert_no_selector "img, script"
     end
-    click_button "Save layout"
+    close_component_settings
     page.refresh
     within "[data-dashboard-richtext='source-notes']" do
       assert_selector "strong", text: name
@@ -723,34 +768,44 @@ class DashboardsTest < ApplicationSystemTestCase
 
   test "rich text autocomplete saves expressions and replaces an existing variable suffix" do
     install_rich_text_source(%(from transactions\nfilter name == "Dashboard Groceries Test"\ntake 1), "")
-    click_button "Edit layout"
-    editor = find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']")
+    select_layout_item("source-notes")
+    editor = find("[data-dashboard-richtext='source-notes'] .cm-content[contenteditable='true']")
     editor.click
     editor.send_keys("Latest {result[0].na")
-    assert_selector "[data-dashboard-richtext='source-notes'] [role='option']", text: "{result[0].name}"
+    assert_selector "[role='option']", text: "{result[0].name}"
     editor.send_keys(:enter)
     assert_equal "Latest {result[0].name}", editor.text
     within("[data-richtext-preview]") { assert_text "Latest Dashboard Groceries Test" }
-    click_button "Save layout"
+    close_component_settings
     page.refresh
     assert_selector "[data-dashboard-richtext='source-notes']", text: "Latest Dashboard Groceries Test"
     assert_includes component_by_id("source-notes").fetch("props").fetch("content"), "{result[0].name}"
 
-    click_button "Edit layout"
-    editor = find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']")
+    select_layout_item("source-notes")
+    editor = find("[data-dashboard-richtext='source-notes'] .cm-content[contenteditable='true']")
     editor.click
     editor.send_keys(:end, :left, :left, :left)
-    assert_selector "[data-dashboard-richtext='source-notes'] [role='option']", text: "{result[0].name}"
+    assert_selector "[role='option']", text: "{result[0].name}"
     editor.send_keys(:tab)
     assert_equal "Latest {result[0].name}", editor.text
-    click_button "Cancel"
+    close_component_settings
   end
 
-  test "a source created from rich text attaches to its draft and shared edits update the value" do
+  test "a source created from rich text attaches to its block and shared edits update the value" do
     query = %(from transactions\nfilter name == "Dashboard Groceries Test"\ntake 1)
-    install_rich_text_source(query, "<p>Amount: {result[0].amount}</p>", linked: false)
-    click_button "Edit layout"
-    find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']").click
+    source = install_rich_text_source(query, "Amount: {result[0].amount}", linked: false)
+    snapshot = dashboard_snapshot
+    content = active_dashboard(snapshot).fetch("layout").fetch("content")
+    content.first.fetch("position")["y"] = 3
+    content.unshift({
+      "type" => "Table",
+      "props" => { "id" => "other-table", "sourceId" => source.fetch("id"), "visibleColumns" => [] },
+      "position" => { "x" => 0, "y" => 0, "w" => 6, "h" => 3 }, "heightMode" => "fixed"
+    })
+    write_snapshot(snapshot)
+    page.refresh
+    select_layout_item("source-notes")
+    find("[data-dashboard-richtext='source-notes'] .cm-content[contenteditable='true']").click
     create_source("Notes amount", query)
     assert_field "Source", with: source_named("Notes amount").fetch("id")
     within("[data-richtext-preview]") { assert_text "Amount: 42.5" }
@@ -758,37 +813,38 @@ class DashboardsTest < ApplicationSystemTestCase
     set_query(query.sub("take 1", "derive {amount = 99}\ntake 1"))
     run_preview
     save_source
+    assert_field "Source", with: source_named("Notes amount").fetch("id")
     within("[data-richtext-preview]") { assert_text "Amount: 99" }
-    click_button "Save layout"
+    close_component_settings
     page.refresh
     assert_selector "[data-dashboard-richtext='source-notes']", text: "Amount: 99"
     assert_equal source_named("Notes amount").fetch("id"), component_by_id("source-notes").fetch("props").fetch("sourceId")
-    assert_equal "<p>Amount: {result[0].amount}</p>", component_by_id("source-notes").fetch("props").fetch("content")
+    assert_equal "Amount: {result[0].amount}", component_by_id("source-notes").fetch("props").fetch("content")
   end
 
   test "rich text can address source rows beyond a table's first page" do
     51.times { |index| create_transaction(format("Rich text row %02d", index + 1), Date.current, 814.25) }
-    install_rich_text_source("from transactions\nfilter amount == 814.25\nsort {name}\ntake 51", "<p>Last: {result[50].name}; count: {result.length}</p>")
+    install_rich_text_source("from transactions\nfilter amount == 814.25\nsort {name}\ntake 51", "Last: {result[50].name}; count: {result.length}")
     assert_selector "[data-dashboard-richtext='source-notes']", text: "Last: Rich text row 51; count: 51"
   end
 
   test "clearing a rich text source preserves its template and can be rebound after reload" do
-    source = install_rich_text_source(%(from transactions\nfilter name == "Dashboard Groceries Test"\ntake 1), "<p>Latest: {result[0].name}</p>")
+    source = install_rich_text_source(%(from transactions\nfilter name == "Dashboard Groceries Test"\ntake 1), "Latest: {result[0].name}")
     assert_selector "[data-dashboard-richtext='source-notes']", text: "Latest: Dashboard Groceries Test"
     sources = dashboard_snapshot.fetch("sources")
-    click_button "Edit layout"
-    find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']").click
+    select_layout_item("source-notes")
+    find("[data-dashboard-richtext='source-notes'] .cm-content[contenteditable='true']").click
     select I18n.t("report_builder.choose_source"), from: "Source"
-    click_button "Save layout"
+    close_component_settings
     visit dashboards_url
     assert_selector "[data-dashboard-richtext='source-notes']", text: "Latest: {result[0].name}"
     refute component_by_id("source-notes").fetch("props").key?("sourceId")
     assert_equal sources, dashboard_snapshot.fetch("sources")
 
-    click_button "Edit layout"
-    find("[data-dashboard-richtext='source-notes'] .tiptap[contenteditable='true']").click
+    select_layout_item("source-notes")
+    find("[data-dashboard-richtext='source-notes'] .cm-content[contenteditable='true']").click
     select source.fetch("name"), from: "Source"
-    click_button "Save layout"
+    close_component_settings
     visit dashboards_url
     assert_selector "[data-dashboard-richtext='source-notes']", text: "Latest: Dashboard Groceries Test"
     assert_equal source.fetch("id"), component_by_id("source-notes").fetch("props").fetch("sourceId")
@@ -805,26 +861,22 @@ class DashboardsTest < ApplicationSystemTestCase
       values: [ { id: "total", field: "amount", aggregation: "sum" } ],
       filters: [ { field: "account", operator: "equals", value: account.id } ], sort: []
     }
-    install_rich_text_source(definition, "<p>EUR {result[0].total}; JPY {result[1].total}; USD {result[2].total}</p>")
+    install_rich_text_source(definition, "EUR {result[0].total}; JPY {result[1].total}; USD {result[2].total}")
     assert_selector "[data-dashboard-richtext='source-notes']", text: "EUR €12.34; JPY ¥100; USD -$58.00"
   end
 
-  test "deleting a nested visualization preserves sibling rich text and its source" do
+  test "deleting a visualization preserves sibling rich text and its source" do
     visit dashboards_url
     snapshot = dashboard_snapshot
-    item = components(active_dashboard(snapshot).fetch("layout")).find { |block| block.fetch("props").fetch("id") == "grid-item-transactions" }
-    table = item.fetch("props").fetch("content").first
-    item.fetch("props")["content"] = [ {
-      "type" => "Grid", "props" => { "id" => "nested-grid", "content" => [ {
-        "type" => "GridItem", "props" => { "id" => "nested-grid-item", "columnSpan" => 12, "height" => 3, "content" => [ table ] }
-      } ] }
-    }, { "type" => "RichText", "props" => { "id" => "dashboard-notes", "content" => "<p>Keep these <strong>dashboard notes</strong>.</p>" } } ]
+    table = visualization("Table", source_named("Recent transactions").fetch("id"))
+    active_dashboard(snapshot).fetch("layout").fetch("content") << {
+      "type" => "RichText", "props" => { "id" => "dashboard-notes", "content" => "Keep these **dashboard notes**." },
+      "position" => { "x" => 0, "y" => 9, "w" => 12, "h" => 3 }, "heightMode" => "fixed"
+    }
     write_snapshot(snapshot)
     visit dashboards_url
-    click_button "Edit layout"
     select_component(table)
-    within("[data-puck-layer-tree-id='#{table.fetch('props').fetch('id')}']") { click_button "Delete" }
-    click_button "Save layout"
+    within("[data-dashboard-component-panel]") { click_button "Delete component" }
     visit dashboards_url
     assert_selector "[data-dashboard-richtext] strong", text: "dashboard notes"
     assert_nil components(active_dashboard(dashboard_snapshot).fetch("layout")).find { |block| block.fetch("props").fetch("id") == table.fetch("props").fetch("id") }
@@ -862,7 +914,7 @@ class DashboardsTest < ApplicationSystemTestCase
   test "older snapshots reset to a usable starter without migrating saved content" do
     visit dashboards_url
     snapshot = dashboard_snapshot
-    snapshot["formatVersion"] = 5
+    snapshot["formatVersion"] = 6
     snapshot.fetch("dashboards").first["name"] = "Old dashboard"
     previous_source_ids = snapshot.fetch("sources").map { |source| source.fetch("id") }
     write_snapshot(snapshot)
@@ -893,16 +945,14 @@ class DashboardsTest < ApplicationSystemTestCase
     assert_saved_query("from transactions")
   end
 
-  test "confirmed starter reset replaces dashboards sources and unsaved layouts" do
+  test "confirmed starter reset replaces dashboards sources and saved layouts" do
     visit dashboards_url
+    original_position = component_by_id("transactions-table").fetch("position")
     create_source("Custom accounts", "from accounts\ntake 5")
     set_query("from accounts\ntake 5")
     run_preview
     save_source
-    click_button "Edit layout"
-    select_layout_item("grid-item-transactions")
-    fill_in "Height", with: "7"
-    assert_field "Height", with: "7"
+    resize_layout_item("transactions-table", columns: original_position.fetch("w"), rows: 7)
     visit dashboards_url
     create_dashboard("Custom dashboard")
     before_reset = dashboard_snapshot
@@ -924,10 +974,7 @@ class DashboardsTest < ApplicationSystemTestCase
     page.refresh
     assert_selector "table td", text: "Dashboard Groceries Test"
     assert_equal reset, dashboard_snapshot
-    click_button "Edit layout"
-    select_layout_item("grid-item-transactions")
-    assert_field "Height", with: "4"
-    click_button "Cancel"
+    assert_equal original_position, component_by_id("transactions-table").fetch("position")
     assert_saved_query("from transactions")
     visit "/sources"
     assert_no_text "Custom accounts"
@@ -940,12 +987,11 @@ class DashboardsTest < ApplicationSystemTestCase
       source = snapshot.fetch("sources").first
       source["configuration"] = query.is_a?(Hash) ? { "kind" => "structured", "definition" => query } : { "kind" => "sureql", "query" => query }
       layout = active_dashboard(snapshot).fetch("layout")
-      grid = layout.fetch("content").find { |item| item.fetch("type") == "Grid" }
-      grid.fetch("props")["content"] = []
       layout["content"] = [ {
         "type" => "RichText",
-        "props" => { "id" => "source-notes", "content" => template, **(linked ? { "sourceId" => source.fetch("id") } : {}) }
-      }, grid ]
+        "props" => { "id" => "source-notes", "content" => template, **(linked ? { "sourceId" => source.fetch("id") } : {}) },
+        "position" => { "x" => 0, "y" => 0, "w" => 12, "h" => 5 }, "heightMode" => "fixed"
+      } ]
       write_snapshot(snapshot)
       visit dashboards_url
       source
@@ -1002,7 +1048,13 @@ class DashboardsTest < ApplicationSystemTestCase
 
     def edit_source(name)
       source = source_named(name)
-      find("[aria-label='Edit source #{name}']", match: :first).click
+      if page.has_selector?("[data-dashboard-layout]", wait: 0)
+        item = components(active_dashboard(dashboard_snapshot).fetch("layout")).find { |component| component.fetch("props")["sourceId"] == source.fetch("id") }
+        select_component(item)
+        within("[data-dashboard-component-panel]") { click_button "Edit source" }
+      else
+        find("[aria-label='Edit source #{name}']", match: :first).click
+      end
       assert_source_page "/sources/#{source.fetch('id')}/edit"
     end
 
@@ -1021,7 +1073,11 @@ class DashboardsTest < ApplicationSystemTestCase
     end
 
     def create_source(name, query)
-      click_on "Create source", match: :first
+      if page.has_selector?("[data-dashboard-component-panel]", wait: 0)
+        within("[data-dashboard-component-panel]") { click_on "Create source" }
+      else
+        click_on "Create source", match: :first
+      end
       assert_source_page "/sources/new"
       fill_source(name, query)
       run_preview
@@ -1049,12 +1105,10 @@ class DashboardsTest < ApplicationSystemTestCase
     end
 
     def add_visualization(type, name)
-      click_button "Add #{type.downcase}"
-      within "#source-picker-dialog" do
-        select name, from: "Source"
-        click_button "Use source"
-      end
-      assert_no_selector "#source-picker-dialog"
+      click_button "Add component"
+      within("[data-dashboard-component-panel]") { click_button "Add #{type.downcase}" }
+      within("[data-dashboard-component-panel]") { select name, from: "Source" }
+      close_component_settings
     end
 
     def source_named(name)
@@ -1087,9 +1141,7 @@ class DashboardsTest < ApplicationSystemTestCase
     end
 
     def components(layout)
-      layout.fetch("content").flat_map do |component|
-        [ component ] + (component.fetch("props").key?("content") && component.fetch("props").fetch("content").is_a?(Array) ? components("content" => component.fetch("props").fetch("content")) : [])
-      end
+      layout.fetch("content")
     end
 
     def visualization(type, source_id, dashboard_id: nil)
@@ -1102,23 +1154,50 @@ class DashboardsTest < ApplicationSystemTestCase
       components(active_dashboard(dashboard_snapshot).fetch("layout")).find { |item| item.fetch("props").fetch("id") == id } || flunk("Missing component #{id}")
     end
 
-    def expand_outline
-      # Native Puck outline buttons operate on the actual layout draft.
-      while page.has_selector?("[data-puck-layer-tree-id] button[title='Expand']", wait: 0)
-        find("[data-puck-layer-tree-id] button[title='Expand']", match: :first).click
+    def resize_layout_item(id, columns:, rows: nil, vertical_delta: 0)
+      close_component_settings if page.has_selector?("[data-dashboard-component-panel]", wait: 0)
+      card = find("[data-dashboard-grid-item='#{id}']").find(:xpath, "..")
+      card.hover
+      wait_for_grid_item(id)
+      board_width = find("[data-dashboard-board]").evaluate_script("this.getBoundingClientRect().width")
+      target_width = (board_width + 16) * columns / 16 - 16
+      delta = (target_width - card.evaluate_script("this.getBoundingClientRect().width")).round
+      delta_y = rows ? (rows * 48 - 16 - grid_item_height(id)).round : vertical_delta
+      handle = card.find(".react-resizable-handle-se")
+      page.driver.browser.action.move_to(handle.native).click_and_hold.move_by(delta, delta_y).release.perform
+    end
+
+    def wait_for_grid_item(id)
+      page.document.synchronize do
+        settled = find("[data-dashboard-grid-item='#{id}']").evaluate_script(<<~JS)
+          (() => {
+            const item = this.parentElement;
+            const rect = item.getBoundingClientRect();
+            const content = this.querySelector("[data-dashboard-auto-height]");
+            const naturalHeight = content?.getBoundingClientRect().height;
+            return Math.abs(rect.width - parseFloat(item.style.width)) < 0.1 &&
+              Math.abs(rect.height - parseFloat(item.style.height)) < 0.1 &&
+              (naturalHeight === undefined || (rect.height >= naturalHeight && rect.height - naturalHeight < 48));
+          })()
+        JS
+        raise Capybara::ElementNotFound, "Waiting for grid sizing to settle" unless settled
       end
     end
 
     def select_layout_item(id)
-      expand_outline
-      within("[data-puck-layer-tree-id='#{id}']") { click_button "Grid item", exact: true }
+      card = find("[data-dashboard-grid-item='#{id}']")
+      card.hover
+      card.find("[data-dashboard-edit-item]").click
+      assert_selector "[data-dashboard-component-panel]"
     end
 
     def select_component(component)
-      expand_outline
-      within("[data-puck-layer-tree-id='#{component.fetch('props').fetch('id')}']") do
-        click_button component.fetch("type"), exact: true
-      end
+      select_layout_item(component.fetch("props").fetch("id"))
+    end
+
+    def close_component_settings
+      within("[data-dashboard-component-panel]") { click_button "Close" }
+      assert_no_selector "[data-dashboard-component-panel]"
     end
 
     def create_dashboard(name)

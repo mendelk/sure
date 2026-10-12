@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useRouteContext, useSearch } from "@tanstack/react-router";
-import { appendDashboardVisualization, type DashboardLayoutData } from "./dashboard-storage";
+import type { DashboardLayoutData } from "./dashboard-storage";
 import { useDashboardWorkspace } from "./dashboard-workspace";
 import {
   DashboardIdSchema,
@@ -16,8 +16,6 @@ import { SourceEditor } from "./source-editor";
 export type SourceReturnSearch = {
   dashboard?: DashboardId;
   component?: LayoutItemId;
-  add?: "Table" | "Chart";
-  layout?: boolean;
 };
 
 export function validateSourceReturnSearch(input: Record<string, unknown>): SourceReturnSearch {
@@ -26,8 +24,6 @@ export function validateSourceReturnSearch(input: Record<string, unknown>): Sour
   if (dashboard.success) search.dashboard = dashboard.data;
   const component = LayoutItemIdSchema.safeParse(input.component);
   if (component.success) search.component = component.data;
-  if (input.add === "Table" || input.add === "Chart") search.add = input.add;
-  if (input.layout === true || input.layout === "true") search.layout = true;
   return search;
 }
 
@@ -129,15 +125,14 @@ function SourcePage({ source }: { source?: Source }) {
   const search = useSearch({ from: "/sources" });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { updateSnapshot, layoutDrafts, setLayoutDraft } = useDashboardWorkspace();
-  const { dashboard: dashboardId, component: componentId, add } = search;
+  const { updateSnapshot } = useDashboardWorkspace();
+  const { dashboard: dashboardId, component: componentId } = search;
   const returnToOrigin = () => {
     if (dashboardId !== undefined) {
       void navigate({
         to: "/dashboards",
         search: {
           dashboard: dashboardId,
-          ...(search.layout === true || componentId !== undefined ? { layout: true } : {}),
           ...(componentId !== undefined ? { component: componentId } : {}),
         },
       });
@@ -152,26 +147,21 @@ function SourcePage({ source }: { source?: Source }) {
         ? current.sources.map((existing) => (existing.id === nextSource.id ? nextSource : existing))
         : [...current.sources, nextSource],
       dashboards:
-        source === undefined && dashboardId !== undefined && add !== undefined
-          ? current.dashboards.map((dashboard) =>
-              dashboard.id === dashboardId
-                ? {
-                    ...dashboard,
-                    layout: appendDashboardVisualization(dashboard.layout, add, nextSource.id),
-                  }
-                : dashboard,
-            )
+        source === undefined && dashboardId !== undefined && componentId !== undefined
+          ? current.dashboards.map((dashboard) => {
+              // Creation selects the new source; edits only update its shared configuration.
+              if (dashboard.id !== dashboardId) return dashboard;
+              const content = selectComponentSource(
+                dashboard.layout.content,
+                componentId,
+                nextSource.id,
+              );
+              return content === dashboard.layout.content
+                ? dashboard
+                : { ...dashboard, layout: { content } };
+            })
           : current.dashboards,
     }));
-    // Only creation selects a new source. Editing changes the shared configuration,
-    // never a consumer's presentation or source selection.
-    if (source === undefined && dashboardId !== undefined && componentId !== undefined) {
-      const draft = layoutDrafts[dashboardId];
-      if (draft !== undefined) {
-        const content = selectComponentSource(draft.content, componentId, nextSource.id);
-        if (content !== draft.content) setLayoutDraft(dashboardId, { ...draft, content });
-      }
-    }
     returnToOrigin();
   };
   return (
@@ -197,14 +187,6 @@ function selectComponentSource(
       return { ...item, props: { ...item.props, sourceId } };
     if (item.type === "RichText" && item.props.id === componentId)
       return { ...item, props: { ...item.props, sourceId } };
-    if (item.type === "Grid" || item.type === "GridItem") {
-      const children = selectComponentSource(item.props.content, componentId, sourceId);
-      if (children !== item.props.content) {
-        return item.type === "Grid"
-          ? { ...item, props: { ...item.props, content: children } }
-          : { ...item, props: { ...item.props, content: children } };
-      }
-    }
     return item;
   });
   return next.every((item, index) => item === content[index]) ? content : next;

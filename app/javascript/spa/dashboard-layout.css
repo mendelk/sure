@@ -1,45 +1,85 @@
-/* Adapt Puck's semantic tokens, not its private CSS-module selectors. */
-[data-dashboard-layout-editor] {
-  --puck-font-family: var(--font-sans);
-  --puck-font-family-monospaced: var(--font-mono);
-  --puck-color-surface: var(--color-container);
-  --puck-color-surface-muted: var(--color-container-inset);
-  --puck-color-surface-subtle: var(--color-surface);
-  --puck-color-surface-inverse: var(--utility-bg-inverse);
-  --puck-color-border: var(--utility-border-secondary);
-  --puck-color-border-hover: var(--utility-border-primary);
-  --puck-color-border-muted: var(--utility-border-subdued);
-  --puck-color-border-inverse: var(--utility-border-inverse);
-  --puck-color-text: var(--utility-text-primary);
-  --puck-color-text-secondary: var(--utility-text-secondary);
-  --puck-color-text-muted: var(--utility-text-secondary);
-  --puck-color-text-subtle: var(--utility-text-subdued);
-  --puck-color-text-inverse: var(--utility-text-inverse);
-  --puck-color-interactive: var(--color-link);
-  --puck-color-interactive-hover: var(--color-link);
-  --puck-color-interactive-active: var(--color-link);
-  --puck-color-interactive-subtle: var(--color-surface-inset);
-  --puck-color-interactive-soft: var(--color-container-inset);
-  --puck-color-interactive-soft-hover: var(--color-container-inset-hover);
-  --puck-color-interactive-neutral-hover: var(--color-container-hover);
-  --puck-color-interactive-inverse-hover: var(--color-link);
-  --puck-color-interactive-inverse-active: var(--color-link);
-  --puck-color-focus-ring: var(--color-focus-ring);
-  --puck-color-selection-bg: color-mix(in srgb, var(--color-info) 8%, transparent);
-  --puck-color-selection-border: var(--color-info);
-  --puck-color-line-placeholder: var(--color-info);
-  --puck-color-highlight: var(--color-info);
-  --puck-color-bg-disabled: var(--utility-button-bg-disabled);
-  --puck-color-text-disabled: var(--utility-text-subdued);
-  --puck-color-overlay-backdrop: var(--utility-bg-overlay);
+[data-dashboard-board] .react-grid-placeholder {
+  background: var(--color-info);
+  opacity: 0.15;
+  border-radius: var(--radius-xl);
+}
 
-  /* Puck's outline otherwise falls back to an undefined text-primary token. */
-  --puck-outline-color-text: var(--utility-text-primary);
-  --puck-outline-color-icon: var(--utility-text-secondary);
-  --puck-drawer-item-color-bg: var(--color-container-inset);
-  --puck-drawer-item-color-text-hover: var(--utility-text-primary);
-  --puck-drawer-category-color-text-hover: var(--utility-text-primary);
+[data-dashboard-board] .react-resizable-handle::after {
+  border-color: var(--utility-text-secondary);
+}
 
-  /* A hover border identifies the block without washing out live content. */
-  --puck-slot-component-color-overlay: transparent;
+/* Keep the corner usable when hover controls overlap a one-row block. */
+[data-dashboard-board] .react-grid-item > .react-resizable-handle {
+  z-index: 30;
+}
+
+[data-dashboard-block-controls],
+[data-dashboard-board] .react-resizable-handle {
+  opacity: 0;
+}
+
+[data-dashboard-grid-item]:hover [data-dashboard-block-controls],
+[data-dashboard-grid-item]:focus-within [data-dashboard-block-controls],
+[data-dashboard-board] .react-grid-item:hover > .react-resizable-handle,
+[data-dashboard-board] .react-grid-item:focus-within > .react-resizable-handle {
+  opacity: 1;
+}
+
+[data-dashboard-auto-height] > article {
+  height: auto;
+}
+
+[data-prosemark-editor] {
+  --pm-header-mark-color: var(--utility-text-secondary);
+  --pm-link-color: var(--color-link);
+  --pm-muted-color: var(--utility-text-secondary);
+  --pm-code-background-color: var(--color-container-inset);
+  --pm-code-font: var(--font-mono);
+  --pm-code-btn-background-color: var(--color-container-inset);
+  --pm-code-btn-hover-background-color: var(--color-container-inset-hover);
+  --pm-blockquote-vertical-line-background-color: var(--utility-border-secondary);
+  --pm-cursor-color: var(--utility-text-primary);
+  --pm-syntax-link: var(--color-link);
+  --pm-syntax-keyword: var(--color-info);
+  --pm-syntax-atom: var(--color-info);
+  --pm-syntax-literal: var(--utility-text-primary);
+  --pm-syntax-string: var(--utility-text-primary);
+  --pm-syntax-regexp: var(--utility-text-secondary);
+  --pm-syntax-definition-variable: var(--utility-text-primary);
+  --pm-syntax-local-variable: var(--utility-text-primary);
+  --pm-syntax-type-namespace: var(--color-info);
+  --pm-syntax-class-name: var(--color-info);
+  --pm-syntax-special-variable-macro: var(--utility-text-primary);
+  --pm-syntax-definition-property: var(--utility-text-primary);
+  --pm-syntax-invalid: var(--utility-text-destructive);
+}
+
+[data-prosemark-editor] .cm-editor {
+  min-height: 6rem;
+  font-family: var(--font-sans);
+  color: var(--utility-text-primary);
+}
+
+[data-prosemark-editor] .cm-editor .cm-scroller {
+  font-family: var(--font-sans);
+}
+
+[data-prosemark-editor] .cm-content {
+  padding: 0.5rem;
+}
+
+[data-prosemark-editor] .cm-focused {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.dashboard-source-completion {
+  color: var(--utility-text-primary);
+  background: var(--color-container);
+  border-color: var(--utility-border-secondary);
+}
+
+.dashboard-source-completion > ul > li[aria-selected] {
+  color: var(--utility-text-primary);
+  background: var(--color-container-inset);
 }

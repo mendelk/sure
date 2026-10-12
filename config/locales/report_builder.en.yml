@@ -4,7 +4,6 @@ en:
     create_source: Create source
     edit_source: Edit source
     choose_source: Choose a source
-    use_source: Use source
     save_source: Save source
     source_name: Source name
     source_type: Source type
@@ -65,28 +64,27 @@ en:
     source_reset_dashboard: Reset dashboards and sources
     source_no_dashboards: No dashboards yet
     source_no_visualizations: No visualizations yet
-    source_add_help: Add a table or chart and choose a shared source.
     source_close: Close
     back_to_dashboard: Back to dashboard
-    edit_layout: Edit layout
-    save_layout: Save layout
-    cancel_layout: Cancel
-    undo_layout: Undo layout change
-    redo_layout: Redo layout change
-    layout_grid: Grid
-    layout_grid_item: Grid item
-    layout_content: Content
+    layout_add_item: Add component
+    layout_settings: Component settings
+    layout_add_richtext: Add rich text
+    layout_duplicate_item: Duplicate component
+    layout_delete_item: Delete component
+    layout_move_item: "Move %{name}"
+    layout_edit_item: "Edit %{name}"
     layout_richtext: Rich text
     layout_richtext_content: Text
     layout_richtext_preview: Live preview
     layout_richtext_source_missing: The linked source is unavailable. Variables are shown unchanged.
     layout_richtext_variables: Source variables
-    layout_column_span: Column span
-    layout_height: Height
-    layout_height_mode: Height mode
-    layout_height_fixed: Fixed
-    layout_height_auto: Auto
-    layout_help: Drag grid items to reorder them. Drop any component into a grid item's content slot, including grids, grid items, tables, charts, and rich text. Select a Table, Chart, or Rich text block to choose an existing source or create one. Save layout to keep your changes, or Cancel to discard them.
+    layout_richtext_format: Text formatting
+    layout_richtext_bold: Bold
+    layout_richtext_italic: Italic
+    layout_richtext_heading: Heading
+    layout_richtext_list: Bullet list
+    layout_richtext_link: Link
+    layout_auto_height: Auto height
     loading: Running report…
     report_error: Report error
     no_results: No matching transactions.

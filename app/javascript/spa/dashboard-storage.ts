@@ -1,4 +1,3 @@
-import type { RichText } from "@puckeditor/core";
 import * as z from "zod/mini";
 import {
   AggregateReportDefinitionSchema,
@@ -26,14 +25,9 @@ import {
 
 export const STARTER_QUERY = "from transactions\nsort {-date}\ntake 10";
 
+export const DASHBOARD_GRID = { cols: 16, rowHeight: 32, gap: 16 } as const;
+
 export type DashboardLayoutProps = {
-  Grid: { id: LayoutItemId; content: DashboardLayoutContent };
-  GridItem: {
-    id: LayoutItemId;
-    content: DashboardLayoutContent;
-    columnSpan: number;
-    height: number | "auto";
-  };
   Table: { id: LayoutItemId; sourceId?: SourceId; visibleColumns: string[] };
   Chart: {
     id: LayoutItemId;
@@ -42,18 +36,20 @@ export type DashboardLayoutProps = {
     categoryField: string;
     valueField: string;
   };
-  RichText: { id: LayoutItemId; sourceId?: SourceId; content: RichText };
+  RichText: { id: LayoutItemId; sourceId?: SourceId; content: string };
 };
 
+export type DashboardPosition = { x: number; y: number; w: number; h: number };
 export type DashboardLayoutContent = {
-  [Type in keyof DashboardLayoutProps]: { type: Type; props: DashboardLayoutProps[Type] };
+  [Type in keyof DashboardLayoutProps]: {
+    type: Type;
+    props: DashboardLayoutProps[Type];
+    position: DashboardPosition;
+    heightMode: "fixed" | "auto";
+  };
 }[keyof DashboardLayoutProps][];
 
-// Keep domain IDs intact: Puck's recursive mapped types turn branded strings into objects.
-export type DashboardLayoutData = {
-  root: { props: Record<string, never> };
-  content: DashboardLayoutContent;
-};
+export type DashboardLayoutData = { content: DashboardLayoutContent };
 
 export interface Dashboard {
   id: DashboardId;
@@ -62,133 +58,100 @@ export interface Dashboard {
 }
 
 export interface DashboardSnapshot {
-  formatVersion: 6;
+  formatVersion: 7;
   sources: Source[];
   dashboards: Dashboard[];
 }
 
 export function emptyDashboardLayout(): DashboardLayoutData {
-  return {
-    root: { props: {} },
-    content: [],
-  };
+  return { content: [] };
 }
 
-export function appendDashboardVisualization(
+export function appendDashboardItem(
   layout: DashboardLayoutData,
-  type: "Table" | "Chart",
-  sourceId: SourceId,
+  type: keyof DashboardLayoutProps,
+  sourceId?: SourceId,
 ): DashboardLayoutData {
-  const grid = layout.content.find((item) => item.type === "Grid");
-  const ids = new Set<string>();
-  collectLayoutIds(layout.content, ids);
-  const baseId = `grid-item-${type.toLowerCase()}`;
-  let id = baseId;
-  let suffix = 2;
-  while (ids.has(id) || ids.has(`${id}-visualization`)) id = `${baseId}-${suffix++}`;
-  const visualization: DashboardLayoutData["content"][number] =
-    type === "Table"
-      ? {
-          type,
-          props: {
-            id: LayoutItemIdSchema.parse(`${id}-visualization`),
-            sourceId,
-            visibleColumns: [],
-          },
-        }
-      : {
-          type,
-          props: {
-            id: LayoutItemIdSchema.parse(`${id}-visualization`),
-            sourceId,
-            chartType: "line",
-            categoryField: "",
-            valueField: "",
-          },
-        };
-  if (grid === undefined) return { ...layout, content: [...layout.content, visualization] };
-  return {
-    ...layout,
-    content: layout.content.map((item) =>
-      item === grid
-        ? {
-            ...grid,
-            props: {
-              ...grid.props,
-              content: [
-                ...grid.props.content,
-                {
-                  type: "GridItem",
-                  props: {
-                    id: LayoutItemIdSchema.parse(id),
-                    content: [visualization],
-                    columnSpan: type === "Table" ? 12 : 4,
-                    height: type === "Table" ? 4 : 5,
-                  },
-                },
-              ],
-            },
-          }
-        : item,
-    ),
+  const parts = crypto.getRandomValues(new Uint32Array(4));
+  const id = LayoutItemIdSchema.parse(
+    `component-${Array.from(parts, (part) => part.toString(16).padStart(8, "0")).join("")}`,
+  );
+  const reference = { id, ...(sourceId === undefined ? {} : { sourceId }) };
+  const geometry = {
+    position: {
+      x: 0,
+      y: layout.content.reduce(
+        (bottom, item) => Math.max(bottom, item.position.y + item.position.h),
+        0,
+      ),
+      w: type === "Chart" ? 4 : DASHBOARD_GRID.cols,
+      h: type === "Chart" ? 5 : type === "Table" ? 4 : 6,
+    },
+    heightMode: "fixed" as const,
   };
+  const item: DashboardLayoutContent[number] =
+    type === "Table"
+      ? { type, props: { ...reference, visibleColumns: [] }, ...geometry }
+      : type === "Chart"
+        ? {
+            type,
+            props: {
+              ...reference,
+              chartType: "line",
+              categoryField: "",
+              valueField: "",
+            },
+            ...geometry,
+          }
+        : { type, props: { ...reference, content: "" }, ...geometry };
+  return { content: [...layout.content, item] };
 }
 
-function collectLayoutIds(content: DashboardLayoutData["content"], ids: Set<string>): void {
-  for (const item of content) {
-    ids.add(item.props.id);
-    if (item.type === "Grid" || item.type === "GridItem") collectLayoutIds(item.props.content, ids);
-  }
-}
-
-// Layout owns only presentation and references. The catalog is independently
-// validated, so recursive slots cannot smuggle dashboard-owned query settings.
-const DashboardContentSchema: z.ZodMiniType<DashboardLayoutData["content"][number]> = z.lazy(() =>
-  z.discriminatedUnion("type", [
-    z.strictObject({
-      type: z.literal("Grid"),
-      props: z.strictObject({ id: LayoutItemIdSchema, content: z.array(DashboardContentSchema) }),
+// Presentation is independent of the shared source catalog.
+const positionShape = {
+  position: z
+    .strictObject({
+      x: z.int().check(z.minimum(0), z.maximum(DASHBOARD_GRID.cols - 1)),
+      y: z.int().check(z.minimum(0)),
+      w: z.int().check(z.minimum(1), z.maximum(DASHBOARD_GRID.cols)),
+      h: z.int().check(z.minimum(1)),
+    })
+    .check(z.refine((position) => position.x + position.w <= DASHBOARD_GRID.cols)),
+  heightMode: z.enum(["fixed", "auto"]),
+};
+const DashboardContentSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    type: z.literal("Table"),
+    ...positionShape,
+    props: z.strictObject({
+      id: LayoutItemIdSchema,
+      sourceId: z.optional(SourceIdSchema),
+      visibleColumns: z.array(z.string()),
     }),
-    z.strictObject({
-      type: z.literal("GridItem"),
-      props: z.strictObject({
-        id: LayoutItemIdSchema,
-        content: z.array(DashboardContentSchema),
-        columnSpan: z.int().check(z.minimum(1), z.maximum(12)),
-        height: z.union([z.literal("auto"), z.int().check(z.minimum(3), z.maximum(12))]),
-      }),
+  }),
+  z.strictObject({
+    type: z.literal("Chart"),
+    ...positionShape,
+    props: z.strictObject({
+      id: LayoutItemIdSchema,
+      sourceId: z.optional(SourceIdSchema),
+      chartType: z.enum(["line", "bar", "pie"]),
+      categoryField: z.string(),
+      valueField: z.string(),
     }),
-    z.strictObject({
-      type: z.literal("Table"),
-      props: z.strictObject({
-        id: LayoutItemIdSchema,
-        sourceId: z.optional(SourceIdSchema),
-        visibleColumns: z.array(z.string()),
-      }),
+  }),
+  z.strictObject({
+    type: z.literal("RichText"),
+    ...positionShape,
+    props: z.strictObject({
+      id: LayoutItemIdSchema,
+      sourceId: z.optional(SourceIdSchema),
+      content: z.string(),
     }),
-    z.strictObject({
-      type: z.literal("Chart"),
-      props: z.strictObject({
-        id: LayoutItemIdSchema,
-        sourceId: z.optional(SourceIdSchema),
-        chartType: z.enum(["line", "bar", "pie"]),
-        categoryField: z.string(),
-        valueField: z.string(),
-      }),
-    }),
-    z.strictObject({
-      type: z.literal("RichText"),
-      props: z.strictObject({
-        id: LayoutItemIdSchema,
-        sourceId: z.optional(SourceIdSchema),
-        content: z.string(),
-      }),
-    }),
-  ]),
-);
+  }),
+]);
 
 export const DashboardLayoutSchema = z.strictObject({
-  root: z.strictObject({ props: z.strictObject({}) }),
   content: z.array(DashboardContentSchema),
 });
 
@@ -217,7 +180,10 @@ const SourceSchema = z.strictObject({
   id: SourceIdSchema,
   name: NonEmptyStringSchema,
   configuration: z.discriminatedUnion("kind", [
-    z.strictObject({ kind: z.literal("structured"), definition: StrictReportDefinitionSchema }),
+    z.strictObject({
+      kind: z.literal("structured"),
+      definition: StrictReportDefinitionSchema,
+    }),
     z.strictObject({ kind: z.literal("sureql"), query: NonEmptyStringSchema }),
   ]),
 });
@@ -227,7 +193,7 @@ const DashboardSchema = z.strictObject({
   layout: DashboardLayoutSchema,
 });
 const DashboardSnapshotSchema = z.strictObject({
-  formatVersion: z.literal(6),
+  formatVersion: z.literal(7),
   sources: z.array(SourceSchema),
   dashboards: z.array(DashboardSchema),
 });
@@ -243,7 +209,7 @@ export function starterSnapshot(): DashboardSnapshot {
   const transactionsId = generateSourceId();
   const spendingId = generateSourceId();
   return {
-    formatVersion: 6,
+    formatVersion: 7,
     sources: [
       {
         id: transactionsId,
@@ -262,12 +228,27 @@ export function starterSnapshot(): DashboardSnapshot {
             // The executor requires a row currency dimension for monetary
             // aggregates. Currency columns also expose each original unit.
             rows: [
-              { id: ReportDimensionIdSchema.parse("category"), field: "category" },
-              { id: ReportDimensionIdSchema.parse("row_currency"), field: "currency" },
+              {
+                id: ReportDimensionIdSchema.parse("category"),
+                field: "category",
+              },
+              {
+                id: ReportDimensionIdSchema.parse("row_currency"),
+                field: "currency",
+              },
             ],
-            columns: [{ id: ReportDimensionIdSchema.parse("column_currency"), field: "currency" }],
+            columns: [
+              {
+                id: ReportDimensionIdSchema.parse("column_currency"),
+                field: "currency",
+              },
+            ],
             values: [
-              { id: ReportMeasureIdSchema.parse("spending"), field: "amount", aggregation: "sum" },
+              {
+                id: ReportMeasureIdSchema.parse("spending"),
+                field: "amount",
+                aggregation: "sum",
+              },
             ],
             filters: [{ field: "date", operator: "last", value: 30, unit: "days" }],
             sort: [],
@@ -280,53 +261,28 @@ export function starterSnapshot(): DashboardSnapshot {
         id: DashboardIdSchema.parse("starter-dashboard"),
         name: "My dashboard",
         layout: {
-          root: { props: {} },
           content: [
             {
-              type: "Grid",
+              type: "Table",
               props: {
-                id: LayoutItemIdSchema.parse("dashboard-grid"),
-                content: [
-                  {
-                    type: "GridItem",
-                    props: {
-                      id: LayoutItemIdSchema.parse("grid-item-transactions"),
-                      content: [
-                        {
-                          type: "Table",
-                          props: {
-                            id: LayoutItemIdSchema.parse("transactions-table"),
-                            sourceId: transactionsId,
-                            visibleColumns: [],
-                          },
-                        },
-                      ],
-                      columnSpan: 12,
-                      height: 4,
-                    },
-                  },
-                  {
-                    type: "GridItem",
-                    props: {
-                      id: LayoutItemIdSchema.parse("grid-item-spending"),
-                      content: [
-                        {
-                          type: "Chart",
-                          props: {
-                            id: LayoutItemIdSchema.parse("spending-chart"),
-                            sourceId: spendingId,
-                            chartType: "pie",
-                            categoryField: "",
-                            valueField: "",
-                          },
-                        },
-                      ],
-                      columnSpan: 4,
-                      height: 5,
-                    },
-                  },
-                ],
+                id: LayoutItemIdSchema.parse("transactions-table"),
+                sourceId: transactionsId,
+                visibleColumns: [],
               },
+              position: { x: 0, y: 0, w: DASHBOARD_GRID.cols, h: 4 },
+              heightMode: "fixed",
+            },
+            {
+              type: "Chart",
+              props: {
+                id: LayoutItemIdSchema.parse("spending-chart"),
+                sourceId: spendingId,
+                chartType: "pie",
+                categoryField: "",
+                valueField: "",
+              },
+              position: { x: 0, y: 4, w: 4, h: 5 },
+              heightMode: "fixed",
             },
           ],
         },
@@ -376,14 +332,9 @@ function validLayoutContent(
     if (id.length === 0 || id !== id.trim() || ids.has(id)) return false;
     ids.add(id);
     if (
-      (item.type === "Table" || item.type === "Chart") &&
+      item.type !== "RichText" &&
       item.props.sourceId !== undefined &&
       !sourceIds.has(item.props.sourceId)
-    )
-      return false;
-    if (
-      (item.type === "Grid" || item.type === "GridItem") &&
-      !validLayoutContent(item.props.content, ids, sourceIds)
     )
       return false;
   }
@@ -421,7 +372,6 @@ export function loadOrInstallStarterSnapshot(userId: UserId): DashboardSnapshot 
 
 export type DashboardRouteSearch = {
   dashboard?: DashboardId;
-  layout?: boolean;
   component?: LayoutItemId;
 };
 
@@ -431,6 +381,5 @@ export function validateDashboardSearch(input: Record<string, unknown>): Dashboa
   if (dashboard.success) result.dashboard = dashboard.data;
   const component = LayoutItemIdSchema.safeParse(input.component);
   if (component.success) result.component = component.data;
-  if (input.layout === true || input.layout === "true") result.layout = true;
   return result;
 }

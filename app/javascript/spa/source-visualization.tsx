@@ -3,7 +3,6 @@ import { useId, useMemo, useState } from "react";
 import { keepPreviousData, skipToken, useQuery } from "@tanstack/react-query";
 import type { PaginationState } from "@tanstack/react-table";
 import { FormField } from "./components/form-field";
-import { IconButton } from "./components/icon-button";
 import type { DashboardLayoutProps } from "./dashboard-storage";
 import type { ReportBuilderText } from "./report-definition";
 import { SourceResultTable } from "./report-pivot-table";
@@ -36,13 +35,11 @@ export function SourceVisualization({
   view,
   endpoint,
   text,
-  onEditSource,
 }: {
   source: Source;
   view: SourceVisualizationView;
   endpoint: string;
   text: ReportBuilderText;
-  onEditSource: () => void;
 }) {
   const t = (key: string) => text[key] ?? key;
   const [page, setPage] = useState({
@@ -104,19 +101,14 @@ export function SourceVisualization({
         }
       : undefined;
   return (
-    <article className="flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-xl bg-container p-4 shadow-border-xs">
-      <header className="flex items-center justify-between gap-3">
+    <article className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+      <header className="flex shrink-0 items-center justify-between gap-3">
         <h2 className="truncate text-lg font-medium text-primary">{source.name}</h2>
-        <IconButton
-          icon="pencil"
-          label={t("source_edit_label").replace("%{name}", source.name)}
-          onClick={onEditSource}
-        />
       </header>
       <section
         aria-label={resultsLabel}
         aria-busy={query.isFetching}
-        className="min-h-0 flex-1 space-y-3 overflow-auto"
+        className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
       >
         {query.isError && (
           <p role="alert" className="text-sm text-destructive">
@@ -137,11 +129,13 @@ export function SourceVisualization({
               </output>
             )}
             {chart !== undefined && typeof chart !== "string" ? (
-              <SourceResultChart
-                mapping={chart}
-                chartType={view.type === "Chart" ? view.props.chartType : "line"}
-                label={t("source_chart_label").replace("%{name}", source.name)}
-              />
+              <div className="min-h-0 flex-1 overflow-auto">
+                <SourceResultChart
+                  mapping={chart}
+                  chartType={view.type === "Chart" ? view.props.chartType : "line"}
+                  label={t("source_chart_label").replace("%{name}", source.name)}
+                />
+              </div>
             ) : (
               <>
                 {typeof chart === "string" && (

@@ -44,15 +44,14 @@ when no preference is saved. If browser storage is unavailable, toggling still
 works for the current session. The mobile navigation drawer remains separate.
 
 Dashboards at `/dashboards` use a user-scoped browser-local snapshot with
-`formatVersion: 6`, containing a shared source catalog and independent dashboard layouts.
+`formatVersion: 7`, containing a shared source catalog and independent dashboard layouts.
 New dashboard IDs and all source IDs are random 128-bit identifiers.
 A source has an ID, a name, and configuration only: either a structured
 `ReportDefinition` or a SureQL query. It does not own layout or visualization
 settings. This remains a browser-local prototype; there is no backend source
 CRUD or cross-device synchronization. Only the current snapshot format is
 accepted; older formats are not migrated. Incompatible or malformed snapshots
-are reset to the starter. Layout drafts must match the current layout schema;
-invalid drafts are discarded rather than migrated.
+are reset to the starter.
 
 Table, chart, and rich text `sourceId` properties are optional UUIDs. No selection
 is `undefined` in application state and omitted from persisted JSON; empty
@@ -63,51 +62,58 @@ Manage sources on their own pages: `/sources` lists the catalog,
 New sources default to **Structured**, the first **Source type** option;
 **SureQL** remains the second option. Enter a **Source name** and save a
 successful preview with **Save source**. Creating from the catalog or dashboard
-header adds only the source. **Add table** and **Add chart** first open a
-**Source** picker; **Use source** adds the selected source to the dashboard.
-Creating from that picker opens the source page and adds the visualization
-after saving. **Edit source** navigates to the editor from a card or catalog;
-there is no dashboard-owned report configuration route or source-editor modal.
-A saved edit updates every consumer; unsaved previews and cancellation leave
-saved configuration unchanged. Sources can be created with no dashboards.
+header adds only the source. A block's right settings panel provides its
+**Source** picker, **Create source**, and **Edit source** controls. Creating a
+source there selects it for that block after saving. **Edit source** navigates
+to the editor from the settings panel or catalog; there is no dashboard-owned
+report configuration route or source-editor modal. A saved edit updates every
+consumer; unsaved previews and cancellation leave saved configuration unchanged.
+Sources can be created with no dashboards.
 
 Both editor modes place **Cancel** and **Save source** to the right of the
 **Edit source / Create source** heading. **Source name** and **Source type**
 share the next row, with the name first. Structured sources place **Mode**
 (**Aggregate / Details**) third on that same row; SureQL keeps the two-field row.
 
-Dashboard layouts use the Puck editor's twelve-column **Grid** with layout-only
-**GridItem** containers. **Edit layout** opens a draft where you can drag grid
-items to reorder them and set their column span (1–12). **Height mode** selects
-**Fixed** (the default, 3–12 rows of 80 pixels) or **Auto**. Auto removes the
-container's fixed height and lets its content determine its intrinsic height;
-it grows or shrinks with that content. Switching back to Fixed starts at four
-rows. The selected mode is saved with the layout.
-Grid item content slots accept any configured Puck component,
-including nested **Grid** and **GridItem** containers, standalone **Table** and
-**Chart** blocks, and **RichText** blocks. Grid slots accept grid items. Every
-Grid, including the starter grid, can be dragged, duplicated, and deleted.
-Deleting a Grid removes its contained blocks, not their shared sources.
-New dashboards start with an empty layout; layouts do not require a Grid.
-**Add table** and **Add chart** append a grid item to the first root-level Grid
-when one exists, otherwise they append a standalone block at the dashboard root.
-Blocks can be reordered and moved between containers or to the root using
-Puck's outline as well as the canvas. Select a Table, Chart, or Rich text block to choose its **Source**, create a
-source on its own page, or edit the selected source. Per-user sessionStorage
-retains unsaved layout drafts across source-page navigation and reloads.
-Saving returns to the native Puck selection with the new source selected;
-canceling retains the previous source and layout settings.
-A new Table inserted from the palette starts unconfigured.
-RichText is edited directly in its block in the dashboard pane, not in the
-sidebar. Click the text while editing the layout to use Puck's formatting
-toolbar. Headings and other rich-text formatting use the application's prose
-typography consistently in the editor, live source preview, and saved dashboard.
-Source-variable suggestions appear below the text while typing a matching path,
-without persistent variable help text.
-Source selection remains in the sidebar. Dashboards without visualizations can
-still be edited and contain rich text. **Undo layout change** and **Redo layout
-change** operate on the draft. **Save layout** persists it in browser storage;
-**Cancel** discards it.
+Dashboard layouts use React Grid Layout with sixteen columns, 32-pixel rows,
+and 16-pixel gaps. Each board item contains one **Table**, **Chart**, or
+**Rich text** component and stores its `x`, `y`, `w`, and `h` grid coordinates.
+There are no nested layout containers. **Add component** in the dashboard's
+top bar opens the right side panel. Its **Add table**, **Add chart**, and
+**Add rich text** buttons append an unconfigured item and select its settings.
+New dashboards start with an empty board.
+
+There is no dashboard-wide edit mode or layout save/cancel step. Hovering over
+a block, or focusing its controls, reveals move and edit icons and the
+bottom-right resize handle. Controls leave the corner clear even on one-row
+blocks. Drag the move handle to reposition the block;
+it also supports keyboard movement. The edit icon opens that block's options
+in the right sidebar. Changes are saved immediately in browser storage, without
+layout undo/redo controls. Blocks have no separate background or padding.
+
+The bottom-right handle changes width and height for fixed-height blocks.
+The settings panel's **Auto height** switch makes the same handle change only
+width; height grows or shrinks with content, rounded up to whole grid rows.
+Fixed-height blocks can use any positive whole row count, without an upper limit.
+Turning Auto height off retains the stored row count without clamping. Width and
+fixed height are controlled by the grid handles, not numeric component settings.
+The board has no imposed minimum or maximum height; React Grid Layout's inline
+container height is the combined board footprint, not a height limit.
+
+The selected block's right sidebar holds source and presentation settings,
+plus **Duplicate component** and **Delete component**. Deleting a block never
+deletes its shared source. Source creation and editing use the existing source
+pages. Saving or canceling a source returns to the selected block without
+resetting its Markdown, geometry, or presentation settings. Creating a source
+selects it for that block; canceling preserves its previous source. There are no
+separate sessionStorage layout drafts.
+
+Rich text uses ProseMark directly inside the selected dashboard block, not in
+the side panel. It stores Markdown immediately and provides **Bold**, **Italic**,
+**Heading**, **Bullet list**, and **Link** controls, keyboard formatting, and
+rich-text paste. Unselected blocks render the saved Markdown. Source selection
+stays in the right panel; linked rich text also displays a **Live preview** below
+the editor. Dashboards can contain rich text without any table or chart.
 
 Rich text can optionally reference one shared source. Type brace-delimited
 dot/bracket paths such as `Latest payment: {result[0].name} — {result[0]["amount"]}`.
@@ -117,10 +123,10 @@ An ungrouped sum with measure ID `total` is `{result[0].total}`, not an indexed
 pivot total. All source pages are fetched, respecting SureQL `take` limits; an
 empty result still supports `{result.length}`.
 
-In edit mode, the text keeps its expressions and a **Live preview** below it
-shows resolved values. Saving stores the template, never the resolved values.
-Selecting, creating, editing, or clearing its source uses the same picker and
-draft-return flow as tables and charts. Existing rich text without a source is
+While the block is selected for editing, the text keeps its expressions and a
+**Live preview** below it shows resolved values. Storage retains the template,
+never the resolved values. Selecting, creating, editing, or clearing its source
+uses the same picker and return flow as tables and charts. Rich text without a source is
 unchanged. Missing paths, malformed paths, and unavailable sources leave their
 expressions visible; null values become blank, while zero and false are retained.
 Numeric field values use locale-aware formatting. Currency fields use their
@@ -130,31 +136,30 @@ Currency formatting uses the currency's minor-unit precision (USD: two decimals;
 JPY: none) and never converts the amount. Decimal strings are formatted directly,
 without a lossy JavaScript number conversion. Missing currency metadata leaves
 the original value visible rather than guessing a unit.
-Objects and arrays are serialized as JSON text. Values are inserted only into
-text, not HTML attributes or URLs, and cannot introduce HTML. Inline formatting
+Objects and arrays are serialized as JSON text. Source values are inserted into
+Markdown text nodes after parsing, never reparsed as Markdown or inserted into
+HTML attributes or URLs. They cannot introduce HTML, images, or links. Inline formatting
 is preserved, including expressions split across formatting marks; expressions
 do not span paragraphs or hard line breaks. Only own properties are accessible;
 prototype-related keys and executable expressions are not supported.
 
-While typing inside `{…}`, the Text field's formatting toolbar offers matching
-source paths. Arrow keys select a suggestion; Enter, Tab, or clicking inserts it;
-Escape dismisses the list. Suggestions are bounded to the first 200 available
-paths with eight matches shown; manually typed paths can address any fetched row.
+While typing or moving the caret inside `{…}`, the editor offers matching source
+paths in a completion popup. Arrow keys select a suggestion; Enter, Tab, or
+clicking inserts it, replacing any existing expression suffix. Escape dismisses
+the list. Suggestions are bounded to the first 200 available paths with eight
+matches shown; manually typed paths can address any fetched row.
 
-The editor combines Puck's component palette, outline, and fields with an
-unscaled preview. Layout is flow-based rather than absolute x/y positioning;
-size changes use fields instead of corner resize handles. Cards stack in a
-single column below the medium screen breakpoint.
-The editor's palette, outline, fields, and action bars follow Sure's light and
-dark themes. Hovered and selected outline rows retain readable labels; canvas
-hover highlights use a border without tinting the live table or chart content.
+The side panel, board controls, ProseMark editor, and completion popup use Sure's
+theme tokens. The board preview is unscaled. Below 640 pixels of board width,
+items stack in a single column and dragging/resizing are disabled, without
+changing the saved desktop coordinates. On narrow screens the settings panel
+opens as a fixed right-side drawer.
 Removing a component or deleting a dashboard preserves its sources in the shared
 catalog. A source can appear repeatedly within a dashboard or across dashboards;
 there is no source deletion UI. Confirming **Reset dashboards and sources**
 replaces all dashboards, layouts, and source configurations with a fresh starter
-dashboard and its two sources, and clears unsaved layout drafts. Custom sources
-are removed; transactions remain untouched. Canceling leaves the workspace intact.
-Card headers have no viewing-mode drag grips or resize handles.
+dashboard and its two sources. Custom sources are removed; transactions remain
+untouched. Canceling leaves the workspace intact.
 
 ### Table and chart consumers
 
@@ -169,12 +174,14 @@ All SPA table rendering lives in `app/javascript/spa/components/table.tsx`.
 Structured aggregate, transaction-detail, and normalized source adapters supply
 rows, column definitions, and formatting. The shared component owns table markup,
 grouped and row headers, scroll regions, empty states, and client/server pagination.
-Tables use their intrinsic height by default; fixed-height containers provide
-vertical scrolling when explicitly configured. The pager places the page-size
-dropdown and **per page** label between **Previous** and **Next**, on one line.
-During a page request, **Next / Previous** are disabled and show spinners.
-The existing rows remain visible until the requested page arrives.
-Source previews omit the standalone **Running report…** status message.
+Tables use their intrinsic height by default. When a parent constrains height,
+the header stays sticky while only rows scroll; the pager remains outside the
+scroll region. A rounded outer frame clips the inner region and native scrollbars,
+including their corners. The scroll region is named and keyboard-focusable.
+The pager places the page-size dropdown and **per page** label between
+**Previous** and **Next**, on one line. During a page request, **Next / Previous**
+are disabled and show spinners. Existing rows remain visible until the requested
+page arrives. Source previews omit the standalone **Running report…** status message.
 
 Source results are normalized once per query into reusable columns and rows.
 Consumers share a TanStack Query cache rooted at `["source", source.id]`, not a
