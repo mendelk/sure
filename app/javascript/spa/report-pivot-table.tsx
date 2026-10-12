@@ -162,7 +162,7 @@ function AggregateReportTable({
     return { columns, styles };
   }, [definition, result, text]);
   return (
-    <div className="space-y-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {result.truncated ? (
         <output className="block rounded-lg bg-warning/10 p-3 text-sm text-primary">
           {text.truncated}

@@ -80,64 +80,66 @@ export function Table<Row extends TableRow>({
   const loading = pagination?.loading ?? false;
   const pending = loading || (pagination?.pending ?? false);
   return (
-    <>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       {rows.length === 0 ? (
         <p className="p-6 text-center text-secondary">{t("no_results")}</p>
       ) : (
-        <section
-          aria-label={label}
-          aria-busy={loading}
-          className="overflow-auto rounded-xl border border-primary focus-ring"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll this named table region.
-          tabIndex={0}
-        >
-          <table className="w-full border-collapse text-sm">
-            <caption className="sr-only">{label}</caption>
-            <thead className="bg-surface text-secondary">
-              {table.getHeaderGroups().map((group) => (
-                <tr key={group.id} className="border-b border-primary">
-                  {group.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      colSpan={header.colSpan}
-                      scope={header.column.columns.length > 0 ? "colgroup" : "col"}
-                      className={
-                        header.column.columns.length > 0
-                          ? "px-4 py-3 text-center font-medium"
-                          : `${cellClass(styles.get(header.column.id))} font-medium`
-                      }
-                    >
-                      {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="divide-y divide-subdued bg-container">
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getAllCells().map((cell) => {
-                    const style = styles.get(cell.column.id);
-                    const content = <table.FlexRender cell={cell} />;
-                    return style?.rowHeader === true ? (
-                      <th key={cell.id} scope="row" className={cellClass(style)}>
-                        {content}
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-primary">
+          <section
+            aria-label={label}
+            aria-busy={loading}
+            className="min-h-0 min-w-0 flex-1 overflow-auto focus-ring -outline-offset-2"
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll this named table region.
+            tabIndex={0}
+          >
+            <table className="w-full border-collapse text-sm">
+              <caption className="sr-only">{label}</caption>
+              <thead className="sticky top-0 z-10 bg-surface text-secondary">
+                {table.getHeaderGroups().map((group) => (
+                  <tr key={group.id} className="border-b border-primary">
+                    {group.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        colSpan={header.colSpan}
+                        scope={header.column.columns.length > 0 ? "colgroup" : "col"}
+                        className={
+                          header.column.columns.length > 0
+                            ? "px-4 py-3 text-center font-medium"
+                            : `${cellClass(styles.get(header.column.id))} font-medium`
+                        }
+                      >
+                        {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                       </th>
-                    ) : (
-                      <td key={cell.id} className={cellClass(style)}>
-                        {content}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody className="divide-y divide-subdued bg-container">
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    {row.getAllCells().map((cell) => {
+                      const style = styles.get(cell.column.id);
+                      const content = <table.FlexRender cell={cell} />;
+                      return style?.rowHeader === true ? (
+                        <th key={cell.id} scope="row" className={cellClass(style)}>
+                          {content}
+                        </th>
+                      ) : (
+                        <td key={cell.id} className={cellClass(style)}>
+                          {content}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </div>
       )}
       <nav
         aria-label={t("pagination")}
-        className="flex flex-wrap items-center justify-between gap-3"
+        className="flex shrink-0 flex-wrap items-center justify-between gap-3"
       >
         <p aria-live="polite" className="text-xs text-secondary">
           {t("page_range")
@@ -197,6 +199,6 @@ export function Table<Row extends TableRow>({
           </Button>
         </div>
       </nav>
-    </>
+    </div>
   );
 }

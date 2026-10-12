@@ -201,7 +201,7 @@ function SourceChartGroupView({
   ]);
   const chartLabel = [label, group.currency].filter(Boolean).join(" · ");
   return (
-    <div className="rounded-xl border border-secondary bg-container p-3 shadow-border-xs">
+    <div className="min-w-0">
       {group.currency && <p className="mb-2 text-sm font-medium text-primary">{group.currency}</p>}
       <Chart ariaLabel={chartLabel} definition={definition} height={260} />
       <ul aria-label={chartLabel} className="sr-only">

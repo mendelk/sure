@@ -40,6 +40,7 @@ import {
   Store,
   Tag,
   Tags,
+  Trash2,
   User,
   X,
 } from "lucide-react";
@@ -86,6 +87,7 @@ const ICONS = {
   store: Store,
   tag: Tag,
   tags: Tags,
+  "trash-2": Trash2,
   user: User,
   x: X,
 } satisfies Record<string, ComponentType<SVGProps<SVGSVGElement>>>;

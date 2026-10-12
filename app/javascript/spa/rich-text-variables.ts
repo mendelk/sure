@@ -1,10 +1,23 @@
+import type { Nodes, Root, Text, InlineCode, Code } from "mdast";
+
+const pathIdentifier = /^[A-Za-z_$][\w$]*$/u;
+
 const blockedKeys: Record<"__proto__" | "prototype" | "constructor", true> = {
   ["__proto__"]: true,
   prototype: true,
   constructor: true,
 };
 
-export function parsePath(path: string): string[] | undefined {
+const expressionBoundaries: Partial<Record<Nodes["type"], true>> = {
+  paragraph: true,
+  heading: true,
+  tableCell: true,
+  break: true,
+  code: true,
+  html: true,
+};
+
+export function parsePath(path: string, bareIdentifiersOnly = false): string[] | undefined {
   const token = /([^.[\]]+)|\[\s*(?:(\d+)|"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)')\s*\]/uy;
   const parts: string[] = [];
   let index = 0;
@@ -12,6 +25,7 @@ export function parsePath(path: string): string[] | undefined {
     token.lastIndex = index;
     const match = token.exec(path);
     if (!match) return undefined;
+    if (bareIdentifiersOnly && match[1] && !pathIdentifier.test(match[1])) return undefined;
     parts.push(
       match.at(1) ?? match.at(2) ?? (match.at(3) ?? match.at(4) ?? "").replaceAll(/\\(.)/gu, "$1"),
     );
@@ -50,61 +64,35 @@ export function resolveSourcePath(data: unknown, path: string): unknown {
   return value;
 }
 
-const blockTags: Record<string, true> = {
-  P: true,
-  DIV: true,
-  H1: true,
-  H2: true,
-  H3: true,
-  H4: true,
-  H5: true,
-  H6: true,
-  LI: true,
-  PRE: true,
-  BLOCKQUOTE: true,
-  TD: true,
-  TH: true,
-  UL: true,
-  OL: true,
-};
-
-/** Resolve text only: never interpolate markup, URLs, or HTML attributes. */
+/** Resolve Markdown text nodes only, including paths split across inline formatting. */
 export function transformSourceExpressions(
-  html: string,
+  tree: Root,
   replace: (path: string) => string | undefined,
-): string {
-  const document = new DOMParser().parseFromString(html, "text/html");
-  const groups: Text[][] = [];
-  let group: Text[] = [];
+): void {
+  const groups: (Text | InlineCode | Code)[][] = [];
+  let group: (Text | InlineCode | Code)[] = [];
   const flush = () => {
     if (group.length > 0) groups.push(group);
     group = [];
   };
-  const visit = (node: Node) => {
-    if (node instanceof Text) {
-      group.push(node);
-      return;
-    }
-    if (!(node instanceof Element)) return;
-    if (node.tagName === "SCRIPT" || node.tagName === "STYLE") {
-      flush();
-      return;
-    }
-    const boundary = Object.hasOwn(blockTags, node.tagName) || node.tagName === "BR";
+  const visit = (node: Nodes) => {
+    const boundary = Object.hasOwn(expressionBoundaries, node.type);
     if (boundary) flush();
-    for (const child of node.childNodes) visit(child);
+    if (node.type === "text" || node.type === "inlineCode" || node.type === "code")
+      group.push(node);
+    if ("children" in node) for (const child of node.children) visit(child);
     if (boundary) flush();
   };
-  visit(document.body);
+  visit(tree);
   flush();
   for (const nodes of groups) {
-    const text = nodes.map((node) => node.data).join("");
+    const text = nodes.map((node) => node.value).join("");
     const matches = [...text.matchAll(/\{([^{}]+)\}/gu)];
     const offsets: number[] = [];
     let offset = 0;
     for (const node of nodes) {
       offsets.push(offset);
-      offset += node.data.length;
+      offset += node.value.length;
     }
     for (let matchIndex = matches.length - 1; matchIndex >= 0; matchIndex--) {
       const match = matches[matchIndex];
@@ -118,25 +106,25 @@ export function transformSourceExpressions(
       const last = offsets.findIndex(
         (position, index) => position < end && (offsets[index + 1] ?? offset) >= end,
       );
-      const suffix = nodes[last].data.slice(end - offsets[last]);
-      nodes[first].data =
-        nodes[first].data.slice(0, start - offsets[first]) +
+      const suffix = nodes[last].value.slice(end - offsets[last]);
+      nodes[first].value =
+        nodes[first].value.slice(0, start - offsets[first]) +
         replacement +
         (first === last ? suffix : "");
-      for (let index = first + 1; index < last; index++) nodes[index].data = "";
-      if (first !== last) nodes[last].data = suffix;
+      for (let index = first + 1; index < last; index++) nodes[index].value = "";
+      if (first !== last) nodes[last].value = suffix;
     }
   }
-  return document.body.innerHTML;
 }
 
 /** Interpolate values using their field kind and fixed or per-row currency. */
-export function interpolateSourceHtml(html: string, data: unknown): string {
+export function interpolateSourceText(text: string, data: unknown): string {
   const formatters = new Map<string, Intl.NumberFormat>();
-  return transformSourceExpressions(html, (path): string | undefined => {
+  return text.replaceAll(/\{([^{}]+)\}/gu, (expression: string, rawPath: string): string => {
+    const path = rawPath.trim();
     const value = resolveSourcePath(data, path);
     if (value === undefined || typeof value === "function" || typeof value === "symbol")
-      return undefined;
+      return expression;
     if (value === null) return "";
     const parts = parsePath(path);
     if (
@@ -202,7 +190,7 @@ export function sourceVariablePaths(data: unknown): string[] {
     for (const [key, child] of Object.entries(value)) {
       if (paths.length >= 200) break;
       if (Object.hasOwn(blockedKeys, key)) continue;
-      const next = /^[A-Za-z_$][\w$]*$/u.test(key)
+      const next = pathIdentifier.test(key)
         ? `${path}${path ? "." : ""}${key}`
         : `${path}[${JSON.stringify(key)}]`;
       visit(child, next);
