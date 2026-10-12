@@ -12,6 +12,13 @@ const SpaBootstrapSchema = z.object({
   recurringTransactionsDisabled: z.optional(z.nullable(z.boolean())),
   uncategorizedCount: z.optional(z.nullable(z.number())),
   reportBuilderText: z.record(z.string(), z.string()),
+  transactionTransferMatchText: z.object({
+    auto_matched: z.string(),
+    auto_matched_short: z.string(),
+    confirm_match: z.string(),
+    reject_match: z.string(),
+    transfer_confirmed: z.string(),
+  }),
   apiPaths: z.object({
     transactions: z.string(),
     recurringTransactions: z.optional(z.string()),
