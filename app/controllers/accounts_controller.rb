@@ -81,101 +81,27 @@ class AccountsController < ApplicationController
   end
 
   def show
-    @chart_view = params[:chart_view] || "balance"
-    @tab = params[:tab]
-    # One reference date for everything on the page that is date-sensitive:
-    # the chart, its projection, the cards and the Schedule tab. Read
-    # separately, a render crossing midnight shows a chart projecting from one
-    # date beside a table shaded against another.
+    return render("spa/show", layout: "spa") if request.format.html?
+
     @as_of = Date.current
     @accessible_account_ids = Current.user.accessible_accounts.pluck(:id).to_set
-    @q = params.fetch(:q, {}).permit(:search, :uncategorized, status: [])
-    entries = @account.entries.excluding_split_parents.search(@q).reverse_chronological.includes(:entryable)
-    if statement_tab_active?
-      build_statement_tab_data
-      return render_statement_tab_frame if statement_tab_frame_request?
+    @tabs = Account::PageData.tabs_for(@account)
+    @tab = (params[:tab] == "transactions" ? "activity" : params[:tab]).presence_in(@tabs) || @tabs.first
+    @chart_view = params[:chart_view].presence_in(@account.supports_trades? ? %w[balance holdings_balance cash_balance gains] : %w[balance]) || "balance"
+    if @account.loan?
+      @loan_projection = @account.loan.payoff_projection(as_of: @as_of)
+      @loan_chart = loan_payoff_chart(@account, as_of: @as_of, period: @period, projection: @loan_projection)
     end
-
-    # Only for a response that will actually show the chart card. The payload
-    # runs the schedule and the projection; a Turbo frame request for the
-    # activity feed's `entries` frame (its pagination) renders the whole page
-    # and keeps one frame, so building it there was a full simulation per page
-    # turn for nothing. Same reasoning as the statements-frame return above.
-    #
-    # The chart and the Schedule tab's forecast card read the same projection,
-    # so it is built once here and handed to both.
-    @loan_projection = @account.loan.payoff_projection(as_of: @as_of) if @account.accountable.is_a?(Loan)
-    @loan_chart = loan_payoff_chart(@account, as_of: @as_of, period: @period, projection: @loan_projection) if chart_card_requested?
-
-    per_page = safe_per_page(stored_per_page_default)
-    store_per_page!(per_page) if params[:per_page].present?
-
-    @pagy, @entries = pagy(
-      entries,
-      limit: per_page,
-      params: request.query_parameters.except("tab").merge("tab" => "activity")
+    build_activity_data if @tab == "activity"
+    build_statement_tab_data if @tab == "statements"
+    @account_page_data = Account::PageData.new(
+      account: @account, view: view_context, period: @period, chart_view: @chart_view,
+      active_tab: @tab, tabs: @tabs, as_of: @as_of, loan_chart: @loan_chart,
+      projection: @loan_projection, feed: @activity_feed_data, pagination: @pagy,
+      accessible_account_ids: @accessible_account_ids, coverage: @statement_coverage,
+      statements: @account_statements || [], reconciliation_statuses: @statement_reconciliation_statuses || {},
+      can_manage_statements: @can_manage_statements
     )
-
-    # Preload transfer associations only for Transaction entries
-    txn_entryables = @entries.filter_map { |e| e.entryable if e.entryable_type == "Transaction" }
-    ActiveRecord::Associations::Preloader.new(
-      records: txn_entryables,
-      associations: {
-        transfer_as_outflow: {
-          inflow_transaction: { entry: :account },
-          outflow_transaction: { entry: :account }
-        },
-        transfer_as_inflow: {
-          inflow_transaction: { entry: :account },
-          outflow_transaction: { entry: :account }
-        }
-      }
-    ).call
-
-    Transaction::ActivitySecurityPreloader.new(@entries).preload
-
-    # The preload and split-parent lookup below are intentionally scoped to the
-    # current page (@entries) — only this page is rendered, so a child entry
-    # whose split parent sits on another page deliberately won't resolve it.
-    transactions = @entries.filter_map { |e| e.entryable if e.transaction? }
-    if transactions.any?
-      ActiveRecord::Associations::Preloader.new(
-        records: transactions,
-        associations: [ :transfer_as_inflow, :transfer_as_outflow, :category, :merchant, :tags ]
-      ).call
-    end
-    @family_tags = Current.family.tags.alphabetically.to_a
-
-    trades = @entries.filter_map { |e| e.entryable if e.entryable_type == "Trade" }
-    if trades.any?
-      ActiveRecord::Associations::Preloader.new(
-        records: trades,
-        associations: [ :security ]
-      ).call
-    end
-
-    entry_ids = @entries.map(&:id)
-    @split_parent_entry_ids = if entry_ids.any?
-      Entry.where(parent_entry_id: entry_ids).distinct.pluck(:parent_entry_id).to_set
-    else
-      Set.new
-    end
-
-    # Load split parent entries for grouped display (only when grouping is enabled)
-    @split_parents = if Current.user.show_split_grouped?
-      split_parent_ids = @entries.filter_map(&:parent_entry_id).uniq
-      if split_parent_ids.any?
-        Entry.where(id: split_parent_ids)
-             .includes(:account, entryable: [ :category, :merchant ])
-             .index_by(&:id)
-      else
-        {}
-      end
-    else
-      {}
-    end
-
-    @activity_feed_data = Account::ActivityFeedData.new(@account, @entries, split_parents: @split_parents)
   end
 
   def sync
@@ -356,16 +282,37 @@ class AccountsController < ApplicationController
       nil
     end
 
-    # A plain visit, or a frame request for one of the two frames the chart
-    # card sits inside: the account's container frame and the chart card's own
-    # chart_details frame. Any other frame is rendered and then discarded.
-    def chart_card_requested?
-      return true unless turbo_frame_request?
-
-      request.headers["Turbo-Frame"].in?([
-        helpers.dom_id(@account, :container),
-        helpers.dom_id(@account, :chart_details)
-      ])
+    def build_activity_data
+      legacy = params[:q].is_a?(ActionController::Parameters) ? params[:q].permit(:search, :uncategorized, status: []) : {}
+      @q = legacy.to_h.symbolize_keys
+      @q[:search] = params[:search] if params.key?(:search) && params[:search].is_a?(String)
+      if params.key?(:status)
+        statuses = params[:status].is_a?(Array) ? params[:status] : [ params[:status] ]
+        @q[:status] = statuses.select { |status| status.is_a?(String) && status.in?(%w[confirmed pending]) }
+      end
+      @q[:uncategorized] = ActiveModel::Type::Boolean.new.cast(params[:uncategorized]) if params.key?(:uncategorized)
+      entries = @account.entries.excluding_split_parents.search(@q).reverse_chronological.preload(:account, :entryable)
+      per_page = safe_per_page(stored_per_page_default)
+      store_per_page!(per_page) if params[:per_page].present?
+      @pagy, @entries = pagy(entries, limit: per_page, page: [ params[:page].to_i, 1 ].max)
+      transactions = @entries.filter_map { |entry| entry.entryable if entry.transaction? }
+      ActiveRecord::Associations::Preloader.new(
+        records: transactions,
+        associations: [
+          :category, :merchant, :tags,
+          { transfer_as_outflow: { inflow_transaction: { entry: :account }, outflow_transaction: { entry: :account } },
+            transfer_as_inflow: { inflow_transaction: { entry: :account }, outflow_transaction: { entry: :account } } }
+        ]
+      ).call if transactions.any?
+      Transaction::ActivitySecurityPreloader.new(@entries).preload
+      trades = @entries.filter_map { |entry| entry.entryable if entry.trade? }
+      ActiveRecord::Associations::Preloader.new(records: trades, associations: :security).call if trades.any?
+      @split_parents = if Current.user.show_split_grouped?
+        @account.entries.where(id: @entries.filter_map(&:parent_entry_id).uniq).includes(:account, :entryable).index_by(&:id)
+      else
+        {}
+      end
+      @activity_feed_data = Account::ActivityFeedData.new(@account, @entries, split_parents: @split_parents)
     end
 
     def ensure_linked_account
@@ -471,8 +418,6 @@ class AccountsController < ApplicationController
     end
 
     def build_statement_tab_data
-      return unless statement_tab_active?
-
       @statement_coverage = AccountStatement::Coverage.for_year(@account, params[:statement_year])
       @account_statements = @account.account_statements.with_attached_original_file.ordered.to_a
       @statement_reconciliation_statuses = AccountStatement.reconciliation_statuses_for(@account_statements, account: @account)
@@ -481,27 +426,6 @@ class AccountsController < ApplicationController
         permission.in?([ :owner, :full_control ])
     end
 
-    def statement_tab_frame_request?
-      turbo_frame_request? && request.headers["Turbo-Frame"] == helpers.dom_id(@account, :statements_tab)
-    end
-
-    def render_statement_tab_frame
-      render partial: "accounts/show/statements_frame", locals: statement_tab_locals, layout: false
-    end
-
-    def statement_tab_locals
-      {
-        account: @account,
-        coverage: @statement_coverage,
-        statements: @account_statements,
-        reconciliation_statuses: @statement_reconciliation_statuses,
-        can_manage_statements: @can_manage_statements
-      }
-    end
-
-    def statement_tab_active?
-      @tab == "statements"
-    end
 
     # Builds sync stats maps for all provider types to avoid N+1 queries in views
     def build_sync_stats_maps

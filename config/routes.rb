@@ -558,14 +558,16 @@ Rails.application.routes.draw do
   end
 
   get "transactions", to: "spa#show", as: :transactions
+  get "transactions/new", to: "spa#show", as: :new_transaction
   get "transactions/:id", to: "spa#show", as: :spa_transaction, constraints: { id: /[0-9a-f-]{36}/i }
+  get "transactions/bulk_update/new", to: "spa#show"
   get "dashboards", to: "spa#show", as: :dashboards
   get "sources", to: "spa#show", as: :sources
   get "sources/new", to: "spa#show", as: :new_source
   get "sources/:id/edit", to: "spa#show", as: :edit_source
   post "transactions", to: "transactions#create"
 
-  resources :transactions, only: %i[new update destroy] do
+  resources :transactions, only: %i[update destroy] do
     resource :split, only: %i[new create edit update destroy]
     resource :transfer_match, only: %i[new create]
     resource :pending_duplicate_merges, only: %i[new create]
@@ -673,6 +675,10 @@ Rails.application.routes.draw do
       post :clear_ai_cache
     end
   end
+
+  get "accounts/:id/transactions/new", to: "accounts#show", as: :new_account_transaction
+  get "accounts/:id/transactions/:transaction_id", to: "accounts#show", as: :account_transaction,
+      constraints: { transaction_id: /[0-9a-f-]{36}/i }
 
   resources :accounts, only: %i[index new show destroy], shallow: true do
     member do

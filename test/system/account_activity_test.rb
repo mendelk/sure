@@ -6,13 +6,14 @@ class AccountActivityTest < ApplicationSystemTestCase
 
   setup do
     ensure_tailwind_build
+    ensure_spa_build
     sign_in users(:family_admin)
     reset_viewport
 
     @account = accounts(:depository)
     @transaction_entry = @account.entries.create!(
       name: "Duplicate source",
-      date: Date.current,
+      date: 3.days.ago.to_date,
       amount: 42.50,
       currency: "USD",
       entryable: Transaction.new(category: categories(:food_and_drink))
@@ -29,21 +30,35 @@ class AccountActivityTest < ApplicationSystemTestCase
   test "account activity shows duplicate action for a selected transaction" do
     visit account_url(@account, tab: "activity")
 
-    find("#" + dom_id(@transaction_entry, "selection")).check
+    find("##{dom_id(@transaction_entry)} input[type='checkbox']").check
 
-    within "#entry-selection-bar" do
-      assert_selector "a[title='Duplicate']:not(.hidden)"
+    click_link I18n.t("accounts.show.spa.duplicate_selected")
+    assert_field "Description", with: @transaction_entry.name
+    assert_field "Amount", with: "42.50"
+    assert_field "Date", with: Date.current.iso8601
+    assert_selector "[role='tab'][aria-selected='true']", text: "Expense"
+
+    assert_difference [ "Entry.count", "Transaction.count" ], +1 do
+      within "[role='dialog']" do
+        click_button "Create transaction"
+      end
+      assert_no_selector "[role='dialog']"
     end
+
+    duplicate = @account.entries.where.not(id: @transaction_entry.id).find_by!(name: @transaction_entry.name)
+    assert_equal @transaction_entry.amount, duplicate.amount
+    assert_equal @transaction_entry.currency, duplicate.currency
+    assert_equal @transaction_entry.transaction.category_id, duplicate.transaction.category_id
+    assert_equal Date.current, duplicate.date
+    assert_current_path account_path(@account), ignore_query: true
   end
 
   test "account activity hides duplicate action for a selected valuation" do
     visit account_url(@account, tab: "activity")
 
-    find("#" + dom_id(@valuation_entry, "selection")).check
+    find("##{dom_id(@valuation_entry)} input[type='checkbox']").check
 
-    within "#entry-selection-bar" do
-      assert_selector "a[title='Duplicate'].hidden", visible: false
-    end
+    assert_no_link I18n.t("accounts.show.spa.duplicate_selected")
   end
 
   test "account activity keeps long category names from overflowing the amount on mobile" do
@@ -56,10 +71,8 @@ class AccountActivityTest < ApplicationSystemTestCase
 
     row = find("##{dom_id(@transaction_entry)}")
     amount = row.find("p.privacy-sensitive", visible: true)
-    category_name = row.find("#category_name_mobile_#{@transaction_entry.entryable.id}", visible: true)
 
     assert amount.visible?
-    assert category_name.visible?
 
     row_rect = row.native.rect
     amount_rect = amount.native.rect
@@ -78,13 +91,14 @@ class AccountActivityTest < ApplicationSystemTestCase
 
     visit account_url(@account, tab: "activity")
 
+    find("##{dom_id(@transaction_entry)} span", exact_text: category.name)
     metrics = page.evaluate_script(<<~JS)
       (() => {
         const row = document.getElementById("#{dom_id(@transaction_entry)}");
-        const categoryButton = row.querySelector("##{dom_id(@transaction_entry.entryable, "category_menu_desktop")} button");
-        const categoryName = categoryButton.querySelector("[data-testid='category-name']");
+        const categoryName = Array.from(row.querySelectorAll("span"))
+          .find((element) => element.textContent === #{category.name.to_json});
         const amount = row.querySelector(".privacy-sensitive");
-        const categoryRect = categoryButton.getBoundingClientRect();
+        const categoryRect = categoryName.getBoundingClientRect();
         const amountRect = amount.getBoundingClientRect();
 
         return {

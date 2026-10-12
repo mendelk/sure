@@ -1,14 +1,8 @@
 class UI::Account::Chart < ApplicationComponent
   attr_reader :account, :loan_chart
 
-  # `loan_chart` is a Loan::PayoffChart payload, built by the controller for a
-  # loan account with a schedule and nil for everything else. When present the
-  # inner chart element becomes the loan balance chart -- recorded balance,
-  # original schedule and projection on one axis -- and the rest of this card
-  # (title, hero figure, trend, period picker, Turbo frame) is unchanged. Every
-  # other account type takes the branch it always took.
-  # The page's reference date travels inside the payload (`today`), so the
-  # component takes no date of its own.
+  # Loan::PayoffChart supplies the page's reference date and projection figures.
+  # The account SPA consumes these presentation values through Account::PageData.
   def initialize(account:, period: nil, view: nil, loan_chart: nil)
     @account = account
     @period = period
@@ -18,24 +12,6 @@ class UI::Account::Chart < ApplicationComponent
 
   def loan_chart?
     loan_chart.present?
-  end
-
-  def loan_chart_id
-    dom_id(account, :loan_chart)
-  end
-
-  # The series with a line inside the domain, in drawing order, each with the
-  # style the controller gives it. Style is carried by the legend as well as
-  # the line: solid is fact, dashed is forecast, and hue alone would fail in
-  # greyscale and under deuteranopia.
-  LOAN_SERIES_STYLES = {
-    "actual" => { token: "--color-success", dashed: false },
-    "scheduled" => { token: "--color-destructive", dashed: true },
-    "projected" => { token: "--color-success", dashed: true }
-  }.freeze
-
-  def loan_legend
-    LOAN_SERIES_STYLES.select { |key, _| loan_chart[:visible].map(&:to_s).include?(key) }
   end
 
   def loan_projected_payoff_date
@@ -173,12 +149,6 @@ class UI::Account::Chart < ApplicationComponent
   # always matches the last point of the chart (there is no stored gains column).
   def gains_money
     series.values.last&.value || Money.new(0, account.currency)
-  end
-
-  # A loan's chart offers a subset of the shared periods
-  # (Loan::PayoffChart::WINDOW_KEYS); every other chart offers every period.
-  def period_picker_options
-    Loan::PayoffChart.window_options if loan_chart?
   end
 
   # A saved period the loan chart does not offer shows the whole life, so its

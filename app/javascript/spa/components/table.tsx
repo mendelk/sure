@@ -49,6 +49,7 @@ export function Table<Row extends TableRow>({
   label,
   offset: resultOffset,
   pagination,
+  rowClassName,
 }: {
   data: Row[];
   columns: ColumnDef<TableFeatures, Row>[];
@@ -57,6 +58,7 @@ export function Table<Row extends TableRow>({
   label: string;
   offset: number;
   pagination?: TablePagination;
+  rowClassName?: (row: Row) => string | undefined;
 }) {
   const [localPagination, setLocalPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -116,7 +118,7 @@ export function Table<Row extends TableRow>({
               </thead>
               <tbody className="divide-y divide-subdued bg-container">
                 {rows.map((row) => (
-                  <tr key={row.id}>
+                  <tr key={row.id} className={rowClassName?.(row.original)}>
                     {row.getAllCells().map((cell) => {
                       const style = styles.get(cell.column.id);
                       const content = <table.FlexRender cell={cell} />;

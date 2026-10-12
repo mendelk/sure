@@ -68,6 +68,9 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
     get transactions_path
     assert_redirected_to new_session_path
 
+    get new_transaction_path
+    assert_redirected_to new_session_path
+
     get dashboards_path
     assert_redirected_to new_session_path
   end

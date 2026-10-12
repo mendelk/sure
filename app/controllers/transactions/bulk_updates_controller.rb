@@ -1,5 +1,14 @@
 class Transactions::BulkUpdatesController < ApplicationController
   def new
+    return render("spa/show", layout: "spa") unless request.format.json?
+
+    entry_ids = params[:bulk_update]&.permit(entry_ids: [])&.dig(:entry_ids) || params[:entry_ids]
+    @selected_entry_ids = Current.accessible_entries.excluding_split_parents.where(id: entry_ids).pluck(:id)
+    @return_path = if params[:account_id].present?
+      account_path(Current.user.accessible_accounts.find(params[:account_id]))
+    else
+      transactions_path
+    end
   end
 
   def create

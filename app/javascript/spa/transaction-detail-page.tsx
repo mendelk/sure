@@ -22,6 +22,7 @@ import {
   type TransactionUpdateInput,
 } from "./api/transactions";
 import {
+  AccountIdSchema,
   TransactionIdSchema,
   type CategoryId,
   type TransactionId,
@@ -65,9 +66,11 @@ function formatShortDate(isoDate: string): string {
 
 export function TransactionDetailDrawer() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
-  const params = useParams({ from: "/transactions/$transactionId" });
+  const params = useParams({ strict: false });
   const transactionId = TransactionIdSchema.parse(params.transactionId);
-  const navigate = useNavigate({ from: "/transactions/$transactionId" });
+  const accountId =
+    params.accountId !== undefined ? AccountIdSchema.parse(params.accountId) : undefined;
+  const navigate = useNavigate();
   const detailQuery = useQuery(
     transactionDetailQueryOptions(bootstrap.apiPaths.transactions, transactionId),
   );
@@ -79,7 +82,14 @@ export function TransactionDetailDrawer() {
     : undefined;
 
   function close() {
-    void navigate({ to: "/transactions", resetScroll: false });
+    if (accountId) {
+      void navigate({
+        to: "/accounts/$accountId",
+        params: { accountId },
+        search: (previous) => previous,
+        resetScroll: false,
+      });
+    } else void navigate({ to: "/transactions", resetScroll: false });
   }
 
   return (
@@ -103,9 +113,13 @@ export function TransactionDetailDrawer() {
               >
                 Try again
               </button>
-              <Link className="text-sm font-medium text-link hover:underline" to="/transactions">
-                Back to transactions
-              </Link>
+              <button
+                className="text-sm font-medium text-link hover:underline"
+                onClick={close}
+                type="button"
+              >
+                {accountId ? bootstrap.accountDetailText.close : "Back to transactions"}
+              </button>
             </div>
           </div>
         ) : transaction === undefined ? (
@@ -365,14 +379,16 @@ export function CategorySelect({
     setCreateError(null);
     try {
       const newCat = await createCategory(bootstrap.apiPaths.categories, trimmedQuery);
-      queryClient.setQueryData(
-        [
-          "spa",
-          "reference",
-          bootstrap.apiPaths.categories,
-          bootstrap.apiPaths.merchants,
-          bootstrap.apiPaths.tags,
-        ],
+      queryClient.setQueriesData(
+        {
+          queryKey: [
+            "spa",
+            "reference",
+            bootstrap.apiPaths.categories,
+            bootstrap.apiPaths.merchants,
+            bootstrap.apiPaths.tags,
+          ],
+        },
         (
           old:
             | {
@@ -1008,6 +1024,8 @@ function TransactionEditableForm({
         detail,
       );
       void queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] });
+      void queryClient.invalidateQueries({ queryKey: ["spa", "account"] });
+      void queryClient.invalidateQueries({ queryKey: ["spa", "summary"] });
       setSaveState("idle");
     },
   });
@@ -1248,6 +1266,7 @@ function TransferMatcher({
         queryKey: ["spa", "transaction", bootstrap.apiPaths.transactions, transaction.id],
       });
       void queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] });
+      void queryClient.invalidateQueries({ queryKey: ["spa", "account"] });
     },
   });
 
@@ -1320,6 +1339,7 @@ function TransactionDetailTransfer({
       queryKey: ["spa", "transaction", bootstrap.apiPaths.transactions, transaction.id],
     });
     void queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] });
+    void queryClient.invalidateQueries({ queryKey: ["spa", "account"] });
   };
 
   const decide = useMutation({

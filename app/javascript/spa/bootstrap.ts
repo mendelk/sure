@@ -1,5 +1,5 @@
 import * as z from "zod/mini";
-import { UserIdSchema } from "./ids";
+import { AccountIdSchema, UserIdSchema } from "./ids";
 
 const SpaBootstrapSchema = z.object({
   currentUser: z.object({
@@ -12,6 +12,27 @@ const SpaBootstrapSchema = z.object({
   recurringTransactionsDisabled: z.optional(z.nullable(z.boolean())),
   uncategorizedCount: z.optional(z.nullable(z.number())),
   reportBuilderText: z.record(z.string(), z.string()),
+  accountDetailText: z.record(z.string(), z.string()),
+  bulkUpdateText: z.record(z.string(), z.string()),
+  flashMessages: z.array(
+    z.object({
+      message: z.string(),
+      variant: z.enum(["success", "error"]),
+    }),
+  ),
+  transactionCreation: z.object({
+    currencies: z.array(
+      z.object({
+        code: z.string(),
+        name: z.string(),
+        step: z.string(),
+        minorUnitConversion: z.number(),
+      }),
+    ),
+    accountCurrencies: z.record(z.string(), z.string()),
+    defaultCurrency: z.string(),
+    defaultAccountId: z.nullable(AccountIdSchema),
+  }),
   transactionTransferMatchText: z.object({
     auto_matched: z.string(),
     auto_matched_short: z.string(),
@@ -39,6 +60,10 @@ const SpaBootstrapSchema = z.object({
     imports: z.string(),
     newImport: z.string(),
     newTransaction: z.string(),
+    newTransfer: z.string(),
+    bulkUpdate: z.string(),
+    newBulkUpdate: z.optional(z.string()),
+    exchangeRate: z.string(),
     reports: z.string(),
     settings: z.string(),
     changelog: z.string(),

@@ -27,9 +27,8 @@ class Depository < ApplicationRecord
   # Returns `nil` (not `:taxable`) for ordinary depository subtypes. `nil`
   # already reads as taxable everywhere it matters: `TaxTreatable#taxable?`
   # treats `nil` as taxable and `#tax_advantaged?` excludes it. Returning
-  # `nil` also keeps `tax_treatment.present?` false so the header tax badge
-  # (`app/views/accounts/show/_header.html.erb`) stays hidden on checking,
-  # savings, CD, and money-market accounts that never displayed it before.
+  # `nil` also keeps `tax_treatment.present?` false so the account header's
+  # tax badge stays hidden on checking, savings, CD, and money-market accounts.
   def tax_treatment
     :tax_advantaged if TAX_ADVANTAGED_SUBTYPES.include?(subtype)
   end

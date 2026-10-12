@@ -83,6 +83,59 @@ en:
       title: What would you like to add?
     show:
       limited_fx_history_warning: "Exchange rate history is only available from %{date} onwards. Transactions before this date use approximate currency conversions — this can happen when the FX provider only offers a limited historical window."
+      spa:
+        accounts: Accounts
+        columns: Columns
+        merchant: Merchant
+        notes: Notes
+        tags: Tags
+        previous_page: Previous page
+        next_page: Next page
+        per_page: Per page
+        select_all: Select all entries
+        select_entry: "Select %{name}"
+        selected_entries: "%{count} entries selected"
+        edit_selected: Edit selected
+        delete_selected: Delete selected
+        duplicate_selected: Duplicate selected
+        delete_confirm: Delete the selected entries? This cannot be undone.
+        delete_account_confirm: 'Delete "%{name}" and all its value history? This cannot be undone.'
+        account_menu: Account menu
+        refresh: Refresh account
+        period: Period
+        chart_view: Chart view
+        start_date: Start date
+        end_date: End date
+        apply_range: Apply range
+        reconciliation: Balance reconciliation
+        close: Close
+        retry: Try again
+        unavailable: Account details are unavailable.
+        year: Year
+        loading: Loading account details…
+        cancel: Cancel
+        convert_to_trade: Convert to trade
+        creation_loading: Loading transaction…
+        creation_reference_error: Transaction options are unavailable.
+        creation_source_error: This transaction cannot be duplicated.
+        creation_source_error_description: The source transaction is unavailable or you no longer have access to it.
+        creation_save_error: Could not save this transaction.
+        creation_currency: Currency
+        creation_exchange_rate: Exchange rate
+        creation_exchange_rate_help: Enter the rate used to convert the transaction currency to the account currency.
+        creation_convert_tab: Convert
+        creation_calculate_rate_tab: Calculate rate
+        creation_destination_amount: Amount in account currency
+        creation_rate_loading: Loading exchange rate…
+        creation_rate_error: No exchange rate is available for this date. Enter the rate manually.
+        creation_rate_required: Enter an exchange rate greater than zero.
+        creation_destination_required: Enter an amount in account currency greater than zero.
+      term_months:
+        one: "%{count} month"
+        other: "%{count} months"
+      term_years:
+        one: "%{count} year"
+        other: "%{count} years"
       tabs:
         activity: Activity
         holdings: Holdings

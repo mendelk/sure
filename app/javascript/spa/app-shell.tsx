@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { type SummaryAccount, useSummaryQuery } from "./api/summary";
 import { readCsrfToken } from "./api/transactions";
 import type { SpaBootstrap } from "./bootstrap";
+import { Alert } from "./components/alert";
 import { Icon, type IconName } from "./icon";
 import { useDismiss } from "./use-dismiss";
 
@@ -199,6 +200,7 @@ function AccountGroup({
   total?: string;
   accounts: SummaryAccount[];
 }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   if (accounts.length === 0) return null;
 
   return (
@@ -214,9 +216,13 @@ function AccountGroup({
         <ul className="mt-2 space-y-1">
           {accounts.map((account) => (
             <li key={account.id}>
-              <a
-                href={account.path}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-surface-hover"
+              <Link
+                to="/accounts/$accountId"
+                params={{ accountId: account.id }}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-surface-hover ${
+                  pathname.startsWith(`/accounts/${account.id}`) ? "bg-container" : ""
+                }`}
+                aria-current={pathname.startsWith(`/accounts/${account.id}`) ? "page" : undefined}
                 title={account.name}
               >
                 <Lettermark name={account.name} type={account.account_type} />
@@ -229,7 +235,7 @@ function AccountGroup({
                 <p className="ml-auto whitespace-nowrap text-right text-sm font-medium text-primary privacy-sensitive">
                   {account.balance}
                 </p>
-              </a>
+              </Link>
             </li>
           ))}
         </ul>
@@ -689,7 +695,9 @@ function BreadcrumbBar({
         ? "Dashboards"
         : pathname.startsWith("/sources")
           ? "Sources"
-          : "Home";
+          : pathname.startsWith("/accounts/")
+            ? bootstrap.accountDetailText.accounts
+            : "Home";
 
   return (
     <div className="hidden lg:flex items-center justify-between gap-2 mb-6 sticky top-0 z-10 -mx-3 lg:-mx-10 px-3 lg:px-10 py-4 bg-surface border-b border-tertiary">
@@ -735,6 +743,31 @@ function BreadcrumbBar({
           <Icon name="panel-right" />
         </button>
       </div>
+    </div>
+  );
+}
+
+function FlashMessages() {
+  const { bootstrap } = useRouteContext({ from: "__root__" });
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const [messages, setMessages] = useState(bootstrap.flashMessages);
+  const [messagePath, setMessagePath] = useState(pathname);
+  if (messagePath !== pathname) {
+    setMessagePath(pathname);
+    setMessages([]);
+  }
+  return (
+    <div className="space-y-3">
+      {messages.map(({ message, variant }) => (
+        <Alert
+          className="mb-4"
+          key={`${variant}:${message}`}
+          live={variant === "error" ? "alert" : "status"}
+          variant={variant}
+        >
+          {message}
+        </Alert>
+      ))}
     </div>
   );
 }
@@ -805,6 +838,7 @@ export function AppShell() {
               setRightSidebarOpen((open) => !open);
             }}
           />
+          <FlashMessages />
           <Outlet />
         </main>
       </div>

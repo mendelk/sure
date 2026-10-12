@@ -1,12 +1,15 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, skipToken } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { ReportPaginationSchema } from "../report-definition";
 import {
   AccountIdSchema,
   CategoryIdSchema,
+  EntryIdSchema,
   MerchantIdSchema,
   RecurringTransactionIdSchema,
   TagIdSchema,
+  TransactionIdSchema,
+  type AccountId,
   type CategoryId,
   type MerchantId,
   type TagId,
@@ -28,8 +31,6 @@ import {
   GetApiV1TransactionsQueryParams,
   PatchApiV1TransactionsIdBody,
   PatchApiV1TransactionsIdParams,
-  PostApiV1Transactions201Response,
-  PostApiV1TransactionsBody,
   GetApiV1TransactionsTransactionIdTransferMatchCandidates200Response,
   GetApiV1TransactionsTransactionIdTransferMatchCandidatesParams,
   PostApiV1TransactionsTransactionIdTransferMatchBody,
@@ -45,7 +46,20 @@ export type TransactionQuery = Omit<
 >;
 export type SpaTransaction = TransactionCollection["transactions"][number];
 export type TransactionUpdateInput = z.infer<typeof PatchApiV1TransactionsIdBody>["transaction"];
-export type TransactionCreateInput = z.infer<typeof PostApiV1TransactionsBody>["transaction"];
+export type TransactionCreateInput = {
+  account_id: AccountId;
+  amount: string;
+  currency: string;
+  date: string;
+  idempotency_key: string;
+  name: string;
+  nature: "inflow" | "outflow";
+  notes?: string;
+  category_id?: CategoryId;
+  merchant_id?: MerchantId;
+  tag_ids: TagId[];
+  exchange_rate?: string;
+};
 export type SpaTransactionDetail = z.infer<typeof GetApiV1TransactionsId200Response>;
 export type TransferMatchCandidates = z.infer<
   typeof GetApiV1TransactionsTransactionIdTransferMatchCandidates200Response
@@ -108,10 +122,10 @@ async function requestTransactions(
   );
 }
 
-export function transactionDetailQueryOptions(basePath: string, id: TransactionId) {
+export function transactionDetailQueryOptions(basePath: string, id?: TransactionId) {
   return queryOptions({
     queryKey: ["spa", "transaction", basePath, id] as const,
-    queryFn: ({ signal }) => requestTransactionDetail(basePath, id, signal),
+    queryFn: id ? ({ signal }) => requestTransactionDetail(basePath, id, signal) : skipToken,
     retry: (failureCount, error) =>
       !(error instanceof TransactionApiError && error.status < 500) && failureCount < 2,
   });
@@ -274,13 +288,50 @@ export async function updateTransaction(
   });
   return GetApiV1TransactionsId200Response.parse(payload);
 }
+const TransactionCreatedSchema = z.object({
+  id: z.pipe(z.uuid(), TransactionIdSchema),
+  entry_id: z.pipe(z.uuid(), EntryIdSchema),
+  account_id: z.pipe(z.uuid(), AccountIdSchema),
+});
+
 export async function createTransaction(
-  basePath: string,
-  input: NonNullable<TransactionCreateInput>,
-): Promise<z.infer<typeof PostApiV1Transactions201Response>> {
-  PostApiV1TransactionsBody.parse({ transaction: input });
-  const payload = await requestJson(basePath, "POST", { transaction: input });
-  return PostApiV1Transactions201Response.parse(payload);
+  path: string,
+  input: TransactionCreateInput,
+  signal?: AbortSignal,
+): Promise<z.infer<typeof TransactionCreatedSchema>> {
+  const { category_id, merchant_id, tag_ids, exchange_rate, ...entry } = input;
+  const response = await fetch(path, {
+    body: JSON.stringify({
+      entry: {
+        ...entry,
+        entryable_type: "Transaction",
+        entryable_attributes: { category_id, merchant_id, tag_ids, exchange_rate },
+      },
+    }),
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "X-CSRF-Token": readCsrfToken(),
+    },
+    method: "POST",
+    signal,
+  });
+  const payload: unknown = await response.json().catch(() => null);
+  if (response.status === 200 || response.status === 201)
+    return TransactionCreatedSchema.parse(payload);
+
+  const fallback = `Request failed with status ${response.status}`;
+  const errors = extractApiError(payload, fallback);
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof payload.error === "string" &&
+    errors[0] === fallback
+  )
+    errors[0] = payload.error;
+  throw new TransactionApiError(errors[0] ?? fallback, response.status, errors);
 }
 
 export async function updateTransferStatus(

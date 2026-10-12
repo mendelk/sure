@@ -613,6 +613,26 @@ class Account < ApplicationRecord
     holdings.where.not(account_provider_id: nil).maximum(:date)
   end
 
+  def trade_republic_categories
+    provider = account_providers.includes(:provider).map(&:provider).find do |candidate|
+      candidate.is_a?(TradeRepublicAccount) && candidate.portfolio?
+    end
+    return {} if provider.blank?
+
+    values = provider.positions.group_by { |position| position["category"].presence || "brokerage" }
+    TradeRepublicClientCategories::ALL.index_with do |category|
+      positions = values.fetch(category, [])
+      {
+        count: positions.size,
+        value: positions.sum do |position|
+          quantity = position["quantity"].presence&.to_d || BigDecimal("0")
+          price = position["price"].presence&.to_d || BigDecimal("0")
+          quantity * price
+        end
+      }
+    end
+  end
+
   def start_date
     first_entry_date = entries.minimum(:date) || Date.current
     first_entry_date - 1.day

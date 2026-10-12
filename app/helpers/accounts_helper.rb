@@ -1,14 +1,4 @@
 module AccountsHelper
-  def summary_card(title:, &block)
-    content = capture(&block)
-    render "accounts/summary_card", title: title, content: content
-  end
-
-  def sync_path_for(account)
-    # Always use the account sync path, which handles syncing all providers
-    sync_account_path(account)
-  end
-
   # Returns the account id segment from `/accounts/<id>(/...)?`, or nil.
   # Used as a cache-key component so the sidebar's active-link styling is
   # correct without busting the cache for every unrelated path change.

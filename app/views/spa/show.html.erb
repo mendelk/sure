@@ -2,10 +2,14 @@
      "Dashboards"
    elsif request.path.start_with?("/sources")
      "Sources"
+   elsif request.path.start_with?("/accounts")
+     @account.name
    else
      "Transactions"
    end %>
 <% content_for :title, "#{page_title} · #{product_name}" %>
+<% account_currencies = Current.user.accessible_accounts.pluck(:id, :currency).to_h %>
+<% default_account = Current.user.default_account_for_transactions %>
 <% bootstrap = {
   currentUser: {
     id: Current.user.id,
@@ -28,6 +32,25 @@
   uncategorizedCount: @uncategorized_count,
   reportBuilderText: I18n.t("report_builder"),
   transactionTransferMatchText: t("transactions.transfer_match"),
+  accountDetailText: t("accounts.show.spa").merge(
+    creation_expense_tab: t("shared.transaction_tabs.expense"),
+    creation_income_tab: t("shared.transaction_tabs.income"),
+    creation_transfer_tab: t("shared.transaction_tabs.transfer"),
+    creation_type_label: t("shared.transaction_tabs.aria", default: "Transaction type")
+  ),
+  bulkUpdateText: t("transactions.bulk_updates.new"),
+  flashMessages: flash.to_hash.slice("notice", "alert").map { |kind, message|
+    { message: message.to_s, variant: kind == "alert" ? "error" : "success" }
+  },
+  transactionCreation: {
+    currencies: currency_picker_options_for_family(extra: account_currencies.values).map { |code|
+      currency = Money::Currency.new(code)
+      { code: currency.iso_code, name: currency.name, step: currency.step.to_s, minorUnitConversion: currency.minor_unit_conversion }
+    },
+    accountCurrencies: account_currencies,
+    defaultCurrency: Current.family.currency,
+    defaultAccountId: default_account && account_currencies.key?(default_account.id) ? default_account.id : nil
+  },
   railsPaths: {
     home: root_path,
     logo: image_path("logomark-color.svg"),
@@ -37,6 +60,10 @@
     imports: imports_path,
     newImport: new_import_path,
     newTransaction: new_transaction_path,
+    newTransfer: new_transfer_path,
+    bulkUpdate: transactions_bulk_update_path,
+    newBulkUpdate: new_transactions_bulk_update_path,
+    exchangeRate: exchange_rate_path,
     reports: reports_path,
     settings: settings_profile_path,
     changelog: changelog_path,

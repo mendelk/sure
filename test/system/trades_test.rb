@@ -4,6 +4,7 @@ class TradesTest < ApplicationSystemTestCase
   include ActiveJob::TestHelper
 
   setup do
+    ensure_spa_build
     sign_in @user = users(:family_admin)
 
     @user.update!(show_sidebar: false, show_ai_sidebar: false)
@@ -33,9 +34,7 @@ class TradesTest < ApplicationSystemTestCase
 
     visit_trades
 
-    within_trades do
-      assert_text "Buy #{shares_qty}.0 shares of AAPL"
-    end
+    assert_text "Buy #{shares_qty}.0 shares of AAPL"
   end
 
   test "can create sell transaction" do
@@ -58,9 +57,7 @@ class TradesTest < ApplicationSystemTestCase
 
     visit_trades
 
-    within_trades do
-      assert_text "Sell #{qty}.0 shares of AAPL"
-    end
+    assert_text "Sell #{qty}.0 shares of AAPL"
   end
 
   private
@@ -68,9 +65,6 @@ class TradesTest < ApplicationSystemTestCase
       click_on "New activity"
     end
 
-    def within_trades(&block)
-      within "#" + dom_id(@account, "entries"), &block
-    end
 
     def visit_trades
       visit account_path(@account, tab: "activity")

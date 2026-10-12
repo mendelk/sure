@@ -2,6 +2,7 @@ require "application_system_test_case"
 
 class TransactionsTest < ApplicationSystemTestCase
   setup do
+    ensure_spa_build
     sign_in @user = users(:family_admin)
 
     Entry.delete_all
@@ -22,6 +23,16 @@ class TransactionsTest < ApplicationSystemTestCase
     assert_current_path(/search=Weekly(?:\+|%20)groceries/, wait: 5)
     assert_selector "##{dom_id(@groceries)}"
     assert_no_selector "##{dom_id(@paycheck)}"
+  end
+
+  test "opens the account from a transaction row" do
+    within "##{dom_id(@groceries)}" do
+      click_link @groceries.account.name, exact: true
+    end
+
+    assert_current_path account_path(@groceries.account), ignore_query: true
+    assert_selector "h1", text: @groceries.account.name
+    assert_text @groceries.name
   end
 
   test "filters transactions by type" do
@@ -91,7 +102,7 @@ class TransactionsTest < ApplicationSystemTestCase
     JS
 
     within "##{row_id}" do
-      find("a").click
+      find("a[href^='/transactions/']").click
     end
 
     assert_current_path %r{\A/transactions/[^/]+(\?.*)?\z}

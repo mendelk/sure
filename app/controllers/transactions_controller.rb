@@ -4,21 +4,10 @@ class TransactionsController < ApplicationController
   before_action :set_entry_for_unlock, only: :unlock
   before_action :set_entry_for_tags, only: :update_tags
 
-  helper_method :new_transaction_idempotency_key
-
   def show
     super
     assign_mark_recurring_state
   end
-
-  def new
-    prefill_params_from_duplicate!
-    super
-    apply_duplicate_attributes!
-    set_new_transaction_form_options
-  end
-
-
 
   def create
     account = Current.user.accessible_accounts.find_by(id: params.dig(:entry, :account_id))
@@ -26,8 +15,7 @@ class TransactionsController < ApplicationController
     if account.nil?
       @entry = Current.family.entries.new(entry_params)
       @entry.valid?
-      set_new_transaction_form_options
-      render :new, status: :unprocessable_entity
+      respond_with_creation_errors
       return
     end
 
@@ -41,7 +29,7 @@ class TransactionsController < ApplicationController
     # by the time this one runs. Treat it as a success instead of creating a
     # second, identical entry.
     if idempotency_key && (existing_entry = find_duplicate_manual_entry(account, idempotency_key))
-      respond_with_created_entry(existing_entry)
+      respond_with_created_entry(existing_entry, status: :ok)
       return
     end
 
@@ -55,8 +43,7 @@ class TransactionsController < ApplicationController
 
       respond_with_created_entry(@entry)
     else
-      set_new_transaction_form_options
-      render :new, status: :unprocessable_entity
+      respond_with_creation_errors
     end
   rescue ActiveRecord::RecordNotUnique
     # Concurrent-request backstop: two near-simultaneous submissions both
@@ -68,7 +55,7 @@ class TransactionsController < ApplicationController
     existing_entry = idempotency_key && find_duplicate_manual_entry(account, idempotency_key)
     raise unless existing_entry
 
-    respond_with_created_entry(existing_entry)
+    respond_with_created_entry(existing_entry, status: :ok)
   end
 
   def update
@@ -429,34 +416,6 @@ class TransactionsController < ApplicationController
         .merge(Account.accessible_by(Current.user))
     end
 
-    def duplicate_source
-      return @duplicate_source if defined?(@duplicate_source)
-      @duplicate_source = if params[:duplicate_entry_id].present?
-        source = Current.family.entries.joins(:account).merge(Account.accessible_by(Current.user)).find_by(id: params[:duplicate_entry_id])
-        source if source&.transaction?
-      end
-    end
-
-    def prefill_params_from_duplicate!
-      return unless duplicate_source
-      params[:nature] ||= duplicate_source.amount.negative? ? "inflow" : "outflow"
-      params[:account_id] ||= duplicate_source.account_id.to_s
-    end
-
-    def apply_duplicate_attributes!
-      return unless duplicate_source
-      @entry.assign_attributes(
-        name: duplicate_source.name,
-        amount: duplicate_source.amount.abs,
-        currency: duplicate_source.currency,
-        notes: duplicate_source.notes
-      )
-      @entry.entryable.assign_attributes(
-        category_id: duplicate_source.entryable.category_id,
-        merchant_id: duplicate_source.entryable.merchant_id
-      )
-      @entry.entryable.tag_ids = duplicate_source.entryable.tag_ids
-    end
 
     def set_entry_for_unlock
       transaction = accessible_transactions.find(params[:id])
@@ -509,14 +468,9 @@ class TransactionsController < ApplicationController
       account.entries.find_by(idempotency_key: idempotency_key)
     end
 
-    # The hidden "entry[idempotency_key]" field is rendered fresh (a random
-    # UUID) every time the new-transaction form loads, and echoed back
-    # unchanged by the browser on submit. It's never trusted for anything but
-    # de-duplication scoped to the current user's own account (see #create),
-    # so we only require that it looks like a UUID we could have generated -
-    # anything else (missing field, tampered value, non-string type from a
-    # malformed request) just disables the idempotency check for that
-    # request rather than being treated as an error.
+    # Clients generate a UUID for each creation attempt and reuse it on
+    # retries. Only UUID-shaped strings participate in account-scoped
+    # de-duplication; other values preserve the existing keyless behavior.
     UUID_FORMAT = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i
     private_constant :UUID_FORMAT
 
@@ -525,17 +479,22 @@ class TransactionsController < ApplicationController
       key if key.is_a?(String) && key.match?(UUID_FORMAT)
     end
 
-    def new_transaction_idempotency_key
-      @new_transaction_idempotency_key ||= submitted_idempotency_key || SecureRandom.uuid
+    def respond_with_created_entry(entry, status: :created)
+      respond_to do |format|
+        format.json do
+          render json: { id: entry.entryable_id, entry_id: entry.id, account_id: entry.account_id }, status: status
+        end
+        format.html { redirect_back_or_to account_path(entry.account), notice: t(".created") }
+        format.turbo_stream do
+          flash[:notice] = t(".created")
+          stream_redirect_back_or_to(account_path(entry.account))
+        end
+      end
     end
 
-    def respond_with_created_entry(entry)
-      flash[:notice] = t(".created")
-
-      respond_to do |format|
-        format.html { redirect_back_or_to account_path(entry.account) }
-        format.turbo_stream { stream_redirect_back_or_to(account_path(entry.account)) }
-      end
+    def respond_with_creation_errors
+      errors = @entry.errors.full_messages
+      render json: { error: errors.to_sentence, errors: errors }, status: :unprocessable_entity
     end
 
     def tag_ids_param
@@ -546,20 +505,6 @@ class TransactionsController < ApplicationController
       set_entry
     end
 
-    def set_new_transaction_form_options
-      accessible_accounts_scope = accessible_accounts
-
-      @account_currencies = accessible_accounts_scope.pluck(:id, :currency).to_h
-      @manual_accounts = accessible_accounts_scope
-        .manual
-        .active
-        .alphabetically
-        .includes(:account_providers, logo_attachment: :blob)
-        .to_a
-      @categories = Current.family.categories.alphabetically_by_hierarchy.to_a
-      @merchants = Current.family.available_merchants_for(Current.user).alphabetically.to_a
-      @tags = Current.family.tags.alphabetically.to_a
-    end
 
     # Filters entry_params based on the user's permission on the account.
     # read_write users can only annotate (category, tags, notes, merchant).

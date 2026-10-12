@@ -2,6 +2,7 @@ require "application_system_test_case"
 
 class LoanOverviewTest < ApplicationSystemTestCase
   setup do
+    ensure_spa_build
     sign_in @user = users(:family_admin)
     @account = accounts(:loan)
     @account.loan.update!(
@@ -16,21 +17,31 @@ class LoanOverviewTest < ApplicationSystemTestCase
     @account.update_column(:balance, 415_000)
   end
 
-  # The ring is the one part of this tab a request test cannot see. Its colours
-  # are CSS variables, and the donut controller passes a colour through to the
-  # SVG fill ONLY for the segment ids it is told to -- every other one goes
-  # through `d3.color()`, which returns null for `var(...)` and takes the whole
-  # chart down with it. The arc simply does not appear, and every server-side
-  # assertion still passes.
-  test "the repayment ring draws its arc" do
+  test "the repayment ring shows the repaid principal in both themes" do
     visit account_url(@account)
     click_on "Overview"
 
-    assert_text "Repaid"
+    label = I18n.t("loans.tabs.repayment_progress.repaid")
     assert_text "17%"
+    assert_text Money.new(500_000, "USD").format
+    progress = find("progress[aria-label='#{label}']", visible: :all)
+    assert_in_delta 17, progress["value"].to_f
+    assert_equal "100", progress["max"]
 
-    within "[data-controller='donut-chart']" do
-      assert_selector "svg path", minimum: 1, wait: 5
-    end
+    svg = find("svg.ts-chart[role='img'][aria-label='#{label}']")
+    arc = svg.find("g.ts-chart__arc path[data-ts-key$=':paid']")
+    assert arc["d"].to_s.start_with?("M"), "the paid arc must have geometry"
+    assert page.evaluate_script("arguments[0].getTotalLength() > 0", arc)
+
+    page.execute_script("document.documentElement.setAttribute('data-theme', 'light')")
+    light_fill = page.evaluate_script("getComputedStyle(arguments[0]).fill", arc)
+    assert_not_equal "none", light_fill, "the paid arc must be painted in light mode"
+    assert_not_equal "rgba(0, 0, 0, 0)", light_fill
+
+    page.execute_script("document.documentElement.setAttribute('data-theme', 'dark')")
+    dark_fill = page.evaluate_script("getComputedStyle(arguments[0]).fill", arc)
+    assert_not_equal "none", dark_fill, "the paid arc must be painted in dark mode"
+    assert_not_equal "rgba(0, 0, 0, 0)", dark_fill
+    assert_not_equal light_fill, dark_fill, "the arc must repaint from the dark palette"
   end
 end
