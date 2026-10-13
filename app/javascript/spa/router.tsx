@@ -668,7 +668,7 @@ function RulesIndexRouteComponent() {
       onEdit={(ruleId) => {
         void navigate({ to: "/rules/$ruleId/edit", params: { ruleId } });
       }}
-      rulesPath="/rules.json"
+      rulesPath="/rules"
     />
   );
 }
@@ -737,7 +737,7 @@ function RuleNewRouteComponent() {
       formPath={presetQuery === "" ? formPath : `${formPath}?${presetQuery}`}
       mode="new"
       onDone={done}
-      rulesPath="/rules.json"
+      rulesPath="/rules"
       submitPath="/rules.json"
     />
   );
@@ -764,7 +764,7 @@ function RuleEditRouteComponent() {
       formPath={`/rules/${encodeURIComponent(ruleId)}/edit.json`}
       mode="edit"
       onDone={done}
-      rulesPath="/rules.json"
+      rulesPath="/rules"
       submitPath={`/rules/${encodeURIComponent(ruleId)}.json`}
     />
   );

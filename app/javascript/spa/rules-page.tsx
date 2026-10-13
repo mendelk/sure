@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import * as z from "zod/mini";
 import type { SpaBootstrap } from "./bootstrap";
-import { referenceDataQueryOptions } from "./api/transactions";
+import { referenceDataQueryOptions, type ReferenceOption } from "./api/transactions";
 import { Alert } from "./components/alert";
 import { Button } from "./components/button";
 import { FormField } from "./components/form-field";
@@ -1253,9 +1253,9 @@ function ActionValueInput({
 }
 
 type BuilderReference = {
-  categories: Array<{ id: CategoryId; name: string }>;
-  merchants: Array<{ id: MerchantId; name: string }>;
-  tags: Array<{ id: TagId; name: string }>;
+  categories: ReferenceOption<CategoryId>[];
+  merchants: ReferenceOption<MerchantId>[];
+  tags: ReferenceOption<TagId>[];
 };
 
 function BuilderConditionRow({
@@ -1639,15 +1639,9 @@ function RuleFormEditor({
   const [created, setCreated] = useState<{ confirm: RuleConfirm; ruleId: string } | null>(null);
   const reference: BuilderReference = useMemo(
     () => ({
-      categories: (referenceQuery.data?.categories ?? []).map((category) => ({
-        id: category.id,
-        name: category.name,
-      })),
-      merchants: (referenceQuery.data?.merchants ?? []).map((merchant) => ({
-        id: merchant.id,
-        name: merchant.name,
-      })),
-      tags: (referenceQuery.data?.tags ?? []).map((tag) => ({ id: tag.id, name: tag.name })),
+      categories: referenceQuery.data?.categories ?? [],
+      merchants: referenceQuery.data?.merchants ?? [],
+      tags: referenceQuery.data?.tags ?? [],
     }),
     [referenceQuery.data],
   );
