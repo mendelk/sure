@@ -87,10 +87,16 @@ export function TransactionDetailDrawer() {
       void navigate({
         to: "/accounts/$accountId",
         params: { accountId },
-        search: (previous) => previous,
+        search: true,
         resetScroll: false,
       });
-    } else void navigate({ to: "/transactions", resetScroll: false });
+    } else {
+      void navigate({
+        to: "/transactions",
+        search: true,
+        resetScroll: false,
+      });
+    }
   }
 
   return (

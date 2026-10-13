@@ -100,11 +100,13 @@ export function BulkUpdateDrawer({
       void navigate({
         to: "/accounts/$accountId",
         params: { accountId: AccountIdSchema.parse(search.account_id) },
+        search: true,
         resetScroll: false,
       });
     } else {
       void navigate({
         to: "/transactions",
+        search: true,
         resetScroll: false,
       });
     }
