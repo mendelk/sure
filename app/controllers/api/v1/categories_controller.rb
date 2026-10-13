@@ -4,8 +4,8 @@ class Api::V1::CategoriesController < Api::V1::BaseController
   include Pagy::Backend
 
   before_action :ensure_read_scope, only: %i[index show]
-  before_action :ensure_write_scope, only: :create
-  before_action :set_category, only: :show
+  before_action :ensure_write_scope, only: %i[create update]
+  before_action :set_category, only: %i[show update]
 
   def index
     family = current_resource_owner.family
@@ -70,6 +70,17 @@ class Api::V1::CategoriesController < Api::V1::BaseController
     end
   end
 
+  def update
+    if @category.update(category_update_params)
+      render :show
+    else
+      render json: {
+        error: "unprocessable_entity",
+        message: @category.errors.full_messages.join(", ")
+      }, status: :unprocessable_entity
+    end
+  end
+
   private
 
     def set_category
@@ -94,6 +105,12 @@ class Api::V1::CategoriesController < Api::V1::BaseController
       permitted = params.require(:category).permit(:name, :color, :icon, :parent_id)
       icon = permitted.delete(:icon)
       permitted[:lucide_icon] = icon if icon.present?
+      permitted
+    end
+
+    def category_update_params
+      permitted = params.require(:category).permit(:color, :icon)
+      permitted[:lucide_icon] = permitted.delete(:icon) if permitted.key?(:icon)
       permitted
     end
 

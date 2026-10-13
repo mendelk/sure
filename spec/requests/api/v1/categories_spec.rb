@@ -239,5 +239,77 @@ RSpec.describe 'API V1 Categories', type: :request do
         run_test! skip: "Documentation only; behavior covered by Minitest"
       end
     end
+
+    %i[patch put].each do |method|
+      public_send(method, 'Update category metadata') do
+        tags 'Categories'
+        description 'Requires read_write scope. Updates color and/or icon without changing the name or hierarchy. Omitted fields are preserved; subcategory updates inherit the parent color.'
+        security [ { apiKeyAuth: [] } ]
+        consumes 'application/json'
+        produces 'application/json'
+        parameter name: :body, in: :body, required: true, schema: {
+          '$ref' => '#/components/schemas/CategoryUpdateRequest'
+        }
+
+        let(:id) { parent_category.id }
+        let(:body) { { category: { color: '#6471eb', icon: 'building' } } }
+
+        response '200', 'category updated' do
+          schema '$ref' => '#/components/schemas/CategoryDetail'
+
+          run_test! skip: "Documentation only; behavior covered by Minitest"
+        end
+
+        response '400', 'bad request - missing category payload' do
+          schema '$ref' => '#/components/schemas/ErrorResponse'
+
+          let(:body) { {} }
+
+          run_test! skip: "Documentation only; behavior covered by Minitest"
+        end
+
+        response '401', 'unauthorized - missing api key' do
+          schema '$ref' => '#/components/schemas/ErrorResponse'
+
+          let(:'X-Api-Key') { nil }
+
+          run_test! skip: "Documentation only; behavior covered by Minitest"
+        end
+
+        response '403', 'forbidden - api key missing read_write scope' do
+          schema '$ref' => '#/components/schemas/ErrorResponse'
+
+          let(:read_only_api_key) do
+            key = ApiKey.generate_secure_key
+            ApiKey.create!(
+              user: user,
+              name: 'API Docs Read Key',
+              key: key,
+              scopes: %w[read],
+              source: 'mobile'
+            )
+          end
+          let(:'X-Api-Key') { read_only_api_key.plain_key }
+
+          run_test! skip: "Documentation only; behavior covered by Minitest"
+        end
+
+        response '404', 'category not found in the authenticated family' do
+          schema '$ref' => '#/components/schemas/ErrorResponse'
+
+          let(:id) { SecureRandom.uuid }
+
+          run_test! skip: "Documentation only; behavior covered by Minitest"
+        end
+
+        response '422', 'validation error - invalid color or blank icon' do
+          schema '$ref' => '#/components/schemas/ErrorResponse'
+
+          let(:body) { { category: { color: 'not-a-hex', icon: '' } } }
+
+          run_test! skip: "Documentation only; behavior covered by Minitest"
+        end
+      end
+    end
   end
 end

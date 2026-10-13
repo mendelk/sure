@@ -1674,6 +1674,25 @@ components:
               nullable: true
               description: Parent category ID. Must belong to the same family. Categories
                 support up to 2 levels of nesting.
+    CategoryUpdateRequest:
+      type: object
+      required:
+      - category
+      properties:
+        category:
+          type: object
+          properties:
+            color:
+              type: string
+              pattern: "^#[0-9A-Fa-f]{6}$"
+              description: Six-digit hex color. Subcategory updates inherit the parent
+                color.
+            icon:
+              type: string
+              minLength: 1
+              description: Lucide icon name (e.g. "building"). Cannot be blank.
+          description: Supply color, icon, or both. Omitted fields are preserved;
+            name and hierarchy cannot be changed.
     Merchant:
       type: object
       required:
@@ -6700,6 +6719,112 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+    patch:
+      summary: Update category metadata
+      tags:
+      - Categories
+      description: Requires read_write scope. Updates color and/or icon without changing
+        the name or hierarchy. Omitted fields are preserved; subcategory updates inherit
+        the parent color.
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: category updated
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CategoryDetail"
+        '400':
+          description: bad request - missing category payload
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '401':
+          description: unauthorized - missing api key
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: forbidden - api key missing read_write scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: category not found in the authenticated family
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: validation error - invalid color or blank icon
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CategoryUpdateRequest"
+        required: true
+    put:
+      summary: Update category metadata
+      tags:
+      - Categories
+      description: Requires read_write scope. Updates color and/or icon without changing
+        the name or hierarchy. Omitted fields are preserved; subcategory updates inherit
+        the parent color.
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: category updated
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CategoryDetail"
+        '400':
+          description: bad request - missing category payload
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '401':
+          description: unauthorized - missing api key
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: forbidden - api key missing read_write scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: category not found in the authenticated family
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: validation error - invalid color or blank icon
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CategoryUpdateRequest"
+        required: true
   "/api/v1/chats":
     get:
       summary: List chats
