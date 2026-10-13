@@ -159,6 +159,22 @@ class FamilyMerchantsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "ProviderMerchant", body["type"]
     assert_equal "bankcoffee.com", provider.reload.website_url
   end
+  test "update provider merchant with raw JSON body ignores wrapper-injected empty root" do
+    # The SPA posts JSON, and ActionController::ParamsWrapper injects an
+    # empty family_merchant hash (named after this controller). Key
+    # selection must ignore it or require() 400s on the empty hash.
+    provider = ProviderMerchant.create!(name: "Raw JSON Coffee", source: "plaid")
+    assign_provider_to_family(provider)
+    patch family_merchant_path(provider, format: :json),
+      params: JSON.generate({ provider_merchant: { name: "Raw JSON Coffee", website_url: "example.com" } }),
+      headers: { "Content-Type" => "application/json", "Accept" => "application/json" }
+    assert_response :success
+
+    body = JSON.parse(response.body)
+    assert_equal "Raw JSON Coffee", body["name"]
+    assert_equal "ProviderMerchant", body["type"]
+    assert_equal "example.com", provider.reload.website_url
+  end
 
   test "update provider merchant rename as json converts to family merchant" do
     provider = ProviderMerchant.create!(name: "Bank Diner", source: "plaid")
