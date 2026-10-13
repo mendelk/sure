@@ -92,8 +92,8 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
-  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
-  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url())
+  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
 }),/*#__PURE__*/ zod.null()])),
   "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
@@ -211,8 +211,8 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
-  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
-  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url())
+  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
 }),/*#__PURE__*/ zod.null()])),
   "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
@@ -274,8 +274,8 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
-  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
-  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url())
+  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
 }),/*#__PURE__*/ zod.null()])),
   "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
@@ -354,8 +354,8 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
-  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
-  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url())
+  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
 }),/*#__PURE__*/ zod.null()])),
   "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
@@ -451,8 +451,8 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
-  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url()),
-  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.url())
+  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
 }),/*#__PURE__*/ zod.null()])),
   "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
