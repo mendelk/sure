@@ -243,8 +243,11 @@ class FamilyMerchantsController < ApplicationController
     end
 
     def merchant_params
-      # Handle both family_merchant and provider_merchant param keys
-      key = params.key?(:family_merchant) ? :family_merchant : :provider_merchant
+      # Handle both family_merchant and provider_merchant param keys. JSON
+      # requests get an empty family_merchant hash injected by
+      # ActionController::ParamsWrapper (named after this controller), so
+      # select by non-emptiness rather than key presence.
+      key = params[:family_merchant].present? ? :family_merchant : :provider_merchant
       params.require(key).permit(:name, :color, :website_url)
     end
 
