@@ -72,7 +72,6 @@ const MERCHANT_FORM_TEXT = {
   name_placeholder: "Merchant name",
   website_label: "Website",
   website_placeholder: "Website (e.g., starbucks.com)",
-  website_hint: "Enter the merchant's website to automatically display their logo",
   color_label: "Color",
   cancel: "Cancel",
   save: "Save",
@@ -420,7 +419,6 @@ export function MerchantFormModal({
           value={name}
         />
         <FormField
-          description={MERCHANT_FORM_TEXT.website_hint}
           id="merchant-website"
           label={MERCHANT_FORM_TEXT.website_label}
           onChange={(event) => {
