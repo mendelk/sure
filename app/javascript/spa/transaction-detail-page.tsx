@@ -9,6 +9,7 @@ import { Toggle } from "./components/toggle";
 import { TagSelect } from "./components/tag-select";
 import { SearchablePicker, type PickerOption } from "./components/searchable-picker";
 import { BrandLogo } from "./components/brand-logo";
+import { currentReturnTo } from "./return-to";
 import {
   TransactionApiError,
   createCategory,
@@ -998,6 +999,7 @@ function MerchantLinks({ transaction }: { transaction: SpaTransactionDetail }) {
       <Link
         className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary hover:underline"
         params={{ merchantId: merchant.id }}
+        search={{ return_to: currentReturnTo() }}
         to="/family_merchants/$merchantId/edit"
       >
         <Icon name="pencil" size="sm" />
@@ -1005,7 +1007,7 @@ function MerchantLinks({ transaction }: { transaction: SpaTransactionDetail }) {
       </Link>
       <Link
         className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary hover:underline"
-        search={ruleSearch}
+        search={{ ...ruleSearch, return_to: currentReturnTo() }}
         to="/rules/new"
       >
         <Icon name="plus" size="sm" />

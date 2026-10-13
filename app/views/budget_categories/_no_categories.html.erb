@@ -15,7 +15,7 @@
         text: t(".new_category"),
         variant: "outline",
         icon: "plus",
-        href: new_category_path,
+        href: new_category_path(return_to: request.fullpath),
         data: { turbo_frame: :_top },
       ) %>
     </div>

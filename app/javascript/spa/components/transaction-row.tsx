@@ -17,6 +17,7 @@ import type { SpaBootstrap } from "../bootstrap";
 import { CategoryIcon, Icon } from "../icon";
 import type { AccountId, CategoryId, MerchantId, TransactionId } from "../ids";
 import { useDismiss } from "../use-dismiss";
+import { currentReturnTo } from "../return-to";
 import { IconButton } from "./icon-button";
 import { TagSelect } from "./tag-select";
 import { SearchablePicker, type PickerOption } from "./searchable-picker";
@@ -825,6 +826,7 @@ function MerchantMenu({
                 }}
                 params={{ merchantId }}
                 role="menuitem"
+                search={{ return_to: currentReturnTo() }}
                 tabIndex={-1}
                 to="/family_merchants/$merchantId/edit"
               >
@@ -842,7 +844,7 @@ function MerchantMenu({
                   setOpen(false);
                 }}
                 role="menuitem"
-                search={ruleSearch}
+                search={{ ...ruleSearch, return_to: currentReturnTo() }}
                 tabIndex={-1}
                 to="/rules/new"
               >
