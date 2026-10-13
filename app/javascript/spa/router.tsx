@@ -29,6 +29,10 @@ import { TransactionDetailDrawer } from "./transaction-detail-page";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
 import { AccountsIndexPage, SharingDialog } from "./accounts-index-page";
 import { StatementDetailPage, StatementsIndexPage } from "./statements-page";
+import { TagsIndexPage } from "./tags-page";
+import { CategoriesPage } from "./categories-page";
+import { MerchantsPage } from "./merchants-page";
+import { RuleFormPage, RulesIndexPage } from "./rules-page";
 import { AccountIdSchema } from "./ids";
 import { LoanEditDrawer } from "./loan-edit-drawer";
 import {
@@ -348,6 +352,140 @@ const editSourceRoute = createRoute({
   path: "$sourceId/edit",
   component: EditSourcePage,
 });
+const tagsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/tags",
+  component: TagsIndexPage,
+});
+
+const categoriesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/categories",
+  component: CategoriesPage,
+});
+
+const merchantsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/family_merchants",
+  component: MerchantsPage,
+});
+
+function RulesIndexRouteComponent() {
+  const navigate = useNavigate();
+  return (
+    <RulesIndexPage
+      indexPath="/rules.json"
+      newHref="/rules/new"
+      onEdit={(ruleId) => {
+        void navigate({ to: "/rules/$ruleId/edit", params: { ruleId } });
+      }}
+      rulesPath="/rules.json"
+    />
+  );
+}
+
+const rulesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/rules",
+  component: Outlet,
+});
+
+const rulesIndexRoute = createRoute({
+  getParentRoute: () => rulesRoute,
+  path: "/",
+  component: RulesIndexRouteComponent,
+});
+
+// Query params that preset the new rule form (see rules_controller#new).
+// Unclassified links omit :action_value — the form then opens with the
+// "Set transaction category" action and an empty category picker.
+export type RuleNewSearch = {
+  resource_type?: string;
+  merchant_id?: string;
+  name?: string;
+  action_type?: string;
+  action_value?: string;
+};
+
+export function validateRuleNewSearch(input: Record<string, unknown>): RuleNewSearch {
+  const result: RuleNewSearch = {};
+  for (const key of [
+    "resource_type",
+    "merchant_id",
+    "name",
+    "action_type",
+    "action_value",
+  ] as const) {
+    const value = input[key];
+    if (typeof value === "string" && value.length > 0) result[key] = value;
+  }
+  return result;
+}
+
+function RuleNewRouteComponent() {
+  const { bootstrap } = useRouteContext({ from: "__root__" });
+  const navigate = useNavigate();
+  const search = useSearch({ from: ruleNewRoute.id, shouldThrow: false }) ?? {};
+  const formPath = "/rules/new.json";
+
+  // The rule builder server (`rules_controller#new`) presets the rule name,
+  // its merchant condition, and the seeded action from these params; forward
+  // them so a menu entry like "Always categorize" opens a prefilled form.
+  const presetParams = new URLSearchParams();
+  if (search.resource_type !== undefined) presetParams.set("resource_type", search.resource_type);
+  if (search.merchant_id !== undefined) presetParams.set("merchant_id", search.merchant_id);
+  if (search.name !== undefined) presetParams.set("name", search.name);
+  if (search.action_type !== undefined) presetParams.set("action_type", search.action_type);
+  if (search.action_value !== undefined) presetParams.set("action_value", search.action_value);
+  const presetQuery = presetParams.toString();
+
+  const done = () => {
+    void navigate({ to: "/rules", resetScroll: false });
+  };
+  return (
+    <RuleFormPage
+      bootstrap={bootstrap}
+      formPath={presetQuery === "" ? formPath : `${formPath}?${presetQuery}`}
+      mode="new"
+      onDone={done}
+      rulesPath="/rules.json"
+      submitPath="/rules.json"
+    />
+  );
+}
+
+const ruleNewRoute = createRoute({
+  getParentRoute: () => rulesRoute,
+  path: "new",
+  validateSearch: validateRuleNewSearch,
+  component: RuleNewRouteComponent,
+});
+
+function RuleEditRouteComponent() {
+  const { bootstrap } = useRouteContext({ from: "__root__" });
+  const navigate = useNavigate();
+  const params = useParams({ strict: false });
+  const ruleId = typeof params.ruleId === "string" ? params.ruleId : "";
+  const done = () => {
+    void navigate({ to: "/rules", resetScroll: false });
+  };
+  return (
+    <RuleFormPage
+      bootstrap={bootstrap}
+      formPath={`/rules/${encodeURIComponent(ruleId)}/edit.json`}
+      mode="edit"
+      onDone={done}
+      rulesPath="/rules.json"
+      submitPath={`/rules/${encodeURIComponent(ruleId)}.json`}
+    />
+  );
+}
+
+const ruleEditRoute = createRoute({
+  getParentRoute: () => rulesRoute,
+  path: "$ruleId/edit",
+  component: RuleEditRouteComponent,
+});
 
 const routeTree = rootRoute.addChildren([
   accountDetailRoute.addChildren([
@@ -364,6 +502,10 @@ const routeTree = rootRoute.addChildren([
   statementsRoute.addChildren([statementsIndexRoute, statementDetailRoute]),
   dashboardsRoute.addChildren([dashboardsIndexRoute]),
   sourcesRoute.addChildren([sourcesIndexRoute, newSourceRoute, editSourceRoute]),
+  tagsRoute,
+  categoriesRoute,
+  merchantsRoute,
+  rulesRoute.addChildren([rulesIndexRoute, ruleNewRoute, ruleEditRoute]),
   loanEditRoute,
   accountableEditRoute,
   accountableNewTypeRoute.addChildren([accountableNewRoute]),

@@ -3,11 +3,21 @@ class Tag::DeletionsController < ApplicationController
   before_action :set_replacement_tag, only: :create
 
   def new
+    render "spa/show", layout: "spa"
   end
 
   def create
     @tag.replace_and_destroy! @replacement_tag
-    redirect_back_or_to tags_path, notice: t(".deleted")
+
+    respond_to do |format|
+      format.html { redirect_back_or_to tags_path, notice: t(".deleted") }
+      format.json { render json: { ok: true } }
+    end
+  rescue ActiveRecord::RecordInvalid => e
+    respond_to do |format|
+      format.html { raise }
+      format.json { render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity }
+    end
   end
 
   private

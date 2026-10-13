@@ -10,8 +10,7 @@ class Category::DeletionsControllerTest < ActionDispatch::IntegrationTest
   test "new" do
     get new_category_deletion_url(@category)
     assert_response :success
-    assert_select "turbo-frame#modal"
-    assert_select "turbo-frame#modal button span.min-w-0.truncate", text: /Delete "Food & Drink" and leave uncategorized/
+    assert_select "#spa-root", count: 1
   end
 
   test "create with replacement" do
@@ -39,5 +38,26 @@ class Category::DeletionsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to transactions_url
+  end
+
+  test "create with replacement as json returns ok" do
+    replacement_category = categories(:income)
+
+    assert_difference "Category.count", -1 do
+      post category_deletions_url(@category, format: :json),
+        params: { replacement_category_id: replacement_category.id }
+    end
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body).fetch("ok")
+  end
+
+  test "create without replacement as json returns ok" do
+    assert_difference "Category.count", -1 do
+      post category_deletions_url(@category, format: :json)
+    end
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body).fetch("ok")
   end
 end

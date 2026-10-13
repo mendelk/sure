@@ -22,7 +22,10 @@ class RulesController < ApplicationController
 
     @pagy, @recent_runs = pagy(recent_runs_scope, limit: safe_per_page, page_param: :runs_page)
 
-    render layout: "settings"
+    respond_to do |format|
+      format.html { render "spa/show", layout: "spa" }
+      format.json { render json: rules_index_json }
+    end
   end
 
   def new
@@ -53,22 +56,37 @@ class RulesController < ApplicationController
         value: params[:action_value]
       )
     end
+
+    respond_to do |format|
+      format.html { render "spa/show", layout: "spa" }
+      format.json { render json: rule_form_json(@rule) }
+    end
   end
 
   def create
     @rule = Current.family.rules.build(rule_params)
 
     if @rule.save
-      redirect_to confirm_rule_path(@rule, reload_on_close: true)
+      respond_to do |format|
+        format.html { redirect_to confirm_rule_path(@rule, reload_on_close: true) }
+        format.json { render json: { rule: rule_detail_json(@rule), confirm: rule_confirm_json(@rule) }, status: :created }
+      end
     else
-      render :new, status: :unprocessable_entity
+      respond_to do |format|
+        format.html { redirect_to rules_path, alert: @rule.errors.full_messages.to_sentence, status: :see_other }
+        format.json { render json: { errors: @rule.errors.full_messages }, status: :unprocessable_entity }
+      end
     end
   end
 
   def apply
     @rule.update!(active: true)
     @rule.apply_later(ignore_attribute_locks: true)
-    redirect_back_or_to rules_path, notice: "#{@rule.resource_type.humanize} rule activated"
+
+    respond_to do |format|
+      format.html { redirect_back_or_to rules_path, notice: "#{@rule.resource_type.humanize} rule activated" }
+      format.json { render json: { ok: true } }
+    end
   end
 
   def confirm
@@ -76,9 +94,18 @@ class RulesController < ApplicationController
     if @rule.actions.any? { |a| a.action_type == "auto_categorize" }
       @selected_model, @estimated_cost = auto_categorize_estimate(@rule)
     end
+
+    respond_to do |format|
+      format.html { render "spa/show", layout: "spa" }
+      format.json { render json: { rule: rule_detail_json(@rule), confirm: rule_confirm_json(@rule) } }
+    end
   end
 
   def edit
+    respond_to do |format|
+      format.html { render "spa/show", layout: "spa" }
+      format.json { render json: rule_form_json(@rule) }
+    end
   end
 
   def update
@@ -86,43 +113,76 @@ class RulesController < ApplicationController
       respond_to do |format|
         format.html { redirect_back_or_to rules_path, notice: t(".success") }
         format.turbo_stream { stream_redirect_back_or_to rules_path, notice: t(".success") }
+        format.json { render json: { rule: rule_detail_json(@rule) } }
       end
     else
-      render :edit, status: :unprocessable_entity
+      respond_to do |format|
+        format.html { redirect_to rules_path, alert: @rule.errors.full_messages.to_sentence, status: :see_other }
+        format.turbo_stream { stream_redirect_back_or_to rules_path, notice: @rule.errors.full_messages.to_sentence }
+        format.json { render json: { errors: @rule.errors.full_messages }, status: :unprocessable_entity }
+      end
     end
   end
 
   def destroy
     @rule.destroy
-    redirect_to rules_path, notice: t(".success")
+
+    respond_to do |format|
+      format.html { redirect_to rules_path, notice: t(".success") }
+      format.json { render json: { ok: true } }
+    end
   end
 
   def destroy_all
     Current.family.rules.destroy_all
-    redirect_to rules_path, notice: t(".success")
+
+    respond_to do |format|
+      format.html { redirect_to rules_path, notice: t(".success") }
+      format.json { render json: { ok: true } }
+    end
   end
 
   def confirm_all
     @rules = Current.family.rules
     @total_affected_count = Rule.total_affected_resource_count(@rules)
+    has_ai_actions = @rules.any? { |r| r.actions.any? { |a| a.action_type == "auto_categorize" } }
 
     # Compute AI cost estimation if any rule has auto_categorize action
-    if @rules.any? { |r| r.actions.any? { |a| a.action_type == "auto_categorize" } }
+    if has_ai_actions
       @selected_model, @estimated_cost = auto_categorize_estimate(
         Current.family,
         transaction_count: @total_affected_count
       )
     end
+
+    respond_to do |format|
+      format.html { render "spa/show", layout: "spa" }
+      format.json do
+        render json: {
+          rule_count: @rules.count,
+          total_affected_count: @total_affected_count,
+          ai: has_ai_actions ? { model: @selected_model, estimated_cost: @estimated_cost } : nil
+        }
+      end
+    end
   end
 
   def apply_all
     ApplyAllRulesJob.perform_later(Current.family)
-    redirect_back_or_to rules_path, notice: t("rules.apply_all.success")
+
+    respond_to do |format|
+      format.html { redirect_back_or_to rules_path, notice: t("rules.apply_all.success") }
+      format.json { render json: { ok: true } }
+    end
   end
 
   def clear_ai_cache
     enqueue_ai_cache_reset
-    redirect_to rules_path, notice: t("rules.clear_ai_cache.success")
+
+    respond_to do |format|
+      format.html { redirect_to rules_path, notice: t("rules.clear_ai_cache.success") }
+      format.json { render json: { ok: true } }
+    end
   end
 
   private
@@ -207,5 +267,136 @@ class RulesController < ApplicationController
           :id, :action_type, :value, :_destroy, { value: [] }
         ]
       )
+    end
+
+    # One JSON document per page: rows carry pre-rendered summary strings so
+    # the React page renders from a single fetch without duplicating the
+    # display logic in `_rule.html.erb`.
+    def rules_index_json
+      {
+        rules: @rules.map { |rule| rule_row_json(rule) },
+        count: @rules.count,
+        sort_by: @sort_by,
+        direction: @direction,
+        self_hosted: self_hosted?,
+        ai_actions_present: @rules.any? { |rule| rule.actions.any? { |a| a.action_type == "auto_categorize" } },
+        recent_runs: {
+          items: @recent_runs.map { |run| rule_run_json(run) },
+          page: @pagy.page,
+          pages: @pagy.pages,
+          count: @pagy.count,
+          per_page: @pagy.limit
+        }
+      }
+    end
+
+    def rule_row_json(rule)
+      displayed = rule.displayed_condition
+      first_action = rule.actions.first
+
+      {
+        id: rule.id,
+        name: rule.name,
+        resource_type: rule.resource_type,
+        active: rule.active,
+        summary: {
+          condition: displayed ? "#{displayed.filter.label} #{displayed.operator} #{displayed.value_display}" : I18n.t("rules.no_condition"),
+          additional_conditions_count: rule.additional_displayable_conditions_count,
+          action: rule_action_summary(first_action),
+          additional_actions_count: [ rule.actions.size - 1, 0 ].max,
+          scope: rule_scope_summary(rule)
+        },
+        updated_at: rule.updated_at.iso8601
+      }
+    end
+
+    def rule_action_summary(action)
+      return I18n.t("rules.no_action") if action.nil?
+
+      if action.value.present? && action.options.present?
+        I18n.t("rules.rule.action_label_to", label: action.executor.label, value: action.value_display)
+      else
+        action.executor.label
+      end
+    end
+
+    def rule_scope_summary(rule)
+      if rule.effective_date.nil?
+        I18n.t("rules.rule.all_past_and_future", resource: rule.resource_type.pluralize)
+      else
+        I18n.t("rules.rule.on_or_after", resource: rule.resource_type.pluralize, date: rule.effective_date.strftime("%b %-d, %Y"))
+      end
+    end
+
+    def rule_run_json(run)
+      {
+        id: run.id,
+        executed_at: run.executed_at.iso8601,
+        execution_type: run.execution_type,
+        status: run.status,
+        rule_name: run.rule_name.presence || run.rule&.name.presence || I18n.t("rules.recent_runs.unnamed_rule"),
+        queued: run.transactions_queued,
+        processed: run.transactions_processed,
+        modified: run.transactions_modified,
+        blocked: run.transactions_blocked,
+        error_message: run.error_message
+      }
+    end
+
+    # Builder payload: rule defaults/prefills plus the registry document that
+    # drives the condition/action inputs (mirrors the Stimulus data values).
+    def rule_form_json(rule)
+      {
+        rule: rule_detail_json(rule),
+        registry: rule.registry.as_json,
+        self_hosted: self_hosted?
+      }
+    end
+
+    def rule_detail_json(rule)
+      {
+        id: rule.id,
+        name: rule.name,
+        resource_type: rule.resource_type,
+        active: rule.active,
+        effective_date: rule.effective_date&.iso8601,
+        conditions: rule.conditions.select { |c| c.parent_id.nil? }.map { |c| rule_condition_json(c) },
+        actions: rule.actions.map { |a| rule_action_json(a) }
+      }
+    end
+
+    def rule_condition_json(condition)
+      {
+        id: condition.id,
+        condition_type: condition.condition_type,
+        operator: condition.operator,
+        value: condition.value,
+        sub_conditions: condition.sub_conditions.map do |sub|
+          { id: sub.id, condition_type: sub.condition_type, operator: sub.operator, value: sub.value }
+        end
+      }
+    end
+
+    def rule_action_json(action)
+      {
+        id: action.id,
+        action_type: action.action_type,
+        value: action.value,
+        values: Rule::Action.decode_multi_value_names(action.value)
+      }
+    end
+
+    # Mirrors #confirm (including the auto_categorize_estimate branches): ai is
+    # nil without an auto_categorize action; otherwise model/estimated_cost,
+    # each nil when unavailable.
+    def rule_confirm_json(rule)
+      payload = { affected_count: rule.affected_resource_count, ai: nil }
+
+      if rule.actions.any? { |a| a.action_type == "auto_categorize" }
+        model, cost = auto_categorize_estimate(rule)
+        payload[:ai] = { model: model, estimated_cost: cost }
+      end
+
+      payload
     end
 end

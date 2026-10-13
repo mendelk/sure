@@ -9,6 +9,7 @@ class Tag::DeletionsControllerTest < ActionDispatch::IntegrationTest
   test "should get new" do
     get new_tag_deletion_url(@tag)
     assert_response :success
+    assert_select "#spa-root", count: 1
   end
 
   test "create with replacement" do
@@ -31,6 +32,40 @@ class Tag::DeletionsControllerTest < ActionDispatch::IntegrationTest
     assert_difference -> { Tag.count } => -1, -> { Tagging.count } => affected_transactions.count * -1 do
       post tag_deletions_url(@tag)
     end
+  end
+
+  test "create with replacement as json" do
+    replacement_tag = tags(:two)
+    affected_transaction_count = @tag.transactions.count
+
+    assert affected_transaction_count > 0
+
+    assert_difference -> { Tag.count } => -1, -> { replacement_tag.transactions.count } => affected_transaction_count do
+      post tag_deletions_url(@tag, format: :json), params: { replacement_tag_id: replacement_tag.id }
+    end
+
+    assert_response :success
+    assert_equal({ "ok" => true }, JSON.parse(response.body))
+  end
+
+  test "create without replacement as json" do
+    assert @tag.transactions.count > 0
+
+    assert_difference -> { Tag.count } => -1 do
+      post tag_deletions_url(@tag, format: :json)
+    end
+
+    assert_response :success
+    assert_equal({ "ok" => true }, JSON.parse(response.body))
+  end
+
+  test "create with self as replacement returns 422 as json" do
+    assert_no_difference -> { Tag.count } do
+      post tag_deletions_url(@tag, format: :json), params: { replacement_tag_id: @tag.id }
+    end
+
+    assert_response :unprocessable_entity
+    assert JSON.parse(response.body)["errors"].present?
   end
 
   test "create with invalid or cross-family tag_id returns not found" do

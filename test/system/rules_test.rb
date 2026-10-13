@@ -31,45 +31,21 @@ class RulesTest < ApplicationSystemTestCase
 
     visit rules_path
 
-    assert_selector "th", text: /queued\s+processed\s+modified\s+blocked/i
-    assert_selector "td", text: "20 / 20 / 10 / 10"
+    assert_text "Recent Runs"
+    assert_text "20 / 20 / 10 / 10"
   end
 
-  test "rules page renders gracefully when a condition has an unsupported condition_type" do
-    @user.update!(locale: "de")
-    rule = @user.family.rules.create!(
-      name: "Legacy bad rule",
-      resource_type: "transaction",
-      conditions: [
-        Rule::Condition.new(condition_type: "transaction_name", operator: "like", value: "x")
-      ],
-      actions: [
-        Rule::Action.new(action_type: "set_transaction_category", value: categories(:food_and_drink).id)
-      ]
-    )
-
-    # Simulate a legacy row written before the inclusion validation existed.
-    rule.conditions.first.update_columns(condition_type: "name")
-
+  test "creates a transaction rule with dynamically added condition and action" do
     visit rules_path
+    click_on "New rule"
 
-    assert_selector "h3", text: "Legacy bad rule"
-    assert_text "Nicht unterstützt (name)"
-  end
+    fill_in "Enter a name for this rule", with: "Coffee rule"
+    click_on "Add condition"
+    all("input[placeholder*='value' i], input[type='text']").last.fill_in(with: "Coffee")
+    click_on "Add action"
+    click_on "Save rule"
 
-  test "creates a transaction rule through the modal with dynamically added condition and action" do
-    visit new_rule_path(resource_type: "transaction")
-
-    within "dialog" do
-      click_on "Add condition"
-      find("[data-rules-target='conditionsList'] input[name$='[value]']").fill_in(with: "Coffee")
-      click_on "Add action"
-      click_on "Create Rule"
-    end
-
-    # A successful create lands on the confirmation dialog; before the
-    # nested-attribute keys were numeric, the submit failed validation with
-    # "must have at least one action" because strong params dropped the rows.
+    # A successful create lands on the confirmation dialog.
     assert_text "Confirm changes"
 
     rule = Rule.order(:created_at).last

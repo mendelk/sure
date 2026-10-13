@@ -11,9 +11,174 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
   test "index" do
     get categories_url
     assert_response :success
-    assert_select "#category_#{categories(:food_and_drink).id} > [data-testid='category-content']", count: 1
-    assert_select "#category_#{categories(:food_and_drink).id} > [data-testid='category-actions']", count: 1
-    assert_select "#category_#{categories(:food_and_drink).id} [data-testid='category-name']", text: categories(:food_and_drink).name
+    assert_select "#spa-root", count: 1
+  end
+
+  test "index as json returns grouped hierarchy with counts and form metadata" do
+    get categories_url(format: :json)
+    assert_response :success
+
+    payload = JSON.parse(response.body)
+    assert payload.fetch("groups").any?
+    assert_equal @family.categories.count, payload.fetch("count")
+    assert_equal false, payload.fetch("empty")
+    assert_equal Category::COLORS, payload.fetch("colors")
+    assert_includes payload.fetch("icons"), "utensils"
+
+    root_ids = payload.fetch("groups").map { |group| group.fetch("root").fetch("id") }
+    assert_includes root_ids, categories(:food_and_drink).id
+
+    food_group = payload.fetch("groups").find { |group| group.fetch("root").fetch("id") == categories(:food_and_drink).id }
+    assert_equal categories(:food_and_drink).display_name, food_group.fetch("root").fetch("display_name")
+
+    assert payload.fetch("has_transactions_by_id").key?(categories(:food_and_drink).id)
+  end
+
+  test "index as json reports empty state" do
+    Current.family.categories.destroy_all
+
+    get categories_url(format: :json)
+    assert_response :success
+
+    payload = JSON.parse(response.body)
+    assert_equal [], payload.fetch("groups")
+    assert_equal 0, payload.fetch("count")
+    assert_equal true, payload.fetch("empty")
+    assert_equal true, payload.fetch("can_bootstrap")
+  end
+
+  test "new as json returns defaults with parent options" do
+    get new_category_url(format: :json)
+    assert_response :success
+
+    payload = JSON.parse(response.body)
+    assert payload.fetch("category").fetch("color").present?
+    assert_equal Category::COLORS, payload.fetch("colors")
+    assert payload.fetch("parent_options").any?
+  end
+
+  test "edit as json returns category with parent options" do
+    get edit_category_url(categories(:food_and_drink), format: :json)
+    assert_response :success
+
+    payload = JSON.parse(response.body)
+    assert_equal categories(:food_and_drink).id, payload.fetch("category").fetch("id")
+    assert_equal categories(:food_and_drink).display_name, payload.fetch("category").fetch("display_name")
+    assert payload.fetch("parent_options").none? { |option| option.fetch("id") == categories(:food_and_drink).id }
+  end
+
+  test "update as json returns the updated category" do
+    patch category_url(categories(:income), format: :json), params: {
+      category: { name: "JSON Renamed", color: Category::COLORS.sample } }
+
+    assert_response :success
+    payload = JSON.parse(response.body)
+    assert_equal "JSON Renamed", payload.fetch("category").fetch("name")
+    assert_equal "JSON Renamed", categories(:income).reload.name
+  end
+
+  test "update as json returns 422 for invalid category" do
+    patch category_url(categories(:income), format: :json), params: {
+      category: { name: "", color: "#000000" } }
+
+    assert_response :unprocessable_entity
+    assert JSON.parse(response.body).fetch("errors").any?
+  end
+
+  test "destroy as json removes a category without transactions" do
+    disposable = @family.categories.create!(name: "Disposable", color: "#000000", lucide_icon: "shapes")
+
+    assert_difference "Category.count", -1 do
+      delete category_url(disposable, format: :json)
+    end
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body).fetch("ok")
+  end
+
+  test "destroy_all as json removes every category" do
+    delete destroy_all_categories_url(format: :json)
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body).fetch("ok")
+    assert_equal 0, @family.categories.count
+  end
+
+  test "bootstrap as json creates default categories" do
+    Current.family.categories.destroy_all
+
+    post bootstrap_categories_url(format: :json)
+
+    assert_response :success
+    assert_equal true, JSON.parse(response.body).fetch("ok")
+    assert @family.categories.count.positive?
+  end
+
+  test "perform_merge as json merges and reports merged_count" do
+    target = @family.categories.create!(name: "JSON Merge Target", color: "#000000", lucide_icon: "shapes")
+    source = @family.categories.create!(name: "JSON Merge Source", color: "#111111", lucide_icon: "shapes")
+
+    assert_difference "Category.count", -1 do
+      post perform_merge_categories_url(format: :json), params: {
+        target_id: target.id,
+        source_ids: [ source.id ] }
+    end
+
+    assert_response :success
+    payload = JSON.parse(response.body)
+    assert_equal true, payload.fetch("ok")
+    assert_equal 1, payload.fetch("merged_count")
+    assert_not Category.exists?(source.id)
+  end
+
+  test "perform_merge as json rejects the target as a source" do
+    target = @family.categories.create!(name: "JSON Self Target", color: "#000000", lucide_icon: "shapes")
+    source = @family.categories.create!(name: "JSON Self Source", color: "#111111", lucide_icon: "shapes")
+
+    assert_no_difference "Category.count" do
+      post perform_merge_categories_url(format: :json), params: {
+        target_id: target.id,
+        source_ids: [ target.id, source.id ] }
+    end
+
+    assert_response :unprocessable_entity
+    assert JSON.parse(response.body).fetch("errors").any?
+    assert Category.exists?(target.id)
+    assert Category.exists?(source.id)
+  end
+
+  test "perform_merge as json reports missing target" do
+    source = @family.categories.create!(name: "JSON Orphan Source", color: "#111111", lucide_icon: "shapes")
+
+    post perform_merge_categories_url(format: :json), params: {
+      target_id: "00000000-0000-0000-0000-000000000000",
+      source_ids: [ source.id ] }
+
+    assert_response :unprocessable_entity
+    assert JSON.parse(response.body).fetch("errors").any?
+    assert Category.exists?(source.id)
+  end
+
+  test "perform_merge as json reports invalid sources" do
+    post perform_merge_categories_url(format: :json), params: {
+      target_id: categories(:income).id,
+      source_ids: [] }
+
+    assert_response :unprocessable_entity
+    assert JSON.parse(response.body).fetch("errors").any?
+  end
+
+  test "perform_merge as json surfaces merger hierarchy guards" do
+    parent = @family.categories.create!(name: "JSON Merge Parent", color: "#000000", lucide_icon: "folder")
+    child = @family.categories.create!(name: "JSON Merge Child", color: "#111111", lucide_icon: "folder", parent: parent)
+
+    post perform_merge_categories_url(format: :json), params: {
+      target_id: child.id,
+      source_ids: [ parent.id ] }
+
+    assert_response :unprocessable_entity
+    assert JSON.parse(response.body).fetch("errors").any?
+    assert Category.exists?(parent.id)
   end
 
   test "index avoids per-category subcategory and transaction existence queries" do
@@ -40,11 +205,13 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
       )
     end
 
-    queries = capture_sql_queries { get categories_url }
+    queries = capture_sql_queries { get categories_url(format: :json) }
 
     assert_response :success
-    assert_select "[data-testid='category-name']", text: "Performance Parent 0"
-    assert_select "[data-testid='category-name']", text: "Performance Child 0"
+    payload = JSON.parse(response.body)
+    names = payload.fetch("groups").flat_map { |group| [ group.fetch("root").fetch("name") ] + group.fetch("subcategories").map { |sub| sub.fetch("name") } }
+    assert_includes names, "Performance Parent 0"
+    assert_includes names, "Performance Child 0"
 
     assert_empty queries.grep(/FROM "categories" WHERE "categories"\."parent_id" =/)
     assert_empty queries.grep(/FROM "transactions" WHERE "transactions"\."category_id" =/)
@@ -80,7 +247,7 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
           color: Category::COLORS.sample } }
     end
 
-    assert_response :unprocessable_entity
+    assert_redirected_to categories_url
   end
 
   test "create as json returns rendered category option" do
@@ -167,24 +334,14 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to categories_url
   end
 
-  test "merge renders in the settings layout" do
+  test "merge renders the SPA shell" do
     get merge_categories_path
 
     assert_response :success
-    assert_select "#mobile-settings-nav"
-    assert_select "form[action='#{perform_merge_categories_path}'] button[type='submit']"
+    assert_select "#spa-root", count: 1
   end
 
-  test "merge renders without the settings layout for modal frame requests" do
-    get merge_categories_path, headers: { "Turbo-Frame" => "modal" }
-
-    assert_response :success
-    assert_no_match(/<html/i, response.body)
-    assert_no_match(/<turbo-frame id="modal"><\/turbo-frame>/, response.body)
-    assert_select "dialog"
-  end
-
-  test "merge orders subcategories immediately after their parent" do
+  test "merge as json returns hierarchy-ordered categories" do
     parent = @family.categories.create!(
       name: "Zoo",
       color: "#000000",
@@ -197,22 +354,17 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
       parent: parent
     )
 
-    get merge_categories_path
+    get merge_categories_path(format: :json)
 
     assert_response :success
 
-    form = Nokogiri::HTML(response.body).at_css("form[action='#{perform_merge_categories_path}']")
-    assert_not_nil form
-
-    category_ids = form.css("[data-select-target='option']").map { |option| option["data-value"] }
-    source_ids = form.css("input[name='source_ids[]']").map { |input| input["value"] }
+    category_ids = JSON.parse(response.body).fetch("categories").map { |entry| entry.fetch("id") }
     parent_index = category_ids.index(parent.id)
     child_index = category_ids.index(child.id)
 
     assert_not_nil parent_index
     assert_not_nil child_index
     assert_equal parent_index + 1, child_index
-    assert_equal category_ids, source_ids
   end
 
   test "merge selected categories into an existing category" do
