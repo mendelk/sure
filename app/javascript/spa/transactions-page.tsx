@@ -125,6 +125,14 @@ export function validateTransactionSearch(input: Record<string, unknown>): Trans
     const values = arrayValue(input[filter] ?? input[`q[${filter}][]`]);
     if (values.length > 0) result[filter] = values;
   }
+  const uncategorized = input.uncategorized ?? input["q[uncategorized]"];
+  if (
+    uncategorized === true ||
+    uncategorized === "true" ||
+    uncategorized === "1" ||
+    uncategorized === "on"
+  )
+    result.categories = [...new Set([...(result.categories ?? []), "Uncategorized"])];
   for (const filter of ["account_ids", "excluded_account_ids"] as const) {
     const values = arrayValue(input[filter] ?? input[`q[${filter}][]`]).map((value) =>
       AccountIdSchema.parse(value),
@@ -339,7 +347,14 @@ export function TransactionsPage() {
             </div>
 
             {filterOpen ? (
-              <TransactionFilterPanel routeSearch={routeSearch} updateSearch={updateSearch} />
+              <TransactionFilterPanel
+                accounts={reference.accounts}
+                categories={reference.categories}
+                merchants={reference.merchants}
+                routeSearch={routeSearch}
+                tags={reference.tags}
+                updateSearch={updateSearch}
+              />
             ) : null}
           </div>
 
@@ -1136,10 +1151,13 @@ function filterDefinitions({
       key: "category",
       kind: "options",
       label: "Category",
-      options: categories.map((category) => ({
-        label: category.name,
-        value: category.name,
-      })),
+      options: [
+        { label: "Uncategorized", value: "Uncategorized" },
+        ...categories.map((category) => ({
+          label: category.name,
+          value: category.name,
+        })),
+      ],
       positiveKey: "categories",
     },
     {
@@ -1147,7 +1165,10 @@ function filterDefinitions({
       key: "tag",
       kind: "options",
       label: "Tag",
-      options: tags.map((tag) => ({ label: tag.name, value: tag.name })),
+      options: [
+        { label: "Untagged", value: "Untagged" },
+        ...tags.map((tag) => ({ label: tag.name, value: tag.name })),
+      ],
       positiveKey: "tags",
     },
     {
@@ -1155,10 +1176,13 @@ function filterDefinitions({
       key: "merchant",
       kind: "options",
       label: "Merchant",
-      options: merchants.map((merchant) => ({
-        label: merchant.name,
-        value: merchant.name,
-      })),
+      options: [
+        { label: "No merchant", value: "No merchant" },
+        ...merchants.map((merchant) => ({
+          label: merchant.name,
+          value: merchant.name,
+        })),
+      ],
       positiveKey: "merchants",
     },
     {
@@ -1240,17 +1264,31 @@ function optionsFor(
     const value = query.trim();
     return value.length > 0 ? [{ label: value, value }] : [];
   }
-  const selected: Record<string, true> = {};
+  const selected = new Set<string>();
   for (const value of definition.positiveKey === null
     ? []
-    : (routeSearch[definition.positiveKey] ?? []))
-    selected[value] = true;
+    : (routeSearch[definition.positiveKey] ?? [])) {
+    selected.add(value);
+    if (value === "__uncategorized__") selected.add("Uncategorized");
+    if (value === "Uncategorized") selected.add("__uncategorized__");
+    if (value === "__no_merchant__") selected.add("No merchant");
+    if (value === "No merchant") selected.add("__no_merchant__");
+    if (value === "__untagged__") selected.add("Untagged");
+    if (value === "Untagged") selected.add("__untagged__");
+  }
   for (const value of definition.excludedKey === null
     ? []
-    : (routeSearch[definition.excludedKey] ?? []))
-    selected[value] = true;
+    : (routeSearch[definition.excludedKey] ?? [])) {
+    selected.add(value);
+    if (value === "__uncategorized__") selected.add("Uncategorized");
+    if (value === "Uncategorized") selected.add("__uncategorized__");
+    if (value === "__no_merchant__") selected.add("No merchant");
+    if (value === "No merchant") selected.add("__no_merchant__");
+    if (value === "__untagged__") selected.add("Untagged");
+    if (value === "Untagged") selected.add("__untagged__");
+  }
   return definition.options
-    .filter((option) => !(option.value in selected))
+    .filter((option) => !selected.has(option.value))
     .filter((option) => option.label.toLowerCase().includes(needle))
     .slice(0, 30);
 }
@@ -1278,6 +1316,12 @@ function applyValueFilter(
     updateSearch({ amount: parsed, amount_operator: "less" });
 }
 
+function formatFilterToken(value: string): string {
+  if (value === "__uncategorized__") return "Uncategorized";
+  if (value === "__no_merchant__") return "No merchant";
+  if (value === "__untagged__") return "Untagged";
+  return value;
+}
 function selectedTokens(routeSearch: TransactionRouteSearch): {
   displayValue: string;
   inputKey: string;
@@ -1301,7 +1345,7 @@ function selectedTokens(routeSearch: TransactionRouteSearch): {
   ) {
     for (const value of values ?? []) {
       tokens.push({
-        displayValue: value,
+        displayValue: formatFilterToken(value),
         inputKey,
         label,
         remove: (updateSearch) => {
@@ -1596,24 +1640,32 @@ function TransactionColumnsPopover({
 }
 
 const TABS = [
+  ["category", "Category"],
   ["account", "Account"],
   ["date", "Date"],
   ["type", "Type"],
   ["status", "Status"],
   ["amount", "Amount"],
-  ["category", "Category"],
   ["tag", "Tag"],
   ["merchant", "Merchant"],
 ] as const;
 
 function TransactionFilterPanel({
+  accounts,
+  categories,
+  merchants,
   routeSearch,
+  tags,
   updateSearch,
 }: {
+  accounts: ReferenceOption<AccountId>[];
+  categories: ReferenceOption<CategoryId>[];
+  merchants: ReferenceOption<MerchantId>[];
   routeSearch: TransactionRouteSearch;
+  tags: ReferenceOption<TagId>[];
   updateSearch: (changes: Partial<TransactionRouteSearch>) => void;
 }) {
-  const [tab, setTab] = useState("account");
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>("category");
 
   return (
     <div className="overflow-hidden rounded-xl border border-secondary">
@@ -1743,11 +1795,60 @@ function TransactionFilterPanel({
             </label>
           </div>
         ) : null}
-        {tab === "account" || tab === "category" || tab === "tag" || tab === "merchant" ? (
-          <p className="text-sm text-secondary">
-            Type {tab}: in the search box for the full list with autocomplete. Prefix with - to
-            exclude.
-          </p>
+        {tab === "account" ? (
+          <FilterCheckboxes
+            emptyLabel="No accounts."
+            onChange={(values) => {
+              updateSearch({ accounts: values.length > 0 ? values : undefined });
+            }}
+            options={accounts.map((account) => ({ id: account.name, name: account.name }))}
+            selected={routeSearch.accounts ?? []}
+          />
+        ) : null}
+        {tab === "category" ? (
+          <FilterCheckboxes
+            emptyLabel="No categories."
+            onChange={(values) => {
+              updateSearch({ categories: values.length > 0 ? values : undefined });
+            }}
+            options={[
+              { id: "Uncategorized", name: "Uncategorized" },
+              ...categories.map((category) => ({
+                id: category.name,
+                name: category.name,
+              })),
+            ]}
+            selected={routeSearch.categories ?? []}
+          />
+        ) : null}
+        {tab === "tag" ? (
+          <FilterCheckboxes
+            emptyLabel="No tags."
+            onChange={(values) => {
+              updateSearch({ tags: values.length > 0 ? values : undefined });
+            }}
+            options={[
+              { id: "Untagged", name: "Untagged" },
+              ...tags.map((tag) => ({ id: tag.name, name: tag.name })),
+            ]}
+            selected={routeSearch.tags ?? []}
+          />
+        ) : null}
+        {tab === "merchant" ? (
+          <FilterCheckboxes
+            emptyLabel="No merchants."
+            onChange={(values) => {
+              updateSearch({ merchants: values.length > 0 ? values : undefined });
+            }}
+            options={[
+              { id: "No merchant", name: "No merchant" },
+              ...merchants.map((merchant) => ({
+                id: merchant.name,
+                name: merchant.name,
+              })),
+            ]}
+            selected={routeSearch.merchants ?? []}
+          />
         ) : null}
       </div>
       <div className="flex items-center justify-between gap-2 border-t border-secondary p-2">
@@ -1818,26 +1919,48 @@ function FilterCheckboxes<TValue extends string>({
         <p className="px-1 py-2 text-sm text-secondary">{emptyLabel}</p>
       ) : (
         <ul className="space-y-1">
-          {visible.map((option) => (
-            <li key={option.id}>
-              <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm text-primary hover:bg-container-hover">
-                <input
-                  checked={selected.includes(option.id)}
-                  className="checkbox checkbox--light"
-                  onChange={(event) => {
-                    const checked = event.currentTarget.checked;
-                    onChange(
-                      checked
-                        ? [...selected, option.id]
-                        : selected.filter((item) => item !== option.id),
-                    );
-                  }}
-                  type="checkbox"
-                />
-                {option.name}
-              </label>
-            </li>
-          ))}
+          {visible.map((option) => {
+            const isChecked =
+              selected.includes(option.id) ||
+              (option.id === "Uncategorized" &&
+                (selected as string[]).includes("__uncategorized__")) ||
+              (option.id === "No merchant" && (selected as string[]).includes("__no_merchant__")) ||
+              (option.id === "Untagged" && (selected as string[]).includes("__untagged__"));
+            return (
+              <li key={option.id}>
+                <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm text-primary hover:bg-container-hover">
+                  <input
+                    checked={isChecked}
+                    className="checkbox checkbox--light"
+                    onChange={(event) => {
+                      const checked = event.currentTarget.checked;
+                      if (checked) {
+                        onChange([...selected, option.id]);
+                        return;
+                      }
+                      onChange(
+                        selected.filter((item) => {
+                          if (item === option.id) return false;
+                          if (
+                            option.id === "Uncategorized" &&
+                            (item as string) === "__uncategorized__"
+                          )
+                            return false;
+                          if (option.id === "No merchant" && (item as string) === "__no_merchant__")
+                            return false;
+                          if (option.id === "Untagged" && (item as string) === "__untagged__")
+                            return false;
+                          return true;
+                        }),
+                      );
+                    }}
+                    type="checkbox"
+                  />
+                  {option.name}
+                </label>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

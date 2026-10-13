@@ -305,6 +305,41 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_includes transaction_ids, other_entry.transaction.id
     assert_not_includes transaction_ids, food_entry.transaction.id
   end
+  test "should filter transactions by Uncategorized category alias and sentinel" do
+    uncategorized_entry = @account.entries.create!(
+      name: "Uncategorized Item",
+      amount: 15.00,
+      currency: "USD",
+      date: Date.current,
+      entryable: Transaction.new(category: nil)
+    )
+
+    categorized_entry = @account.entries.create!(
+      name: "Categorized Item",
+      amount: 25.00,
+      currency: "USD",
+      date: Date.current,
+      entryable: Transaction.new(category: categories(:food_and_drink))
+    )
+
+    # Via literal "Uncategorized" alias
+    get api_v1_transactions_url,
+        params: { categories: [ "Uncategorized" ], per_page: 200 },
+        headers: api_headers(@api_key)
+    assert_response :success
+    ids = JSON.parse(response.body)["transactions"].map { |t| t["id"] }
+    assert_includes ids, uncategorized_entry.transaction.id
+    assert_not_includes ids, categorized_entry.transaction.id
+
+    # Via Category::UNCATEGORIZED_FILTER_VALUE sentinel
+    get api_v1_transactions_url,
+        params: { categories: [ Category::UNCATEGORIZED_FILTER_VALUE ], per_page: 200 },
+        headers: api_headers(@api_key)
+    assert_response :success
+    ids = JSON.parse(response.body)["transactions"].map { |t| t["id"] }
+    assert_includes ids, uncategorized_entry.transaction.id
+    assert_not_includes ids, categorized_entry.transaction.id
+  end
 
   test "should exclude transactions by negative id-based filters" do
     merchant_entry = @account.entries.create!(
