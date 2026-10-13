@@ -2,8 +2,11 @@ class AccountSharingsController < ApplicationController
   before_action :set_account
 
   def show
-    @family_members = Current.family.users.where.not(id: @account.owner_id).where(active: true)
-    @account_shares = @account.account_shares.includes(:user).index_by(&:user_id)
+    return render("spa/show", layout: "spa") if request.format.html?
+
+    render json: Account::SpaIndexData.new(
+      item_specs: [], groups: [], family: Current.family, user: Current.user
+    ).tap { |data| data.instance_variable_set(:@account, @account) }.sharing_payload.to_json
   end
 
   def update

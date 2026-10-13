@@ -237,7 +237,7 @@ class RecurringTransaction
               .open_status
               .joins(:recurring_transaction)
               .where(recurring_transactions: { status: :active })
-              .where("recurring_transactions.amount > 0")
+              .merge(RecurringTransaction.payable)
               .merge(
                 RecurringTransaction.where(destination_account_id: nil)
                                     .or(RecurringTransaction.where(destination_account_id: debt_accounts))

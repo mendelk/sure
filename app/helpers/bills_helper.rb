@@ -1,4 +1,21 @@
 module BillsHelper
+  def bills_amount_label(series)
+    if series.credit_card_payment?
+      occurrence = series.next_open_occurrence
+      return t("bills.credit_card.amount_unavailable") unless occurrence
+
+      return format_money(occurrence.remaining_amount_money)
+    end
+
+    format_money(Money.new(series.amount.abs, series.currency))
+  end
+
+  def bills_next_payment_date(series)
+    return series.next_expected_date unless series.credit_card_payment?
+
+    series.next_due_date
+  end
+
   # A bill's next due date reads "Oct 5" when it falls this year and gains the
   # year otherwise, so an every-2-years bill never shows "Sep 1" for a date
   # that is years out. Same rule as Period#label. Payment dates are historical
@@ -207,8 +224,11 @@ module BillsHelper
   # Relative wording is also the safer default: the app runs in UTC while users do
   # not, so a bare calendar date can read as off-by-one for part of every day.
   def bills_due_label(bill)
-    days = (bill.next_due_date - Date.current).to_i
-    date = l(bill.next_due_date, format: :short)
+    due = bill.next_due_date
+    return t("bills.credit_card.unknown_day") unless due
+
+    days = (due - Date.current).to_i
+    date = l(due, format: :short)
 
     if days.negative?
       t("bills.due_label.overdue", count: days.abs, date: date)
@@ -225,7 +245,7 @@ module BillsHelper
   # expansion names the account regardless, so nothing is lost when it is quiet
   # here.
   def bills_paid_from_label(bill)
-    return "" if bill.account.blank?
+    return "" if bill.account.blank? || bill.system_managed?
     return "" unless bills_span_multiple_accounts?
 
     " · #{t('bills.paid_from', account: bill.account.name)}"
@@ -244,7 +264,7 @@ module BillsHelper
     return @bills_span_multiple_accounts if defined?(@bills_span_multiple_accounts)
 
     @bills_span_multiple_accounts =
-      Current.family.recurring_transactions.where.not(account_id: nil)
+      Current.family.recurring_transactions.where(system_managed_kind: nil).where.not(account_id: nil)
              .distinct.count(:account_id) > 1
   end
 

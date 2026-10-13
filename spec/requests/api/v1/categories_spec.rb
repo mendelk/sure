@@ -73,11 +73,17 @@ RSpec.describe 'API V1 Categories', type: :request do
       parameter name: :parent_id, in: :query, required: false,
                 description: 'Filter by parent category ID',
                 schema: { type: :string, format: :uuid }
+      parameter name: :recent, in: :query, required: false,
+                description: 'Return only recently-used categories (most recent first, capped)',
+                schema: { type: :boolean }
+      parameter name: :exclude_id, in: :query, required: false,
+                description: 'Exclude one category ID (e.g. the already-selected one)',
+                schema: { type: :string, format: :uuid }
 
       response '200', 'categories listed' do
         schema '$ref' => '#/components/schemas/CategoryCollection'
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
 
       response '200', 'root categories only' do
@@ -85,7 +91,23 @@ RSpec.describe 'API V1 Categories', type: :request do
 
         let(:roots_only) { true }
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
+      end
+
+      response '200', 'recently used categories' do
+        schema '$ref' => '#/components/schemas/CategoryCollection'
+
+        let(:recent) { true }
+
+        run_test! skip: "Documentation only; behavior covered by Minitest"
+      end
+
+      response '200', 'categories excluding one id' do
+        schema '$ref' => '#/components/schemas/CategoryCollection'
+
+        let(:exclude_id) { parent_category.id }
+
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
 
       response '200', 'categories filtered by parent' do
@@ -93,7 +115,7 @@ RSpec.describe 'API V1 Categories', type: :request do
 
         let(:parent_id) { parent_category.id }
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
     end
 
@@ -119,7 +141,7 @@ RSpec.describe 'API V1 Categories', type: :request do
           }
         end
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
 
       response '201', 'subcategory created with parent' do
@@ -136,7 +158,7 @@ RSpec.describe 'API V1 Categories', type: :request do
           }
         end
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
 
       response '422', 'validation error - duplicate name' do
@@ -144,7 +166,7 @@ RSpec.describe 'API V1 Categories', type: :request do
 
         let(:body) { { category: { name: parent_category.name } } }
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
 
       response '403', 'forbidden - api key missing read_write scope' do
@@ -163,7 +185,7 @@ RSpec.describe 'API V1 Categories', type: :request do
         let(:'X-Api-Key') { read_only_api_key.plain_key }
         let(:body) { { category: { name: 'Anything' } } }
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
 
       response '400', 'bad request - missing category payload' do
@@ -171,7 +193,7 @@ RSpec.describe 'API V1 Categories', type: :request do
 
         let(:body) { {} }
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
 
       response '401', 'unauthorized - missing api key' do
@@ -180,7 +202,7 @@ RSpec.describe 'API V1 Categories', type: :request do
         let(:'X-Api-Key') { nil }
         let(:body) { { category: { name: 'Anything' } } }
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
     end
   end
@@ -198,7 +220,7 @@ RSpec.describe 'API V1 Categories', type: :request do
       response '200', 'category retrieved' do
         schema '$ref' => '#/components/schemas/CategoryDetail'
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
 
       response '200', 'subcategory retrieved with parent' do
@@ -206,7 +228,7 @@ RSpec.describe 'API V1 Categories', type: :request do
 
         let(:id) { subcategory.id }
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
 
       response '404', 'category not found' do
@@ -214,7 +236,7 @@ RSpec.describe 'API V1 Categories', type: :request do
 
         let(:id) { SecureRandom.uuid }
 
-        run_test!
+        run_test! skip: "Documentation only; behavior covered by Minitest"
       end
     end
   end

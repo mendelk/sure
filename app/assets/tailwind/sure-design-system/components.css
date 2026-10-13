@@ -271,6 +271,16 @@
     makes them trail the pointer. Snap-positioned tooltips (goal projection,
     which jumps between dates) opt into the 80ms glide via inline style.
   */
+  /*
+    The account balance chart's zoom surface draws its own active indicator: a
+    dashed `currentColor` rect stroke around the plot area while focused. The
+    ring here is redundant — the dates + reset control already announce the
+    zoom state — so it is suppressed and the rect keeps pointer events without
+    a visible edge.
+  */
+  rect[data-chart-zoom-surface] {
+    stroke: transparent !important;
+  }
   .chart-tooltip {
     background: var(--color-container);
     border-radius: 10px;

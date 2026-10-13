@@ -2,6 +2,14 @@
      "Dashboards"
    elsif request.path.start_with?("/sources")
      "Sources"
+   elsif request.path.start_with?("/account_statements") || request.path.start_with?("/statements")
+     t("account_statements.index.title")
+   elsif request.path == "/accounts" || request.path == "/accounts/"
+     t("accounts.index.accounts")
+   elsif request.path == "/accounts/new" || request.path.start_with?("/accounts/new/")
+     t("accounts.show.spa.accountable_title_new")
+   elsif request.path.end_with?("/edit")
+     t("accounts.show.spa.accountable_title_edit")
    elsif request.path.start_with?("/accounts")
      @account.name
    else
@@ -10,7 +18,29 @@
 <% content_for :title, "#{page_title} · #{product_name}" %>
 <% account_currencies = Current.user.accessible_accounts.pluck(:id, :currency).to_h %>
 <% default_account = Current.user.default_account_for_transactions %>
+<%# Mirrors the desktop nav composition in layouts/application.html.erb
+    (bills_nav_item / plan_nav_item preview gating included) so the SPA rail
+    stays in lockstep with the Rails sidebar. Active state is computed
+    client-side from the rendered path. %>
+<% nav_items = [
+  { name: t("layouts.application.nav.home"), path: root_path, icon: "pie-chart" },
+  { name: t("layouts.application.nav.dashboards"), path: dashboards_path, icon: "layout-dashboard" },
+  { name: t("layouts.application.nav.transactions"), path: transactions_path, icon: "credit-card" },
+  bills_nav_item,
+  { name: t("layouts.application.nav.reports"), path: reports_path, icon: "chart-bar" },
+  plan_nav_item,
+  { name: t("layouts.application.nav.assistant"), path: chats_path, icon: "sparkles", mobile_only: true }
+].compact %>
 <% bootstrap = {
+  navItems: nav_items.map { |item|
+    {
+      label: item.fetch(:name),
+      href: item.fetch(:path),
+      icon: item.fetch(:icon),
+      preview: item[:preview] || false,
+      mobileOnly: item[:mobile_only] || false
+    }
+  },
   currentUser: {
     id: Current.user.id,
     name: Current.user.display_name,
@@ -22,6 +52,9 @@
     recurringTransactions: api_v1_recurring_transactions_path,
     summary: api_v1_balance_sheet_path,
     accounts: api_v1_accounts_path,
+    accountFormOptions: api_v1_account_form_options_path,
+    properties: api_v1_properties_path,
+    propertyFormOptions: form_options_api_v1_properties_path,
     categories: api_v1_categories_path,
     merchants: api_v1_merchants_path,
     tags: api_v1_tags_path,
@@ -63,6 +96,7 @@
     newTransfer: new_transfer_path,
     bulkUpdate: transactions_bulk_update_path,
     newBulkUpdate: new_transactions_bulk_update_path,
+    bulkDelete: transactions_bulk_deletion_path,
     exchangeRate: exchange_rate_path,
     reports: reports_path,
     settings: settings_profile_path,
@@ -76,6 +110,10 @@
     categories: categories_path,
     tags: tags_path,
     transactionsCategorize: transactions_categorize_path
+  },
+  railsUrlTemplates: {
+    newTransactionSplit: "#{transactions_path}/:transaction_id/split/new",
+    newTransactionTransferMatch: "#{transactions_path}/:transaction_id/transfer_match/new"
   }
 } %>
 

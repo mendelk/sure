@@ -171,6 +171,10 @@ class Category < ApplicationRecord
     end
   end
 
+  # How many recently-used categories pickers (Rails dropdown, SPA menu)
+  # show above the full list.
+  RECENTLY_USED_LIMIT = 4
+
   class << self
     def ids_with_transactions(family:, category_ids:)
       category_ids = Array(category_ids).compact
@@ -187,7 +191,7 @@ class Category < ApplicationRecord
     # alphabetical list, not a replacement for it. See Transaction#record_category_usage!
     # for where last_used_at is touched (only on a real human pick via one of the
     # manual assignment controllers, not rule/import auto-assignment).
-    def recently_used_for(family:, excluding: [], limit: 4)
+    def recently_used_for(family:, excluding: [], limit: RECENTLY_USED_LIMIT)
       family.categories
             .recently_used
             .excluding(Array(excluding).compact)

@@ -102,10 +102,9 @@ class BillsControllerTest < ActionDispatch::IntegrationTest
     create_bill(name: "Real bill", amount: 50)
     create_bill(name: "Salary deposit", amount: -2000)
     create_bill(name: "Paused bill", amount: 30, status: "inactive")
-    # A recurring transfer into a credit card is a real obligation with a
-    # real due date -- it belongs on the pay-run page, marked as what it is.
-    create_bill(name: "Card payment", amount: 100,
-                destination_account_id: accounts(:credit_card).id)
+    # Ordinary loan repayments still use their declared recurring transfer.
+    create_bill(name: "Loan payment", amount: 100,
+                destination_account_id: accounts(:loan).id)
     # A transfer into an asset account is just moving money; not a bill.
     create_bill(name: "Moved to savings", amount: 100,
                 destination_account_id: accounts(:investment).id)
@@ -114,7 +113,7 @@ class BillsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_match "Real bill", response.body
-    assert_match "Card payment", response.body
+    assert_match "Loan payment", response.body
     assert_match I18n.t("bills.debt_payment"), response.body
     assert_no_match "Salary deposit", response.body
     assert_no_match "Paused bill", response.body
@@ -686,47 +685,6 @@ class BillsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/\$40\.00/, response.body)
   end
 
-  # Detection has been creating recurring rows from bank data since long before
-  # Bills existed, so anyone upgrading meets a page of bills nobody confirmed.
-  test "a family that has never worked with Bills is told where its bills came from" do
-    create_bill(name: "Rent", amount: 2150)
-    create_bill(name: "Streaming", amount: 20)
-
-    get bills_url
-
-    assert_response :success
-    assert_match I18n.t("bills.index.detected_review", count: 2), response.body
-  end
-
-  # The prompt carries no stored state, so it has to clear itself off evidence
-  # that the user has worked with Bills. Each of these is sufficient on its own.
-  test "the prompt clears itself once the user has worked with Bills" do
-    detected = create_bill(name: "Rent", amount: 2150)
-
-    get bills_url
-    assert_match I18n.t("bills.index.detected_review", count: 1), response.body
-
-    # Declaring a bill by hand.
-    declared = declare_bill(name: "Water", amount: 45, due: Date.current + 3)
-    get bills_url
-    assert_no_match I18n.t("bills.index.detected_review", count: 1), response.body
-    assert_no_match I18n.t("bills.index.detected_review", count: 2), response.body
-    declared.destroy!
-
-    # Dismissing a suggestion.
-    detected.update!(status: :ended)
-    get bills_url
-    assert_no_match I18n.t("bills.index.detected_review", count: 1), response.body
-    detected.update!(status: :active)
-
-    # Recording a payment themselves.
-    occurrence = detected.recurring_occurrences.order(:due_on).first
-    RecurringTransaction::Allocator.new(occurrence).allocate!(amount: "10")
-    get bills_url
-
-    assert_response :success
-    assert_no_match I18n.t("bills.index.detected_review", count: 1), response.body
-  end
 
   # The page's whole job. A single "Bills $695.60" against $357.48 of visible
   # rows is a number nothing on screen can account for, so due and reserved
@@ -1050,18 +1008,6 @@ class BillsControllerTest < ActionDispatch::IntegrationTest
       I18n.t("bills.cancelled_still_scheduled", date: I18n.l(bill.cancelled_on, format: :short))
   end
 
-  # The row carries one line of context, so anything on it has to earn the
-  # space. These pin the three things that were not earning it.
-  test "the paid-from account is quiet when every bill uses the same one" do
-    create_bill(name: "Netflix", amount: 15.99)
-    create_bill(name: "Spotify", amount: 11.99)
-    assert_equal 1, @family.recurring_transactions.distinct.count(:account_id),
-      "premise: a single account across all bills"
-
-    get bills_url
-    refute_includes response.body, I18n.t("bills.paid_from", account: accounts(:depository).name),
-      "repeating one account name down every row says nothing"
-  end
 
   test "the paid-from account returns as soon as it tells rows apart" do
     create_bill(name: "Netflix", amount: 15.99)

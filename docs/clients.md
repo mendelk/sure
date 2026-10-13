@@ -43,6 +43,29 @@ collapsed state in localStorage across page refreshes. It defaults to expanded
 when no preference is saved. If browser storage is unavailable, toggling still
 works for the current session. The mobile navigation drawer remains separate.
 
+The React transaction list and account activity rows share fixed desktop column
+widths across date groups. Tags appear between Category and Amount as colored
+pills, with a tag icon for untagged transactions. The **Columns** control hides
+the Tags column and gives its space back to the transaction name without changing
+alignment between days. On mobile, tags appear beside the transaction name and
+status indicators. Selecting a tag pill or icon opens an inline, searchable
+multi-select dropdown; adding, removing, or creating a tag saves without opening
+the transaction drawer.
+
+Transaction metadata dropdowns use the shared `SearchablePicker` component,
+built with Headless UI Combobox. Category, tag, and merchant fields in the edit,
+new-transaction, and bulk-edit forms use the same keyboard behavior as the row
+pickers. Enter or Space opens a picker, arrow keys navigate options, Enter selects
+an option, and Escape closes only the picker and restores trigger focus. Tags
+support multiple selections; category and merchant selections are single-valued.
+
+The React navigation rail follows the Rails sidebar's icon-above-label layout,
+including the active indicator and preview dots. Navigation uses the
+server-provided, localized item list; Bills and Plan remain subject to the
+same preview-feature gates as Rails. The rail's account menu opens to its
+right, above the bottom edge of the viewport. Mobile navigation reuses the
+same item rendering.
+
 Dashboards at `/dashboards` use a user-scoped browser-local snapshot with
 `formatVersion: 7`, containing a shared source catalog and independent dashboard layouts.
 New dashboard IDs and all source IDs are random 128-bit identifiers.

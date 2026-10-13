@@ -26,6 +26,7 @@
     <div class="flex items-center gap-2 shrink-0">
       <%= render "recurring_transactions/pay_action", recurring_transaction: @series %>
 
+      <% unless @series.system_managed? %>
       <%= render DS::Menu.new do |menu| %>
         <% menu.with_item(
              variant: "link",
@@ -55,6 +56,7 @@
              method: :delete,
              destructive: true,
              confirm: t(@series.typed_income? ? "recurring_transactions.confirm_delete_income" : "recurring_transactions.confirm_delete", name: @series.display_name)) %>
+      <% end %>
       <% end %>
     </div>
   </header>

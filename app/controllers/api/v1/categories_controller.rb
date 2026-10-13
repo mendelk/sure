@@ -98,6 +98,18 @@ class Api::V1::CategoriesController < Api::V1::BaseController
     end
 
     def apply_filters(query)
+      # Recently-used first (powers pickers like the transaction category
+      # dropdown). Capped to the same limit the Rails dropdown shows.
+      if params[:recent].present? && ActiveModel::Type::Boolean.new.cast(params[:recent])
+        query = query.recently_used.limit(Category::RECENTLY_USED_LIMIT)
+      end
+
+      # Exclude one category (typically the already-selected one, which the
+      # picker renders separately).
+      if params[:exclude_id].present?
+        query = query.where.not(id: params[:exclude_id])
+      end
+
       # Filter for root categories only (no parent)
       if params[:roots_only].present? && ActiveModel::Type::Boolean.new.cast(params[:roots_only])
         query = query.roots

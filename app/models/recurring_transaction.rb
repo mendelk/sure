@@ -58,10 +58,43 @@ class RecurringTransaction < ApplicationRecord
   validate :anchor_required_for_intervals
   validate :end_mode_fields_consistent
   validate :bill_type_matches_shape
+  validates :system_managed_kind, inclusion: { in: %w[credit_card_payment] }, allow_nil: true
+  validate do
+    errors.add(:account, :invalid) if system_managed? && !account&.credit_card?
+  end
 
   normalizes :payment_url, with: ->(url) { normalize_payment_url(url) }
 
   before_validation :derive_transfer_bill_type
+  before_destroy :protect_system_managed_series
+
+  def system_managed?
+    system_managed_kind.present?
+  end
+
+  def credit_card_payment?
+    system_managed_kind == "credit_card_payment"
+  end
+
+  def readonly?
+    managed = system_managed? || system_managed_kind_in_database.present?
+    super || (persisted? && managed && !@system_update && !destroyed_by_association)
+  end
+
+  def system_update!(attributes)
+    @system_update = true
+    assign_attributes(attributes)
+    save! if changed?
+  ensure
+    @system_update = false
+  end
+
+  def protect_system_managed_series
+    return unless system_managed? && !destroyed_by_association
+
+    errors.add(:base, :system_managed)
+    throw :abort
+  end
 
   # Columns whose change reshapes the occurrence stream. Amount is absent on
   # purpose: open occurrences inherit it at read time.
@@ -158,12 +191,16 @@ class RecurringTransaction < ApplicationRecord
   end
 
   def generate_occurrences
+    return if system_managed?
+
     OccurrenceGenerator.new(self).generate!
   end
 
   # Regenerating rebuilds only scheduled, allocation-free, not-yet-due rows;
   # anything closed or carrying payments is untouched.
   def regenerate_future_occurrences
+    return if system_managed?
+
     self.rules_rewritten = false
     OccurrenceGenerator.new(self).regenerate_future!
   end
@@ -278,8 +315,9 @@ class RecurringTransaction < ApplicationRecord
                               .where("accounts.id = recurring_transactions.destination_account_id")
                               .where("accounts.family_id = recurring_transactions.family_id")
 
-    active.where("amount > 0")
+    active.where("amount > 0 OR system_managed_kind = 'credit_card_payment'")
           .merge(where(destination_account_id: nil).or(where(debt_destination.arel.exists)))
+          .where("system_managed_kind IS NULL OR account_id IN (?)", Account.visible.select(:id))
   }
 
   # The bills that want an action from you. Autopay bills still belong on the
@@ -329,6 +367,10 @@ class RecurringTransaction < ApplicationRecord
   # The hint still serves as the fallback for a series with nothing
   # materialized yet.
   def next_due_date
+    if credit_card_payment?
+      return next_open_occurrence&.effective_due_on || account.accountable.payment_schedule.next_due_on
+    end
+
     occurrence = next_open_occurrence
     return occurrence.effective_due_on if occurrence
 
@@ -338,7 +380,8 @@ class RecurringTransaction < ApplicationRecord
   end
 
   def overdue?
-    next_due_date < Date.current
+    due = next_due_date
+    due.present? && due < Date.current
   end
 
   # This bill's cost normalized to a per-month figure, whatever its cadence:

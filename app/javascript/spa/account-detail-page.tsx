@@ -1,8 +1,5 @@
 // eslint-disable import/max-dependencies -- Account route composes the shared chart, sections, entry rows, controls, and session API.
 import {
-  Disclosure,
-  DisclosureButton,
-  DisclosurePanel,
   Popover,
   PopoverButton,
   PopoverPanel,
@@ -42,7 +39,8 @@ import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Alert } from "./components/alert";
 import { BulkUpdateDrawer } from "./bulk-update-drawer";
-import { TransactionRow } from "./components/transaction-row";
+import { TransactionRow, TransactionRowHeader } from "./components/transaction-row";
+import { TablePaginationBar } from "./components/table";
 
 export function validateAccountSearch(input: Record<string, unknown>): AccountSearch {
   const page = Number(input.page);
@@ -95,10 +93,14 @@ export function validateAccountSearch(input: Record<string, unknown>): AccountSe
 
 export function AccountDetailPage() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
-  const { accountId: rawAccountId } = useParams({ from: "/accounts/$accountId" });
+  const params = useParams({ strict: false });
+  const rawAccountId = typeof params.accountId === "string" ? params.accountId : "";
   const accountId = AccountIdSchema.parse(rawAccountId);
-  const search = useSearch({ from: "/accounts/$accountId" });
-  const navigate = useNavigate({ from: "/accounts/$accountId" });
+  const search = useSearch({
+    strict: false,
+    select: (input: Record<string, unknown>) => validateAccountSearch(input),
+  });
+  const navigate = useNavigate();
   const query = useQuery(accountDetailQueryOptions(accountId, search));
   const data = query.data;
   const text = data?.text ?? bootstrap.accountDetailText;
@@ -145,7 +147,10 @@ export function AccountDetailPage() {
     data.tabs.findIndex((tab) => tab.id === data.active_tab),
   );
   return (
-    <div className="space-y-4 pb-20 lg:pb-32" aria-busy={query.isFetching}>
+    <div
+      className="flex min-h-0 flex-1 flex-col space-y-4 pb-6 lg:pb-12"
+      aria-busy={query.isFetching}
+    >
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <div
@@ -228,12 +233,13 @@ export function AccountDetailPage() {
         <Alert variant="warning">{data.fx_warning}</Alert>
       ) : null}
       <TabGroup
+        className="flex min-h-0 flex-1 flex-col"
         selectedIndex={selectedTab}
         onChange={(index) => {
           onSearchChange({ tab: data.tabs[index].id, page: 1 });
         }}
       >
-        <TabList className="mb-4 flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-container-inset p-1">
+        <TabList className="mb-4 flex w-fit max-w-full shrink-0 gap-1 overflow-x-auto rounded-lg bg-container-inset p-1">
           {data.tabs.map((tab) => (
             <Tab
               key={tab.id}
@@ -243,9 +249,12 @@ export function AccountDetailPage() {
             </Tab>
           ))}
         </TabList>
-        <TabPanels>
+        <TabPanels className="flex min-h-0 flex-1 flex-col">
           {data.tabs.map((tab) => (
-            <TabPanel key={tab.id} className="space-y-4 focus:outline-none">
+            <TabPanel
+              key={tab.id}
+              className="flex min-h-0 flex-1 flex-col space-y-4 focus:outline-none"
+            >
               {tab.id === data.active_tab ? (
                 data.activity ? (
                   <AccountActivityView
@@ -402,240 +411,217 @@ function AccountActivityView({
     });
   };
   return (
-    <section className="space-y-4 rounded-xl bg-container p-3 shadow-border-xs lg:p-4">
-      <header className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-medium text-primary">{text.activity}</h2>
-        <AccountActionMenu
-          actions={activity.new_actions}
-          label={text.new}
-          accountId={accountId}
-          search={search}
-          text={text}
-        />
-      </header>
-      <div className="flex flex-wrap items-center gap-2">
-        <form
-          key={search.search ?? ""}
-          className="min-w-40 flex-1"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const value = new FormData(event.currentTarget).get("search");
-            onSearchChange({
-              search: typeof value === "string" && value.length > 0 ? value : undefined,
-              page: 1,
-            });
-          }}
-        >
-          <FormField
-            id="account-entry-search"
-            name="search"
-            type="search"
-            aria-label={text.search_placeholder}
-            placeholder={text.search_placeholder}
-            defaultValue={search.search ?? ""}
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-container shadow-border-xs">
+      <div className="space-y-4 border-b border-tertiary p-4">
+        <header className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-medium text-primary">{text.activity}</h2>
+          <AccountActionMenu
+            actions={activity.new_actions}
+            label={text.new}
+            accountId={accountId}
+            search={search}
+            text={text}
           />
-        </form>
-        <Popover className="relative">
-          <PopoverButton as={Button} variant="secondary" size="sm" iconProps={{ name: "filter" }}>
-            {text.filter}
-            {(search.status?.length ?? 0) + Number(Boolean(search.uncategorized)) > 0
-              ? ` (${(search.status?.length ?? 0) + Number(Boolean(search.uncategorized))})`
-              : ""}
-          </PopoverButton>
-          <PopoverPanel className="shadow-border-lg absolute right-0 z-30 mt-2 w-64 space-y-3 rounded-xl bg-container p-4">
-            <p className="text-sm font-medium text-primary">{text.status}</p>
-            {(["confirmed", "pending"] as const).map((status) => (
-              <label key={status} className="flex items-center gap-2 text-sm text-primary">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox--light"
-                  checked={search.status?.includes(status) ?? false}
-                  onChange={(event) => {
-                    onSearchChange({
-                      status: event.target.checked
-                        ? [...(search.status ?? []), status]
-                        : search.status?.filter((value) => value !== status),
-                      page: 1,
-                    });
-                  }}
-                />
-                {text[status]}
-              </label>
-            ))}
-            <label className="flex items-center gap-2 border-t border-primary pt-3 text-sm text-primary">
-              <input
-                type="checkbox"
-                className="checkbox checkbox--light"
-                checked={search.uncategorized ?? false}
-                onChange={(event) => {
-                  onSearchChange({ uncategorized: event.target.checked || undefined, page: 1 });
-                }}
-              />
-              {text.uncategorized_only}
-            </label>
-          </PopoverPanel>
-        </Popover>
-        <Popover className="relative">
-          <PopoverButton
-            as={Button}
-            variant="secondary"
-            size="sm"
-            iconProps={{ name: "sliders-horizontal" }}
-          >
-            {text.columns}
-          </PopoverButton>
-          <PopoverPanel className="shadow-border-lg absolute right-0 z-30 mt-2 w-48 space-y-3 rounded-xl bg-container p-4">
-            {(["merchant", "notes", "tags"] as const).map((column) => (
-              <label key={column} className="flex items-center gap-2 text-sm text-primary">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox--light"
-                  checked={columns[column]}
-                  onChange={(event) => {
-                    const next = { ...columns, [column]: event.target.checked };
-                    setColumns(next);
-                    try {
-                      localStorage.setItem("account-activity-columns", JSON.stringify(next));
-                    } catch {
-                      /* Columns still work when storage is unavailable. */
-                    }
-                  }}
-                />
-                {text[column]}
-              </label>
-            ))}
-          </PopoverPanel>
-        </Popover>
-      </div>
-      <div className="flex items-center justify-between rounded-xl bg-container-inset px-3 py-2 text-xs font-medium uppercase text-secondary">
-        <label className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            className="checkbox checkbox--light"
-            checked={allSelected}
-            disabled={selectable.length === 0}
-            aria-label={text.select_all}
-            onChange={(event) => {
-              select(
-                selectable.map((entry) => entry.id),
-                event.target.checked,
-              );
+        </header>
+        <div className="flex flex-wrap items-center gap-2">
+          <form
+            key={search.search ?? ""}
+            className="min-w-40 flex-1"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const value = new FormData(event.currentTarget).get("search");
+              onSearchChange({
+                search: typeof value === "string" && value.length > 0 ? value : undefined,
+                page: 1,
+              });
             }}
-          />
-          {text.date}
-        </label>
-        <span>{text.amount}</span>
-      </div>
-      {activity.groups.length === 0 ? (
-        <p className="py-10 text-center text-secondary">{text.no_entries}</p>
-      ) : (
-        activity.groups.map((group) => {
-          const groupIds = group.entries
-            .filter((entry) => entry.selectable)
-            .map((entry) => entry.id);
-          return (
-            <section key={group.date} className="rounded-xl bg-container-inset p-1">
-              <Disclosure>
-                <div className="flex items-center gap-3 px-3 py-2">
+          >
+            <FormField
+              id="account-entry-search"
+              name="search"
+              type="search"
+              aria-label={text.search_placeholder}
+              placeholder={text.search_placeholder}
+              defaultValue={search.search ?? ""}
+            />
+          </form>
+          <Popover className="relative">
+            <PopoverButton as={Button} variant="secondary" size="sm" iconProps={{ name: "filter" }}>
+              {text.filter}
+              {(search.status?.length ?? 0) + Number(Boolean(search.uncategorized)) > 0
+                ? ` (${(search.status?.length ?? 0) + Number(Boolean(search.uncategorized))})`
+                : ""}
+            </PopoverButton>
+            <PopoverPanel className="shadow-border-lg absolute right-0 z-30 mt-2 w-64 space-y-3 rounded-xl bg-container p-4">
+              <p className="text-sm font-medium text-primary">{text.status}</p>
+              {(["confirmed", "pending"] as const).map((status) => (
+                <label key={status} className="flex items-center gap-2 text-sm text-primary">
                   <input
                     type="checkbox"
                     className="checkbox checkbox--light"
-                    aria-label={`${text.select_all}: ${group.label}`}
-                    checked={groupIds.length > 0 && groupIds.every((id) => selected.has(id))}
-                    disabled={groupIds.length === 0}
+                    checked={search.status?.includes(status) ?? false}
                     onChange={(event) => {
-                      select(groupIds, event.target.checked);
+                      onSearchChange({
+                        status: event.target.checked
+                          ? [...(search.status ?? []), status]
+                          : search.status?.filter((value) => value !== status),
+                        page: 1,
+                      });
                     }}
                   />
-                  <DisclosureButton className="focus-ring flex min-w-0 flex-1 items-center justify-between gap-3 text-left text-xs text-secondary">
-                    <p className="space-x-1.5 uppercase font-medium text-xs text-secondary">
-                      <span>{group.label}</span>
-                      <span>&middot;</span>
-                      <span>{group.entries.length}</span>
-                    </p>
-                    <span className="flex items-center gap-2">
-                      <span className="privacy-sensitive tabular-nums">{group.balance}</span>
-                      <Icon name="chevron-down" size="sm" />
-                    </span>
-                  </DisclosureButton>
-                </div>
-                <DisclosurePanel className="space-y-2 px-4 pb-3">
-                  <h3 className="sr-only">{text.reconciliation}</h3>
-                  <dl className="space-y-1">
-                    {group.reconciliation.map((item) => (
-                      <div
-                        key={item.label}
-                        title={item.tooltip}
-                        className={`flex justify-between gap-3 text-xs ${item.style === "final" || item.style === "start" ? "font-medium text-primary" : "text-secondary"} ${item.style === "final" || item.style === "subtotal" ? "border-t border-primary pt-2" : ""}`}
-                      >
-                        <dt>{item.label}</dt>
-                        <dd className="privacy-sensitive tabular-nums">{item.value}</dd>
-                      </div>
+                  {text[status]}
+                </label>
+              ))}
+              <label className="flex items-center gap-2 border-t border-primary pt-3 text-sm text-primary">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox--light"
+                  checked={search.uncategorized ?? false}
+                  onChange={(event) => {
+                    onSearchChange({ uncategorized: event.target.checked || undefined, page: 1 });
+                  }}
+                />
+                {text.uncategorized_only}
+              </label>
+            </PopoverPanel>
+          </Popover>
+          <Popover className="relative">
+            <PopoverButton
+              as={Button}
+              variant="secondary"
+              size="sm"
+              iconProps={{ name: "sliders-horizontal" }}
+            >
+              {text.columns}
+            </PopoverButton>
+            <PopoverPanel className="shadow-border-lg absolute right-0 z-30 mt-2 w-48 space-y-3 rounded-xl bg-container p-4">
+              {(["merchant", "notes", "tags"] as const).map((column) => (
+                <label key={column} className="flex items-center gap-2 text-sm text-primary">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox--light"
+                    checked={columns[column]}
+                    onChange={(event) => {
+                      const next = { ...columns, [column]: event.target.checked };
+                      setColumns(next);
+                      try {
+                        localStorage.setItem("account-activity-columns", JSON.stringify(next));
+                      } catch {
+                        /* Columns still work when storage is unavailable. */
+                      }
+                    }}
+                  />
+                  {text[column]}
+                </label>
+              ))}
+            </PopoverPanel>
+          </Popover>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto" id="account-activity-scroll">
+        <div className="sticky top-0 z-10 hidden bg-container md:block">
+          <TransactionRowHeader
+            showTags={columns.tags}
+            labels={{
+              transaction: text.date,
+              category: text.category,
+              tags: text.tags,
+              amount: text.amount,
+            }}
+            selection={
+              <input
+                type="checkbox"
+                className="checkbox checkbox--light"
+                checked={allSelected}
+                disabled={selectable.length === 0}
+                aria-label={text.select_all}
+                onChange={(event) => {
+                  select(
+                    selectable.map((entry) => entry.id),
+                    event.target.checked,
+                  );
+                }}
+              />
+            }
+          />
+        </div>
+        {activity.groups.length === 0 ? (
+          <p className="py-10 text-center text-secondary">{text.no_entries}</p>
+        ) : (
+          <div aria-live="polite" className="divide-y divide-tertiary">
+            {activity.groups.map((group) => {
+              const groupIds = group.entries
+                .filter((entry) => entry.selectable)
+                .map((entry) => entry.id);
+              return (
+                <div key={group.date}>
+                  <div className="flex items-center justify-between gap-3 bg-container-inset px-4 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox--light"
+                        aria-label={`${text.select_all}: ${group.label}`}
+                        checked={groupIds.length > 0 && groupIds.every((id) => selected.has(id))}
+                        disabled={groupIds.length === 0}
+                        onChange={(event) => {
+                          select(groupIds, event.target.checked);
+                        }}
+                      />
+                      <h2 className="text-xs font-medium uppercase tracking-wide text-secondary">
+                        {group.label} <span className="mx-1">&middot;</span> {group.entries.length}
+                      </h2>
+                    </div>
+                    {group.balance !== null && group.balance !== "" ? (
+                      <span className="privacy-sensitive text-xs font-medium tabular-nums text-secondary">
+                        {group.balance}
+                      </span>
+                    ) : null}
+                  </div>
+                  <ul className="divide-y divide-tertiary">
+                    {group.entries.map((entry, index) => (
+                      <ActivityEntryView
+                        key={entry.id}
+                        entry={entry}
+                        previousParentId={group.entries[index - 1]?.split_parent?.id}
+                        accountId={accountId}
+                        search={search}
+                        text={text}
+                        columns={columns}
+                        selected={selected.has(entry.id)}
+                        onSelect={(value) => {
+                          select([entry.id], value);
+                        }}
+                      />
                     ))}
-                  </dl>
-                </DisclosurePanel>
-              </Disclosure>
-              <ul className="divide-y divide-subdued overflow-hidden rounded-lg bg-container shadow-border-xs">
-                {group.entries.map((entry, index) => (
-                  <ActivityEntryView
-                    key={entry.id}
-                    entry={entry}
-                    previousParentId={group.entries[index - 1]?.split_parent?.id}
-                    accountId={accountId}
-                    search={search}
-                    text={text}
-                    columns={columns}
-                    selected={selected.has(entry.id)}
-                    onSelect={(value) => {
-                      select([entry.id], value);
-                    }}
-                  />
-                ))}
-              </ul>
-            </section>
-          );
-        })
-      )}
-      <nav className="flex flex-wrap items-center justify-between gap-3">
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={pending || activity.pagination.page <= 1}
-          onClick={() => {
-            onSearchChange({ page: activity.pagination.page - 1 });
-          }}
-        >
-          {text.previous_page}
-        </Button>
-        <FormField
-          as="select"
-          id="account-entries-per-page"
-          aria-label={text.per_page}
-          value={activity.pagination.per_page}
-          onChange={(event) => {
-            onSearchChange({ per_page: Number(event.target.value), page: 1 });
-          }}
-        >
-          {[10, 25, 50, 100].map((count) => (
-            <option key={count} value={count}>
-              {count}
-            </option>
-          ))}
-        </FormField>
-        <span className="text-xs tabular-nums text-secondary">
-          {activity.pagination.page} / {Math.max(1, activity.pagination.total_pages)}
-        </span>
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={pending || activity.pagination.page >= activity.pagination.total_pages}
-          onClick={() => {
-            onSearchChange({ page: activity.pagination.page + 1 });
-          }}
-        >
-          {text.next_page}
-        </Button>
-      </nav>
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <TablePaginationBar
+        className="border-t border-tertiary px-4 py-3"
+        disabled={pending}
+        itemCount={entries.length}
+        labels={{
+          pagination: text.activity,
+          previous: text.previous_page,
+          next: text.next_page,
+          perPage: text.per_page,
+          rowsPerPage: text.per_page,
+        }}
+        onPageChange={(page) => {
+          onSearchChange({ page });
+        }}
+        onPerPageChange={(per_page) => {
+          onSearchChange({ per_page, page: 1 });
+        }}
+        page={activity.pagination.page}
+        perPage={activity.pagination.per_page}
+        totalCount={activity.pagination.total_count}
+        totalPages={activity.pagination.total_pages}
+      />
       {selectedEntries.length > 0 ? (
         <div className="shadow-border-lg fixed inset-x-4 bottom-4 z-20 mx-auto flex max-w-xl flex-wrap items-center justify-between gap-2 rounded-xl bg-container p-3">
           <p className="text-sm text-primary">
@@ -775,6 +761,7 @@ function ActivityEntryView({
         transaction={entry.transaction}
         accountId={accountId}
         columns={columns}
+        indent={Boolean(entry.split_parent)}
         selection={selection}
         amount={entry.amount}
         positive={entry.positive}
@@ -786,13 +773,7 @@ function ActivityEntryView({
     return (
       <>
         {parent}
-        {entry.split_parent ? (
-          <li className="pl-4">
-            <ul>{row}</ul>
-          </li>
-        ) : (
-          row
-        )}
+        {row}
       </>
     );
   }

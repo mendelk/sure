@@ -33,7 +33,31 @@ class Account::PageData
       tabs: @tabs.map { |tab| { id: tab.to_s, label: t("accounts.show.tabs.#{tab}") } },
       active_tab: @active_tab, chart: chart_data, fx_warning: fx_warning,
       activity: @active_tab == "activity" ? activity_data : nil,
-      sections: sections, text: text
+      sections: sections, text: text,
+      balance: account.balance.to_f,
+      linked: account.linked?,
+      subtype: account.subtype,
+      institution_name: account.institution_name,
+      institution_domain: account.institution_domain,
+      notes: account.notes,
+      exclude_from_reports: account.exclude_from_reports?,
+      accountable: accountable_prefill,
+      loan: (
+        if account.loan?
+          loan = account.loan
+          {
+            subtype: loan.subtype,
+            initial_balance: loan.initial_balance&.to_f,
+            interest_rate: loan.interest_rate&.to_f,
+            rate_type: loan.rate_type,
+            down_payment: loan.down_payment&.to_f,
+            start_date: loan.start_date&.iso8601,
+            term_months: loan.term_months,
+            insurance_rate: loan.insurance_rate&.to_f,
+            insurance_rate_type: loan.insurance_rate_type
+          }
+        end
+      )
     }
   end
 
@@ -47,6 +71,44 @@ class Account::PageData
     def managed?
       @managed
     end
+    # Manual-account edit prefill for the SPA drawers. Mirrors the API
+    # jbuilder's accountable serialization so HTML and API prefill agree.
+    def accountable_prefill
+      accountable = account.accountable
+      base = { subtype: accountable.try(:subtype) }
+      case accountable
+      when Vehicle
+        base.merge(make: accountable.make, model: accountable.model, year: accountable.year,
+          mileage_value: accountable.mileage_value, mileage_unit: accountable.mileage_unit)
+      when CreditCard
+        base.merge(available_credit: accountable.available_credit&.to_f,
+          minimum_payment: accountable.minimum_payment&.to_f, apr: accountable.apr&.to_f,
+          annual_fee: accountable.annual_fee&.to_f,
+          expiration_date: accountable.expiration_date&.iso8601,
+          payment_due_day: accountable.payment_due_day,
+          estimated_payment_due_day: accountable.payment_schedule.inferred_due_day,
+          payment_due_day_source: accountable.payment_schedule.due_day_source,
+          statement_gap_days: CreditCard::PaymentSchedule::STATEMENT_GAP_DAYS)
+      when Property
+        base.merge(year_built: accountable.year_built, area_value: accountable.area_value,
+          area_unit: accountable.area_unit, address: address_prefill(accountable.address))
+      when Crypto
+        base.merge(tax_treatment: accountable.tax_treatment)
+      else
+        base
+      end
+    end
+
+    def address_prefill(address)
+      return nil if address.nil?
+
+      {
+        line1: address.line1, line2: address.line2, locality: address.locality,
+        region: address.region, country: address.country, postal_code: address.postal_code,
+        county: address.county
+      }
+    end
+
 
     def action(key, label, href, icon, method: "get", confirm: nil, params: {})
       { key: key.to_s, label: label, href: href, icon: icon, method: method, confirm: confirm, params: params }
@@ -60,7 +122,6 @@ class Account::PageData
       { key: key, title: title, description: description, cards: cards, notices: notices, fields: fields,
         table: table, actions: actions, progress: progress, coverage: coverage, upload: upload }
     end
-
     def cell(text, secondary: nil, href: nil, tone: "primary", privacy: false)
       { text: text.to_s, secondary: secondary, href: href, tone: tone, privacy: privacy }
     end
@@ -68,6 +129,7 @@ class Account::PageData
     def money(value)
       value&.format || "—"
     end
+
 
     def date(value)
       value ? I18n.l(value.to_date, format: :long) : "—"
@@ -378,9 +440,9 @@ class Account::PageData
     end
 
     def text
-      keys = %w[activity new search_placeholder filter status confirmed pending uncategorized_only columns merchant notes tags date amount no_entries previous_page next_page per_page select_all select_entry selected_entries edit_selected delete_selected duplicate_selected delete_confirm account_menu refresh period chart_view start_date end_date apply_range reconciliation close retry unavailable year loading cancel]
+      keys = %w[activity new search_placeholder filter status confirmed pending uncategorized_only columns merchant notes tags category date amount no_entries previous_page next_page per_page select_all select_entry selected_entries edit_selected delete_selected duplicate_selected delete_confirm account_menu refresh period chart_view reset_zoom reconciliation close retry unavailable year loading cancel]
       keys.index_with do |key|
-        if key.in?(%w[activity new search_placeholder filter status confirmed pending uncategorized_only date amount no_entries])
+        if key.in?(%w[activity new search_placeholder filter status confirmed pending uncategorized_only category date amount no_entries])
           t("accounts.show.activity.#{key == 'activity' ? 'title' : key}")
         else
           t("accounts.show.spa.#{key}")

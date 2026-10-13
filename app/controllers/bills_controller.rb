@@ -15,6 +15,7 @@ class BillsController < ApplicationController
   # Six covers a month of weekly paydays with room for a leading bridge.
   PAY_PERIOD_LIMIT = 6
   before_action :ensure_recurring_enabled
+  before_action :refresh_credit_card_payments, only: :index
 
   # The pay-run workspace, built on occurrence rows rather than series
   # projections, so every row has a real due date and payment state.
@@ -155,7 +156,7 @@ class BillsController < ApplicationController
       end
 
     @history = @series.recurring_occurrences.closed.order(due_on: :desc).limit(12).includes(:allocations)
-    @upcoming = @series.schedule.occurrences_between(Date.current + 1, Date.current + 400).first(3)
+    @upcoming = @series.system_managed? ? [] : @series.schedule.occurrences_between(Date.current + 1, Date.current + 400).first(3)
 
     # What each settled cycle actually cost. The frozen `expected_amount` is an
     # estimate, so reading it here would report averages of estimates beside the
@@ -208,6 +209,16 @@ class BillsController < ApplicationController
   end
 
   private
+    def refresh_credit_card_payments
+      key = "bills:credit-cards:#{Current.family.id}"
+      return if Rails.cache.read(key)
+
+      acquired = RecurringTransaction::Pipeline.with_family_lock(Current.family.id) do
+        CreditCard::PaymentSchedule.refresh_family!(Current.family)
+      end
+      Rails.cache.write(key, true, expires_in: 12.hours) if acquired
+    end
+
     # The plan plus the income facts the page states alongside it. One planner
     # instance answers both, so the income list and the periods always agree.
     def load_paycheck_plan
@@ -291,6 +302,7 @@ class BillsController < ApplicationController
       scope = Current.family.recurring_transactions
                      .accessible_by(Current.user)
                      .includes(:merchant)
+                     .where("system_managed_kind IS NULL OR account_id IN (?)", Account.visible.select(:id))
 
       if (search = params.dig(:q, :search)).present?
         pattern = "%#{ActiveRecord::Base.sanitize_sql_like(search)}%"
@@ -448,7 +460,8 @@ class BillsController < ApplicationController
 
       Current.family.recurring_transactions
              .where(status: %w[active inactive])
-             .where("amount > 0")
+             .where("amount > 0 OR system_managed_kind = 'credit_card_payment'")
+             .where("system_managed_kind IS NULL OR account_id IN (?)", Account.visible.select(:id))
              .merge(
                RecurringTransaction.where(destination_account_id: nil)
                                    .or(RecurringTransaction.where(destination_account_id: debt_accounts))
@@ -580,7 +593,7 @@ class BillsController < ApplicationController
     # declared bill, a dismissed suggestion, or a payment they recorded
     # themselves -- so the prompt clears itself and needs no stored state.
     def detected_awaiting_review
-      series = Current.family.recurring_transactions.accessible_by(Current.user)
+      series = Current.family.recurring_transactions.where(system_managed_kind: nil).accessible_by(Current.user)
       return 0 if series.where(manual: true).exists?
       return 0 if series.where(status: :ended).exists?
 

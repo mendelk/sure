@@ -22,6 +22,7 @@ class RecurringTransaction
 
       family.recurring_transactions
             .active
+            .where(system_managed_kind: nil)
             .find_each do |recurring_transaction|
         next unless recurring_transaction.should_be_inactive?
 

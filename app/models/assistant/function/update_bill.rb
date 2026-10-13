@@ -68,6 +68,9 @@ class Assistant::Function::UpdateBill < Assistant::Function
 
     series, error = find_writable_series(params["bill_id"])
     return error if error
+    if series.system_managed?
+      return { error: "This credit card payment series is system-managed.", hint: "Change payment_due_day on the credit card account instead." }
+    end
 
     changed = []
 

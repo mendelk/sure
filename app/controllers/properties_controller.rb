@@ -5,8 +5,7 @@ class PropertiesController < ApplicationController
   before_action :require_property_write_permission!, only: [ :update_balances, :update_address ]
 
   def new
-    @account = Current.family.accounts.build(accountable: Property.new)
-    @avm_providers = configured_avm_providers
+    redirect_to spa_new_property_path
   end
 
   def create
@@ -27,23 +26,22 @@ class PropertiesController < ApplicationController
 
   def update
     if @account.update(property_params)
-      @success_message = "Property details updated successfully."
-
       if @account.active?
-        render :edit
+        redirect_to spa_edit_property_path(@account)
       else
         redirect_to balances_property_path(@account)
       end
     else
-      @error_message = "Unable to update property details."
-      render :edit, status: :unprocessable_entity
+      redirect_to spa_edit_property_path(@account), alert: "Unable to update property details."
     end
   end
 
   def edit
+    redirect_to spa_edit_property_path(@account)
   end
 
   def balances
+    redirect_to spa_property_balances_path(@account)
   end
 
   def update_balances
@@ -55,22 +53,18 @@ class PropertiesController < ApplicationController
     end
 
     if result&.success?
-      @success_message = "Balance updated successfully."
-
       if @account.active?
-        render :balances
+        redirect_to spa_property_balances_path(@account), notice: "Balance updated successfully."
       else
         redirect_to address_property_path(@account)
       end
     else
-      @error_message = result&.error_message
-      render :balances, status: :unprocessable_entity
+      redirect_to spa_property_balances_path(@account), alert: result&.error_message
     end
   end
 
   def address
-    @property = @account.property
-    @property.address ||= Address.new
+    redirect_to spa_property_address_path(@account)
   end
 
   def update_address
@@ -92,12 +86,10 @@ class PropertiesController < ApplicationController
           format.turbo_stream { stream_redirect_to return_path }
         end
       else
-        @success_message = "Address updated successfully."
-        render :address
+        redirect_to spa_property_address_path(@account), notice: "Address updated successfully."
       end
     else
-      @error_message = "Unable to update address. Please check the required fields."
-      render :address, status: :unprocessable_entity
+      redirect_to spa_property_address_path(@account), alert: "Unable to update address. Please check the required fields."
     end
   end
 
@@ -160,18 +152,10 @@ class PropertiesController < ApplicationController
           purpose: avm_preview_token_purpose
         )
         @avm_provider_key = provider_key
-        @account = Current.family.accounts.build(name: params.dig(:account, :name), accountable: Property.new)
-        @avm_address = Address.new(avm_address_params.to_h)
-        render :new
+        redirect_to spa_new_property_avm_path(method: provider_key)
       end
     rescue Property::AvmImport::Error => error
-      @avm_provider_key = provider_key
-      @error_message = error.message
-      @account = Current.family.accounts.build(name: params.dig(:account, :name), accountable: Property.new)
-      # The confirm step doesn't resubmit the address fields, so build
-      # defensively — an expired token re-renders an empty lookup form.
-      @avm_address = Address.new(params.dig(:account, :address)&.permit(:line1, :locality, :region, :postal_code)&.to_h || {})
-      render :new, status: :unprocessable_entity
+      redirect_to spa_new_property_avm_path(method: provider_key), alert: error.message
     end
 
     def avm_address_params

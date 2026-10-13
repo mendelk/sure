@@ -18,9 +18,10 @@ class RecurringTransaction
     end
 
     def run!(backfill: false)
+      CreditCard::PaymentSchedule.refresh_family!(family)
       patterns_count = Identifier.new(family).identify_recurring_patterns
 
-      family.recurring_transactions.active.find_each do |series|
+      family.recurring_transactions.active.where(system_managed_kind: nil).find_each do |series|
         OccurrenceGenerator.new(series).generate!
       end
 

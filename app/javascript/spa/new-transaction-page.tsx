@@ -31,7 +31,8 @@ import {
   type SpaTransactionDetail,
   type TransactionCreateInput,
 } from "./api/transactions";
-import { CategorySelect, MerchantSelect, TagSelect } from "./transaction-detail-page";
+import { CategorySelect, MerchantSelect } from "./transaction-detail-page";
+import { TagSelect } from "./components/tag-select";
 
 export type NewTransactionSearch = {
   account_id?: AccountId;

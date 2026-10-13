@@ -13,7 +13,12 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
   test "should get index" do
     get accounts_url
     assert_response :success
-    assert_select "p.ml-auto.privacy-sensitive"
+    assert_select "#spa-root"
+
+    get accounts_url(format: :json)
+    assert_response :success
+    assert response.parsed_body.key?("items")
+    assert response.parsed_body.key?("groups")
   end
 
   test "show filters account activity with legacy and SPA query parameters" do
@@ -29,36 +34,27 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "index delegates whole-row account clicks to the account link" do
-    get accounts_url
+  test "index includes the account link in row payload" do
+    get accounts_url(format: :json)
 
     assert_response :success
-    doc = Nokogiri::HTML::Document.parse(response.body)
-    row = doc.at_css("turbo-frame##{dom_id(@account)} [data-controller='clickable-row']")
-    account_link = row.at_css("a[data-clickable-row-target='link']")
-
-    assert_equal "click->clickable-row#open", row["data-action"]
-    assert_equal account_path(@account), account_link["href"]
+    row = response.parsed_body["groups"].flat_map { |g| g["accounts"] }.find { |a| a["id"] == @account.id }
+    assert_equal account_path(@account), row["href"]
   end
 
-  test "index localizes the Plaid add accounts action" do
-    ensure_tailwind_build
-    @user.update!(locale: "de")
-
-    get accounts_url
+  test "index exposes the Plaid add accounts action" do
+    get accounts_url(format: :json)
 
     assert_response :success
-    assert_select "a[href=?]",
-                  edit_plaid_item_path(plaid_items(:one), add_accounts: true),
-                  text: "Konten hinzufügen",
-                  count: 1
+    item = response.parsed_body["items"].find { |it| it["id"] == plaid_items(:one).id }
+    assert_equal edit_plaid_item_path(plaid_items(:one), add_accounts: true), item["manage_href"]
   end
 
   test "index renders kraken items" do
     kraken_item = kraken_items(:one)
-    get accounts_url
+    get accounts_url(format: :json)
     assert_response :success
-    assert_select "##{dom_id(kraken_item)}"
+    assert response.parsed_body["items"].any? { |it| it["id"] == kraken_item.id }
   end
 
   test "index renders on-chain wallet items" do
@@ -67,15 +63,13 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     onchain_account = create_onchain_wallet_account(item: item)
     onchain_account.ensure_account_provider!(accounts(:investment))
 
-    get accounts_url
+    get accounts_url(format: :json)
 
     assert_response :success
-    # Without this the wallet is invisible here: its accounts carry a provider
-    # link, so Account.manual excludes them, and no provider section claimed them.
-    assert_select "##{dom_id(item, :accounts_index)}"
-    # The card carries the same actions menu every other provider card does.
-    assert_select "form[action=?]", sync_onchain_wallet_item_path(item)
-    assert_select "form[action=?]", onchain_wallet_item_path(item)
+    wallet = response.parsed_body["items"].find { |it| it["id"] == item.id && it["kind"] == "wallet" }
+    assert_not_nil wallet
+    assert_equal sync_onchain_wallet_item_path(item), wallet.dig("wallet", "sync_href")
+    assert_equal onchain_wallet_item_path(item), wallet.dig("wallet", "delete_href")
   ensure
     unregister_fake_chain!
   end
@@ -100,24 +94,22 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     shared.account_shares.create!(user: member, permission: "read_only")
 
     sign_in member
-    get accounts_url
+    get accounts_url(format: :json)
 
     assert_response :success
-    assert_select "##{dom_id(item, :accounts_index)}"
-    # The item is surfaced as soon as ONE of its accounts is accessible, so
-    # rendering them all would hand a partially-authorised member the names and
-    # balances of accounts nobody shared with them.
-    assert_includes response.body, shared.name
-    assert_not_includes response.body, unshared.name
+    wallet = response.parsed_body["items"].find { |it| it["id"] == item.id }
+    account_names = wallet.dig("wallet", "accounts").map { |a| a["name"] }
+    assert_includes account_names, shared.name
+    assert_not_includes account_names, unshared.name
   ensure
     unregister_fake_chain!
   end
 
   test "index renders trading212 items" do
     trading212_item = trading212_items(:configured_item)
-    get accounts_url
+    get accounts_url(format: :json)
     assert_response :success
-    assert_select "##{dom_id(trading212_item)}"
+    assert response.parsed_body["items"].any? { |it| it["id"] == trading212_item.id }
   end
 
   test "index renders only accessible accounts for a visible trading212 item" do
@@ -138,12 +130,13 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     ).ensure_account_provider!(inaccessible_account)
     sign_in users(:family_member)
 
-    get accounts_url
+    get accounts_url(format: :json)
 
     assert_response :success
-    assert_select "##{dom_id(trading212_item)}"
-    assert_select "turbo-frame##{dom_id(accessible_account)}", count: 1
-    assert_select "turbo-frame##{dom_id(inaccessible_account)}", count: 0
+    t212 = response.parsed_body["items"].find { |it| it["id"] == trading212_item.id }
+    account_ids = t212["group"].flat_map { |g| g["accounts"] }.map { |a| a["id"] }
+    assert_includes account_ids, accessible_account.id
+    assert_not_includes account_ids, inaccessible_account.id
   end
 
   test "index renders only trading212 items with accessible accounts for members" do
@@ -151,11 +144,12 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     trading212_accounts(:main_account).ensure_account_provider!(shared_account)
     sign_in users(:family_member)
 
-    get accounts_url
+    get accounts_url(format: :json)
 
     assert_response :success
-    assert_select "##{dom_id(trading212_items(:configured_item))}"
-    assert_select "##{dom_id(trading212_items(:pending_setup_item))}", count: 0
+    item_ids = response.parsed_body["items"].map { |it| it["id"] }
+    assert_includes item_ids, trading212_items(:configured_item).id
+    assert_not_includes item_ids, trading212_items(:pending_setup_item).id
   end
 
   test "should get show" do
@@ -614,10 +608,11 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
   test "disabling an account keeps it visible on index" do
     @account.disable!
 
-    get accounts_path
+    get accounts_path(format: :json)
 
     assert_response :success
-    assert_includes @response.body, @account.name
+    account_ids = response.parsed_body["groups"].flat_map { |g| g["accounts"] }.map { |a| a["id"] }
+    assert_includes account_ids, @account.id
   end
 
   test "toggle_active disables and re-enables an account" do
@@ -807,10 +802,10 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     )
 
     sign_in member
-    get accounts_url
+    get accounts_url(format: :json)
 
     assert_response :success
-    assert_select "##{ActionView::RecordIdentifier.dom_id(item)}", count: 1
+    assert response.parsed_body["items"].any? { |it| it["id"] == item.id }
   end
 
 
@@ -822,10 +817,11 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     )
 
     sign_in member
-    get accounts_url
+    get accounts_url(format: :json)
 
     assert_response :success
-    assert_select "a[href=?]", edit_plaid_item_path(item, add_accounts: true), count: 1
+    target = response.parsed_body["items"].find { |it| it["id"] == item.id }
+    assert_equal edit_plaid_item_path(item, add_accounts: true), target["manage_href"]
   end
 
   test "a member demoted to guest loses the controls on a connection they own" do
@@ -837,10 +833,11 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     member.update!(role: :guest)
 
     sign_in member
-    get accounts_url
+    get accounts_url(format: :json)
 
     assert_response :success
-    assert_select "a[href=?]", edit_plaid_item_path(item, add_accounts: true), count: 0
+    target = response.parsed_body["items"].find { |it| it["id"] == item.id }
+    assert_nil target["manage_href"]
   end
 
   test "a member sees no controls on a connection someone else owns" do
@@ -850,10 +847,11 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     )
 
     sign_in users(:family_member)
-    get accounts_url
+    get accounts_url(format: :json)
 
     assert_response :success
-    assert_select "a[href=?]", edit_plaid_item_path(item, add_accounts: true), count: 0
+    target = response.parsed_body["items"].find { |it| it["id"] == item.id }
+    assert_nil target&.[]("manage_href")
   end
 end
 
@@ -872,12 +870,10 @@ class AccountsControllerSimplefinCtaTest < ActionDispatch::IntegrationTest
     # One manual account available
     Account.create!(family: @family, name: "Manual A", currency: "USD", balance: 0, accountable_type: "Depository", accountable: Depository.create!(subtype: "checking"))
 
-    get accounts_path
+    get accounts_path(format: :json)
     assert_response :success
-    # Expect setup link present
-    assert_includes @response.body, setup_accounts_simplefin_item_path(item)
-    # Relink modal (SimpleFin-specific) should not be present anymore
-    refute_includes @response.body, "Link existing accounts"
+    item_data = response.parsed_body["items"].find { |it| it["id"] == item.id }
+    assert_equal setup_accounts_simplefin_item_path(item), item_data["setup_href"]
   end
 
   test "when SFAs exist and none unlinked and manuals exist, no relink modal is shown (unified flow)" do
@@ -891,18 +887,18 @@ class AccountsControllerSimplefinCtaTest < ActionDispatch::IntegrationTest
     # Also create another manual account to make manuals_exist true
     Account.create!(family: @family, name: "Manual B", currency: "USD", balance: 0, accountable_type: "Depository", accountable: Depository.create!(subtype: "checking"))
 
-    get accounts_path
+    get accounts_path(format: :json)
     assert_response :success
-    # The SimpleFin-specific relink modal is removed in favor of unified provider flow
-    refute_includes @response.body, "Link existing accounts"
+    item_data = response.parsed_body["items"].find { |it| it["id"] == item.id }
+    assert_nil item_data["setup_href"]
   end
 
   test "when no SFAs exist, shows neither CTA" do
     item = SimplefinItem.create!(family: @family, name: "Conn3", access_url: "https://example.com/access")
 
-    get accounts_path
+    get accounts_path(format: :json)
     assert_response :success
-    refute_includes @response.body, setup_accounts_simplefin_item_path(item)
-    refute_includes @response.body, "Link existing accounts"
+    item_data = response.parsed_body["items"].find { |it| it["id"] == item.id }
+    assert_nil item_data["setup_href"]
   end
 end

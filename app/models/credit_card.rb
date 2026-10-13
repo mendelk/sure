@@ -1,6 +1,17 @@
 class CreditCard < ApplicationRecord
   include Accountable
 
+  validates :payment_due_day, numericality: { only_integer: true, in: 1..31 }, allow_nil: true
+  after_update_commit :refresh_payment_schedule
+
+  def payment_schedule
+    @payment_schedule ||= PaymentSchedule.new(self)
+  end
+
+  def refresh_payment_schedule
+    payment_schedule.refresh!
+  end
+
   DEFAULT_SUBTYPE = "credit_card"
 
   SUBTYPES = {

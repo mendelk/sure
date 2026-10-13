@@ -10,7 +10,7 @@ class AccountStatementsControllerTest < ActionDispatch::IntegrationTest
   test "shows statement vault" do
     get account_statements_url
     assert_response :success
-    assert_select "h1", text: I18n.t("account_statements.index.title")
+    assert_select "#spa-root"
   end
 
   test "statement vault only lists linked statements for accessible accounts" do
@@ -27,11 +27,12 @@ class AccountStatementsControllerTest < ActionDispatch::IntegrationTest
     )
     sign_in users(:family_member)
 
-    get account_statements_url
+    get account_statements_url(format: :json)
 
     assert_response :success
-    assert_includes response.body, accessible_statement.filename
-    refute_includes response.body, private_statement.filename
+    filenames = response.parsed_body["linked"]["items"].map { |s| s["filename"] }
+    assert_includes filenames, accessible_statement.filename
+    refute_includes filenames, private_statement.filename
     refute_includes response.body, private_account.name
   end
 
@@ -301,14 +302,10 @@ class AccountStatementsControllerTest < ActionDispatch::IntegrationTest
     )
     sign_in users(:family_member)
 
-    get account_statement_url(statement)
+    get account_statement_url(statement, format: :json)
 
     assert_response :success
-    assert_select "input[name='account_statement[period_start_on]']", 0
-    assert_select "select[name='account_statement[account_id]']", 0
-    assert_select "button", text: I18n.t("account_statements.show.delete"), count: 0
-    assert_select "button", text: I18n.t("account_statements.show.save"), count: 0
-    assert_select "button", text: I18n.t("account_statements.show.unlink"), count: 0
+    refute response.parsed_body["can_manage"]
   end
 
   test "metadata form does not expose account select for managers" do
@@ -318,13 +315,12 @@ class AccountStatementsControllerTest < ActionDispatch::IntegrationTest
       file: uploaded_file(filename: "manager_statement.csv", content_type: "text/csv")
     )
 
-    get account_statement_url(statement)
+    get account_statement_url(statement, format: :json)
 
     assert_response :success
-    assert_select "input[name='account_statement[period_start_on]']", 1
-    assert_select "input[name='account_statement[currency]']", 0
-    assert_select "select[name='account_statement[currency]'] option[value='USD']"
-    assert_select "select[name='account_statement[account_id]']", 0
+    assert_not_nil response.parsed_body.dig("metadata", "period_start_on")
+    assert_equal "USD", response.parsed_body.dig("metadata", "currency")
+    assert_nil response.parsed_body.dig("metadata", "account_id")
   end
 
   test "links suggested statement" do

@@ -89,14 +89,14 @@
               <p class="text-sm font-medium text-primary truncate group-hover:underline"><%= series.display_name %></p>
               <p class="text-xs text-secondary truncate">
                 <%= frequency_label(series) %>
-                <% if series.next_expected_date %>
-                  &middot; <%= t(".next_short", date: bills_upcoming_date(series.next_expected_date)) %>
+                <% if (next_date = bills_next_payment_date(series)) %>
+                  &middot; <%= t(".next_short", date: bills_upcoming_date(next_date)) %>
                 <% end %>
               </p>
             </div>
             <div class="shrink-0 text-right">
               <p class="text-sm font-medium text-primary privacy-sensitive">
-                <%= format_money(Money.new(series.amount.abs, series.currency)) %>
+                <%= bills_amount_label(series) %>
               </p>
               <p class="text-xs">
                 <%= render DS::Pill.new(label: t("recurring_transactions.status.#{series.status}"), tone: recurring_status_pill_tone(series.status), marker: false) %>
@@ -105,6 +105,7 @@
           <% end %>
 
           <div class="shrink-0">
+            <% unless series.system_managed? %>
             <%= render DS::Menu.new do |menu| %>
               <% menu.with_item(
                   variant: "link",
@@ -127,6 +128,7 @@
                   destructive: true,
                   confirm: t(series.typed_income? ? "recurring_transactions.confirm_delete_income" : "recurring_transactions.confirm_delete", name: series.display_name)) %>
             <% end %>
+            <% end %>
           </div>
         </div>
       <% end %>
@@ -139,6 +141,9 @@
       <% table.with_column(t(".col_type"), class: "text-secondary") { |series| t(".types.#{series.bill_type}") } %>
       <% table.with_column(t(".col_frequency"), class: "text-secondary") { |series| frequency_label(series) } %>
       <% table.with_column(t(".col_amount"), numeric: true, class: "privacy-sensitive") do |series| %>
+        <% if series.system_managed? %>
+          <%= bills_amount_label(series) %>
+        <% else %>
         <% amount = Money.new(series.amount.abs, series.currency) %>
         <% monthly = series.monthly_equivalent_amount.abs %>
         <%= format_money(amount) %>
@@ -148,14 +153,17 @@
         <% if monthly != amount %>
           <p class="text-xs text-secondary"><%= t(".monthly_equivalent", amount: format_money(monthly)) %></p>
         <% end %>
+        <% end %>
       <% end %>
       <% table.with_column(t(".col_next"), class: "text-secondary") do |series| %>
-        <%= series.next_expected_date ? bills_upcoming_date(series.next_expected_date) : "–" %>
+        <% next_date = bills_next_payment_date(series) %>
+        <%= next_date ? bills_upcoming_date(next_date) : "–" %>
       <% end %>
       <% table.with_column(t(".col_status")) do |series| %>
         <%= render DS::Pill.new(label: t("recurring_transactions.status.#{series.status}"), tone: recurring_status_pill_tone(series.status), marker: false) %>
       <% end %>
       <% table.with_column(t(".col_actions"), align: :right) do |series| %>
+        <% unless series.system_managed? %>
         <%= render DS::Menu.new do |menu| %>
           <% menu.with_item(
               variant: "link",
@@ -177,6 +185,7 @@
               method: :delete,
               destructive: true,
               confirm: t(series.typed_income? ? "recurring_transactions.confirm_delete_income" : "recurring_transactions.confirm_delete", name: series.display_name)) %>
+        <% end %>
         <% end %>
       <% end %>
     <% end %>

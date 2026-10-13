@@ -2,6 +2,32 @@ require "sidekiq/web"
 require "sidekiq/cron/web"
 
 Rails.application.routes.draw do
+  # Single-page app shell. These URLs serve the React SPA (`spa#show`, except
+  # the two account-transaction routes, which hit `accounts#show` and render
+  # the same shell for HTML). Kept together at the top so a legacy resource
+  # route can never shadow them — Rails matches top-down.
+  get "transactions", to: "spa#show", as: :transactions
+  get "transactions/new", to: "spa#show", as: :new_transaction
+  get "transactions/bulk_update/new", to: "spa#show", as: :new_transactions_bulk_update
+  get "transactions/:id", to: "spa#show", as: :spa_transaction, constraints: { id: /[0-9a-f-]{36}/i }
+  get "dashboards", to: "spa#show", as: :dashboards
+  get "sources", to: "spa#show", as: :sources
+  get "sources/new", to: "spa#show", as: :new_source
+  get "sources/:id/edit", to: "spa#show", as: :edit_source
+  get "loans/:id/edit", to: "spa#show", as: :edit_loan, constraints: { id: /[0-9a-f-]{36}/i }
+  get "accounts/new", to: "spa#show", as: :spa_new_account
+  get "accounts/new/:account_type", to: "spa#show", as: :spa_new_account_type, constraints: { account_type: /depository|investment|vehicle|credit_card|crypto|other_asset|other_liability/ }
+  get "accounts/:id/edit", to: "spa#show", as: :spa_edit_account, constraints: { id: /[0-9a-f-]{36}/i }
+  get "properties/new", to: "spa#show", as: :spa_new_property
+  get "properties/new/manual", to: "spa#show", as: :spa_new_property_manual
+  get "properties/new/avm", to: "spa#show", as: :spa_new_property_avm
+  get "properties/:id/balances", to: "spa#show", as: :spa_property_balances, constraints: { id: /[0-9a-f-]{36}/i }
+  get "properties/:id/address", to: "spa#show", as: :spa_property_address, constraints: { id: /[0-9a-f-]{36}/i }
+  get "properties/:id/edit", to: "spa#show", as: :spa_edit_property, constraints: { id: /[0-9a-f-]{36}/i }
+  get "accounts/:id/transactions/new", to: "accounts#show", as: :new_account_transaction
+  get "accounts/:id/transactions/:transaction_id", to: "accounts#show", as: :account_transaction,
+      constraints: { transaction_id: /[0-9a-f-]{36}/i }
+
   resources :questrade_items, only: [ :index, :new, :create, :show, :edit, :update, :destroy ] do
     collection do
       get :preload_accounts
@@ -550,21 +576,13 @@ Rails.application.routes.draw do
 
   namespace :transactions do
     resource :bulk_deletion, only: :create
-    resource :bulk_update, only: %i[new create]
+    resource :bulk_update, only: %i[create]
     resource :categorize, only: %i[show create] do
       patch :assign_entry, on: :collection
       get :preview_rule, on: :collection
     end
   end
 
-  get "transactions", to: "spa#show", as: :transactions
-  get "transactions/new", to: "spa#show", as: :new_transaction
-  get "transactions/:id", to: "spa#show", as: :spa_transaction, constraints: { id: /[0-9a-f-]{36}/i }
-  get "transactions/bulk_update/new", to: "spa#show"
-  get "dashboards", to: "spa#show", as: :dashboards
-  get "sources", to: "spa#show", as: :sources
-  get "sources/new", to: "spa#show", as: :new_source
-  get "sources/:id/edit", to: "spa#show", as: :edit_source
   post "transactions", to: "transactions#create"
 
   resources :transactions, only: %i[update destroy] do
@@ -676,9 +694,6 @@ Rails.application.routes.draw do
     end
   end
 
-  get "accounts/:id/transactions/new", to: "accounts#show", as: :new_account_transaction
-  get "accounts/:id/transactions/:transaction_id", to: "accounts#show", as: :account_transaction,
-      constraints: { transaction_id: /[0-9a-f-]{36}/i }
 
   resources :accounts, only: %i[index new show destroy], shallow: true do
     member do
@@ -727,7 +742,7 @@ Rails.application.routes.draw do
   end
   resources :vehicles, only: %i[new create edit update]
   resources :credit_cards, only: %i[new create edit update]
-  resources :loans, only: %i[new create edit update]
+  resources :loans, only: %i[new create update]
   resources :cryptos, only: %i[new create edit update]
   resources :other_assets, only: %i[new create edit update]
   resources :other_liabilities, only: %i[new create edit update]
@@ -764,8 +779,15 @@ Rails.application.routes.draw do
       post "auth/sso_create_account", to: "auth#sso_create_account"
       patch "auth/enable_ai", to: "auth#enable_ai"
 
-      # Production API endpoints
-      resources :accounts, only: [ :index, :show, :create ]
+      resource :account_form_options, only: :show
+      resources :properties, only: [ :create ] do
+        patch :address, on: :member, action: :update_address
+        get :form_options, on: :collection
+        get :avm_providers, on: :collection
+        post :avm_lookup, on: :collection
+        post :avm_confirm, on: :collection
+      end
+      resources :accounts, only: [ :index, :show, :create, :update ]
       resources :balances, only: [ :index, :show ]
       resources :budgets, only: [ :index, :show ]
       resources :budget_categories, only: [ :index, :show ]

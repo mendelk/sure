@@ -86,6 +86,12 @@ RSpec.describe 'API V1 Recurring Transactions', type: :request do
                 schema: { type: :string, enum: %w[active inactive] }
       parameter name: :account_id, in: :query, required: false, description: 'Filter by account ID',
                 schema: { type: :string, format: :uuid }
+      parameter name: :upcoming, in: :query, required: false,
+                description: 'Only upcoming active series. Credit cards require an open, closed-statement occurrence; their amount is its unpaid remainder.',
+                schema: { type: :boolean, default: false }
+      parameter name: :upcoming_days, in: :query, required: false,
+                description: 'Upcoming horizon in days when upcoming=true.',
+                schema: { type: :integer, minimum: 1, maximum: 365, default: 10 }
 
       response '200', 'recurring transactions listed' do
         schema '$ref' => '#/components/schemas/RecurringTransactionCollection'
@@ -341,7 +347,7 @@ RSpec.describe 'API V1 Recurring Transactions', type: :request do
         run_test!
       end
 
-      response '403', 'forbidden - requires read_write scope' do
+      response '403', 'forbidden - requires read_write scope; system-managed credit-card series are read-only even with write scope' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
         let(:'X-Api-Key') { read_only_api_key.plain_key }
@@ -387,7 +393,7 @@ RSpec.describe 'API V1 Recurring Transactions', type: :request do
         run_test!
       end
 
-      response '403', 'forbidden - requires read_write scope' do
+      response '403', 'forbidden - requires read_write scope; system-managed credit-card series cannot be deleted even with write scope' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
         let(:'X-Api-Key') { read_only_api_key.plain_key }

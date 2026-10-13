@@ -74,24 +74,27 @@ module Assistant::Function::BillsSupport
 
     def serialize_series(series)
       detection = RecurringTransaction::FrequencyPreset.detect(series)
+      card_schedule = series.account.accountable.payment_schedule if series.credit_card_payment?
+      current = series.next_open_occurrence if card_schedule
 
       {
         id: series.id,
         name: series.display_name,
         bill_type: series.bill_type,
         status: display_status(series),
-        amount: series.amount_money.abs.format,
+        system_managed_kind: series.system_managed_kind,
+        amount: card_schedule ? current&.resolved_expected_amount_money&.format : series.amount_money.abs.format,
         currency: series.currency,
         # The tools' frequency enum is PRESETS; an every-N cadence outside it
         # reads as custom there, as it did before the picker could set one.
         frequency: detection.key.presence_in(RecurringTransaction::FrequencyPreset::PRESETS) || "custom",
         next_due_date: series.next_due_date&.iso8601,
         autopay: series.autopay,
-        detected_automatically: !series.manual,
+        detected_automatically: series.system_managed? || !series.manual,
         category: series.category&.name,
         account: account_ref(series.account),
         destination_account: account_ref(series.destination_account),
-        monthly_equivalent: series.monthly_equivalent_amount&.abs&.format,
+        monthly_equivalent: card_schedule ? nil : series.monthly_equivalent_amount&.abs&.format,
         payment_url: series.payment_url
       }.compact
     end
@@ -106,6 +109,10 @@ module Assistant::Function::BillsSupport
 
       {
         due_on: occurrence.due_on.iso8601,
+        statement_start_on: occurrence.statement_start_on&.iso8601,
+        statement_end_on: occurrence.statement_end_on&.iso8601,
+        due_date_source: occurrence.due_date_source,
+        post_statement_credits: occurrence.post_statement_credits&.to_s,
         effective_due_on: occurrence.effective_due_on.iso8601,
         state: occurrence.derived_state.to_s,
         expected: Money.new(expected, occurrence.currency).format,
@@ -146,7 +153,7 @@ module Assistant::Function::BillsSupport
     # Spend commitments only: income is not spend and a transfer moves money
     # rather than spending it, so both stay out of any totals row.
     def spend_series?(series)
-      !%w[income transfer].include?(series.bill_type)
+      !series.system_managed? && !%w[income transfer].include?(series.bill_type)
     end
 
     # How far a price moved, as a signed percent of what it was. nil when

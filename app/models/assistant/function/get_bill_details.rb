@@ -58,7 +58,7 @@ class Assistant::Function::GetBillDetails < Assistant::Function
       open_occurrences: open_occurrences.map { |occurrence| serialize_occurrence(occurrence) },
       history: history.map { |occurrence| serialize_history_row(occurrence) },
       history_window: truncation(history.size, closed.count),
-      upcoming_due_dates: series.schedule.occurrences_between(Date.current + 1, Date.current + 400).first(3).map(&:iso8601),
+      upcoming_due_dates: series.system_managed? ? [] : series.schedule.occurrences_between(Date.current + 1, Date.current + 400).first(3).map(&:iso8601),
       price_changes: changes,
       price_change_window: { months: PRICE_CHANGE_LOOKBACK_MONTHS, count: changes.size }
     }
@@ -124,7 +124,7 @@ class Assistant::Function::GetBillDetails < Assistant::Function
         # name, so a caller comparing the two can see the gap. annualized_cost
         # keeps its name and starts meaning what the block always promised.
         annualized_cost: Money.new(average * series.schedule.occurrences_per_year, series.currency).format,
-        annualized_declared: (series.monthly_equivalent_amount * 12).abs.format,
+        annualized_declared: series.system_managed? ? nil : (series.monthly_equivalent_amount * 12).abs.format,
         paid_this_year: Money.new(ytd, series.currency).format
       }
     end

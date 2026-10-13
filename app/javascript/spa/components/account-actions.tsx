@@ -95,6 +95,65 @@ export function AccountActionControl({
         search: { ...search, ...extra },
         resetScroll: false,
       });
+    } else if (url.pathname.startsWith("/loans/") && url.pathname.endsWith("/edit")) {
+      void navigate({
+        to: "/loans/$accountId/edit",
+        params: { accountId },
+        search: { ...search, tab: "overview" },
+        resetScroll: false,
+      });
+    } else if (/^\/properties\/[^/]+\/edit\/?$/u.test(url.pathname)) {
+      void navigate({
+        to: "/properties/$accountId/edit",
+        params: { accountId },
+        search: { ...search, tab: "overview" },
+        resetScroll: false,
+      });
+    } else if (/^\/properties\/[^/]+\/balances\/?$/u.test(url.pathname)) {
+      void navigate({
+        to: "/properties/$accountId/balances",
+        params: { accountId },
+        search: { ...search, tab: "overview" },
+        resetScroll: false,
+      });
+    } else if (/^\/properties\/[^/]+\/address\/?$/u.test(url.pathname)) {
+      void navigate({
+        to: "/properties/$accountId/address",
+        params: { accountId },
+        search: { ...search, tab: "overview" },
+        resetScroll: false,
+      });
+    } else if (
+      /^\/(depositories|investments|vehicles|credit_cards|cryptos|other_assets|other_liabilities)\/[^/]+\/edit\/?$/u.test(
+        url.pathname,
+      )
+    ) {
+      void navigate({
+        to: "/accounts/$accountId/edit",
+        params: { accountId },
+        search: { ...search, tab: "overview" },
+        resetScroll: false,
+      });
+    } else if (url.pathname === `/accounts/${accountId}/sharing`) {
+      void navigate({
+        to: "/accounts/$accountId/sharing",
+        params: { accountId },
+        search: { ...search },
+        resetScroll: false,
+      });
+    } else if (url.pathname === "/account_statements") {
+      void navigate({
+        to: "/account_statements",
+        search: {},
+        resetScroll: false,
+      });
+    } else if (/^\/account_statements\/[0-9a-f-]{36}\/?$/u.test(url.pathname)) {
+      const statementId = url.pathname.split("/")[2];
+      void navigate({
+        to: "/account_statements/$statementId",
+        params: { statementId },
+        resetScroll: false,
+      });
     } else window.location.assign(url.href);
   };
   return (

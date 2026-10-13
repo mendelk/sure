@@ -128,10 +128,12 @@ class RecurringOccurrence < ApplicationRecord
   end
 
   def skip!(source: "user")
+    protect_system_schedule!
     close!("skipped", source: source)
   end
 
   def miss!
+    protect_system_schedule!
     close!("missed", source: "user")
   end
 
@@ -140,14 +142,19 @@ class RecurringOccurrence < ApplicationRecord
   end
 
   def snooze!(until_date)
+    protect_system_schedule!
     update!(snoozed_until: until_date)
   end
 
   def override_amount!(amount)
+    protect_system_schedule!
     update!(expected_amount: amount.presence)
   end
 
   private
+    def protect_system_schedule!
+      raise ActiveRecord::ReadOnlyRecord, "System-managed credit card payments cannot be edited" if recurring_transaction.system_managed?
+    end
     def notify_days
       recurring_transaction.notify_days_before || DEFAULT_NOTIFY_DAYS
     end

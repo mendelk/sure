@@ -13,6 +13,9 @@ en:
       expiration_date: Expiration date
       minimum_payment: Minimum payment
       minimum_payment_placeholder: '100'
+      payment_due_day: Payment due day
+      payment_due_day_hint: Day of the month (1–31). Leave blank to estimate from payment history. Short months use their last day. Changes apply to new statements; existing cycles keep their dates.
+      estimated_payment_due_day: "Payment history suggests day %{day}; this is not a confirmed bank deadline."
       simplefin_balance_sign_auto: Automatic
       simplefin_balance_sign_credit: Credit (bank owes you)
       simplefin_balance_sign_debt: Debt (you owe the bank)

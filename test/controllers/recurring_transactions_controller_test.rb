@@ -10,6 +10,25 @@ class RecurringTransactionsControllerTest < ActionDispatch::IntegrationTest
     ensure_tailwind_build
   end
 
+  test "web mutations cannot edit pause dismiss or delete a managed credit card payment" do
+    card = accounts(:credit_card)
+    card.accountable.update!(payment_due_day: 10)
+    card.accountable.payment_schedule.refresh!
+    series = card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+    get edit_recurring_transaction_url(series)
+    assert_response :forbidden
+    patch recurring_transaction_url(series), params: { recurring_transaction: { amount: 1 } }
+    assert_response :forbidden
+    post toggle_status_recurring_transaction_url(series)
+    assert_response :forbidden
+    post dismiss_recurring_transaction_url(series)
+    assert_response :forbidden
+    delete recurring_transaction_url(series)
+    assert_response :forbidden
+    assert series.reload.active?
+    assert_equal 0, series.amount
+  end
+
   # How often is one of the four things anyone needs to add a bill, and it used
   # to render below the payment link and the autopay toggle: the fourth
   # essential field sat under two most people never set.

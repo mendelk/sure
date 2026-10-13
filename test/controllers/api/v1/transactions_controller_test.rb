@@ -772,6 +772,18 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Updated Transaction Name", response_data["name"]
   end
 
+  test "should touch category last_used_at when category changes via API" do
+    category = categories(:food_and_drink)
+    category.update!(last_used_at: nil)
+
+    put api_v1_transaction_url(@transaction),
+        params: { transaction: { category_id: category.id } },
+        headers: api_headers(@api_key)
+    assert_response :success
+
+    assert_not_nil category.reload.last_used_at
+  end
+
   test "should protect transaction from provider sync when updated with user_modified true" do
     update_params = {
       transaction: {

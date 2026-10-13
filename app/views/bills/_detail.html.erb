@@ -19,11 +19,14 @@
 
 <div class="space-y-4">
   <%= render "bills/cancelled_notice", series: series %>
+  <% if series.credit_card_payment? %>
+    <%= render "bills/credit_card_estimate", series: series, occurrence: current_occurrence %>
+  <% end %>
 
   <%# What is owed right now leads the page above this partial. With no open
       cycle there is nothing for that card to say, so the expectation is
       stated here instead. %>
-  <% unless current_occurrence %>
+  <% unless current_occurrence || series.system_managed? %>
     <div class="bg-container-inset rounded-lg p-3">
       <p class="text-xs font-medium text-secondary uppercase"><%= t("bills.detail.next_payment") %></p>
       <p class="text-lg font-medium text-primary privacy-sensitive">
@@ -43,6 +46,7 @@
 
   <%# Why this bill matches what it matches, in words rather than engine terms. %>
   <div class="space-y-1.5">
+    <% unless series.system_managed? %>
     <p class="text-xs font-medium text-secondary uppercase"><%= t("bills.detail.rules") %></p>
     <div class="flex flex-wrap gap-1.5">
       <%= render DS::Pill.new(label: t("bills.detail.rule_named", name: series.merchant&.name.presence || series.name), tone: :neutral, marker: false) %>
@@ -69,9 +73,11 @@
         <%= t("bills.detail.rule_learned_tolerance", percent: number_to_percentage(hints[:learned_pct], precision: 1, format: "%n%")) %>
       </p>
     <% end %>
+    <% end %>
   </div>
 
   <%# What it has actually cost: the shape over twelve months, then the figures. %>
+  <% unless series.system_managed? %>
   <div class="border border-subdued rounded-lg grid <%= columns %> divide-y divide-subdued">
     <div class="px-3 py-3 flex flex-col justify-center">
       <p class="text-xs font-medium text-secondary uppercase pb-1"><%= t("bills.detail.history_title") %></p>
@@ -129,6 +135,7 @@
       <% end %>
     </div>
   </div>
+  <% end %>
 
   <%# What it used to cost. The twelve-month chart above shows the shape; this
       names the moment it changed and by how much. %>

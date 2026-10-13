@@ -22,25 +22,10 @@ class AccountsNewLocalizationRenderTest < ActionDispatch::IntegrationTest
     sign_in @user = users(:family_admin)
   end
 
-  test "German account creation renders localized keyboard controls" do
-    @user.update!(locale: "de")
-
+  test "serves account creation through SPA shell" do
     get new_account_url
 
     assert_response :success
-    assert_select "button[data-action='list-keyboard-navigation#focusPrevious']", text: "Zurück", count: 1
-    assert_select "button[data-action='list-keyboard-navigation#focusNext']", text: "Weiter", count: 1
-    assert_no_match(/>Previous</, response.body)
-    assert_no_match(/>Next</, response.body)
-  end
-
-  test "English account creation preserves the keyboard controls" do
-    @user.update!(locale: "en")
-
-    get new_account_url
-
-    assert_response :success
-    assert_select "button[data-action='list-keyboard-navigation#focusPrevious']", text: "Previous", count: 1
-    assert_select "button[data-action='list-keyboard-navigation#focusNext']", text: "Next", count: 1
+    assert_select "#spa-root"
   end
 end

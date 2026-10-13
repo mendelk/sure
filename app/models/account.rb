@@ -7,6 +7,11 @@ class Account < ApplicationRecord
   before_destroy :cleanup_transfers
 
   after_destroy_commit :move_account_statements_to_inbox
+  after_create_commit :create_credit_card_payment_schedule
+
+  def create_credit_card_payment_schedule
+    accountable.payment_schedule.refresh! if credit_card?
+  end
 
   validates :name, :balance, :currency, presence: true
   validate :owner_belongs_to_family, if: -> { owner_id.present? && family_id.present? }

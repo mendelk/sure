@@ -62,5 +62,8 @@
     </details>
   </div>
 
-  <%= form.submit %>
+  <div class="flex items-center justify-end gap-2 mt-auto">
+    <%= render DS::Link.new(text: t(".cancel", default: "Cancel"), href: (account.persisted? ? account_path(account) : accounts_path), variant: "ghost") %>
+    <%= form.submit %>
+  </div>
 <% end %>

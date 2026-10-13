@@ -159,7 +159,7 @@ class RecurringTransaction
     # matching for recurring transfers.
     def update_manual_recurring_transactions(_since_date)
       manual_recurring_transactions = family.recurring_transactions
-        .where(manual: true, status: "active", destination_account_id: nil)
+        .where(manual: true, status: "active", destination_account_id: nil, system_managed_kind: nil)
         .includes(:account)
         .to_a
 
@@ -220,6 +220,8 @@ class RecurringTransaction
           .where.not("transactions.kind": Transaction::TRANSFER_KINDS)
           .includes(:entryable)
           .to_a
+        card_ids = family.accounts.where(accountable_type: "CreditCard").pluck(:id).to_set
+        entries_with_transactions.reject! { |entry| card_ids.include?(entry.account_id) && CreditCard::PaymentSchedule.payment?(entry) }
 
         # Group by merchant (if present) or name, plus currency and account --
         # deliberately NOT by amount. Amounts are clustered within tolerance

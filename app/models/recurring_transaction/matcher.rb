@@ -47,21 +47,21 @@ class RecurringTransaction
     # providers post a pending transaction as a new row and delete the old one,
     # nullifying the FK. Amount and date survive, so an exact re-match restores
     # the link.
-    def repair_orphans!
+    def repair_orphans!(series: nil)
       orphans = RecurringAllocation
                   .joins(:recurring_occurrence)
                   .includes(recurring_occurrence: :recurring_transaction)
                   .where(recurring_occurrences: { family_id: family.id })
                   .where(entry_id: nil)
                   .where(source: %w[auto_matched user_confirmed])
+      orphans = orphans.where(recurring_occurrences: { recurring_transaction_id: series.id }) if series
 
       orphans.find_each do |allocation|
         series = allocation.recurring_occurrence.recurring_transaction
-
         # Allocations store magnitudes, entries store signs: an income entry is
         # negative, so a magnitude-only lookup never found a reposted paycheck
         # and orphaned income stayed orphaned for good.
-        amounts = [ allocation.source_amount, allocation.allocated_amount ].compact
+        amounts = [ allocation.match_signals["entry_amount"], allocation.source_amount, allocation.allocated_amount ].compact.map(&:to_d)
         amounts = (amounts + amounts.map(&:-@)).uniq
 
         # Same date and amount alone can be a coincidental twin. The candidate
@@ -70,16 +70,21 @@ class RecurringTransaction
         # the strict identity the live matcher uses, because a repost is the
         # one case where the descriptor legitimately mutates (POSTED suffixes,
         # PENDING prefixes), which is why this repair exists at all.
-        replacement = family.entries
+        candidates = family.entries
           .where(entryable_type: "Transaction")
           .where(currency: allocation.source_currency || allocation.currency)
           .where(date: allocation.paid_on)
           .where(amount: amounts)
-          .where.not(id: RecurringAllocation.where.not(entry_id: nil).select(:entry_id))
           .then { |scope| series.account_id.present? ? scope.where(account_id: series.account_id) : scope }
           .includes(:entryable)
-          .find { |entry| repair_identity?(series, entry) }
 
+        occupied = RecurringAllocation.where.not(entry_id: nil)
+        if series.credit_card_payment?
+          occupied = occupied.joins(:recurring_occurrence).where.not(recurring_occurrences: { recurring_transaction_id: series.id })
+          candidates = candidates.excluding_pending.excluding_split_parents
+        end
+        matches = candidates.where.not(id: occupied.select(:entry_id)).select { |entry| repair_identity?(series, entry) }
+        replacement = series.credit_card_payment? ? (matches.first if matches.one?) : matches.first
         allocation.update!(entry: replacement) if replacement
       end
     end
@@ -229,7 +234,7 @@ class RecurringTransaction
         family.recurring_occurrences
               .open_status
               .includes(recurring_transaction: :recurrence_rules)
-              .reject { |occurrence| occurrence.recurring_transaction.transfer? }
+              .reject { |occurrence| occurrence.recurring_transaction.transfer? || occurrence.recurring_transaction.system_managed? }
       end
 
       def rejected_pairs
@@ -298,6 +303,8 @@ class RecurringTransaction
       # keeps the merchant when it has one, and its name stays kin to the old
       # descriptor rather than equal to it.
       def repair_identity?(series, entry)
+        return CreditCard::PaymentSchedule.payment?(entry) if series.credit_card_payment?
+
         if series.merchant_id.present? && entry.entryable.merchant_id.present?
           return entry.entryable.merchant_id == series.merchant_id
         end

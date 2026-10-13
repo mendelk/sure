@@ -201,5 +201,68 @@ RSpec.describe 'API V1 Accounts', type: :request do
         run_test!
       end
     end
+
+    patch 'Update an account' do
+      description 'Updates manual and linked accounts. Credit cards accept accountable.payment_due_day (1–31), or null to fall back to an estimated historical payment day. This configures the automatic read-only card payment series.'
+      tags 'Accounts'
+      security [ { apiKeyAuth: [] } ]
+      consumes 'application/json'
+      produces 'application/json'
+      parameter name: :body, in: :body, required: true,
+                schema: { '$ref' => '#/components/schemas/AccountUpdateRequest' }
+
+      let(:id) { checking_account.id }
+      let(:body) do
+        {
+          account: {
+            name: 'Renamed checking account',
+            balance: 2000.00,
+            currency: 'USD',
+            notes: 'Updated through the API',
+            accountable: { subtype: 'savings' }
+          }
+        }
+      end
+
+      response '200', 'account updated' do
+        schema '$ref' => '#/components/schemas/AccountDetail'
+
+        run_test!
+      end
+
+      response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { nil }
+
+        run_test!
+      end
+
+      response '403', 'insufficient scope' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { api_key_without_read_scope.plain_key }
+
+        run_test!
+      end
+
+      response '404', 'account not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+
+      response '422', 'validation failed' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:body) do
+          { account: { name: '' } }
+        end
+
+        run_test!
+      end
+    end
   end
 end

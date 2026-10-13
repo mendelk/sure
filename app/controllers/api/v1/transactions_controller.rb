@@ -168,11 +168,13 @@ class Api::V1::TransactionsController < Api::V1::BaseController
           @entry.lock_attr!(:excluded)
         end
 
+        @transaction = @entry.transaction
+        @transaction.record_category_usage!
+
         @entry.sync_account_later
         @entry.lock_saved_attributes!
         @entry.mark_user_modified! if user_modified_requested?
 
-        @transaction = @entry.transaction
         render :show
       else
         render json: {

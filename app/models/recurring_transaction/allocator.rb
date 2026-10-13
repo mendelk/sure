@@ -35,6 +35,7 @@ class RecurringTransaction
     def allocate!(amount: nil, entry: nil, paid_on: nil, source: nil, cap_at_remaining: false)
       occurrence.with_lock do
         with_entry_lock(entry) do
+          guard_card_payment!(entry) if entry && occurrence.recurring_transaction.credit_card_payment?
           allocated, source_amount, source_currency = resolve_amounts(amount, entry)
           guard_entry_capacity!(entry, source_amount) if entry
           freeze_expected_amount!
@@ -59,6 +60,7 @@ class RecurringTransaction
             source_currency: source_currency,
             state: "confirmed",
             source: source || (entry ? "user_confirmed" : "user_created"),
+            match_signals: entry && occurrence.recurring_transaction.credit_card_payment? ? { entry_amount: entry.amount.abs.to_s } : {},
             paid_on: paid_on
           )
 
@@ -72,6 +74,9 @@ class RecurringTransaction
     def unallocate!(allocation)
       occurrence.with_lock do
         with_entry_lock(allocation.entry) do
+          if allocation.entry && occurrence.recurring_transaction.credit_card_payment?
+            RecurringMatchRejection.find_or_create_by!(recurring_transaction: occurrence.recurring_transaction, entry: allocation.entry)
+          end
           allocation.destroy!
           refresh_close_state!
         end
@@ -172,6 +177,14 @@ class RecurringTransaction
     end
 
     private
+      def guard_card_payment!(entry)
+        unless entry.account_id == occurrence.recurring_transaction.account_id &&
+               entry.currency == occurrence.currency && CreditCard::PaymentSchedule.payment?(entry) &&
+               entry.date > occurrence.statement_end_on && !entry.transaction&.pending?
+          raise ArgumentError, "Choose a posted repayment on this credit card after statement close"
+        end
+      end
+
       # Serializes every write touching this entry, whichever occurrence it
       # targets. Always taken inside the occurrence row lock, so the ordering is
       # occurrence then entry and no pair can deadlock.
@@ -210,7 +223,7 @@ class RecurringTransaction
 
         total = confirmed.sum(&:allocated_amount)
 
-        if confirmed.size == 1
+        if confirmed.size == 1 && !occurrence.recurring_transaction.system_managed?
           tolerance = expected * (occurrence.recurring_transaction.amount_tolerance_pct / BigDecimal("100"))
           return true if (confirmed.first.allocated_amount - expected).abs <= tolerance
         end
@@ -300,6 +313,8 @@ class RecurringTransaction
       def learn_from_manual_attach!(allocation)
         series = occurrence.recurring_transaction
         entry = allocation.entry
+        return if series.system_managed?
+
         hints = series.matcher_hints.deep_dup
 
         if series.merchant_id.blank? && series.name.present?

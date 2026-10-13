@@ -5,6 +5,8 @@ class AccountStatementsController < ApplicationController
   before_action :ensure_statement_manager!, only: %i[index create update destroy link unlink reject]
 
   def index
+    return render("spa/show", layout: "spa") if request.format.html?
+
     accessible_account_ids = Current.user.accessible_accounts.select(:id)
     account_statements = Current.family.account_statements
       .with_attached_original_file
@@ -23,10 +25,18 @@ class AccountStatementsController < ApplicationController
       [ t("breadcrumbs.home"), root_path ],
       [ t("account_statements.index.title"), account_statements_path ]
     ]
-    render layout: "settings"
+    render json: Account::SpaIndexData
+      .new(item_specs: [], groups: [], family: Current.family, user: Current.user)
+      .statements_index_payload(
+        unmatched: @unmatched_statements, unmatched_pagy: @unmatched_pagy,
+        linked: @linked_statements, linked_pagy: @linked_pagy,
+        accounts: @accounts, total_storage_bytes: @total_storage_bytes
+      ).to_json
   end
 
   def show
+    return render("spa/show", layout: "spa") if request.format.html?
+
     @accounts = Current.user.accessible_accounts.visible.alphabetically
     @can_manage_statement = @statement.manageable_by?(Current.user)
     @reconciliation_checks = @statement.reconciliation_checks
@@ -35,7 +45,9 @@ class AccountStatementsController < ApplicationController
       [ t("account_statements.index.title"), account_statements_path ],
       [ @statement.filename, nil ]
     ]
-    render layout: "settings"
+    render json: Account::SpaIndexData
+      .for_statement(@statement, accounts: @accounts)
+      .statement_show_payload(can_manage: @can_manage_statement, reconciliation_checks: @reconciliation_checks).to_json
   end
 
   def create

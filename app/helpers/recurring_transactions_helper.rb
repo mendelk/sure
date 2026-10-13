@@ -1,5 +1,13 @@
 module RecurringTransactionsHelper
   def frequency_label(recurring_transaction)
+    if recurring_transaction.credit_card_payment?
+      schedule = recurring_transaction.account.accountable.payment_schedule
+      return t("bills.credit_card.unknown_day") unless schedule.due_day
+
+      key = schedule.due_day_source == "manual" ? "manual_day" : "estimated_day"
+      return t("bills.credit_card.#{key}", day: schedule.due_day)
+    end
+
     RecurringTransaction::FrequencyPreset.label(recurring_transaction)
   end
 
