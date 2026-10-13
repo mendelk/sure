@@ -217,7 +217,7 @@ function AiCostAlert({
   );
 }
 
-function ApplyConfirmDialog({
+export function ApplyConfirmDialog({
   confirm,
   onApply,
   onCancel,
@@ -256,7 +256,7 @@ function ApplyConfirmDialog({
   );
 }
 
-function ApplyAllDialog({
+export function ApplyAllDialog({
   confirm,
   onApply,
   onCancel,

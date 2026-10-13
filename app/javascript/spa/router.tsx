@@ -1,4 +1,5 @@
 /* eslint-disable import/max-dependencies -- Router composes the shared SPA route surfaces and validators. */
+import { useEffect, useState } from "react";
 import {
   Outlet,
   createRootRouteWithContext,
@@ -29,11 +30,38 @@ import { TransactionDetailDrawer } from "./transaction-detail-page";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
 import { AccountsIndexPage, SharingDialog } from "./accounts-index-page";
 import { StatementDetailPage, StatementsIndexPage } from "./statements-page";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TagsIndexPage } from "./tags-page";
 import { CategoriesPage } from "./categories-page";
-import { MerchantsPage } from "./merchants-page";
+import { MERCHANTS_INDEX_PATH, MerchantsPage } from "./merchants-page";
 import { RuleFormPage, RulesIndexPage } from "./rules-page";
-import { AccountIdSchema } from "./ids";
+import {
+  DeleteConfirmDialog as TagDeleteConfirmDialog,
+  DeleteReplacementDialog as TagDeleteReplacementDialog,
+  TagFormDialog,
+} from "./tags-page";
+import {
+  DeleteDialog as CategoryDeleteDialog,
+  FormDialogLoader,
+  MergeDialog as CategoryMergeDialog,
+} from "./categories-page";
+import { MerchantFormModal } from "./merchants-page";
+import { ApplyAllDialog, ApplyConfirmDialog } from "./rules-page";
+import { tagsIndexQueryOptions } from "./api/tags";
+import { categoriesIndexQueryOptions } from "./api/categories";
+import {
+  applyAllRules,
+  applyRule,
+  fetchConfirmAll,
+  fetchRuleConfirm,
+  invalidateRulesQueries,
+  type ConfirmAll,
+  type RuleConfirm,
+} from "./api/rules";
+import { merchantFormQueryOptions, merchantsIndexQueryOptions } from "./api/merchants";
+import { AccountIdSchema, CategoryIdSchema, MerchantIdSchema, TagIdSchema } from "./ids";
+import { Button } from "./components/button";
+import { Modal } from "./modal";
 import { LoanEditDrawer } from "./loan-edit-drawer";
 import {
   AccountableEditDrawer,
@@ -352,22 +380,283 @@ const editSourceRoute = createRoute({
   path: "$sourceId/edit",
   component: EditSourcePage,
 });
+function TagNewRouteComponent() {
+  const navigate = useNavigate();
+  const query = useQuery(tagsIndexQueryOptions());
+  const close = () => {
+    void navigate({ to: "/tags", resetScroll: false });
+  };
+  return (
+    <>
+      <TagsIndexPage />
+      <TagFormDialog colors={query.data?.colors ?? []} onClose={close} tag={null} />
+    </>
+  );
+}
+
+function TagEditRouteComponent() {
+  const navigate = useNavigate();
+  const params = useParams({ strict: false });
+  const parsed = TagIdSchema.safeParse(typeof params.tagId === "string" ? params.tagId : "");
+  const query = useQuery(tagsIndexQueryOptions());
+  const close = () => {
+    void navigate({ to: "/tags", resetScroll: false });
+  };
+  const tag = parsed.success
+    ? (query.data?.tags.find((row) => row.id === parsed.data) ?? null)
+    : null;
+  if (!parsed.success) return <TagsIndexPage />;
+  return (
+    <>
+      <TagsIndexPage />
+      {tag === null ? null : (
+        <TagFormDialog colors={query.data?.colors ?? []} onClose={close} tag={tag} />
+      )}
+    </>
+  );
+}
+
+function TagDeletionRouteComponent() {
+  const navigate = useNavigate();
+  const params = useParams({ strict: false });
+  const parsed = TagIdSchema.safeParse(typeof params.tagId === "string" ? params.tagId : "");
+  const query = useQuery(tagsIndexQueryOptions());
+  const close = () => {
+    void navigate({ to: "/tags", resetScroll: false });
+  };
+  const tags = query.data?.tags ?? [];
+  const tag = parsed.success ? (tags.find((row) => row.id === parsed.data) ?? null) : null;
+  if (!parsed.success || tag === null) return <TagsIndexPage />;
+  return (
+    <>
+      <TagsIndexPage />
+      {tag.transactions_count > 0 ? (
+        <TagDeleteReplacementDialog
+          candidates={tags.filter((candidate) => candidate.id !== tag.id)}
+          onClose={close}
+          tag={tag}
+        />
+      ) : (
+        <TagDeleteConfirmDialog onClose={close} tag={tag} />
+      )}
+    </>
+  );
+}
+
 const tagsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/tags",
+  component: Outlet,
+});
+
+const tagsIndexRoute = createRoute({
+  getParentRoute: () => tagsRoute,
+  path: "/",
   component: TagsIndexPage,
 });
+
+const tagNewRoute = createRoute({
+  getParentRoute: () => tagsRoute,
+  path: "new",
+  component: TagNewRouteComponent,
+});
+
+const tagEditRoute = createRoute({
+  getParentRoute: () => tagsRoute,
+  path: "$tagId/edit",
+  component: TagEditRouteComponent,
+});
+
+const tagDeletionRoute = createRoute({
+  getParentRoute: () => tagsRoute,
+  path: "$tagId/deletions/new",
+  component: TagDeletionRouteComponent,
+});
+function CategoryNewRouteComponent() {
+  const navigate = useNavigate();
+  const close = () => {
+    void navigate({ to: "/categories", resetScroll: false });
+  };
+  return (
+    <>
+      <CategoriesPage />
+      <FormDialogLoader onClose={close} onSaved={close} state={{ mode: "new" }} />
+    </>
+  );
+}
+
+function CategoryEditRouteComponent() {
+  const navigate = useNavigate();
+  const params = useParams({ strict: false });
+  const parsed = CategoryIdSchema.safeParse(
+    typeof params.categoryId === "string" ? params.categoryId : "",
+  );
+  const close = () => {
+    void navigate({ to: "/categories", resetScroll: false });
+  };
+  if (!parsed.success) return <CategoriesPage />;
+  return (
+    <>
+      <CategoriesPage />
+      <FormDialogLoader onClose={close} onSaved={close} state={{ id: parsed.data, mode: "edit" }} />
+    </>
+  );
+}
+
+function CategoryDeletionRouteComponent() {
+  const navigate = useNavigate();
+  const params = useParams({ strict: false });
+  const parsed = CategoryIdSchema.safeParse(
+    typeof params.categoryId === "string" ? params.categoryId : "",
+  );
+  const query = useQuery(categoriesIndexQueryOptions());
+  const close = () => {
+    void navigate({ to: "/categories", resetScroll: false });
+  };
+  const groups = query.data?.groups ?? [];
+  const rows = groups.flatMap((group) => [group.root].concat(group.subcategories));
+  const row = parsed.success ? (rows.find((entry) => entry.id === parsed.data) ?? null) : null;
+  if (!parsed.success || query.data === undefined || row === null) return <CategoriesPage />;
+  return (
+    <>
+      <CategoriesPage />
+      <CategoryDeleteDialog data={query.data} onClose={close} onDeleted={close} row={row} />
+    </>
+  );
+}
+
+function CategoryMergeRouteComponent() {
+  const navigate = useNavigate();
+  const query = useQuery(categoriesIndexQueryOptions());
+  const close = () => {
+    void navigate({ to: "/categories", resetScroll: false });
+  };
+  if (query.data === undefined) return <CategoriesPage />;
+  return (
+    <>
+      <CategoriesPage />
+      <CategoryMergeDialog data={query.data} onClose={close} onMerged={close} />
+    </>
+  );
+}
 
 const categoriesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/categories",
+  component: Outlet,
+});
+
+const categoriesIndexRoute = createRoute({
+  getParentRoute: () => categoriesRoute,
+  path: "/",
   component: CategoriesPage,
 });
+
+const categoryNewRoute = createRoute({
+  getParentRoute: () => categoriesRoute,
+  path: "new",
+  component: CategoryNewRouteComponent,
+});
+
+const categoryEditRoute = createRoute({
+  getParentRoute: () => categoriesRoute,
+  path: "$categoryId/edit",
+  component: CategoryEditRouteComponent,
+});
+
+const categoryDeletionRoute = createRoute({
+  getParentRoute: () => categoriesRoute,
+  path: "$categoryId/deletions/new",
+  component: CategoryDeletionRouteComponent,
+});
+
+const categoryMergeRoute = createRoute({
+  getParentRoute: () => categoriesRoute,
+  path: "merge",
+  component: CategoryMergeRouteComponent,
+});
+function MerchantNewRouteComponent() {
+  const navigate = useNavigate();
+  const query = useQuery(merchantsIndexQueryOptions(MERCHANTS_INDEX_PATH, {}));
+  const close = () => {
+    void navigate({ to: "/family_merchants", resetScroll: false });
+  };
+  return (
+    <>
+      <MerchantsPage />
+      <MerchantFormModal
+        colors={query.data?.colors ?? []}
+        initial={{ color: null, name: "", website_url: null }}
+        isProvider={false}
+        onClose={close}
+        onSaved={close}
+      />
+    </>
+  );
+}
+
+function MerchantEditRouteComponent() {
+  const navigate = useNavigate();
+  const params = useParams({ strict: false });
+  const parsed = MerchantIdSchema.safeParse(
+    typeof params.merchantId === "string" ? params.merchantId : "",
+  );
+  const formQuery = useQuery({
+    ...merchantFormQueryOptions(
+      parsed.success ? `/family_merchants/${parsed.data}/edit.json` : "/family_merchants/new.json",
+      "edit",
+    ),
+    enabled: parsed.success,
+  });
+  const indexQuery = useQuery(merchantsIndexQueryOptions(MERCHANTS_INDEX_PATH, {}));
+  const close = () => {
+    void navigate({ to: "/family_merchants", resetScroll: false });
+  };
+  if (!parsed.success) return <MerchantsPage />;
+  const payload = formQuery.data;
+  if (payload === undefined || !("id" in payload.merchant && payload.merchant.id !== null))
+    return <MerchantsPage />;
+  return (
+    <>
+      <MerchantsPage />
+      <MerchantFormModal
+        colors={indexQuery.data?.colors ?? []}
+        initial={{
+          color: payload.merchant.color,
+          id: payload.merchant.id,
+          name: payload.merchant.name ?? "",
+          website_url: payload.merchant.website_url,
+        }}
+        isProvider={payload.merchant.type === "ProviderMerchant"}
+        onClose={close}
+        onSaved={close}
+      />
+    </>
+  );
+}
 
 const merchantsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/family_merchants",
+  component: Outlet,
+});
+
+const merchantsIndexRoute = createRoute({
+  getParentRoute: () => merchantsRoute,
+  path: "/",
   component: MerchantsPage,
+});
+
+const merchantNewRoute = createRoute({
+  getParentRoute: () => merchantsRoute,
+  path: "new",
+  component: MerchantNewRouteComponent,
+});
+
+const merchantEditRoute = createRoute({
+  getParentRoute: () => merchantsRoute,
+  path: "$merchantId/edit",
+  component: MerchantEditRouteComponent,
 });
 
 function RulesIndexRouteComponent() {
@@ -486,6 +775,136 @@ const ruleEditRoute = createRoute({
   path: "$ruleId/edit",
   component: RuleEditRouteComponent,
 });
+function RuleConfirmRouteComponent() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const params = useParams({ strict: false });
+  const ruleId = typeof params.ruleId === "string" ? params.ruleId : "";
+  const [confirm, setConfirm] = useState<RuleConfirm | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const back = () => {
+    void navigate({ to: "/rules", resetScroll: false });
+  };
+  useEffect(() => {
+    let cancelled = false;
+    fetchRuleConfirm(`/rules/${encodeURIComponent(ruleId)}/confirm.json`)
+      .then((payload) => {
+        if (!cancelled) setConfirm(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load the confirmation.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ruleId]);
+  return (
+    <>
+      <RulesIndexRouteComponent />
+      {confirm === null ? (
+        <Modal
+          ariaLabelledby="rules-confirm-loading"
+          onClose={back}
+          open
+          panelClassName="w-full max-w-md rounded-xl bg-container p-6 shadow-border-lg"
+        >
+          <p className="text-sm text-secondary" id="rules-confirm-loading">
+            {error ?? "Loading…"}
+          </p>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={back} variant="secondary">
+              Cancel
+            </Button>
+          </div>
+        </Modal>
+      ) : (
+        <ApplyConfirmDialog
+          confirm={confirm}
+          onApply={() => {
+            applyRule(`/rules/${encodeURIComponent(ruleId)}/apply`)
+              .then(() => invalidateRulesQueries(queryClient))
+              .then(back)
+              .catch(() => {
+                setError("Could not apply the rule.");
+              });
+          }}
+          onCancel={back}
+          title="Confirm changes"
+        />
+      )}
+    </>
+  );
+}
+
+const ruleConfirmRoute = createRoute({
+  getParentRoute: () => rulesRoute,
+  path: "$ruleId/confirm",
+  component: RuleConfirmRouteComponent,
+});
+
+function RuleConfirmAllRouteComponent() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [confirm, setConfirm] = useState<ConfirmAll | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const back = () => {
+    void navigate({ to: "/rules", resetScroll: false });
+  };
+  useEffect(() => {
+    let cancelled = false;
+    fetchConfirmAll("/rules/confirm_all.json")
+      .then((payload) => {
+        if (!cancelled) setConfirm(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load the confirmation.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return (
+    <>
+      <RulesIndexRouteComponent />
+      {confirm === null ? (
+        <Modal
+          ariaLabelledby="rules-confirm-all-loading"
+          onClose={back}
+          open
+          panelClassName="w-full max-w-md rounded-xl bg-container p-6 shadow-border-lg"
+        >
+          <p className="text-sm text-secondary" id="rules-confirm-all-loading">
+            {error ?? "Loading…"}
+          </p>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={back} variant="secondary">
+              Cancel
+            </Button>
+          </div>
+        </Modal>
+      ) : (
+        <ApplyAllDialog
+          confirm={confirm}
+          onApply={() => {
+            applyAllRules("/rules/apply_all")
+              .then(() => invalidateRulesQueries(queryClient))
+              .then(back)
+              .catch(() => {
+                setError("Could not apply the rules.");
+              });
+          }}
+          onCancel={back}
+        />
+      )}
+    </>
+  );
+}
+
+const ruleConfirmAllRoute = createRoute({
+  getParentRoute: () => rulesRoute,
+  path: "confirm_all",
+  component: RuleConfirmAllRouteComponent,
+});
 
 const routeTree = rootRoute.addChildren([
   accountDetailRoute.addChildren([
@@ -502,11 +921,23 @@ const routeTree = rootRoute.addChildren([
   statementsRoute.addChildren([statementsIndexRoute, statementDetailRoute]),
   dashboardsRoute.addChildren([dashboardsIndexRoute]),
   sourcesRoute.addChildren([sourcesIndexRoute, newSourceRoute, editSourceRoute]),
-  tagsRoute,
-  categoriesRoute,
-  merchantsRoute,
-  rulesRoute.addChildren([rulesIndexRoute, ruleNewRoute, ruleEditRoute]),
+  tagsRoute.addChildren([tagsIndexRoute, tagNewRoute, tagEditRoute, tagDeletionRoute]),
+  categoriesRoute.addChildren([
+    categoriesIndexRoute,
+    categoryNewRoute,
+    categoryEditRoute,
+    categoryDeletionRoute,
+    categoryMergeRoute,
+  ]),
+  merchantsRoute.addChildren([merchantsIndexRoute, merchantNewRoute, merchantEditRoute]),
   loanEditRoute,
+  rulesRoute.addChildren([
+    rulesIndexRoute,
+    ruleNewRoute,
+    ruleEditRoute,
+    ruleConfirmRoute,
+    ruleConfirmAllRoute,
+  ]),
   accountableEditRoute,
   accountableNewTypeRoute.addChildren([accountableNewRoute]),
   propertyNewRoute.addChildren([propertyManualNewRoute, propertyAvmRoute]),

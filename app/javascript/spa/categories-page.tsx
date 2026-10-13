@@ -530,7 +530,7 @@ function CategoryFormDialog({
   );
 }
 
-function FormDialogLoader({
+export function FormDialogLoader({
   onClose,
   onSaved,
   state,
@@ -609,7 +609,7 @@ function FormDialogLoader({
 
   return <CategoryFormDialog initial={form} onClose={onClose} onSaved={onSaved} state={state} />;
 }
-function DeleteDialog({
+export function DeleteDialog({
   data,
   onClose,
   onDeleted,
@@ -724,7 +724,7 @@ function DeleteDialog({
   );
 }
 
-function MergeDialog({
+export function MergeDialog({
   data,
   onClose,
   onMerged,

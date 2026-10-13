@@ -316,7 +316,7 @@ function MerchantSection({
   );
 }
 
-function MerchantFormModal({
+export function MerchantFormModal({
   colors,
   initial,
   isProvider,

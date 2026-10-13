@@ -34,7 +34,7 @@
       text: t("transactions.merchant_rule_menu.edit_merchant", merchant: merchant.name),
       icon: "pencil",
       href: edit_family_merchant_path(merchant),
-      data: { turbo_frame: :modal }
+      data: { turbo_frame: :_top }
     ) %>
     <% if category.present? %>
       <% menu.with_item(
@@ -47,7 +47,7 @@
           action_type: "set_transaction_category",
           action_value: category.id
         ),
-        frame: :modal
+        data: { turbo_frame: :_top }
       ) %>
     <% end %>
   <% end %>
