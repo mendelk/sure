@@ -1004,8 +1004,8 @@ RSpec.configure do |config|
             properties: {
               id: { type: :string, format: :uuid },
               name: { type: :string },
-              website_url: { type: :string, format: :uri, nullable: true },
-              logo_url: { type: :string, format: :uri, nullable: true }
+              website_url: { type: :string, nullable: true },
+              logo_url: { type: :string, nullable: true }
             }
           },
           MerchantDetail: {
@@ -1016,8 +1016,8 @@ RSpec.configure do |config|
               name: { type: :string },
               type: { type: :string, enum: %w[FamilyMerchant ProviderMerchant] },
               color: { type: :string, nullable: true, description: 'Hex color used for the fallback avatar' },
-              website_url: { type: :string, format: :uri, nullable: true },
-              logo_url: { type: :string, format: :uri, nullable: true, description: 'Direct merchant logo URL' },
+              website_url: { type: :string, nullable: true },
+              logo_url: { type: :string, nullable: true, description: 'Direct merchant logo URL' },
               created_at: { type: :string, format: :'date-time' },
               updated_at: { type: :string, format: :'date-time' }
             }
@@ -1031,8 +1031,8 @@ RSpec.configure do |config|
                 properties: {
                   name: { type: :string, description: 'Merchant name. Required when creating a merchant.' },
                   color: { type: :string, description: 'Hex color used for the fallback avatar' },
-                  website_url: { type: :string, format: :uri, nullable: true },
-                  logo_url: { type: :string, format: :uri, nullable: true, description: 'Direct merchant logo URL' }
+                  website_url: { type: :string, nullable: true },
+                  logo_url: { type: :string, nullable: true, description: 'Direct merchant logo URL' }
                 }
               }
             }

@@ -1706,11 +1706,9 @@ components:
           type: string
         website_url:
           type: string
-          format: uri
           nullable: true
         logo_url:
           type: string
-          format: uri
           nullable: true
     MerchantDetail:
       type: object
@@ -1737,11 +1735,9 @@ components:
           description: Hex color used for the fallback avatar
         website_url:
           type: string
-          format: uri
           nullable: true
         logo_url:
           type: string
-          format: uri
           nullable: true
           description: Direct merchant logo URL
         created_at:
@@ -1766,11 +1762,9 @@ components:
               description: Hex color used for the fallback avatar
             website_url:
               type: string
-              format: uri
               nullable: true
             logo_url:
               type: string
-              format: uri
               nullable: true
               description: Direct merchant logo URL
     MerchantImportResult:
