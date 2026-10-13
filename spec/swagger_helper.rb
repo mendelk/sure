@@ -984,6 +984,20 @@ RSpec.configure do |config|
               }
             }
           },
+          CategoryUpdateRequest: {
+            type: :object,
+            required: %w[category],
+            properties: {
+              category: {
+                type: :object,
+                properties: {
+                  color: { type: :string, pattern: '^#[0-9A-Fa-f]{6}$', description: 'Six-digit hex color. Subcategory updates inherit the parent color.' },
+                  icon: { type: :string, minLength: 1, description: 'Lucide icon name (e.g. "building"). Cannot be blank.' }
+                },
+                description: 'Supply color, icon, or both. Omitted fields are preserved; name and hierarchy cannot be changed.'
+              }
+            }
+          },
           Merchant: {
             type: :object,
             required: %w[id name],

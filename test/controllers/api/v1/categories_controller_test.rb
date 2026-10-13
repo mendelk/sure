@@ -305,6 +305,150 @@ class Api::V1::CategoriesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "bad_request", body["error"]
   end
 
+  test "update requires authentication" do
+    patch "/api/v1/categories/#{@category.id}", params: { category: { color: "#6471eb" } }, as: :json
+
+    assert_response :unauthorized
+    assert_equal "unauthorized", JSON.parse(response.body)["error"]
+  end
+
+  test "update rejects api key without read_write scope" do
+    original_color = @category.color
+
+    patch "/api/v1/categories/#{@category.id}",
+      params: { category: { color: "#6471eb" } },
+      headers: api_headers(read_only_api_key),
+      as: :json
+
+    assert_response :forbidden
+    assert_equal original_color, @category.reload.color
+  end
+
+  test "patch updates metadata without changing identity or hierarchy" do
+    original_name = @category.name
+
+    patch "/api/v1/categories/#{@category.id}",
+      params: { category: {
+        color: "#6471eb", icon: "building",
+        name: "Renamed", parent_id: @subcategory.id, family_id: families(:empty).id
+      } },
+      headers: api_headers(read_write_api_key),
+      as: :json
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal "#6471eb", body["color"]
+    assert_equal "building", body["icon"]
+    assert_equal original_name, body["name"]
+    assert_nil body["parent"]
+    assert_equal 1, body["subcategories_count"]
+
+    get "/api/v1/categories/#{@category.id}", headers: api_headers(read_write_api_key)
+
+    assert_response :success
+    assert_equal "#6471eb", JSON.parse(response.body)["color"]
+    assert_equal "building", JSON.parse(response.body)["icon"]
+    assert_equal @user.family_id, @category.reload.family_id
+  end
+
+  test "put updates color while preserving omitted icon" do
+    original_icon = @category.lucide_icon
+
+    put "/api/v1/categories/#{@category.id}",
+      params: { category: { color: "#4da568" } },
+      headers: api_headers(read_write_api_key),
+      as: :json
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal "#4da568", body["color"]
+    assert_equal original_icon, body["icon"]
+  end
+
+  test "update changes icon while preserving omitted color" do
+    original_color = @category.color
+
+    patch "/api/v1/categories/#{@category.id}",
+      params: { category: { icon: "coffee" } },
+      headers: api_headers(read_write_api_key),
+      as: :json
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal "coffee", body["icon"]
+    assert_equal original_color, body["color"]
+  end
+
+  test "subcategory update inherits parent color and preserves hierarchy" do
+    @category.update!(color: "#6471eb")
+
+    patch "/api/v1/categories/#{@subcategory.id}",
+      params: { category: { color: "#4da568", icon: "coffee" } },
+      headers: api_headers(read_write_api_key),
+      as: :json
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal "#6471eb", body["color"]
+    assert_equal "coffee", body["icon"]
+    assert_equal @category.id, body.dig("parent", "id")
+    assert_equal "#6471eb", @subcategory.reload.color
+  end
+
+  test "update rejects invalid metadata without persisting either field" do
+    original_attributes = @category.attributes.slice("color", "lucide_icon")
+
+    [
+      { color: "not-a-hex", icon: "coffee" },
+      { color: "#6471eb", icon: "" },
+      { color: "#6471eb", icon: nil }
+    ].each do |attributes|
+      patch "/api/v1/categories/#{@category.id}",
+        params: { category: attributes },
+        headers: api_headers(read_write_api_key),
+        as: :json
+
+      assert_response :unprocessable_entity
+      assert_equal "unprocessable_entity", JSON.parse(response.body)["error"]
+      assert_equal original_attributes, @category.reload.attributes.slice("color", "lucide_icon")
+    end
+  end
+
+  test "update returns 404 for a missing category" do
+    patch "/api/v1/categories/#{SecureRandom.uuid}",
+      params: { category: { color: "#6471eb" } },
+      headers: api_headers(read_write_api_key),
+      as: :json
+
+    assert_response :not_found
+    assert_equal "not_found", JSON.parse(response.body)["error"]
+  end
+
+  test "update cannot modify another family's category" do
+    other_category = families(:empty).categories.create!(
+      name: "Private Category", color: "#e99537", lucide_icon: "house"
+    )
+
+    patch "/api/v1/categories/#{other_category.id}",
+      params: { category: { color: "#6471eb", icon: "building" } },
+      headers: api_headers(read_write_api_key),
+      as: :json
+
+    assert_response :not_found
+    assert_equal "#e99537", other_category.reload.color
+    assert_equal "house", other_category.lucide_icon
+  end
+
+  test "update returns 400 when category payload is missing" do
+    patch "/api/v1/categories/#{@category.id}",
+      params: {},
+      headers: api_headers(read_write_api_key),
+      as: :json
+
+    assert_response :bad_request
+    assert_equal "bad_request", JSON.parse(response.body)["error"]
+  end
+
   private
 
     def read_write_api_key
