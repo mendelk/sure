@@ -332,14 +332,21 @@ function GroupTable({
   onConfirm: (action: SpaAction) => void;
 }) {
   return (
-    <section aria-label={group.name} className="rounded-xl bg-container p-1 shadow-border-xs">
-      <div className="flex items-center px-4 py-2 text-xs font-medium text-secondary">
+    <section
+      aria-label={group.name}
+      className="overflow-hidden rounded-xl bg-container shadow-border-xs"
+    >
+      <div className="flex items-center gap-2 bg-container-inset px-4 py-2.5 text-xs font-medium uppercase text-secondary">
         <p>{group.name}</p>
-        <span className="mx-2 text-subdued">&middot;</span>
+        <span className="text-subdued">&middot;</span>
         <p>{group.accounts.length}</p>
-        {!group.syncing ? <p className="ml-auto privacy-sensitive">{group.total}</p> : null}
+        {!group.syncing ? (
+          <p className="ml-auto privacy-sensitive text-xs font-medium tabular-nums text-secondary">
+            {group.total}
+          </p>
+        ) : null}
       </div>
-      <ul className="overflow-hidden rounded-lg bg-container shadow-border-xs">
+      <ul className="divide-y divide-tertiary">
         {group.accounts.map((row) => (
           <AccountRowView key={row.id} onConfirm={onConfirm} row={row} />
         ))}

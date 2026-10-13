@@ -583,7 +583,10 @@ function UpcomingTransactionsView({ recurringPath }: { recurringPath?: string })
 
   if (error !== undefined) {
     return (
-      <div className="rounded-xl border border-destructive bg-container p-5" role="alert">
+      <div
+        className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-destructive bg-container p-5"
+        role="alert"
+      >
         <p className="font-medium text-primary">Upcoming transactions unavailable</p>
         <p className="mt-1 text-sm text-secondary">{error}</p>
         <button
@@ -601,7 +604,11 @@ function UpcomingTransactionsView({ recurringPath }: { recurringPath?: string })
 
   if (data.recurring_transactions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl bg-container px-6 py-40 shadow-border-xs text-center">
+      <div
+        className="relative flex min-h-0 flex-1 flex-col items-center justify-center rounded-xl bg-container px-6 py-40 text-center shadow-border-xs"
+        id="upcoming"
+        role="tabpanel"
+      >
         <p className="mb-2 font-medium text-secondary">No recurring transactions found</p>
         <p className="max-w-xs text-sm text-subdued">
           Upcoming items appear once recurrence dates are known. Credit-card payments appear after
@@ -613,41 +620,40 @@ function UpcomingTransactionsView({ recurringPath }: { recurringPath?: string })
 
   return (
     <div
-      className="group relative flex flex-col rounded-xl bg-container px-3 py-4 shadow-border-xs lg:p-4"
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-container shadow-border-xs"
       id="upcoming"
       role="tabpanel"
     >
-      <div className="mb-4 grid grid-cols-12 items-center rounded-xl bg-container-inset px-5 py-3 text-xs font-medium uppercase text-secondary">
-        <div className="col-span-8 flex items-center gap-4 pl-0.5">
-          <p>Transaction</p>
+      <div className="min-h-0 flex-1 overflow-y-auto" id="upcoming-scroll">
+        <div className="sticky top-0 z-10 hidden bg-container md:block">
+          <TransactionRowHeader
+            labels={{
+              transaction: "Transaction",
+              category: "Type",
+              tags: "",
+              amount: "Amount",
+            }}
+            showTags={false}
+          />
         </div>
-        <p className="col-span-2 hidden md:block">Type</p>
-        <p className="col-span-2 col-start-11 justify-self-end md:col-start-auto md:block">
-          Amount
-        </p>
-      </div>
 
-      <div className="space-y-6">
-        {grouped.map(([date, items]) => (
-          <div
-            className="w-full rounded-xl bg-container-inset p-1"
-            id={`upcoming-group-${date}`}
-            key={date}
-          >
-            <div className="flex items-center justify-between px-4 py-2 text-xs font-medium text-secondary">
-              <p className="space-x-1.5 uppercase">
-                <span>{formatUpcomingGroupDate(date)}</span>
-                <span>&middot;</span>
-                <span>{items.length}</span>
-              </p>
+        <div aria-live="polite" className="divide-y divide-tertiary">
+          {grouped.map(([date, items]) => (
+            <div key={date}>
+              <div className="flex items-center gap-2 bg-container-inset px-4 py-2.5">
+                <h2 className="text-xs font-medium uppercase tracking-wide text-secondary">
+                  {formatUpcomingGroupDate(date)} <span className="mx-1">&middot;</span>{" "}
+                  {items.length}
+                </h2>
+              </div>
+              <ul className="divide-y divide-tertiary">
+                {items.map((item) => (
+                  <UpcomingRow item={item} key={item.id} />
+                ))}
+              </ul>
             </div>
-            <div className="divide-y divide-tertiary rounded-lg bg-container shadow-border-xs">
-              {items.map((item) => (
-                <UpcomingRow item={item} key={item.id} />
-              ))}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -658,90 +664,98 @@ function UpcomingRow({ item }: { item: UpcomingRecurringTransaction }) {
   const amountInfo = formatUpcomingAmount(item);
 
   return (
-    <div className="group flex items-center p-3 text-sm font-medium text-primary lg:grid lg:grid-cols-12 lg:p-4">
-      <div className="col-span-8 flex min-w-0 items-center gap-3 pr-4 lg:gap-4 lg:pr-10">
-        <div className="max-w-full">
-          <div className="flex items-center gap-3 lg:gap-4">
-            {typeof item.merchant?.logo_url === "string" && item.merchant.logo_url.length > 0 ? (
-              <img
-                alt={displayName}
-                className="size-9 shrink-0 rounded-full"
-                loading="lazy"
-                src={item.merchant.logo_url}
-              />
-            ) : (
-              <div
-                aria-hidden="true"
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-container-inset text-sm font-semibold text-secondary"
-              >
-                {displayName.slice(0, 1).toUpperCase()}
-              </div>
-            )}
+    <li className="group grid grid-cols-2 items-center gap-4 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-container-hover md:grid-cols-12 md:gap-6">
+      <div className="col-span-1 flex min-w-0 items-center gap-3 md:col-span-7">
+        {typeof item.merchant?.logo_url === "string" && item.merchant.logo_url.length > 0 ? (
+          <img
+            alt=""
+            className="size-9 shrink-0 rounded-full object-contain"
+            loading="lazy"
+            src={item.merchant.logo_url}
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-container-inset text-sm font-semibold text-secondary"
+          >
+            {displayName.slice(0, 1).toUpperCase()}
+          </div>
+        )}
 
-            <div className="truncate">
-              <div className="space-y-0.5">
-                <div className="flex min-w-0 items-center gap-1">
-                  <div className="truncate shrink font-medium text-primary">{displayName}</div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <span className="inline-flex items-center rounded-full bg-blue-tint-10 px-2 py-0.5 text-xs font-medium text-link">
-                      {item.system_managed_kind === "credit_card_payment"
-                        ? "Statement estimate"
-                        : "Projected"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-xs font-normal text-secondary">
-                  {formatExpectedIn(item.next_expected_date)}
-                </div>
-              </div>
-            </div>
+        <div className="min-w-0 truncate">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-medium text-primary">{displayName}</span>
+            <span className="inline-flex shrink-0 items-center rounded-full bg-blue-tint-10 px-2 py-0.5 text-xs font-medium text-link">
+              {item.system_managed_kind === "credit_card_payment"
+                ? "Statement estimate"
+                : "Projected"}
+            </span>
+          </div>
+          <div className="truncate text-xs font-normal text-secondary">
+            {formatExpectedIn(item.next_expected_date)}
           </div>
         </div>
       </div>
 
-      <div className="col-span-2 hidden items-center gap-1 lg:flex">
+      <div className="hidden items-center gap-1 md:col-span-3 md:flex">
         <span className="text-xs text-secondary">
           {item.system_managed_kind === "credit_card_payment" ? "Credit card payment" : "Recurring"}
         </span>
       </div>
 
-      <div className="col-span-2 ml-auto shrink-0 text-right">
+      <div className="col-span-1 ml-auto shrink-0 text-right md:col-span-2">
         <p className={`privacy-sensitive font-medium tabular-nums ${amountInfo.className}`}>
           {amountInfo.text}
         </p>
       </div>
-    </div>
+    </li>
   );
 }
 
 function UpcomingSkeleton() {
   return (
-    <output className="flex flex-col rounded-xl bg-container p-4 shadow-border-xs">
-      <span className="sr-only">Loading upcoming transactions...</span>
-      <div className="mb-4 h-10 w-full animate-pulse rounded-xl bg-container-inset" />
-      <div className="space-y-6">
-        {[1, 2].map((group) => (
-          <div className="w-full rounded-xl bg-container-inset p-1" key={group}>
-            <div className="mb-2 h-6 w-32 animate-pulse rounded-sm bg-container" />
-            <div className="space-y-2 rounded-lg bg-container p-3">
-              {[1, 2, 3].map((row) => (
-                <div className="flex items-center justify-between py-2" key={row}>
-                  <div className="flex items-center gap-3">
-                    <div className="size-9 animate-pulse rounded-full bg-container-inset" />
-                    <div className="space-y-1">
-                      <div className="h-4 w-32 animate-pulse rounded-sm bg-container-inset" />
-                      <div className="h-3 w-20 animate-pulse rounded-sm bg-container-inset" />
+    <div
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-container shadow-border-xs"
+      id="upcoming"
+      role="tabpanel"
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="sticky top-0 z-10 hidden bg-container md:block">
+          <TransactionRowHeader
+            labels={{
+              transaction: "Transaction",
+              category: "Type",
+              tags: "",
+              amount: "Amount",
+            }}
+            showTags={false}
+          />
+        </div>
+        <div className="divide-y divide-tertiary">
+          {[1, 2].map((group) => (
+            <div key={group}>
+              <div className="flex items-center gap-2 bg-container-inset px-4 py-2.5">
+                <div className="h-4 w-32 animate-pulse rounded-sm bg-container" />
+              </div>
+              <ul className="divide-y divide-tertiary">
+                {[1, 2, 3].map((row) => (
+                  <li className="flex items-center justify-between px-4 py-3" key={row}>
+                    <div className="flex items-center gap-3">
+                      <div className="size-9 animate-pulse rounded-full bg-container-inset" />
+                      <div className="space-y-1">
+                        <div className="h-4 w-32 animate-pulse rounded-sm bg-container-inset" />
+                        <div className="h-3 w-20 animate-pulse rounded-sm bg-container-inset" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="h-4 w-16 animate-pulse rounded-sm bg-container-inset" />
-                </div>
-              ))}
+                    <div className="h-4 w-16 animate-pulse rounded-sm bg-container-inset" />
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </output>
+    </div>
   );
 }
 
