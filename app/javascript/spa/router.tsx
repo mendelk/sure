@@ -62,6 +62,7 @@ import { merchantFormQueryOptions, merchantsIndexQueryOptions } from "./api/merc
 import { AccountIdSchema, CategoryIdSchema, MerchantIdSchema, TagIdSchema } from "./ids";
 import { Button } from "./components/button";
 import { Modal } from "./modal";
+import { useDialogClose } from "./return-to";
 import { LoanEditDrawer } from "./loan-edit-drawer";
 import {
   AccountableEditDrawer,
@@ -381,11 +382,9 @@ const editSourceRoute = createRoute({
   component: EditSourcePage,
 });
 function TagNewRouteComponent() {
-  const navigate = useNavigate();
+  const close = useDialogClose("/tags");
   const query = useQuery(tagsIndexQueryOptions());
-  const close = () => {
-    void navigate({ to: "/tags", resetScroll: false });
-  };
+
   return (
     <>
       <TagsIndexPage />
@@ -395,13 +394,11 @@ function TagNewRouteComponent() {
 }
 
 function TagEditRouteComponent() {
-  const navigate = useNavigate();
+  const close = useDialogClose("/tags");
   const params = useParams({ strict: false });
   const parsed = TagIdSchema.safeParse(typeof params.tagId === "string" ? params.tagId : "");
   const query = useQuery(tagsIndexQueryOptions());
-  const close = () => {
-    void navigate({ to: "/tags", resetScroll: false });
-  };
+
   const tag = parsed.success
     ? (query.data?.tags.find((row) => row.id === parsed.data) ?? null)
     : null;
@@ -417,13 +414,11 @@ function TagEditRouteComponent() {
 }
 
 function TagDeletionRouteComponent() {
-  const navigate = useNavigate();
+  const close = useDialogClose("/tags");
   const params = useParams({ strict: false });
   const parsed = TagIdSchema.safeParse(typeof params.tagId === "string" ? params.tagId : "");
   const query = useQuery(tagsIndexQueryOptions());
-  const close = () => {
-    void navigate({ to: "/tags", resetScroll: false });
-  };
+
   const tags = query.data?.tags ?? [];
   const tag = parsed.success ? (tags.find((row) => row.id === parsed.data) ?? null) : null;
   if (!parsed.success || tag === null) return <TagsIndexPage />;
@@ -473,10 +468,8 @@ const tagDeletionRoute = createRoute({
   component: TagDeletionRouteComponent,
 });
 function CategoryNewRouteComponent() {
-  const navigate = useNavigate();
-  const close = () => {
-    void navigate({ to: "/categories", resetScroll: false });
-  };
+  const close = useDialogClose("/categories");
+
   return (
     <>
       <CategoriesPage />
@@ -486,14 +479,12 @@ function CategoryNewRouteComponent() {
 }
 
 function CategoryEditRouteComponent() {
-  const navigate = useNavigate();
+  const close = useDialogClose("/categories");
   const params = useParams({ strict: false });
   const parsed = CategoryIdSchema.safeParse(
     typeof params.categoryId === "string" ? params.categoryId : "",
   );
-  const close = () => {
-    void navigate({ to: "/categories", resetScroll: false });
-  };
+
   if (!parsed.success) return <CategoriesPage />;
   return (
     <>
@@ -504,15 +495,13 @@ function CategoryEditRouteComponent() {
 }
 
 function CategoryDeletionRouteComponent() {
-  const navigate = useNavigate();
+  const close = useDialogClose("/categories");
   const params = useParams({ strict: false });
   const parsed = CategoryIdSchema.safeParse(
     typeof params.categoryId === "string" ? params.categoryId : "",
   );
   const query = useQuery(categoriesIndexQueryOptions());
-  const close = () => {
-    void navigate({ to: "/categories", resetScroll: false });
-  };
+
   const groups = query.data?.groups ?? [];
   const rows = groups.flatMap((group) => [group.root].concat(group.subcategories));
   const row = parsed.success ? (rows.find((entry) => entry.id === parsed.data) ?? null) : null;
@@ -526,11 +515,9 @@ function CategoryDeletionRouteComponent() {
 }
 
 function CategoryMergeRouteComponent() {
-  const navigate = useNavigate();
+  const close = useDialogClose("/categories");
   const query = useQuery(categoriesIndexQueryOptions());
-  const close = () => {
-    void navigate({ to: "/categories", resetScroll: false });
-  };
+
   if (query.data === undefined) return <CategoriesPage />;
   return (
     <>
@@ -576,11 +563,9 @@ const categoryMergeRoute = createRoute({
   component: CategoryMergeRouteComponent,
 });
 function MerchantNewRouteComponent() {
-  const navigate = useNavigate();
+  const close = useDialogClose("/family_merchants");
   const query = useQuery(merchantsIndexQueryOptions(MERCHANTS_INDEX_PATH, {}));
-  const close = () => {
-    void navigate({ to: "/family_merchants", resetScroll: false });
-  };
+
   return (
     <>
       <MerchantsPage />
@@ -596,7 +581,7 @@ function MerchantNewRouteComponent() {
 }
 
 function MerchantEditRouteComponent() {
-  const navigate = useNavigate();
+  const close = useDialogClose("/family_merchants");
   const params = useParams({ strict: false });
   const parsed = MerchantIdSchema.safeParse(
     typeof params.merchantId === "string" ? params.merchantId : "",
@@ -609,9 +594,7 @@ function MerchantEditRouteComponent() {
     enabled: parsed.success,
   });
   const indexQuery = useQuery(merchantsIndexQueryOptions(MERCHANTS_INDEX_PATH, {}));
-  const close = () => {
-    void navigate({ to: "/family_merchants", resetScroll: false });
-  };
+
   if (!parsed.success) return <MerchantsPage />;
   const payload = formQuery.data;
   if (payload === undefined || !("id" in payload.merchant && payload.merchant.id !== null))
@@ -694,6 +677,7 @@ export type RuleNewSearch = {
   name?: string;
   action_type?: string;
   action_value?: string;
+  return_to?: string;
 };
 
 export function validateRuleNewSearch(input: Record<string, unknown>): RuleNewSearch {
@@ -704,6 +688,7 @@ export function validateRuleNewSearch(input: Record<string, unknown>): RuleNewSe
     "name",
     "action_type",
     "action_value",
+    "return_to",
   ] as const) {
     const value = input[key];
     if (typeof value === "string" && value.length > 0) result[key] = value;
@@ -713,7 +698,6 @@ export function validateRuleNewSearch(input: Record<string, unknown>): RuleNewSe
 
 function RuleNewRouteComponent() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
-  const navigate = useNavigate();
   const search = useSearch({ from: ruleNewRoute.id, shouldThrow: false }) ?? {};
   const formPath = "/rules/new.json";
 
@@ -728,9 +712,7 @@ function RuleNewRouteComponent() {
   if (search.action_value !== undefined) presetParams.set("action_value", search.action_value);
   const presetQuery = presetParams.toString();
 
-  const done = () => {
-    void navigate({ to: "/rules", resetScroll: false });
-  };
+  const done = useDialogClose("/rules");
   return (
     <RuleFormPage
       bootstrap={bootstrap}
@@ -752,12 +734,9 @@ const ruleNewRoute = createRoute({
 
 function RuleEditRouteComponent() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
-  const navigate = useNavigate();
   const params = useParams({ strict: false });
   const ruleId = typeof params.ruleId === "string" ? params.ruleId : "";
-  const done = () => {
-    void navigate({ to: "/rules", resetScroll: false });
-  };
+  const done = useDialogClose("/rules");
   return (
     <RuleFormPage
       bootstrap={bootstrap}
@@ -776,15 +755,12 @@ const ruleEditRoute = createRoute({
   component: RuleEditRouteComponent,
 });
 function RuleConfirmRouteComponent() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const params = useParams({ strict: false });
   const ruleId = typeof params.ruleId === "string" ? params.ruleId : "";
   const [confirm, setConfirm] = useState<RuleConfirm | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const back = () => {
-    void navigate({ to: "/rules", resetScroll: false });
-  };
+  const back = useDialogClose("/rules");
   useEffect(() => {
     let cancelled = false;
     fetchRuleConfirm(`/rules/${encodeURIComponent(ruleId)}/confirm.json`)
@@ -843,13 +819,10 @@ const ruleConfirmRoute = createRoute({
 });
 
 function RuleConfirmAllRouteComponent() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [confirm, setConfirm] = useState<ConfirmAll | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const back = () => {
-    void navigate({ to: "/rules", resetScroll: false });
-  };
+  const back = useDialogClose("/rules");
   useEffect(() => {
     let cancelled = false;
     fetchConfirmAll("/rules/confirm_all.json")
