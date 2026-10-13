@@ -749,15 +749,15 @@ function MerchantMenu({
   };
 
   const editHref = `${bootstrap.railsPaths.familyMerchants}/${merchantId}/edit`;
-  const ruleHref =
-    categoryId === undefined || categoryId.length === 0
-      ? null
-      : `${bootstrap.railsPaths.newRule}?${new URLSearchParams({
-          resource_type: "transaction",
-          merchant_id: merchantId,
-          action_type: "set_transaction_category",
-          action_value: categoryId,
-        }).toString()}`;
+  const ruleActionType = "set_transaction_category";
+  // Uncategorized transactions omit :action_value so the rule form opens with
+  // "Set transaction category" and an empty category for the user to pick.
+  const ruleHref = `${bootstrap.railsPaths.newRule}?${new URLSearchParams({
+    resource_type: "transaction",
+    merchant_id: merchantId,
+    action_type: ruleActionType,
+    ...(categoryId !== undefined && categoryId.length > 0 ? { action_value: categoryId } : {}),
+  }).toString()}`;
 
   const testId =
     transactionId !== undefined && transactionId.length > 0
@@ -845,26 +845,26 @@ function MerchantMenu({
                 </span>
               </a>
             </div>
-            {ruleHref !== null && categoryName !== undefined && categoryName.length > 0 ? (
-              <div className="px-1" role="none">
-                <a
-                  className="focus-ring flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-primary transition-colors hover:bg-container-hover"
-                  data-turbo-frame="modal"
-                  href={ruleHref}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setOpen(false);
-                  }}
-                  role="menuitem"
-                  tabIndex={-1}
-                >
-                  <Icon name="plus" size="sm" />
-                  <span className="min-w-0 wrap-break-word text-sm text-primary">
-                    Always categorize {merchantName} as {categoryName}
-                  </span>
-                </a>
-              </div>
-            ) : null}
+            <div className="px-1" role="none">
+              <a
+                className="focus-ring flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-primary transition-colors hover:bg-container-hover"
+                data-turbo-frame="modal"
+                href={ruleHref}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setOpen(false);
+                }}
+                role="menuitem"
+                tabIndex={-1}
+              >
+                <Icon name="plus" size="sm" />
+                <span className="min-w-0 wrap-break-word text-sm text-primary">
+                  {categoryName !== undefined && categoryName.length > 0
+                    ? `Always categorize ${merchantName} as ${categoryName}`
+                    : `Always categorize ${merchantName}`}
+                </span>
+              </a>
+            </div>
           </div>
         ) : null}
       </span>
