@@ -73,9 +73,13 @@ statement boundaries.
 
 The estimate is the **full outstanding statement debt, not the minimum
 payment**. It includes carried debt and posted charges, fees, and interest
-through the estimated close. Pending transactions, other currencies, and
-later-cycle purchases are excluded. Confirmed repayments reduce what remains;
-later refunds and other non-payment credits reduce the outstanding estimate.
+through the estimated close. Reconciled daily balances in the account's
+currency take precedence over opening-valuation reconstruction, which can
+be inaccurate when a linked account has incomplete imported history.
+Pending transactions and later-cycle purchases are excluded. Repayments and
+post-close credits are matched in the account's currency. Confirmed repayments
+reduce what remains; later refunds and other non-payment credits reduce the
+outstanding estimate.
 The nightly job keeps refreshing unpaid cycles. Carried debt and credits
 are not billed twice when multiple cycles remain unpaid; settled payment
 history is preserved. The displayed post-close credit total describes credits
