@@ -141,7 +141,7 @@ export function TransactionDetailDrawer() {
             {!transaction.transfer && !transaction.pending ? (
               <TransferMatcher bootstrap={bootstrap} transaction={transaction} />
             ) : null}
-            <TransactionDetailBody bootstrap={bootstrap} transaction={transaction} />
+            <TransactionDetailBody transaction={transaction} />
             <TransactionDetailMeta transaction={transaction} />
           </>
         )}
@@ -923,13 +923,7 @@ function TransactionDetailTransfer({
   );
 }
 
-function TransactionDetailBody({
-  bootstrap,
-  transaction,
-}: {
-  bootstrap: Bootstrap;
-  transaction: SpaTransactionDetail;
-}) {
+function TransactionDetailBody({ transaction }: { transaction: SpaTransactionDetail }) {
   return (
     <Section title="Details">
       <dl className="space-y-3">
@@ -938,11 +932,7 @@ function TransactionDetailBody({
           <div className="space-y-1">
             <dt className="text-xs font-medium uppercase tracking-wide text-secondary">Merchant</dt>
             <dd className="text-sm text-primary">
-              {transaction.merchant ? (
-                <MerchantLinks bootstrap={bootstrap} transaction={transaction} />
-              ) : (
-                "None"
-              )}
+              {transaction.merchant ? <MerchantLinks transaction={transaction} /> : "None"}
             </dd>
           </div>
           <Field
@@ -983,24 +973,18 @@ function TransactionDetailBody({
   );
 }
 
-function MerchantLinks({
-  bootstrap,
-  transaction,
-}: {
-  bootstrap: Bootstrap;
-  transaction: SpaTransactionDetail;
-}) {
+function MerchantLinks({ transaction }: { transaction: SpaTransactionDetail }) {
   const merchant = transaction.merchant;
   if (!merchant) return null;
 
   // Uncategorized transactions omit :action_value so the rule form opens with
   // "Set transaction category" and an empty category for the user to pick.
-  const ruleHref = `${bootstrap.railsPaths.newRule}?${new URLSearchParams({
+  const ruleSearch: Record<string, string> = {
     resource_type: "transaction",
     merchant_id: merchant.id,
     action_type: "set_transaction_category",
-    ...(transaction.category?.id !== undefined ? { action_value: transaction.category.id } : {}),
-  }).toString()}`;
+  };
+  if (transaction.category?.id !== undefined) ruleSearch.action_value = transaction.category.id;
 
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -1011,24 +995,24 @@ function MerchantLinks({
       >
         {merchant.name}
       </Link>
-      <a
+      <Link
         className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary hover:underline"
-        data-turbo-frame="modal"
-        href={`${bootstrap.railsPaths.familyMerchants}/${merchant.id}/edit`}
+        params={{ merchantId: merchant.id }}
+        to="/family_merchants/$merchantId/edit"
       >
         <Icon name="pencil" size="sm" />
         Edit merchant
-      </a>
-      <a
+      </Link>
+      <Link
         className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary hover:underline"
-        data-turbo-frame="modal"
-        href={ruleHref}
+        search={ruleSearch}
+        to="/rules/new"
       >
         <Icon name="plus" size="sm" />
         {transaction.category?.name !== undefined
           ? `Always categorize as ${transaction.category.name}`
           : "Always categorize"}
-      </a>
+      </Link>
     </span>
   );
 }

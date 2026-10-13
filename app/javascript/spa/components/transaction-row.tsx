@@ -161,7 +161,6 @@ export function TransactionRow({
           <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-secondary">
             {transaction.merchant && columns.merchant ? (
               <MerchantMenu
-                bootstrap={bootstrap}
                 categoryId={transaction.category?.id}
                 categoryName={transaction.category?.name}
                 merchantId={transaction.merchant.id}
@@ -689,20 +688,12 @@ function TransactionTransferMatch({
 }
 
 function MerchantMenu({
-  bootstrap,
   categoryId,
   categoryName,
   merchantId,
   merchantName,
   transactionId,
 }: {
-  bootstrap: {
-    railsPaths: {
-      familyMerchants: string;
-      newRule: string;
-      transactions: string;
-    };
-  };
   categoryId?: CategoryId;
   categoryName?: string;
   merchantId: MerchantId;
@@ -748,16 +739,14 @@ function MerchantMenu({
     }
   };
 
-  const editHref = `${bootstrap.railsPaths.familyMerchants}/${merchantId}/edit`;
-  const ruleActionType = "set_transaction_category";
-  // Uncategorized transactions omit :action_value so the rule form opens with
-  // "Set transaction category" and an empty category for the user to pick.
-  const ruleHref = `${bootstrap.railsPaths.newRule}?${new URLSearchParams({
+  const ruleSearch: Record<string, string> = {
     resource_type: "transaction",
     merchant_id: merchantId,
-    action_type: ruleActionType,
-    ...(categoryId !== undefined && categoryId.length > 0 ? { action_value: categoryId } : {}),
-  }).toString()}`;
+    action_type: "set_transaction_category",
+  };
+  // Uncategorized transactions omit :action_value so the rule form opens with
+  // "Set transaction category" and an empty category for the user to pick.
+  if (categoryId !== undefined && categoryId.length > 0) ruleSearch.action_value = categoryId;
 
   const testId =
     transactionId !== undefined && transactionId.length > 0
@@ -828,34 +817,34 @@ function MerchantMenu({
               </Link>
             </div>
             <div className="px-1" role="none">
-              <a
+              <Link
                 className="focus-ring flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-primary transition-colors hover:bg-container-hover"
-                data-turbo-frame="modal"
-                href={editHref}
                 onClick={(event) => {
                   event.stopPropagation();
                   setOpen(false);
                 }}
+                params={{ merchantId }}
                 role="menuitem"
                 tabIndex={-1}
+                to="/family_merchants/$merchantId/edit"
               >
                 <Icon name="pencil" size="sm" />
                 <span className="min-w-0 wrap-break-word text-sm text-primary">
                   Edit {merchantName}
                 </span>
-              </a>
+              </Link>
             </div>
             <div className="px-1" role="none">
-              <a
+              <Link
                 className="focus-ring flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-primary transition-colors hover:bg-container-hover"
-                data-turbo-frame="modal"
-                href={ruleHref}
                 onClick={(event) => {
                   event.stopPropagation();
                   setOpen(false);
                 }}
                 role="menuitem"
+                search={ruleSearch}
                 tabIndex={-1}
+                to="/rules/new"
               >
                 <Icon name="plus" size="sm" />
                 <span className="min-w-0 wrap-break-word text-sm text-primary">
@@ -863,7 +852,7 @@ function MerchantMenu({
                     ? `Always categorize ${merchantName} as ${categoryName}`
                     : `Always categorize ${merchantName}`}
                 </span>
-              </a>
+              </Link>
             </div>
           </div>
         ) : null}

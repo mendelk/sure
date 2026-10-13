@@ -82,7 +82,7 @@ function serverErrors(error: unknown): string[] {
   return [error instanceof Error ? error.message : "Request failed"];
 }
 
-function TagFormDialog({
+export function TagFormDialog({
   tag,
   colors,
   onClose,
@@ -212,7 +212,7 @@ function TagFormDialog({
   );
 }
 
-function DeleteConfirmDialog({ tag, onClose }: { tag: TagRow; onClose: () => void }) {
+export function DeleteConfirmDialog({ tag, onClose }: { tag: TagRow; onClose: () => void }) {
   const queryClient = useQueryClient();
   const destroy = useMutation({
     mutationFn: () => deleteTagRequest(`/tags/${tag.id}.json`),
@@ -256,7 +256,7 @@ function DeleteConfirmDialog({ tag, onClose }: { tag: TagRow; onClose: () => voi
   );
 }
 
-function DeleteReplacementDialog({
+export function DeleteReplacementDialog({
   tag,
   candidates,
   onClose,
