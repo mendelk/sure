@@ -25,6 +25,10 @@ const SPA_PREFIXES = [
   "/accounts",
   "/statements",
   "/account_statements",
+  "/tags",
+  "/categories",
+  "/family_merchants",
+  "/rules",
 ] as const;
 
 function useNavItems(): NavItem[] {

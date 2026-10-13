@@ -41,9 +41,12 @@ class Tag < ApplicationRecord
   end
 
   def replace_and_destroy!(replacement)
-    transaction do
-      raise ActiveRecord::RecordInvalid, "Replacement tag cannot be the same as the tag being destroyed" if replacement == self
+    if replacement == self
+      errors.add(:base, "Replacement tag cannot be the same as the tag being destroyed")
+      raise ActiveRecord::RecordInvalid, self
+    end
 
+    transaction do
       if replacement
         taggings.update_all tag_id: replacement.id
       end
