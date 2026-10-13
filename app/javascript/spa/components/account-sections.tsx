@@ -11,6 +11,7 @@ import { Button } from "./button";
 import { FormField } from "./form-field";
 import { Table, type ColumnStyle, type TableFeatures } from "./table";
 import { Alert } from "./alert";
+import { BrandLogo } from "./brand-logo";
 
 export const ACCOUNT_TONES = {
   primary: "text-primary",
@@ -119,18 +120,28 @@ function AccountSectionTable({
           const cell = row.original.cells[column.key];
           return (
             <div
-              className={`${ACCOUNT_TONES[cell.tone]} ${cell.privacy ? "privacy-sensitive" : ""}`}
+              className={`${cell.logo !== null && cell.logo !== undefined ? "flex items-center gap-3" : ""} ${ACCOUNT_TONES[cell.tone]} ${cell.privacy ? "privacy-sensitive" : ""}`}
             >
-              {cell.href !== null && cell.href !== "" ? (
-                <a href={cell.href} className="hover:underline">
-                  {cell.text}
-                </a>
-              ) : (
-                cell.text
-              )}
-              {cell.secondary !== null && cell.secondary !== "" ? (
-                <p className="mt-1 text-xs text-secondary">{cell.secondary}</p>
+              {cell.logo !== null && cell.logo !== undefined ? (
+                <BrandLogo
+                  className="size-9 rounded-full bg-container-inset text-sm font-medium text-secondary"
+                  src={cell.logo.url}
+                >
+                  {cell.logo.text.slice(0, 1).toUpperCase()}
+                </BrandLogo>
               ) : null}
+              <div>
+                {cell.href !== null && cell.href !== "" ? (
+                  <a href={cell.href} className="hover:underline">
+                    {cell.text}
+                  </a>
+                ) : (
+                  cell.text
+                )}
+                {cell.secondary !== null && cell.secondary !== "" ? (
+                  <p className="mt-1 text-xs text-secondary">{cell.secondary}</p>
+                ) : null}
+              </div>
             </div>
           );
         },

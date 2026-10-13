@@ -207,6 +207,10 @@ class Transaction < ApplicationRecord
     @activity_security = Security.find_by(id: security_id)
   end
 
+  def display_logo_url
+    Setting.transform_brand_fetch_url(activity_security&.display_logo_url.presence || merchant&.logo_url.presence)
+  end
+
   def set_preloaded_activity_security(security)
     @activity_security_id = security&.id&.to_s
     @activity_security = security

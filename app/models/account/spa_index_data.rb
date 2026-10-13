@@ -158,6 +158,7 @@ class Account::SpaIndexData
         name: item_name(spec),
         logo_url: Provider::Metadata.logo_url(spec[:key]),
         logo_text: Provider::Metadata.for(spec[:key])[:logo_text],
+        logo_icon: Provider::Metadata.for(spec[:key])[:logo_icon],
         logo_color: Provider::Metadata.for(spec[:key])[:logo_color]
       }
       base.merge(
@@ -173,7 +174,7 @@ class Account::SpaIndexData
         delete_href: item_delete_href(spec),
         confirm_delete: CustomConfirm.for_resource_deletion(item_name(spec), high_severity: true).to_data_attribute,
         stats: sync_stats[spec[:item].id] || {}
-      ).compact
+      )
     end
 
     def item_name(spec)

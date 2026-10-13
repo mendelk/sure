@@ -39,6 +39,7 @@ RSpec.describe 'API V1 Merchants', type: :request do
     get 'List merchants' do
       tags 'Merchants'
       security [ { apiKeyAuth: [] } ]
+      description 'Returns merchant logos with Brandfetch URLs adjusted to the current logo resolution setting.'
       produces 'application/json'
 
       response '200', 'merchants listed' do

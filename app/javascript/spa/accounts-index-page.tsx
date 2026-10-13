@@ -17,12 +17,13 @@ import {
 } from "./api/account-spa";
 import { readCsrfToken } from "./api/transactions";
 import { AccountIdSchema } from "./ids";
-import { Icon } from "./icon";
+import { CategoryIcon, Icon } from "./icon";
 import { Alert } from "./components/alert";
 import { Button } from "./components/button";
 import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Toggle } from "./components/toggle";
+import { BrandLogo } from "./components/brand-logo";
 import { Modal } from "./modal";
 
 // ERB parity strings the row renders inline.
@@ -70,20 +71,10 @@ function AccountLettermark({
   color: string;
   logoUrl: string | null;
 }) {
-  if (logoUrl !== null && logoUrl !== "") {
-    return (
-      <img
-        alt=""
-        className="size-9 shrink-0 rounded-full object-contain"
-        loading="lazy"
-        src={logoUrl}
-      />
-    );
-  }
   return (
-    <span
-      aria-hidden="true"
-      className="flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-medium uppercase"
+    <BrandLogo
+      src={logoUrl}
+      className="size-9 rounded-full text-xs font-medium uppercase"
       style={{
         color,
         backgroundColor: `color-mix(in oklab, ${color} 10%, transparent)`,
@@ -91,29 +82,23 @@ function AccountLettermark({
       }}
     >
       {name.charAt(0).toUpperCase()}
-    </span>
+    </BrandLogo>
   );
 }
 
 function ProviderLettermark({ item }: { item: ProviderItem }) {
-  if (item.logo_url !== null && item.logo_url !== "") {
-    return (
-      <img
-        alt=""
-        className="size-8 shrink-0 rounded-full bg-container object-contain"
-        loading="lazy"
-        src={item.logo_url}
-      />
-    );
-  }
   return (
-    <span
-      aria-hidden="true"
-      className="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium uppercase text-inverse"
+    <BrandLogo
+      src={item.logo_url}
+      className="size-8 rounded-full text-xs font-medium uppercase text-inverse"
       style={{ backgroundColor: item.logo_color ?? "var(--color-gray-500)" }}
     >
-      {item.logo_text}
-    </span>
+      {item.logo_icon !== null && item.logo_icon !== undefined && item.logo_icon !== "" ? (
+        <CategoryIcon name={item.logo_icon} className="size-4 text-inherit" />
+      ) : (
+        item.logo_text
+      )}
+    </BrandLogo>
   );
 }
 

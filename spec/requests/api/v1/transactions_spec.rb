@@ -89,7 +89,7 @@ RSpec.describe 'API V1 Transactions', type: :request do
     get 'List transactions' do
       tags 'Transactions'
       security [ { apiKeyAuth: [] }, { cookieSession: [] } ]
-      description 'Returns global ledger history for accessible accounts, including disabled accounts but excluding accounts pending deletion.'
+      description 'Returns global ledger history for accessible accounts, including disabled accounts but excluding accounts pending deletion. logo_url resolves the investment activity security or merchant logo using the current Brandfetch resolution; merchant includes website_url and logo_url.'
       produces 'application/json'
       parameter name: :page, in: :query, type: :integer, required: false,
                 description: 'Page number (default: 1)'

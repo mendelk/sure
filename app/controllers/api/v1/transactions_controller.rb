@@ -41,6 +41,8 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       limit: safe_per_page_param
     )
 
+    Transaction::ActivitySecurityPreloader.new(@transactions).preload
+
     # Make per_page available to the template
     @per_page = safe_per_page_param
     @totals = @search.totals

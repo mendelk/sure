@@ -122,8 +122,8 @@ class Account::PageData
       { key: key, title: title, description: description, cards: cards, notices: notices, fields: fields,
         table: table, actions: actions, progress: progress, coverage: coverage, upload: upload }
     end
-    def cell(text, secondary: nil, href: nil, tone: "primary", privacy: false)
-      { text: text.to_s, secondary: secondary, href: href, tone: tone, privacy: privacy }
+    def cell(text, secondary: nil, href: nil, tone: "primary", privacy: false, logo: nil)
+      { text: text.to_s, secondary: secondary, href: href, tone: tone, privacy: privacy, logo: logo }
     end
 
     def money(value)
@@ -276,7 +276,7 @@ class Account::PageData
         badges: badges, actions: actions,
         activity_options: editable_activity ? (entry.trade? ? Trade::ACTIVITY_LABELS : Transaction::ACTIVITY_LABELS).map { |option| { label: t("transactions.activity_labels.#{option.parameterize(separator: '_')}", default: option), value: option } } : [],
         activity_edit: editable_activity ? { href: entry.trade? ? view.trade_path(entry) : view.transaction_path(entry), method: "patch", param: "entry[entryable_attributes][investment_activity_label]", value: label.to_s } : nil,
-        logo_url: entry.trade? ? entryable.security.display_logo_url : transaction&.activity_security&.display_logo_url
+        logo_url: entry.trade? ? entryable.security.display_logo_url : transaction&.display_logo_url
       }
     end
 
@@ -385,7 +385,7 @@ class Account::PageData
       rows = account.current_holdings.includes(:security, :account).map do |holding|
         trend = holding.trend
         { id: holding.id, past: false, actions: [ action(:view, t("account_statements.table.view"), view.holding_path(holding), "eye") ], cells: {
-          "name" => cell(holding.name, secondary: holding.ticker, href: view.holding_path(holding)),
+          "name" => cell(holding.name, secondary: holding.ticker, href: view.holding_path(holding), logo: { url: holding.security.display_logo_url, text: holding.name }),
           "weight" => cell(holding.weight ? view.number_to_percentage(holding.weight, precision: 1) : "—"),
           "average_cost" => cell(money(holding.avg_cost), secondary: holding.cost_basis_source_label, href: view.holding_path(holding), privacy: true),
           "holdings" => cell(money(holding.amount_money), secondary: t("holdings.holding.shares", qty: view.format_quantity(holding.qty, exact: account.crypto?)), privacy: true),

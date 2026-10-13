@@ -56,6 +56,21 @@ class Api::V1::MerchantsControllerTest < ActionDispatch::IntegrationTest
     assert_not_includes merchant_ids, other_merchant.id
   end
 
+  test "merchant picker logos follow the current Brandfetch resolution without changing stored URLs" do
+    stored_url = "https://cdn.brandfetch.io/netflix.com/icon/fallback/lettermark/w/40/h/40?c=test-client"
+    @merchant.update!(website_url: "https://netflix.com", logo_url: stored_url)
+
+    Setting.stub :brand_fetch_high_res_logos, true do
+      get api_v1_merchants_url, headers: api_headers(read_only_api_key)
+
+      assert_response :success
+      merchant = JSON.parse(response.body).find { |item| item["id"] == @merchant.id }
+      assert_equal stored_url.sub("/w/40/h/40", "/w/120/h/120"), merchant["logo_url"]
+    end
+
+    assert_equal stored_url, @merchant.reload.logo_url
+  end
+
   # Show action tests
   test "show requires authentication" do
     get api_v1_merchant_url(@merchant)

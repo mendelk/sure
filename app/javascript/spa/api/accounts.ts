@@ -39,6 +39,7 @@ const CellSchema = z.object({
   href: NullableStringSchema,
   tone: ToneSchema,
   privacy: z.boolean(),
+  logo: z.optional(z.nullable(z.object({ url: NullableStringSchema, text: z.string() }))),
 });
 export const AccountTableSchema = z.object({
   label: z.string(),

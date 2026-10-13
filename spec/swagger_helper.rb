@@ -1353,6 +1353,7 @@ RSpec.configure do |config|
               signed_amount_cents: { type: :integer },
               currency: { type: :string },
               name: { type: :string },
+              logo_url: { type: :string, nullable: true, description: 'Display logo URL: investment activity security first, otherwise merchant. Brandfetch URLs use the current logo resolution setting.' },
               notes: { type: :string, nullable: true },
               external_id: { type: :string, nullable: true },
               source: { type: :string, nullable: true },

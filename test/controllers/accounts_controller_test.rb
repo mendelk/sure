@@ -34,6 +34,20 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "account activity keeps merchant logos when no investment security is present" do
+    merchant = @user.family.merchants.create!(
+      name: "Activity Logo Merchant", logo_url: "https://example.com/merchant.png"
+    )
+    entry = create_transaction(account: @account, name: "Logo activity", merchant: merchant)
+
+    get account_url(@account, format: :json), params: { search: "Logo activity" }
+
+    assert_response :success
+    row = response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }.find { |item| item["id"] == entry.id }
+    assert_equal "https://example.com/merchant.png", row["logo_url"]
+    assert_equal row["logo_url"], row.dig("transaction", "logo_url")
+  end
+
   test "index includes the account link in row payload" do
     get accounts_url(format: :json)
 

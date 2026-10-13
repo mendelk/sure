@@ -2468,6 +2468,11 @@ components:
           type: string
         name:
           type: string
+        logo_url:
+          type: string
+          nullable: true
+          description: 'Display logo URL: investment activity security first, otherwise
+            merchant. Brandfetch URLs use the current logo resolution setting.'
         notes:
           type: string
           nullable: true
@@ -9224,6 +9229,8 @@ paths:
       - Merchants
       security:
       - apiKeyAuth: []
+      description: Returns merchant logos with Brandfetch URLs adjusted to the current
+        logo resolution setting.
       responses:
         '200':
           description: merchants listed
@@ -11346,7 +11353,9 @@ paths:
       - apiKeyAuth: []
       - cookieSession: []
       description: Returns global ledger history for accessible accounts, including
-        disabled accounts but excluding accounts pending deletion.
+        disabled accounts but excluding accounts pending deletion. logo_url resolves
+        the investment activity security or merchant logo using the current Brandfetch
+        resolution; merchant includes website_url and logo_url.
       parameters:
       - name: page
         in: query

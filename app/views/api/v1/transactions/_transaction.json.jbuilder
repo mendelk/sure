@@ -17,6 +17,7 @@ json.signed_amount_cents(transaction.entry.classification == "income" ? amount_c
 
 json.currency transaction.entry.currency
 json.name transaction.entry.name
+json.logo_url transaction.display_logo_url
 json.notes transaction.entry.notes
 json.external_id transaction.entry.external_id
 json.source transaction.entry.source
@@ -51,6 +52,8 @@ if transaction.merchant.present?
   json.merchant do
     json.id transaction.merchant.id
     json.name transaction.merchant.name
+    json.website_url transaction.merchant.website_url
+    json.logo_url Setting.transform_brand_fetch_url(transaction.merchant.logo_url)
   end
 else
   json.merchant nil
