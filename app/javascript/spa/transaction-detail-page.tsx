@@ -993,15 +993,14 @@ function MerchantLinks({
   const merchant = transaction.merchant;
   if (!merchant) return null;
 
-  const ruleHref =
-    transaction.category?.id === undefined
-      ? null
-      : `${bootstrap.railsPaths.newRule}?${new URLSearchParams({
-          resource_type: "transaction",
-          merchant_id: merchant.id,
-          action_type: "set_transaction_category",
-          action_value: transaction.category.id,
-        }).toString()}`;
+  // Uncategorized transactions omit :action_value so the rule form opens with
+  // "Set transaction category" and an empty category for the user to pick.
+  const ruleHref = `${bootstrap.railsPaths.newRule}?${new URLSearchParams({
+    resource_type: "transaction",
+    merchant_id: merchant.id,
+    action_type: "set_transaction_category",
+    ...(transaction.category?.id !== undefined ? { action_value: transaction.category.id } : {}),
+  }).toString()}`;
 
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -1020,16 +1019,16 @@ function MerchantLinks({
         <Icon name="pencil" size="sm" />
         Edit merchant
       </a>
-      {ruleHref !== null ? (
-        <a
-          className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary hover:underline"
-          data-turbo-frame="modal"
-          href={ruleHref}
-        >
-          <Icon name="plus" size="sm" />
-          Always categorize as {transaction.category?.name}
-        </a>
-      ) : null}
+      <a
+        className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary hover:underline"
+        data-turbo-frame="modal"
+        href={ruleHref}
+      >
+        <Icon name="plus" size="sm" />
+        {transaction.category?.name !== undefined
+          ? `Always categorize as ${transaction.category.name}`
+          : "Always categorize"}
+      </a>
     </span>
   );
 }
