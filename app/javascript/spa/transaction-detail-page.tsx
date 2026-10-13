@@ -8,6 +8,7 @@ import { Modal } from "./modal";
 import { Toggle } from "./components/toggle";
 import { TagSelect } from "./components/tag-select";
 import { SearchablePicker, type PickerOption } from "./components/searchable-picker";
+import { BrandLogo } from "./components/brand-logo";
 import {
   TransactionApiError,
   createCategory,
@@ -264,20 +265,10 @@ function CategoryPill({ name, color, icon }: { name: string; color?: string; ico
 }
 
 function MerchantAvatar({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
-  if (typeof logoUrl === "string" && logoUrl.length > 0) {
-    return (
-      <img
-        alt=""
-        className="size-5 shrink-0 rounded-full border border-secondary object-contain"
-        loading="lazy"
-        src={logoUrl}
-      />
-    );
-  }
   return (
-    <span
-      aria-hidden="true"
-      className="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium uppercase"
+    <BrandLogo
+      className="size-6 rounded-full border text-xs font-medium uppercase"
+      src={logoUrl}
       style={{
         backgroundColor: "color-mix(in oklab, var(--color-gray-500) 10%, transparent)",
         borderColor: "color-mix(in oklab, var(--color-gray-500) 20%, transparent)",
@@ -285,7 +276,7 @@ function MerchantAvatar({ name, logoUrl }: { name: string; logoUrl?: string | nu
       }}
     >
       {name.charAt(0)}
-    </span>
+    </BrandLogo>
   );
 }
 

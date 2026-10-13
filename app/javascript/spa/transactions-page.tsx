@@ -26,6 +26,7 @@ import {
 import type { SpaBootstrap } from "./bootstrap";
 import { TransactionRow, TransactionRowHeader } from "./components/transaction-row";
 import { TablePaginationBar } from "./components/table";
+import { BrandLogo } from "./components/brand-logo";
 import { Icon, type IconName } from "./icon";
 import { useDismiss } from "./use-dismiss";
 import {
@@ -681,21 +682,12 @@ function UpcomingRow({ item }: { item: UpcomingRecurringTransaction }) {
   return (
     <li className="group grid grid-cols-2 items-center gap-4 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-container-hover md:grid-cols-12 md:gap-6">
       <div className="col-span-1 flex min-w-0 items-center gap-3 md:col-span-7">
-        {typeof item.merchant?.logo_url === "string" && item.merchant.logo_url.length > 0 ? (
-          <img
-            alt=""
-            className="size-9 shrink-0 rounded-full object-contain"
-            loading="lazy"
-            src={item.merchant.logo_url}
-          />
-        ) : (
-          <div
-            aria-hidden="true"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-container-inset text-sm font-semibold text-secondary"
-          >
-            {displayName.slice(0, 1).toUpperCase()}
-          </div>
-        )}
+        <BrandLogo
+          className="size-9 rounded-full bg-container-inset text-sm font-semibold text-secondary"
+          src={item.merchant?.logo_url}
+        >
+          {displayName.slice(0, 1).toUpperCase()}
+        </BrandLogo>
 
         <div className="min-w-0 truncate">
           <div className="flex min-w-0 items-center gap-1.5">

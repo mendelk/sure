@@ -203,7 +203,7 @@ module Api
             type: merchant.type,
             color: merchant.color,
             website_url: merchant.website_url,
-            logo_url: merchant.logo_url,
+            logo_url: Setting.transform_brand_fetch_url(merchant.logo_url),
             created_at: merchant.created_at,
             updated_at: merchant.updated_at
           }

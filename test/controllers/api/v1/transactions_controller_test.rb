@@ -53,6 +53,77 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert response_data["pagination"].key?("total_pages")
   end
 
+  test "list and detail expose merchant logos at the current Brandfetch resolution" do
+    stored_url = "https://cdn.brandfetch.io/netflix.com/icon/fallback/lettermark/w/40/h/40?c=test-client"
+    merchant = @family.merchants.create!(
+      name: "Logo Merchant", website_url: "https://netflix.com", logo_url: stored_url
+    )
+    @transaction.update!(merchant: merchant)
+
+    Setting.stub :brand_fetch_high_res_logos, true do
+      get api_v1_transactions_url, params: { merchant_id: merchant.id }, headers: api_headers(@read_only_api_key)
+      assert_response :success
+      listed = JSON.parse(response.body)["transactions"].find { |transaction| transaction["id"] == @transaction.id }
+
+      get api_v1_transaction_url(@transaction), headers: api_headers(@read_only_api_key)
+      assert_response :success
+      detail = JSON.parse(response.body)
+
+      [ listed, detail ].each do |transaction|
+        assert_equal stored_url.sub("/w/40/h/40", "/w/120/h/120"), transaction["logo_url"]
+        assert_equal transaction["logo_url"], transaction.dig("merchant", "logo_url")
+        assert_equal "https://netflix.com", transaction.dig("merchant", "website_url")
+      end
+    end
+
+    assert_equal stored_url, merchant.reload.logo_url
+  end
+
+  test "transaction logos prefer investment securities over merchants" do
+    merchant = @family.merchants.create!(name: "Broker", logo_url: "https://example.com/broker.png")
+    security = securities(:aapl)
+    security.update!(website_url: nil, logo_url: "https://example.com/issuer.png")
+    @transaction.update!(merchant: merchant, extra: { "security_id" => security.id })
+
+    get api_v1_transactions_url, params: { merchant_id: merchant.id }, headers: api_headers(@read_only_api_key)
+
+    assert_response :success
+    transaction = JSON.parse(response.body)["transactions"].find { |item| item["id"] == @transaction.id }
+    assert_equal "https://example.com/issuer.png", transaction["logo_url"]
+    assert_equal "https://example.com/broker.png", transaction.dig("merchant", "logo_url")
+  end
+
+  test "transaction logos remain absent when no merchant or security has a logo" do
+    @transaction.update!(merchant: nil, extra: {})
+
+    get api_v1_transaction_url(@transaction), headers: api_headers(@read_only_api_key)
+
+    assert_response :success
+    assert_nil JSON.parse(response.body)["logo_url"]
+  end
+
+  test "index batches investment activity security lookups" do
+    @transaction.update!(extra: { "security_id" => securities(:aapl).id })
+    baseline_queries = count_db_queries do
+      get api_v1_transactions_url, params: { per_page: 100 }, headers: api_headers(@read_only_api_key)
+      assert_response :success
+    end
+
+    [ securities(:aapl), securities(:msft) ].each do |security|
+      @account.entries.create!(
+        name: "Investment income", amount: -10, currency: "USD", date: Date.current,
+        entryable: Transaction.new(extra: { "security_id" => security.id })
+      )
+    end
+
+    expanded_queries = count_db_queries do
+      get api_v1_transactions_url, params: { per_page: 100 }, headers: api_headers(@read_only_api_key)
+      assert_response :success
+    end
+
+    assert_equal baseline_queries, expanded_queries
+  end
+
   test "index avoids per-transaction transfer queries" do
     from_account = @family.accounts.first
     to_account = @family.accounts.second || @family.accounts.create!(

@@ -20,6 +20,7 @@ import { useDismiss } from "../use-dismiss";
 import { IconButton } from "./icon-button";
 import { TagSelect } from "./tag-select";
 import { SearchablePicker, type PickerOption } from "./searchable-picker";
+import { BrandLogo } from "./brand-logo";
 const transactionGridClass =
   "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:grid-cols-12";
 const defaultColumnLabels = {
@@ -117,16 +118,12 @@ export function TransactionRow({
             type="checkbox"
           />
         ) : null}
-        <div
-          aria-hidden="true"
-          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-container-inset text-sm font-semibold text-secondary"
+        <BrandLogo
+          className="size-10 rounded-full bg-container-inset text-sm font-semibold text-secondary"
+          src={logoUrl ?? transaction.logo_url ?? transaction.merchant?.logo_url}
         >
-          {logoUrl !== undefined && logoUrl !== null && logoUrl !== "" ? (
-            <img alt="" className="size-10 rounded-full object-cover" src={logoUrl} />
-          ) : (
-            transaction.name.slice(0, 1).toUpperCase()
-          )}
-        </div>
+          {transaction.name.slice(0, 1).toUpperCase()}
+        </BrandLogo>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <Link

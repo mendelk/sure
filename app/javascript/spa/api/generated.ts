@@ -9,7 +9,7 @@ import * as zod from 'zod/mini';
 import { AccountIdSchema, CategoryIdSchema, EntryIdSchema, ExternalIdSchema, MerchantIdSchema, TagIdSchema, TransactionIdSchema, TransferIdSchema } from "../ids";
 
 /**
- * Returns global ledger history for accessible accounts, including disabled accounts but excluding accounts pending deletion.
+ * Returns global ledger history for accessible accounts, including disabled accounts but excluding accounts pending deletion. logo_url resolves the investment activity security or merchant logo using the current Brandfetch resolution; merchant includes website_url and logo_url.
  * @summary List transactions
  */
 export const GetApiV1TransactionsQueryParams = /*#__PURE__*/ zod.object({
@@ -67,6 +67,7 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "signed_amount_cents": /*#__PURE__*/ zod.int(),
   "currency": /*#__PURE__*/ zod.string(),
   "name": /*#__PURE__*/ zod.string(),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Display logo URL: investment activity security first, otherwise merchant. Brandfetch URLs use the current logo resolution setting.')),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
   "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
@@ -185,6 +186,7 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "signed_amount_cents": /*#__PURE__*/ zod.int(),
   "currency": /*#__PURE__*/ zod.string(),
   "name": /*#__PURE__*/ zod.string(),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Display logo URL: investment activity security first, otherwise merchant. Brandfetch URLs use the current logo resolution setting.')),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
   "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
@@ -247,6 +249,7 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "signed_amount_cents": /*#__PURE__*/ zod.int(),
   "currency": /*#__PURE__*/ zod.string(),
   "name": /*#__PURE__*/ zod.string(),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Display logo URL: investment activity security first, otherwise merchant. Brandfetch URLs use the current logo resolution setting.')),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
   "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
@@ -326,6 +329,7 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "signed_amount_cents": /*#__PURE__*/ zod.int(),
   "currency": /*#__PURE__*/ zod.string(),
   "name": /*#__PURE__*/ zod.string(),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Display logo URL: investment activity security first, otherwise merchant. Brandfetch URLs use the current logo resolution setting.')),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
   "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
@@ -422,6 +426,7 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "signed_amount_cents": /*#__PURE__*/ zod.int(),
   "currency": /*#__PURE__*/ zod.string(),
   "name": /*#__PURE__*/ zod.string(),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Display logo URL: investment activity security first, otherwise merchant. Brandfetch URLs use the current logo resolution setting.')),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
   "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),

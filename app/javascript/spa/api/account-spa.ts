@@ -92,6 +92,7 @@ export const ProviderItemSchema = z.object({
   name: z.string(),
   logo_url: z.nullable(z.string()),
   logo_text: z.nullable(z.string()),
+  logo_icon: z.optional(z.nullable(z.string())),
   logo_color: z.nullable(z.string()),
   status: z.string(),
   status_label: z.string(),

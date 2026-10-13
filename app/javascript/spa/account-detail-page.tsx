@@ -41,6 +41,7 @@ import { Alert } from "./components/alert";
 import { BulkUpdateDrawer } from "./bulk-update-drawer";
 import { TransactionRow, TransactionRowHeader } from "./components/transaction-row";
 import { TablePaginationBar } from "./components/table";
+import { BrandLogo } from "./components/brand-logo";
 
 export function validateAccountSearch(input: Record<string, unknown>): AccountSearch {
   const page = Number(input.page);
@@ -153,16 +154,13 @@ export function AccountDetailPage() {
     >
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div
-            className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-container-inset"
+          <BrandLogo
+            className="size-9 rounded-full bg-container-inset"
             style={{ color: data.color }}
+            src={data.logo_url}
           >
-            {data.logo_url !== null && data.logo_url !== "" ? (
-              <img src={data.logo_url} alt="" className="size-full object-contain" />
-            ) : (
-              <Icon name="credit-card" className="text-inherit!" />
-            )}
-          </div>
+            <Icon name="credit-card" className="text-inherit!" />
+          </BrandLogo>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1
@@ -794,13 +792,9 @@ function ActivityEntryView({
             onSelect(event.target.checked);
           }}
         />
-        <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-container-inset">
-          {entry.logo_url !== null && entry.logo_url !== "" ? (
-            <img src={entry.logo_url} alt="" className="size-full object-contain" />
-          ) : (
-            <Icon name={entry.type === "trade" ? "arrow-left-right" : "chart-bar"} />
-          )}
-        </div>
+        <BrandLogo className="size-10 rounded-full bg-container-inset" src={entry.logo_url}>
+          <Icon name={entry.type === "trade" ? "arrow-left-right" : "chart-bar"} />
+        </BrandLogo>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <a
