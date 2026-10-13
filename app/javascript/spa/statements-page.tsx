@@ -61,7 +61,7 @@ function UnmatchedRow({ row, onError }: { row: StatementRow; onError: (message: 
       className="border-b border-subdued last:border-b-0 hover:bg-surface-hover"
       id={`statement_${row.id}`}
     >
-      <td className="p-3">
+      <td className="px-4 py-3">
         <Link
           className="flex min-w-0 items-center gap-2 text-sm font-medium text-primary hover:underline"
           params={{ statementId: row.id }}
@@ -72,8 +72,8 @@ function UnmatchedRow({ row, onError }: { row: StatementRow; onError: (message: 
         </Link>
         <p className="text-xs text-secondary">{row.size}</p>
       </td>
-      <td className="px-3 py-3 text-sm text-secondary">{row.period}</td>
-      <td className="px-3 py-3">
+      <td className="px-4 py-3 text-sm text-secondary">{row.period}</td>
+      <td className="px-4 py-3">
         {row.suggestion !== null ? (
           <div className="flex flex-col gap-1">
             <p className="text-sm font-medium text-primary">{row.suggestion.name}</p>
@@ -83,7 +83,7 @@ function UnmatchedRow({ row, onError }: { row: StatementRow; onError: (message: 
           <span className="text-sm text-secondary">No suggestion</span>
         )}
       </td>
-      <td className="px-3 py-3">
+      <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-3">
           {row.link_href !== null && row.suggestion !== null ? (
             <IconButton icon="link" label="Link suggestion" onClick={link} />
@@ -110,7 +110,7 @@ function LinkedRow({ row }: { row: StatementRow }) {
       className="border-b border-subdued last:border-b-0 hover:bg-surface-hover"
       id={`statement_${row.id}`}
     >
-      <td className="p-3">
+      <td className="px-4 py-3">
         <Link
           className="flex min-w-0 items-center gap-2 text-sm font-medium text-primary hover:underline"
           params={{ statementId: row.id }}
@@ -120,9 +120,9 @@ function LinkedRow({ row }: { row: StatementRow }) {
           <span className="truncate">{row.filename}</span>
         </Link>
       </td>
-      <td className="px-3 py-3 text-sm text-secondary">{row.account}</td>
-      <td className="px-3 py-3 text-sm text-secondary">{row.period}</td>
-      <td className="px-3 py-3">
+      <td className="px-4 py-3 text-sm text-secondary">{row.account}</td>
+      <td className="px-4 py-3 text-sm text-secondary">{row.period}</td>
+      <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-3">
           <Link
             aria-label="View"
@@ -275,31 +275,31 @@ function StatementTable({
   onError: (message: string) => void;
 }) {
   return (
-    <div className="space-y-1 rounded-xl bg-container-inset p-1">
-      <div className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium uppercase text-secondary">
+    <div className="relative flex flex-col overflow-hidden rounded-xl bg-container shadow-border-xs">
+      <div className="flex items-center gap-1.5 bg-container-inset px-4 py-2.5 text-xs font-medium uppercase text-secondary">
         <p>{heading}</p>
         <span className="text-subdued">&middot;</span>
         <p>{rows.length}</p>
       </div>
-      <div className="overflow-x-auto rounded-lg bg-container shadow-border-xs">
+      <div className="overflow-x-auto">
         {rows.length === 0 ? (
           <p className="py-8 text-center text-sm font-medium text-secondary">{emptyLabel}</p>
         ) : (
           <table aria-label={heading} className="w-full">
-            <thead>
-              <tr className="border-b border-divider text-xs font-medium uppercase text-secondary">
-                <th className="min-w-56 px-3 py-3 text-left">{STATEMENTS_TEXT.file}</th>
+            <thead className="sticky top-0 z-10 bg-container text-xs font-medium uppercase text-secondary">
+              <tr className="border-b border-tertiary">
+                <th className="min-w-56 px-4 py-3 text-left">{STATEMENTS_TEXT.file}</th>
                 {kind === "linked" ? (
-                  <th className="min-w-44 px-3 py-3 text-left">{STATEMENTS_TEXT.account}</th>
+                  <th className="min-w-44 px-4 py-3 text-left">{STATEMENTS_TEXT.account}</th>
                 ) : null}
-                <th className="min-w-44 px-3 py-3 text-left">{STATEMENTS_TEXT.period}</th>
+                <th className="min-w-44 px-4 py-3 text-left">{STATEMENTS_TEXT.period}</th>
                 {kind === "unmatched" ? (
-                  <th className="min-w-48 px-3 py-3 text-left">{STATEMENTS_TEXT.suggestion}</th>
+                  <th className="min-w-48 px-4 py-3 text-left">{STATEMENTS_TEXT.suggestion}</th>
                 ) : null}
-                <th className="min-w-24 px-3 py-3 text-right">{STATEMENTS_TEXT.actions}</th>
+                <th className="min-w-24 px-4 py-3 text-right">{STATEMENTS_TEXT.actions}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-tertiary bg-container">
               {rows.map((row) =>
                 kind === "unmatched" ? (
                   <UnmatchedRow key={row.id} onError={onError} row={row} />
