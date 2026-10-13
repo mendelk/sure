@@ -262,11 +262,14 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       # Transaction::Search filters categories/merchants/tags by name; resolve
       # legacy ID-based params to names.
       category_ids = array_param(:category_ids) | array_param(:category_id)
-      filters[:categories] = array_param(:categories) | names_for_ids(current_resource_owner.family.categories, category_ids)
+      raw_categories = array_param(:categories) | names_for_ids(current_resource_owner.family.categories, category_ids)
+      filters[:categories] = normalize_synthetic_category_filter(raw_categories)
       merchant_ids = array_param(:merchant_ids) | array_param(:merchant_id)
-      filters[:merchants] = array_param(:merchants) | names_for_ids(current_resource_owner.family.merchants, merchant_ids)
+      raw_merchants = array_param(:merchants) | names_for_ids(current_resource_owner.family.merchants, merchant_ids)
+      filters[:merchants] = normalize_synthetic_merchant_filter(raw_merchants)
       tag_ids = array_param(:tag_ids)
-      filters[:tags] = array_param(:tags) | names_for_ids(current_resource_owner.family.tags, tag_ids)
+      raw_tags = array_param(:tags) | names_for_ids(current_resource_owner.family.tags, tag_ids)
+      filters[:tags] = normalize_synthetic_tag_filter(raw_tags)
 
       filters[:types] = array_param(:types) | array_param(:type)
       filters[:status] = array_param(:status)
@@ -283,9 +286,9 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       excluded_merchant_ids = array_param(:excluded_merchant_ids) | array_param(:excluded_merchant_id)
       excluded_tag_ids = array_param(:excluded_tag_ids)
       {
-        excluded_categories: array_param(:excluded_categories) | names_for_ids(family.categories, excluded_category_ids),
-        excluded_merchants: array_param(:excluded_merchants) | names_for_ids(family.merchants, excluded_merchant_ids),
-        excluded_tags: array_param(:excluded_tags) | names_for_ids(family.tags, excluded_tag_ids),
+        excluded_categories: normalize_synthetic_category_filter(array_param(:excluded_categories) | names_for_ids(family.categories, excluded_category_ids)),
+        excluded_merchants: normalize_synthetic_merchant_filter(array_param(:excluded_merchants) | names_for_ids(family.merchants, excluded_merchant_ids)),
+        excluded_tags: normalize_synthetic_tag_filter(array_param(:excluded_tags) | names_for_ids(family.tags, excluded_tag_ids)),
         excluded_accounts: array_param(:excluded_accounts),
         excluded_account_ids: array_param(:excluded_account_ids) | array_param(:excluded_account_id),
         excluded_types: array_param(:excluded_types) | array_param(:excluded_type),
@@ -293,6 +296,20 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       }.reject { |_, value| value.blank? }
     end
 
+    def normalize_synthetic_category_filter(categories)
+      aliases = [ "Uncategorized", Category.uncategorized_name, Category::UNCATEGORIZED_FILTER_VALUE ].uniq
+      categories.map { |name| aliases.include?(name) ? Category::UNCATEGORIZED_FILTER_VALUE : name }
+    end
+
+    def normalize_synthetic_merchant_filter(merchants)
+      aliases = [ "No merchant", Merchant.no_merchant_name, Merchant::NO_MERCHANT_FILTER_VALUE ].uniq
+      merchants.map { |name| aliases.include?(name) ? Merchant::NO_MERCHANT_FILTER_VALUE : name }
+    end
+
+    def normalize_synthetic_tag_filter(tags)
+      aliases = [ "Untagged", Tag.untagged_name, Tag::UNTAGGED_FILTER_VALUE ].uniq
+      tags.map { |name| aliases.include?(name) ? Tag::UNTAGGED_FILTER_VALUE : name }
+    end
     # Classic single-value amount filter (EntrySearch): one amount plus an
     # equal/greater/less operator. `min_amount`/`max_amount` remain documented
     # legacy aliases; explicit amount/amount_operator wins when both present.
