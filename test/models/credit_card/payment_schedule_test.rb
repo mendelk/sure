@@ -26,6 +26,24 @@ class CreditCard::PaymentScheduleTest < ActiveSupport::TestCase
     assert_equal 500, occurrence.remaining_amount
   end
 
+  test "reconciled statement balance takes precedence over an incomplete opening-anchor ledger" do
+    opening = @account.entries.find_by!(entryable_type: "Valuation")
+    opening.update!(date: Date.new(2024, 8, 10), amount: 84.36)
+    charge(-5533.20, Date.new(2026, 8, 12), name: "Autopay")
+    charge(189.20, Date.new(2026, 9, 24))
+    @account.update!(balance: 376.89)
+    @account.balances.create!(date: Date.new(2026, 9, 17), balance: 187.69,
+                              cash_balance: 187.69, currency: "USD", flows_factor: -1)
+    @account.balances.create!(date: Date.new(2026, 9, 17), balance: 900,
+                              cash_balance: 900, currency: "EUR", flows_factor: -1)
+    configure_day(12)
+
+    assert_equal Date.new(2026, 9, 17), occurrence.statement_end_on
+    assert_equal BigDecimal("187.69"), occurrence.statement_balance
+    assert_equal BigDecimal("187.69"), occurrence.remaining_amount
+    assert occurrence.scheduled?
+  end
+
   test "no occurrence exists for a statement on its closing day" do
     travel_to Time.zone.local(2026, 10, 2, 12)
     configure_day(27)

@@ -151,6 +151,11 @@ class CreditCard
       end
 
       def balance_on(date)
+        # Linked accounts are reconciled backwards from provider balances; an
+        # opening valuation can predate the imported ledger by months or years.
+        materialized = account.balances.find_by(date: date, currency: account.currency)
+        return materialized.balance if materialized
+
         valuations = account.entries.where(entryable_type: "Valuation", currency: account.currency)
         anchor = valuations.where("date <= ?", date).order(date: :desc).first
         anchor ||= valuations.where("date > ?", date).order(:date).first
