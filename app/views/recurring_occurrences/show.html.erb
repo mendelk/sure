@@ -40,6 +40,9 @@
 
   <% dialog.with_body do %>
     <div class="space-y-4">
+      <% if series.credit_card_payment? %>
+        <%= render "bills/credit_card_estimate", series: series, occurrence: @occurrence %>
+      <% end %>
       <%# What is owed leads, because it is the number the next decision turns
           on. Progress reports; it does not prompt. %>
       <div class="flex items-center gap-4">
@@ -280,6 +283,7 @@
               <p class="text-xs text-secondary pt-1"><%= t(".mark_paid_hint") %></p>
             </div>
 
+            <% unless series.system_managed? %>
             <%= render DS::Menu.new do |menu| %>
               <% menu.with_item(variant: "button", text: t(".skip"), icon: "skip-forward",
                     href: skip_recurring_occurrence_path(@occurrence), method: :post) %>
@@ -293,8 +297,9 @@
                     icon: series.active? ? "pause" : "play",
                     href: toggle_status_recurring_transaction_path(series), method: :post) %>
             <% end %>
+            <% end %>
           </div>
-        <% else %>
+        <% elsif !series.system_managed? %>
           <%= render DS::Link.new(text: t(".reopen"), variant: "outline",
                 href: reopen_recurring_occurrence_path(@occurrence), method: :post) %>
         <% end %>

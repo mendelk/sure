@@ -6,6 +6,7 @@ class RecurringOccurrencesController < ApplicationController
   before_action :ensure_recurring_enabled
   before_action :set_occurrence
   before_action :ensure_series_writable, only: %i[mark_paid skip reopen snooze override_amount]
+  before_action :ensure_not_system_managed, only: %i[skip reopen snooze override_amount]
 
   # The dialog is delivered into the shared <turbo-frame id="modal"> (see
   # RecurringTransactionsController#edit for the two-frames trap).
@@ -70,6 +71,10 @@ class RecurringOccurrencesController < ApplicationController
       raise ActiveRecord::RecordNotFound
     end
 
+    def ensure_not_system_managed
+      head :forbidden if @occurrence.recurring_transaction.system_managed?
+    end
+
     def allocator
       RecurringTransaction::Allocator.new(@occurrence)
     end
@@ -106,7 +111,7 @@ class RecurringOccurrencesController < ApplicationController
       else
         Current.family.entries.where(account_id: Account.accessible_by(Current.user).select(:id))
       end
-      sign = series.amount.negative? ? "entries.amount < 0" : "entries.amount > 0"
+      sign = series.amount.negative? || series.credit_card_payment? ? "entries.amount < 0" : "entries.amount > 0"
 
       scope = base
         .where(entryable_type: "Transaction")
@@ -115,6 +120,9 @@ class RecurringOccurrencesController < ApplicationController
         .where.not(id: @occurrence.allocations.where.not(entry_id: nil).select(:entry_id))
         .joins("INNER JOIN transactions ON transactions.id = entries.entryable_id")
 
+      if series.credit_card_payment?
+        return scope.excluding_pending.excluding_split_parents.where("entries.date > ?", @occurrence.statement_end_on)
+      end
       return scope if series.transfer?
 
       scope.where.not(transactions: { kind: Transaction::TRANSFER_KINDS })
@@ -134,6 +142,7 @@ class RecurringOccurrencesController < ApplicationController
     # write time, never hidden at read time.
     def ranked_candidates
       series = @occurrence.recurring_transaction
+      return [] if series.system_managed?
       matcher = RecurringTransaction::Matcher.new(Current.family)
 
       scope = candidate_scope
@@ -187,7 +196,10 @@ class RecurringOccurrencesController < ApplicationController
         candidate_scope.where(date: candidate_window)
       end
 
-      scope.order(candidate_relevance_sql).limit(FALLBACK_SHOWN + RANKED_SHOWN)
+      entries = scope.order(candidate_relevance_sql).limit(FALLBACK_SHOWN + RANKED_SHOWN)
+      return entries unless @occurrence.recurring_transaction.credit_card_payment?
+
+      entries.includes(entryable: :transfer).select { |entry| CreditCard::PaymentSchedule.payment?(entry) }
     end
 
     def candidate_relevance_sql

@@ -31,7 +31,7 @@ class RecurringTransaction
     private
 
       def series_scope
-        @series_scope || family.recurring_transactions.active
+        (@series_scope || family.recurring_transactions.active).where(system_managed_kind: nil)
       end
 
       # Uncovered past occurrences (before the current cycle, no payments)

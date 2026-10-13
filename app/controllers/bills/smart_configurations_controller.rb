@@ -16,6 +16,7 @@ class Bills::SmartConfigurationsController < ApplicationController
                      .accessible_by(Current.user)
                      .includes(:merchant, :category)
                      .find(params[:id])
+    return head :forbidden if @series.system_managed?
 
     begin
       @suggestion = RecurringTransaction::AiSetupSuggester

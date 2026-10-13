@@ -192,6 +192,44 @@ class TransactionsTest < ApplicationSystemTestCase
     assert_equal inflow.entryable.id, transfer.inflow_transaction_id
   end
 
+  test "changes a transaction category from the row menu" do
+    target = categories(:food_and_drink)
+    entry = create_transaction("Menu category change", Date.current, 42, category: categories(:subcategory))
+
+    visit transactions_url
+
+    within "##{dom_id(entry)}" do
+      find("button[aria-haspopup='menu']").click
+      click_button "Clear category"
+    end
+
+    assert_selector "##{dom_id(entry)}", text: "Uncategorized"
+    assert_nil entry.transaction.reload.category_id
+
+    within "##{dom_id(entry)}" do
+      find("button[aria-haspopup='menu']").click
+      find("input[type='search']").fill_in(with: target.name)
+      click_button target.name, exact: true
+    end
+
+    assert_selector "##{dom_id(entry)}", text: target.name
+    assert_equal target.id, entry.transaction.reload.category_id
+  end
+
+  test "toggles one-time from the row category menu" do
+    entry = create_transaction("Menu one-time toggle", Date.current, 42, category: categories(:food_and_drink))
+
+    visit transactions_url
+
+    within "##{dom_id(entry)}" do
+      find("button[aria-haspopup='menu']").click
+      find("label", text: /One-time/).click
+    end
+
+    assert_selector "##{dom_id(entry)}.opacity-50"
+    assert entry.reload.excluded?
+  end
+
   private
     def create_transaction(name, date, amount, merchant: nil, category: nil)
       accounts(:depository).entries.create!(

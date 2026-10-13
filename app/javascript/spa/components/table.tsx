@@ -29,7 +29,7 @@ export type ColumnStyle = {
   total?: boolean;
 };
 type TableRow = { id: string } | { key: string };
-const PAGE_SIZES = [10, 25, 50, 100];
+export const PAGE_SIZES = [10, 25, 50, 100] as const;
 const TABLE_FEATURES = tableFeatures({
   rowPaginationFeature,
   coreRowModel: createCoreRowModel(),
@@ -74,7 +74,6 @@ export function Table<Row extends TableRow>({
     state: { pagination: pagination?.state ?? localPagination },
     onPaginationChange: pagination?.onChange ?? setLocalPagination,
   });
-  const id = useId();
   const t = (key: string) => text[key] ?? key;
   const state = table.state.pagination;
   const offset = pagination ? resultOffset : state.pageIndex * state.pageSize;
@@ -139,68 +138,139 @@ export function Table<Row extends TableRow>({
           </section>
         </div>
       )}
-      <nav
-        aria-label={t("pagination")}
-        className="flex shrink-0 flex-wrap items-center justify-between gap-3"
-      >
-        <p aria-live="polite" className="text-xs text-secondary">
-          {t("page_range")
-            .replace("%{start}", String(rows.length > 0 ? offset + 1 : 0))
-            .replace("%{end}", String(rows.length > 0 ? offset + rows.length : 0))}
-          {" · "}
-          {t("page_label").replace("%{page}", String(Math.floor(offset / state.pageSize) + 1))}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            aria-busy={loading}
-            iconProps={loading ? LOADING_ICON : undefined}
-            disabled={pending || !table.getCanPreviousPage()}
-            onClick={() => {
-              table.previousPage();
-            }}
-          >
-            {t("previous_page")}
-          </Button>
+      <TablePaginationBar
+        disabled={pending}
+        itemCount={rows.length}
+        labels={{
+          pagination: t("pagination"),
+          previous: t("previous_page"),
+          next: t("next_page"),
+          perPage: t("per_page"),
+          rowsPerPage: t("rows_per_page"),
+        }}
+        loading={loading}
+        onPageChange={(nextPage) => {
+          table.setPagination((current) => ({ ...current, pageIndex: nextPage - 1 }));
+        }}
+        onPerPageChange={(pageSize) => {
+          table.setPagination({ pageIndex: 0, pageSize });
+        }}
+        page={Math.floor(offset / state.pageSize) + 1}
+        perPage={state.pageSize}
+        totalPages={table.getPageCount()}
+      />
+    </div>
+  );
+}
+export type TablePaginationBarProps = {
+  page: number;
+  perPage: number;
+  totalPages: number;
+  itemCount: number;
+  totalCount?: number;
+  onPageChange: (page: number) => void;
+  onPerPageChange?: (perPage: number) => void;
+  pageSizes?: readonly number[];
+  disabled?: boolean;
+  loading?: boolean;
+  className?: string;
+  labels?: {
+    pagination?: string;
+    previous?: string;
+    next?: string;
+    perPage?: string;
+    rowsPerPage?: string;
+  };
+};
+
+export function TablePaginationBar({
+  page,
+  perPage,
+  totalPages,
+  itemCount,
+  totalCount,
+  onPageChange,
+  onPerPageChange,
+  pageSizes = PAGE_SIZES,
+  disabled = false,
+  loading = false,
+  className = "",
+  labels,
+}: TablePaginationBarProps) {
+  const id = useId();
+  const offset = (page - 1) * perPage;
+  const start = itemCount > 0 ? offset + 1 : 0;
+  const end = itemCount > 0 ? offset + itemCount : 0;
+
+  const previousLabel = labels?.previous ?? "Previous";
+  const nextLabel = labels?.next ?? "Next";
+  const perPageLabel = labels?.perPage ?? "per page";
+  const rowsPerPageLabel = labels?.rowsPerPage ?? "Rows per page";
+  const paginationAria = labels?.pagination ?? "Pagination";
+
+  return (
+    <nav
+      aria-label={paginationAria}
+      className={`flex shrink-0 flex-wrap items-center justify-between gap-3 ${className}`}
+    >
+      <p aria-live="polite" className="text-xs text-secondary">
+        {`Rows ${start}–${end}`}
+        {totalCount !== undefined && totalCount > 0 ? ` of ${totalCount}` : ""}
+        {" · "}
+        {`Page ${page}`}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          aria-busy={loading}
+          disabled={disabled || page <= 1}
+          iconProps={loading ? LOADING_ICON : undefined}
+          onClick={() => {
+            onPageChange(page - 1);
+          }}
+          size="sm"
+          variant="secondary"
+        >
+          {previousLabel}
+        </Button>
+        {onPerPageChange ? (
           <div className="flex items-center gap-2 whitespace-nowrap">
             <FormField
+              aria-label={rowsPerPageLabel}
               as="select"
-              id={`${id}-page-size`}
-              aria-label={t("rows_per_page")}
-              value={state.pageSize}
-              disabled={pending}
               className="pr-6!"
               containerClassName="w-20"
+              disabled={disabled}
+              id={`${id}-page-size`}
               onChange={(event) => {
-                const pageSize = Number(event.target.value);
-                table.setPagination({ pageIndex: 0, pageSize });
+                const newSize = Number(event.target.value);
+                onPerPageChange(newSize);
               }}
+              value={perPage}
             >
-              {PAGE_SIZES.map((size) => (
+              {pageSizes.map((size) => (
                 <option key={size} value={size}>
                   {size}
                 </option>
               ))}
             </FormField>
-            <label htmlFor={`${id}-page-size`} className="text-xs text-secondary">
-              {t("per_page")}
+            <label className="text-xs text-secondary" htmlFor={`${id}-page-size`}>
+              {perPageLabel}
             </label>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            aria-busy={loading}
-            iconProps={loading ? LOADING_ICON : undefined}
-            disabled={pending || !table.getCanNextPage()}
-            onClick={() => {
-              table.nextPage();
-            }}
-          >
-            {t("next_page")}
-          </Button>
-        </div>
-      </nav>
-    </div>
+        ) : null}
+        <Button
+          aria-busy={loading}
+          disabled={disabled || page >= totalPages}
+          iconProps={loading ? LOADING_ICON : undefined}
+          onClick={() => {
+            onPageChange(page + 1);
+          }}
+          size="sm"
+          variant="secondary"
+        >
+          {nextLabel}
+        </Button>
+      </div>
+    </nav>
   );
 }

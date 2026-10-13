@@ -15,7 +15,7 @@ class PropertiesEditTest < ApplicationSystemTestCase
   test "can persist property subtype" do
     assert_selector "h1", text: "[system test] Property Account"
     open_account_edit_dialog
-    assert_field "account_accountable_attributes_subtype", with: "single_family_home"
+    assert_equal "single_family_home", find_field("property-edit-subtype").value
   end
 
   private
@@ -23,7 +23,8 @@ class PropertiesEditTest < ApplicationSystemTestCase
     def open_account_edit_dialog
       click_button I18n.t("accounts.show.spa.account_menu")
       click_on I18n.t("accounts.show.menu.edit")
-      assert_field "account_accountable_attributes_subtype"
+      assert_selector "[role='dialog']"
+      assert_field "property-edit-subtype"
     end
 
     def open_new_account_modal
@@ -37,25 +38,25 @@ class PropertiesEditTest < ApplicationSystemTestCase
       click_link "Property"
 
       account_name = "[system test] Property Account"
-      fill_in "Name*", with: account_name
-      select "Single Family Home", from: "Property type*"
-      fill_in "Year Built (optional)", with: 2005
-      fill_in "Area (optional)", with: 2250
+      fill_in "property-name", with: account_name
+      select "Single Family Home", from: "property-subtype"
+      fill_in "property-year-built", with: 2005
+      fill_in "property-area-value", with: 2250
 
       click_button "Next"
 
       # Step 2: Enter balance information
-      assert_text "Value"
-      fill_in "account[balance]", with: 500000
+      assert_field "property-balance"
+      fill_in "property-balance", with: 500000
       click_button "Next"
 
       # Step 3: Enter address information
-      assert_text "Address"
-      fill_in "Address Line 1", with: "123 Main St"
-      fill_in "City", with: "San Francisco"
-      fill_in "State/Region", with: "CA"
-      fill_in "Postal Code", with: "94101"
-      fill_in "Country", with: "US"
+      assert_field "property-line1"
+      fill_in "property-line1", with: "123 Main St"
+      fill_in "property-locality", with: "San Francisco"
+      fill_in "property-region", with: "CA"
+      fill_in "property-postal-code", with: "94101"
+      fill_in "property-country", with: "US"
 
       click_button "Save"
 

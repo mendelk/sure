@@ -65,9 +65,9 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "updatedlender.example", @account[:institution_domain]
     assert_equal "Updated property notes", @account[:notes]
 
-    # If account is active, it renders edit view; otherwise redirects to balances
+    # Active accounts land back on the SPA edit drawer; drafts continue to balances.
     if @account.active?
-      assert_response :success
+      assert_redirected_to spa_edit_property_path(@account)
     else
       assert_redirected_to balances_property_path(@account)
     end
@@ -77,11 +77,13 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
   test "shows balances tab" do
     get balances_property_path(@account)
     assert_response :success
+    assert_match "spa-bootstrap", response.body
   end
 
   test "shows address tab" do
     get address_property_path(@account)
     assert_response :success
+    assert_match "spa-bootstrap", response.body
   end
 
   # Tab update tests
@@ -99,9 +101,9 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
     assert_equal 600000, @account.balance
     assert_equal "EUR", @account.currency
 
-    # If account is active, it renders balances view; otherwise redirects to address
+    # Active accounts land back on the SPA balances drawer; drafts continue to address.
     if @account.active?
-      assert_response :success
+      assert_redirected_to spa_property_balances_path(@account)
     else
       assert_redirected_to address_property_path(@account)
     end
@@ -124,11 +126,11 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "456 New Street", @account.accountable.address.line1
     assert_equal "San Francisco", @account.accountable.address.locality
 
-    # If account is draft, it activates and redirects; otherwise renders address
+    # Drafts activate and redirect; active accounts land back on the SPA address drawer.
     if @account.draft?
       assert_redirected_to account_path(@account)
     else
-      assert_response :success
+      assert_redirected_to spa_property_address_path(@account)
     end
   end
 
@@ -142,7 +144,7 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
       }
     }
 
-    assert_response :unprocessable_entity
+    assert_redirected_to spa_property_balances_path(@account)
   end
 
   test "address update handles validation errors" do
@@ -156,8 +158,9 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
       }
     }
 
-    assert_response :unprocessable_entity
+    assert_redirected_to spa_property_address_path(@account)
   end
+
 
   test "address update activates draft account" do
     # Create a draft property account
@@ -297,34 +300,21 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
-  test "new shows method selector when an AVM provider is configured" do
-    stub_avm_provider(successful_avm_response)
-
+  test "new serves the SPA method selector" do
     get new_property_path(step: "method_select")
 
     assert_response :success
-    assert_match "Add via RentCast", response.body
+    assert_match "spa-bootstrap", response.body
   end
 
-  test "new skips method selector when no AVM provider is configured" do
-    Provider::Registry.stubs(:rentcast).returns(nil)
-    Provider::Registry.stubs(:realie).returns(nil)
-
-    get new_property_path(step: "method_select")
-
-    assert_response :success
-    assert_match "Enter property manually", response.body
-  end
-
-  test "new renders AVM lookup form for a configured provider" do
+  test "new serves the SPA AVM lookup" do
     stub_avm_provider(successful_avm_response)
 
     get new_property_path(method: "rentcast")
 
     assert_response :success
-    assert_match "Add property via RentCast", response.body
+    assert_match "spa-bootstrap", response.body
   end
-
   test "AVM lookup renders a preview without creating an account" do
     provider = mock
     provider.expects(:fetch_property_valuation).with(
@@ -351,10 +341,7 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_response :success
-    assert_match "Confirm property details", response.body
-    assert_match "1973", response.body
-    assert_match "1878", response.body
+    assert_redirected_to spa_new_property_avm_path(method: "rentcast")
   end
 
   test "AVM preview warns when no property record was found" do
@@ -376,9 +363,7 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
       }
     }
 
-    assert_response :success
-    assert_match "couldn&#39;t find a property record", response.body
-    assert_match "Unknown", response.body
+    assert_redirected_to spa_new_property_avm_path(method: "rentcast")
   end
 
   def signed_preview_token(family: @user.family)
@@ -463,8 +448,7 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_response :unprocessable_entity
-    assert_match "could not find a property", response.body
+    assert_redirected_to spa_new_property_avm_path(method: "rentcast")
   end
 
   test "rejects AVM confirm without a valid signed preview token" do
@@ -481,8 +465,7 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_response :unprocessable_entity
-    assert_match "preview has expired", response.body
+    assert_redirected_to spa_new_property_avm_path(method: "rentcast")
   end
 
   test "rejects an AVM preview token minted for another family" do
@@ -499,8 +482,7 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_response :unprocessable_entity
-    assert_match "preview has expired", response.body
+    assert_redirected_to spa_new_property_avm_path(method: "rentcast")
   end
 
   test "rejects incomplete AVM submissions before calling the provider" do
@@ -519,8 +501,7 @@ class PropertiesControllerTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_response :unprocessable_entity
-    assert_match "complete US address", response.body
+    assert_redirected_to spa_new_property_avm_path(method: "rentcast")
   end
 
   test "rejects AVM creation for unconfigured providers" do

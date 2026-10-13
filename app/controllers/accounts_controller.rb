@@ -7,6 +7,8 @@ class AccountsController < ApplicationController
   include Periodable
 
   def index
+    return render("spa/show", layout: "spa") if request.format.html?
+
     @accessible_account_ids = Current.user.accessible_accounts.pluck(:id)
     @manual_accounts = family.accounts
           .listable_manual
@@ -62,12 +64,15 @@ class AccountsController < ApplicationController
     # Build sync stats maps for all providers
     build_sync_stats_maps
 
-    # Prevent Turbo Drive from caching this page to ensure fresh account lists
-    expires_now
-    render layout: "settings"
+    # SPA payload: provider cards (ERB order), manual/FinanceKit groups and the
+    # sync toolbar in one document, so the React page renders the whole index
+    # from a single fetch.
+    render json: index_spa_payload.to_json
   end
 
   def new
+    return render("spa/show", layout: "spa") if request.format.html?
+
     # Get all registered providers with any credentials configured
     @provider_configs = Provider::Factory.registered_adapters.flat_map do |adapter_class|
       adapter_class.connection_configs(family: family)
@@ -280,6 +285,88 @@ class AccountsController < ApplicationController
       Rails.logger.error("Loan payoff chart failed for account #{account.id}: #{e.class} - #{e.message}")
       Sentry.capture_exception(e) { |scope| scope.set_tags(record_type: "Account", record_id: account.id) } if defined?(Sentry)
       nil
+    end
+
+    # Shapes the accounts index for the SPA. Card list, order and each card's
+    # visibility mirror `accounts/index.html.erb` and
+    # `AccountsController#visible_provider_items`; account rows and totals come
+    # from the same balance-sheet grouping the sidebar/dashboard use.
+    def index_spa_payload
+      Account::SpaIndexData.new(
+        item_specs: index_item_specs,
+        manual_accounts: @manual_accounts,
+        family: family,
+        user: Current.user,
+        sync_stats: sync_stats_by_item_id,
+        wallet_cards: @onchain_wallet_cards
+      ).accounts_index_payload
+    end
+
+    # Provider cards in the exact order the ERB template renders them. The
+    # on-chain card re-uses the viewer-filtered accounts the ERB cards get.
+    def index_item_specs
+      item_spec = ->(kind, key, items, accounts_by_item = nil) do
+        items.filter_map do |item|
+          accounts = if accounts_by_item
+            accounts_by_item.fetch(item.id, [])
+          elsif Current.user&.admin?
+            item.accounts
+          else
+            item.accounts.select { |a| @accessible_account_ids.include?(a.id) }
+          end
+          { kind: kind, key: key, item: item, accounts: accounts }
+        end
+      end
+
+      [
+        *item_spec.call("financekit", :financekit, @financekit_accounts),
+        *item_spec.call("provider", :plaid, @plaid_items),
+        *item_spec.call("provider", :simplefin, @simplefin_items),
+        *item_spec.call("provider", :lunchflow, @lunchflow_items),
+        *item_spec.call("provider", :redbark, @redbark_items),
+        *item_spec.call("provider", :akahu, @akahu_items),
+        *item_spec.call("provider", :up, @up_items),
+        *item_spec.call("provider", :monobank, @monobank_items),
+        *item_spec.call("provider", :enable_banking, @enable_banking_items),
+        *item_spec.call("provider", :coinstats, @coinstats_items),
+        *item_spec.call("wallet", :onchain_wallet, @onchain_wallet_items, wallet_accounts_by_item),
+        *item_spec.call("provider", :sophtron, @sophtron_items),
+        *item_spec.call("provider", :mercury, @mercury_items),
+        *item_spec.call("provider", :brex, @brex_items),
+        *item_spec.call("provider", :coinbase, @coinbase_items),
+        *item_spec.call("provider", :binance, @binance_items),
+        *item_spec.call("provider", :kraken, @kraken_items),
+        *item_spec.call("provider", :coinspot, @coinspot_items),
+        *item_spec.call("provider", :trading212, @trading212_items),
+        *item_spec.call("provider", :wise, @wise_items),
+        *item_spec.call("provider", :trade_republic, @trade_republic_items),
+        *item_spec.call("provider", :snaptrade, @snaptrade_items),
+        *item_spec.call("provider", :ibkr, @ibkr_items),
+        *item_spec.call("provider", :indexa_capital, @indexa_capital_items),
+        *item_spec.call("provider", :questrade, @questrade_items),
+        *item_spec.call("provider", :fio, @fio_items)
+      ]
+    end
+
+    def wallet_accounts_by_item
+      @onchain_wallet_items.to_h do |item|
+        card = @onchain_wallet_cards.fetch(item.id, {})
+        [ item.id, card[:accounts] ]
+      end
+    end
+
+    def sync_stats_by_item_id
+      {
+        plaid: @plaid_sync_stats_map, simplefin: @simplefin_sync_stats_map,
+        lunchflow: @lunchflow_sync_stats_map, akahu: @akahu_sync_stats_map,
+        up: @up_sync_stats_map, monobank: @monobank_sync_stats_map,
+        enable_banking: @enable_banking_sync_stats_map, coinstats: @coinstats_sync_stats_map,
+        sophtron: @sophtron_sync_stats_map, redbark: @redbark_sync_stats_map,
+        mercury: @mercury_sync_stats_map, brex: @brex_sync_stats_map,
+        coinbase: @coinbase_sync_stats_map, indexa_capital: @indexa_capital_sync_stats_map,
+        binance: @binance_sync_stats_map, questrade: @questrade_sync_stats_map,
+        wise: @wise_sync_stats_map, fio: @fio_sync_stats_map
+      }.compact_blank
     end
 
     def build_activity_data

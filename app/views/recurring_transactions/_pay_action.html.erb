@@ -61,7 +61,7 @@
         target: "_blank",
         aria: { label: t(".pay_aria", name: recurring_transaction.display_name) }
       ) %>
-<% elsif show_add %>
+<% elsif show_add && !recurring_transaction.system_managed? %>
   <%# Dashed outline reads as "nothing here yet", the same cue the split editor uses
       for its add-another-split control. Suppressed on read-only forecasts, which
       should not nag about every bill that has no link yet. %>

@@ -103,7 +103,7 @@ class Insight::Generators::CashFlowWarningGenerator < Insight::Generator
         .open_status
         .joins(:recurring_transaction)
         .where(recurring_transactions: { status: :active, destination_account_id: nil })
-        .where("recurring_transactions.amount > 0")
+        .merge(RecurringTransaction.payable)
         .where(currency: family.currency)
         .where(due_on: Date.current..(Date.current + HORIZON_DAYS))
         .includes(:recurring_transaction)

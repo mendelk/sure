@@ -1,20 +1,74 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+/* eslint-disable import/max-dependencies -- Row composes category picker, transfer match, tags, and merchant menus. */
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouteContext } from "@tanstack/react-router";
-import { useRef, useState, type ReactNode } from "react";
-import { updateTransferStatus, type SpaTransaction } from "../api/transactions";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  createTransferMatch,
+  recentCategoriesQueryOptions,
+  transferMatchCandidatesQueryOptions,
+  transactionDetailQueryOptions,
+  updateTransaction,
+  updateTransferStatus,
+  type ReferenceOption,
+  type SpaTransaction,
+  type TransactionUpdateInput,
+} from "../api/transactions";
 import type { SpaBootstrap } from "../bootstrap";
-import { Icon } from "../icon";
+import { CategoryIcon, Icon } from "../icon";
 import type { AccountId, CategoryId, MerchantId, TransactionId } from "../ids";
 import { useDismiss } from "../use-dismiss";
 import { IconButton } from "./icon-button";
+import { TagSelect } from "./tag-select";
+import { SearchablePicker, type PickerOption } from "./searchable-picker";
+const transactionGridClass =
+  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:grid-cols-12";
+const defaultColumnLabels = {
+  transaction: "Transaction",
+  category: "Category",
+  tags: "Tags",
+  amount: "Amount",
+};
+
+export function TransactionRowHeader({
+  showTags,
+  selection,
+  labels = defaultColumnLabels,
+}: {
+  showTags: boolean;
+  selection?: ReactNode;
+  labels?: {
+    transaction: string;
+    category: string;
+    tags: string;
+    amount: string;
+  };
+}) {
+  return (
+    <div
+      className={`${transactionGridClass} bg-container-inset px-4 py-3 text-xs font-medium uppercase text-secondary`}
+    >
+      <div
+        className={`flex min-w-0 items-center gap-3 ${showTags ? "md:col-span-5" : "md:col-span-7"}`}
+      >
+        {selection}
+        <span>{labels.transaction}</span>
+      </div>
+      <span className="hidden md:col-span-3 md:block">{labels.category}</span>
+      {showTags ? <span className="hidden md:col-span-2 md:block">{labels.tags}</span> : null}
+      <span className="text-right md:col-span-2">{labels.amount}</span>
+    </div>
+  );
+}
 
 export function TransactionRow({
   accountId,
   amount,
   badges,
+  categories,
   category,
   columns,
   logoUrl,
+  indent = false,
   positive,
   selection,
   transaction,
@@ -22,8 +76,10 @@ export function TransactionRow({
   accountId?: AccountId;
   amount?: string;
   badges?: ReactNode;
+  categories?: ReferenceOption<CategoryId>[];
   category?: ReactNode;
   columns: { merchant: boolean; notes: boolean; tags: boolean };
+  indent?: boolean;
   logoUrl?: string | null;
   positive?: boolean;
   selection?: {
@@ -41,12 +97,14 @@ export function TransactionRow({
 
   return (
     <li
-      className={`group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 transition-colors hover:bg-container-hover sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.45fr)_auto] ${
+      className={`group ${transactionGridClass} px-4 py-3 transition-colors hover:bg-container-hover ${
         transaction.excluded ? "opacity-50" : ""
       }`}
       id={`entry_${transaction.entry_id}`}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div
+        className={`flex min-w-0 items-center gap-3 ${columns.tags ? "md:col-span-5" : "md:col-span-7"} ${indent ? "pl-4" : ""}`}
+      >
         {selection ? (
           <input
             aria-label={selection.label}
@@ -97,6 +155,11 @@ export function TransactionRow({
               <TransactionTransferMatch bootstrap={bootstrap} transfer={transaction.transfer} />
             ) : null}
             {badges}
+            {columns.tags && transaction.tags.length > 0 ? (
+              <span className="min-w-0 max-w-1/2 md:hidden">
+                <TransactionTags transaction={transaction} bootstrap={bootstrap} />
+              </span>
+            ) : null}
           </div>
           <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-secondary">
             {transaction.merchant && columns.merchant ? (
@@ -124,53 +187,26 @@ export function TransactionRow({
               {transaction.notes}
             </p>
           ) : null}
-          {columns.tags && transaction.tags.length > 0 ? (
-            <p className="mt-1 flex flex-wrap gap-1">
-              {transaction.tags.slice(0, 3).map((tag) => (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full bg-container-inset px-2 py-0.5 text-[11px] font-medium text-primary"
-                  key={tag.id}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="size-1.5 rounded-full"
-                    style={
-                      typeof tag.color === "string" && tag.color.length > 0
-                        ? { backgroundColor: tag.color }
-                        : undefined
-                    }
-                  />
-                  {tag.name}
-                </span>
-              ))}
-              {transaction.tags.length > 3 ? (
-                <span className="text-[11px] text-secondary">+{transaction.tags.length - 3}</span>
-              ) : null}
-            </p>
-          ) : null}
         </div>
       </div>
 
-      <div className="hidden min-w-0 items-center gap-2 sm:flex">
-        {category ?? (
-          <>
-            <span
-              aria-hidden="true"
-              className="size-2 shrink-0 rounded-full bg-container-inset"
-              style={
-                typeof transaction.category?.color === "string" &&
-                transaction.category.color.length > 0
-                  ? { backgroundColor: transaction.category.color }
-                  : undefined
-              }
-            />
-            <span className="truncate text-sm text-secondary">{categoryName}</span>
-          </>
-        )}
+      <div className="hidden min-w-0 items-center gap-2 md:col-span-3 md:flex">
+        {category ??
+          (categories !== undefined ? (
+            <CategoryMenu bootstrap={bootstrap} categories={categories} transaction={transaction} />
+          ) : (
+            <CategoryBadge category={transaction.category ?? { name: categoryName }} />
+          ))}
       </div>
 
+      {columns.tags ? (
+        <div className="hidden min-w-0 md:col-span-2 md:block">
+          <TransactionTags transaction={transaction} bootstrap={bootstrap} />
+        </div>
+      ) : null}
+
       <p
-        className={`privacy-sensitive text-right text-sm font-medium tabular-nums ${
+        className={`privacy-sensitive text-right text-sm font-medium tabular-nums md:col-span-2 ${
           (positive ?? transaction.signed_amount_cents > 0) ? "text-success" : "text-primary"
         }`}
       >
@@ -178,6 +214,415 @@ export function TransactionRow({
       </p>
     </li>
   );
+}
+
+function TransactionTags({
+  transaction,
+  bootstrap,
+}: {
+  transaction: SpaTransaction;
+  bootstrap: SpaBootstrap;
+}) {
+  const queryClient = useQueryClient();
+  const save = useMutation({
+    mutationFn: (tagIds: SpaTransaction["tags"][number]["id"][]) =>
+      updateTransaction(bootstrap.apiPaths.transactions, transaction.id, {
+        tag_ids: tagIds,
+      }),
+    onSuccess: async (detail) => {
+      queryClient.setQueryData(
+        ["spa", "transaction", bootstrap.apiPaths.transactions, transaction.id],
+        detail,
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] }),
+        queryClient.invalidateQueries({ queryKey: ["spa", "account"] }),
+      ]);
+    },
+  });
+  const tags = transaction.tags.toSorted((left, right) => left.name.localeCompare(right.name));
+  const tagNames = tags.map((tag) => tag.name).join(", ");
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowRef = useRef<HTMLSpanElement>(null);
+  useDismiss(
+    overflowRef,
+    () => {
+      setOverflowOpen(false);
+    },
+    overflowOpen,
+  );
+  const visibleTags = tags.slice(0, 2);
+  const hiddenTags = tags.slice(2);
+  return (
+    <TagSelect
+      bootstrap={bootstrap}
+      disabled={save.isPending}
+      error={save.error?.message}
+      initialTags={tags}
+      onSelect={(tagIds) => {
+        save.mutate(tagIds);
+      }}
+      selectedTagIds={tags.map((tag) => tag.id)}
+      triggerLabel={tags.length > 0 ? `Edit tags: ${tagNames}` : "Add tags"}
+      trigger={
+        <span
+          className={`flex max-w-full min-w-0 flex-nowrap items-center gap-1 ${
+            tags.length === 0 ? "size-7 justify-center text-secondary hover:bg-container-inset" : ""
+          }`}
+          title={tags.length > 0 ? tagNames : "Add tags"}
+        >
+          {tags.length === 0 ? (
+            <Icon name="tag" size="sm" />
+          ) : (
+            <>
+              <span className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
+                {visibleTags.map((tag) => (
+                  <span
+                    className="shrink-0 rounded-full border border-secondary bg-container-inset px-2 py-1 text-sm font-medium leading-none whitespace-nowrap text-primary"
+                    key={tag.id}
+                    style={
+                      tag.color
+                        ? {
+                            backgroundColor: `color-mix(in oklab, ${tag.color} 10%, transparent)`,
+                            borderColor: `color-mix(in oklab, ${tag.color} 20%, transparent)`,
+                            color: tag.color,
+                          }
+                        : undefined
+                    }
+                  >
+                    {tag.name}
+                  </span>
+                ))}
+              </span>
+              {hiddenTags.length > 0 ? (
+                <span className="relative inline-flex shrink-0" ref={overflowRef}>
+                  <button
+                    aria-expanded={overflowOpen}
+                    aria-label={`Show ${hiddenTags.length} more tags: ${hiddenTags.map((tag) => tag.name).join(", ")}`}
+                    className="focus-ring shrink-0 cursor-pointer rounded-full bg-container-inset px-2 py-1 text-xs font-medium text-secondary hover:text-primary"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setOverflowOpen((value) => !value);
+                    }}
+                    type="button"
+                  >
+                    +{hiddenTags.length}
+                  </button>
+                  {overflowOpen ? (
+                    <span className="shadow-border-lg absolute top-full left-0 z-50 mt-1 flex w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-lg bg-container p-1.5">
+                      {hiddenTags.map((tag) => (
+                        <span
+                          className="min-w-0 truncate rounded-full border border-secondary bg-container-inset px-2 py-1 text-sm font-medium leading-none text-primary"
+                          key={tag.id}
+                          style={
+                            tag.color
+                              ? {
+                                  backgroundColor: `color-mix(in oklab, ${tag.color} 10%, transparent)`,
+                                  borderColor: `color-mix(in oklab, ${tag.color} 20%, transparent)`,
+                                  color: tag.color,
+                                }
+                              : undefined
+                          }
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+            </>
+          )}
+        </span>
+      }
+    />
+  );
+}
+
+export function CategoryBadge({
+  category,
+  title,
+}: {
+  category?: { color?: string; icon?: string; name: string } | null;
+  title?: string;
+}) {
+  const customColor =
+    typeof category?.color === "string" && category.color.startsWith("#")
+      ? category.color
+      : "#737373";
+  return (
+    <span
+      className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border px-2 py-1 text-sm font-medium leading-none align-middle"
+      style={{
+        backgroundColor: `color-mix(in oklab, ${customColor} 10%, transparent)`,
+        borderColor: `color-mix(in oklab, ${customColor} 20%, transparent)`,
+        color: customColor,
+      }}
+      title={title ?? category?.name}
+    >
+      <CategoryIcon className="size-4 shrink-0" name={category?.icon} />
+      <span className="min-w-0 truncate">{category?.name ?? "Uncategorized"}</span>
+    </span>
+  );
+}
+
+function CategoryMenu({
+  bootstrap,
+  categories,
+  transaction,
+}: {
+  bootstrap: SpaBootstrap;
+  categories: ReferenceOption<CategoryId>[];
+  transaction: SpaTransaction;
+}) {
+  const queryClient = useQueryClient();
+  const [loadRecent, setLoadRecent] = useState(false);
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState<"categories" | "match">("categories");
+  const recentQuery = useQuery({
+    ...recentCategoriesQueryOptions(bootstrap.apiPaths.categories),
+    enabled: loadRecent,
+  });
+  const candidatesQuery = useQuery({
+    ...transferMatchCandidatesQueryOptions(bootstrap.apiPaths.transactions, transaction.id),
+    enabled: loadRecent && view === "match",
+  });
+  const categorySave = useMutation({
+    mutationFn: (input: NonNullable<TransactionUpdateInput>) =>
+      updateTransaction(bootstrap.apiPaths.transactions, transaction.id, input),
+    onSuccess: async (detail) => {
+      queryClient.setQueryData(
+        ["spa", "transaction", bootstrap.apiPaths.transactions, transaction.id],
+        detail,
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] }),
+        queryClient.invalidateQueries({ queryKey: ["spa", "account"] }),
+        queryClient.invalidateQueries({ queryKey: ["spa", "summary"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["spa", "reference", "recent-categories"],
+        }),
+      ]);
+    },
+  });
+  const transferMatch = useMutation({
+    mutationFn: async (counterpartId: TransactionId) => {
+      const counterpart = await queryClient.query(
+        transactionDetailQueryOptions(bootstrap.apiPaths.transactions, counterpartId),
+      );
+      return createTransferMatch(bootstrap.apiPaths.transactions, transaction.id, {
+        method: "existing",
+        matched_entry_id: counterpart.entry_id,
+      });
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] }),
+        queryClient.invalidateQueries({ queryKey: ["spa", "account"] }),
+        queryClient.invalidateQueries({ queryKey: ["spa", "summary"] }),
+      ]);
+    },
+  });
+  const groups = useMemo(() => categoryGroups(categories), [categories]);
+  const lowerQuery = query.trim().toLowerCase();
+  const options: PickerOption[] = [];
+  const counterparts = (candidatesQuery.data?.candidates ?? []).map((candidate) => ({
+    candidate,
+    transaction:
+      candidate.outflow_transaction_id === transaction.id
+        ? candidate.inflow_transaction
+        : candidate.outflow_transaction,
+  }));
+  if (view === "match") {
+    options.push({
+      value: "__back",
+      label: "Back to categories",
+      keepOpen: true,
+    });
+    for (const counterpart of counterparts) {
+      if (
+        !`${counterpart.transaction.name} ${counterpart.transaction.account.name}`
+          .toLowerCase()
+          .includes(lowerQuery)
+      )
+        continue;
+      options.push({
+        value: counterpart.transaction.id,
+        label: counterpart.transaction.name,
+        content: (
+          <span className="min-w-0">
+            <span className="block truncate font-medium">{counterpart.transaction.name}</span>
+            <span className="block truncate text-xs text-secondary">
+              {counterpart.transaction.account.name} · {counterpart.transaction.date} ·{" "}
+              {counterpart.transaction.amount}
+              {counterpart.candidate.date_diff > 0
+                ? ` · ${counterpart.candidate.date_diff}d apart`
+                : ""}
+            </span>
+          </span>
+        ),
+      });
+    }
+  } else {
+    if (lowerQuery.length === 0) {
+      for (const recent of recentQuery.data ?? []) {
+        if (recent.id === transaction.category?.id) continue;
+        options.push({
+          value: recent.id,
+          key: `recent-${recent.id}`,
+          label: recent.name,
+          group: "Recent",
+          content: <CategoryBadge category={recent} />,
+        });
+      }
+    }
+    for (const group of groups) {
+      const parentMatches = group.category.name.toLowerCase().includes(lowerQuery);
+      if ((group.subcategories.length === 0 || lowerQuery.length > 0) && parentMatches) {
+        options.push({
+          value: group.category.id,
+          label: group.category.name,
+          group: "Categories",
+          content: <CategoryBadge category={group.category} />,
+        });
+      }
+      for (const category of group.subcategories) {
+        if (!parentMatches && !category.name.toLowerCase().includes(lowerQuery)) continue;
+        options.push({
+          value: category.id,
+          label: category.name,
+          group: "Categories",
+          content: (
+            <>
+              <Icon name="corner-down-right" size="sm" />
+              <CategoryBadge category={category} />
+            </>
+          ),
+        });
+      }
+    }
+    if (transaction.category)
+      options.push({ value: "__clear", label: "Clear category", group: "Actions" });
+    if (!transaction.transfer) {
+      options.push({
+        value: "__match",
+        label: "Match transfer/payment",
+        group: "Actions",
+        keepOpen: true,
+      });
+    }
+  }
+  return (
+    <SearchablePicker
+      disabled={categorySave.isPending || transferMatch.isPending}
+      error={
+        categorySave.error?.message ??
+        transferMatch.error?.message ??
+        (view === "match" ? candidatesQuery.error?.message : undefined)
+      }
+      inline
+      label="Category"
+      loading={view === "match" && candidatesQuery.isPending}
+      onOpen={() => {
+        setLoadRecent(true);
+        setView("categories");
+      }}
+      onQueryChange={setQuery}
+      onSelect={async (value) => {
+        if (value === "__match" || value === "__back") {
+          setView(value === "__match" ? "match" : "categories");
+          setQuery("");
+          return false;
+        }
+        try {
+          if (view === "match") {
+            const counterpart = counterparts.find(
+              (candidate) => candidate.transaction.id === value,
+            );
+            if (counterpart === undefined) return false;
+            await transferMatch.mutateAsync(counterpart.transaction.id);
+          } else if (value === "__clear") await categorySave.mutateAsync({ category_id: null });
+          else {
+            const category =
+              categories.find((candidate) => candidate.id === value) ??
+              recentQuery.data?.find((candidate) => candidate.id === value);
+            if (category === undefined) return false;
+            await categorySave.mutateAsync({ category_id: category.id });
+          }
+          return true;
+        } catch {
+          // Keep the picker open; the mutation's error is displayed above.
+          return false;
+        }
+      }}
+      options={options}
+      query={query}
+      searchLabel={view === "match" ? "Search possible matches" : "Search categories"}
+      selectedValues={
+        view === "categories" && transaction.category ? [transaction.category.id] : []
+      }
+      trigger={
+        <CategoryBadge
+          category={
+            transaction.category ?? {
+              color: "var(--utility-text-secondary)",
+              icon: "shapes",
+              name: transaction.classification === "income" ? "Income" : "Uncategorized",
+            }
+          }
+        />
+      }
+      footer={
+        <div className="mt-2 border-t border-tertiary pt-2">
+          <a
+            className="focus-ring flex items-center gap-2 rounded-lg p-2 text-sm text-secondary hover:bg-container-inset-hover"
+            data-turbo-frame="modal"
+            href={bootstrap.railsUrlTemplates.newTransactionSplit.replace(
+              ":transaction_id",
+              transaction.id,
+            )}
+          >
+            <Icon name="split" size="sm" />
+            Split
+          </a>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg p-2 text-sm text-secondary hover:bg-container-inset-hover">
+            <input
+              checked={transaction.excluded}
+              className="checkbox checkbox--light"
+              disabled={categorySave.isPending}
+              onChange={() => {
+                categorySave.mutate({ excluded: !transaction.excluded });
+              }}
+              type="checkbox"
+            />
+            {transaction.signed_amount_cents > 0 ? "One-time income" : "One-time expense"}
+            <Icon className="ml-auto text-warning" name="asterisk" size="sm" />
+          </label>
+        </div>
+      }
+    />
+  );
+}
+
+function categoryGroups(categories: ReferenceOption<CategoryId>[]): {
+  category: ReferenceOption<CategoryId>;
+  subcategories: ReferenceOption<CategoryId>[];
+}[] {
+  const byParentName = new Map<string, ReferenceOption<CategoryId>[]>();
+  for (const category of categories) {
+    const key = category.parentName ?? "";
+    const list = byParentName.get(key) ?? [];
+    list.push(category);
+    byParentName.set(key, list);
+  }
+
+  const roots = (byParentName.get("") ?? []).toSorted((a, b) => a.name.localeCompare(b.name));
+  return roots.map((root) => ({
+    category: root,
+    subcategories: (byParentName.get(root.name) ?? []).toSorted((a, b) =>
+      a.name.localeCompare(b.name),
+    ),
+  }));
 }
 
 function TransactionTransferMatch({
@@ -191,7 +636,9 @@ function TransactionTransferMatch({
   const text = bootstrap.transactionTransferMatchText;
   const decide = useMutation({
     mutationFn: (status: "confirmed" | "rejected") =>
-      updateTransferStatus(bootstrap.apiPaths.transfers, transfer.id, { status }),
+      updateTransferStatus(bootstrap.apiPaths.transfers, transfer.id, {
+        status,
+      }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] }),

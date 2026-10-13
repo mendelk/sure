@@ -18,6 +18,7 @@ class RecurringTransactionsController < ApplicationController
   before_action :ensure_recurring_enabled, only: %i[new create edit update confirm dismiss]
   before_action :set_recurring_transaction, only: %i[edit update toggle_status destroy confirm dismiss]
   before_action :ensure_series_writable, only: %i[update toggle_status destroy confirm dismiss]
+  before_action :ensure_not_system_managed, only: %i[edit update toggle_status destroy confirm dismiss]
 
   def index
     scope = Current.family.recurring_transactions
@@ -340,6 +341,10 @@ class RecurringTransactionsController < ApplicationController
       @recurring_transaction = Current.family.recurring_transactions
                                       .accessible_by(Current.user)
                                       .find(params[:id])
+    end
+
+    def ensure_not_system_managed
+      head :forbidden if @recurring_transaction.system_managed?
     end
 
     # Reading a shared bill is fine; changing it is not. Sharing is per

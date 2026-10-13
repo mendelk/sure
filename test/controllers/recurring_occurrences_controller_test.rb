@@ -15,6 +15,27 @@ class RecurringOccurrencesControllerTest < ActionDispatch::IntegrationTest
     ensure_tailwind_build
   end
 
+  test "managed card cycles refuse schedule and amount edits but allow recording a payment" do
+    card = accounts(:credit_card)
+    card.accountable.update!(payment_due_day: 10)
+    card.accountable.payment_schedule.refresh!
+    occurrence = card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment").current_occurrence
+    expected = occurrence.expected_amount
+    post skip_recurring_occurrence_url(occurrence)
+    assert_response :forbidden
+    post reopen_recurring_occurrence_url(occurrence)
+    assert_response :forbidden
+    patch snooze_recurring_occurrence_url(occurrence), params: { until: Date.current + 7 }
+    assert_response :forbidden
+    patch override_amount_recurring_occurrence_url(occurrence), params: { amount: 1 }
+    assert_response :forbidden
+    assert_equal expected, occurrence.reload.expected_amount
+    post mark_paid_recurring_occurrence_url(occurrence)
+    assert_redirected_to bills_url
+    assert occurrence.reload.paid?
+    assert_equal expected, occurrence.confirmed_allocated
+  end
+
   # Resolving a payment is the ACT surface, so it owns the drawer slot -- the
   # same one transactions, trades and transfers use. The bill's own story moved
   # to its own page, so nothing competes for it.

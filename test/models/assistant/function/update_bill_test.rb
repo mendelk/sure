@@ -7,6 +7,17 @@ class Assistant::Function::UpdateBillTest < ActiveSupport::TestCase
     @family.recurring_transactions.destroy_all
   end
 
+  test "assistant cannot edit or pause a managed credit card series" do
+    card = accounts(:credit_card)
+    card.accountable.update!(payment_due_day: 10)
+    card.accountable.payment_schedule.refresh!
+    series = card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+    result = call_tool(series.id, "status" => "paused", "amount" => 25)
+    assert result[:error].present?
+    assert series.reload.active?
+    assert_equal 0, series.amount
+  end
+
   test "amount arrives as magnitude and income keeps its sign" do
     income = create_series(name: "Paycheck", amount: -1200, bill_type: "income")
 

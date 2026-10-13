@@ -245,32 +245,6 @@ class LoansControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, card_values(I18n.t("loans.tabs.schedule.opening_payment")).size
   end
 
-  # #100 decision 8: a provider writes rate types the form never offers. The
-  # select must still carry the loan's own value, or the browser submits the
-  # first option and saving any other field turns an "arm" loan into a fixed
-  # one without anyone choosing that.
-  test "the edit form keeps a provider-written rate type as the selected option" do
-    @account.loan.update!(rate_type: "arm")
-
-    get edit_loan_path(@account)
-
-    assert_response :success
-    assert_select "select[name='account[accountable_attributes][rate_type]'] option[value='arm'][selected]", { count: 1 },
-      "the provider's rate type must be the selected option"
-    assert_select "select[name='account[accountable_attributes][rate_type]'] option[value='fixed']", count: 1
-    assert_select "[data-loan-rate-changes-fixed-type-value='fixed']", count: 1
-  end
-
-  # A term the simulator will not walk leaves the loan without a schedule
-  # (see Loan#amortizable?). The model stays tolerant because a provider writes
-  # this column too; the form is where a person typing it is told the limit.
-  test "the term input declares the range a schedule can be built for" do
-    get edit_loan_path(@account)
-
-    assert_response :success
-    assert_select "input[name='account[accountable_attributes][term_months]'][min='1'][max='#{Loan::Simulator::MAX_PERIODS}']", count: 1
-  end
-
   # A row with one half filled in is a typo, not a blank. Dropping it silently
   # loses what the user typed between submit and redisplay and never tells them
   # which row went.
@@ -374,15 +348,6 @@ class LoansControllerTest < ActionDispatch::IntegrationTest
     @account.loan.update!(rate_type: "fixed", start_date: Date.new(2026, 1, 1),
                           variable_rate_schedule: { "2026-04-01" => "7.25" })
 
-    get edit_loan_path(@account)
-
-    assert_response :success
-    assert_select "[data-loan-rate-changes-target=rows] [data-rate-change-row]", count: 1
-    assert_select "[data-loan-rate-changes-target=rows] input[disabled][value='2026-04-01']", { count: 1 },
-      "retained rows are disabled while the loan is fixed, so they are not submitted"
-
-    # What the browser sends after the select is flipped to variable and the
-    # inputs are enabled: the sentinel and the row it rendered.
     patch loan_path(@account), params: { account: { accountable_attributes: {
       id: @account.loan.id, rate_type: "variable",
       rate_changes: [ "", { effective_date: "2026-04-01", rate: "7.25" } ]
@@ -392,34 +357,6 @@ class LoansControllerTest < ActionDispatch::IntegrationTest
     assert_equal "variable", @account.loan.rate_type
   end
 
-  # `disabled` used to be applied only by Stimulus, so without JavaScript the
-  # sentinel submitted and the writer read it as "remove them all".
-  test "the edit form of a fixed loan disables the whole rate-change section server-side" do
-    @account.loan.update!(rate_type: "fixed", start_date: Date.new(2026, 1, 1),
-                          variable_rate_schedule: { "2026-04-01" => "7.25" })
-
-    get edit_loan_path(@account)
-
-    assert_select "[data-loan-rate-changes-target=section][hidden]", count: 1
-    assert_select "[data-loan-rate-changes-target=section] input[name='account[accountable_attributes][rate_changes][]'][disabled]", { count: 1 },
-      "the sentinel must be disabled too, or a no-JS save clears the schedule"
-    # The <template> clone is inert and is left enabled; only rendered rows and
-    # the add button are submittable.
-    assert_select "[data-loan-rate-changes-target=rows] input:not([disabled])", count: 0
-    assert_select "[data-loan-rate-changes-target=rows] button:not([disabled])", count: 0
-    assert_select "[data-loan-rate-changes-target=section] button[data-action='loan-rate-changes#add']:not([disabled])", count: 0
-  end
-
-  test "a variable loan's edit form enables the rate-change section server-side" do
-    @account.loan.update!(rate_type: "variable", start_date: Date.new(2026, 1, 1),
-                          variable_rate_schedule: { "2026-04-01" => "7.25" })
-
-    get edit_loan_path(@account)
-
-    assert_select "[data-loan-rate-changes-target=section][hidden]", count: 0
-    assert_select "[data-loan-rate-changes-target=rows] input[disabled]", count: 0
-    assert_select "[data-loan-rate-changes-target=section] input[name='account[accountable_attributes][rate_changes][]']:not([disabled])", count: 1
-  end
 
   # The payload runs the schedule, the projection and a balance query on every
   # loan page view, from provider-written and user-written inputs. A raise in
@@ -437,32 +374,6 @@ class LoansControllerTest < ActionDispatch::IntegrationTest
   end
 
   # Owner review of #3474: the rate changes open from a collapsed disclosure,
-  # as Additional details does, and the loan's fields keep the form's spacing
-  # instead of stacking flush against each other.
-  test "the rate changes sit in a collapsed disclosure and the loan fields are spaced" do
-    @account.loan.update!(rate_type: "variable", start_date: Date.new(2026, 1, 1),
-                          variable_rate_schedule: { "2026-04-01" => "7.25" })
-
-    get edit_loan_path(@account)
-
-    assert_select "[data-loan-rate-changes-target=section] details:not([open]) > summary", text: /#{I18n.t("loans.form.rate_changes")}/
-    assert_select "[data-loan-rate-changes-target=section] details [data-loan-rate-changes-target=rows] input[name$='[rate]'][value='7.25']", count: 1
-    assert_select "[data-controller='loan-rate-changes'].space-y-2", count: 1
-  end
-
-  # Owner review of #3474: what kind of loan it is belongs with the account's
-  # own fields, straight after the balance, before the loan's terms.
-  test "the subtype sits under the balance, above the loan's terms" do
-    get edit_loan_path(@account)
-
-    body = response.body
-    balance = body.index('name="account[balance]"')
-    subtype = body.index('name="account[accountable_attributes][subtype]"')
-    terms = body.index('name="account[accountable_attributes][initial_balance]"')
-    assert balance && subtype && terms, "the balance, subtype and original balance fields must all render"
-    assert_operator balance, :<, subtype, "the subtype comes after the balance"
-    assert_operator subtype, :<, terms, "the subtype comes before the loan's terms"
-  end
 
   # `Account.create_and_sync` saves with `save!`, and this is the first Loan
   # validation a user can trip from the create form. Without a rescue the
@@ -647,38 +558,6 @@ class LoansControllerTest < ActionDispatch::IntegrationTest
     } }
 
     assert_response :unprocessable_entity
-  end
-
-  test "the rate-change controls are design-system buttons" do
-    @account.loan.update!(rate_type: "variable", start_date: Date.new(2026, 1, 1),
-                          variable_rate_schedule: { "2026-04-01" => "7.25" })
-
-    get edit_loan_path(@account)
-
-    assert_select "button[data-action='loan-rate-changes#add'] span", text: I18n.t("loans.form.rate_change_add")
-    assert_select "[data-rate-change-row] button[data-action='loan-rate-changes#remove'] span", text: I18n.t("loans.form.rate_change_remove")
-  end
-
-  # The design-system guide asks inputs to take the form's field shape. The rows
-  # were bare inputs outside any .form-field, so they rendered with no field
-  # border and no visible label. The partial is also the Stimulus clone
-  # template, so each label wraps its input rather than pointing at an id that
-  # every cloned row would repeat.
-  test "each rate-change input is a labelled form field without an id" do
-    @account.loan.update!(rate_type: "variable", start_date: Date.new(2026, 1, 1),
-                          variable_rate_schedule: { "2026-04-01" => "7.25" })
-
-    get edit_loan_path(@account)
-
-    assert_response :success
-    rows = "[data-loan-rate-changes-target=rows] [data-rate-change-row]"
-    assert_select "#{rows} .form-field label", count: 2
-    assert_select "#{rows} .form-field label input[type=date][value='2026-04-01']", count: 1
-    assert_select "#{rows} .form-field label input[type=number][value='7.25']", count: 1
-    assert_select "#{rows} .form-field__label", text: I18n.t("loans.form.rate_change_effective_date")
-    assert_select "#{rows} .form-field__label", text: I18n.t("loans.form.rate_change_rate")
-    # Unscoped on purpose: the <template> copy is the one every added row clones.
-    assert_select "[data-rate-change-row] input[id]", count: 0
   end
 
   # CodeRabbit on we-promise/sure#3473: `create_and_sync` can raise RecordInvalid

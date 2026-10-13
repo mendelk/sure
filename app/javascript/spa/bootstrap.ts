@@ -1,7 +1,17 @@
 import * as z from "zod/mini";
+import { ICON_KEYS } from "./icon";
 import { AccountIdSchema, UserIdSchema } from "./ids";
 
 const SpaBootstrapSchema = z.object({
+  navItems: z.array(
+    z.object({
+      label: z.string(),
+      href: z.string(),
+      icon: z.enum(ICON_KEYS),
+      preview: z.optional(z.boolean()),
+      mobileOnly: z.optional(z.boolean()),
+    }),
+  ),
   currentUser: z.object({
     id: UserIdSchema,
     name: z.string(),
@@ -45,6 +55,9 @@ const SpaBootstrapSchema = z.object({
     recurringTransactions: z.optional(z.string()),
     summary: z.string(),
     accounts: z.string(),
+    accountFormOptions: z.string(),
+    properties: z.string(),
+    propertyFormOptions: z.string(),
     categories: z.string(),
     merchants: z.string(),
     tags: z.string(),
@@ -63,6 +76,7 @@ const SpaBootstrapSchema = z.object({
     newTransfer: z.string(),
     bulkUpdate: z.string(),
     newBulkUpdate: z.optional(z.string()),
+    bulkDelete: z.optional(z.string()),
     exchangeRate: z.string(),
     reports: z.string(),
     settings: z.string(),
@@ -76,6 +90,10 @@ const SpaBootstrapSchema = z.object({
     categories: z.optional(z.string()),
     tags: z.optional(z.string()),
     transactionsCategorize: z.optional(z.string()),
+  }),
+  railsUrlTemplates: z.object({
+    newTransactionSplit: z.string(),
+    newTransactionTransferMatch: z.string(),
   }),
 });
 

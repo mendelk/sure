@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Transactions route composes search, table pagination, drawers, and menus. */
 import {
   Combobox,
   ComboboxInput,
@@ -23,7 +24,8 @@ import {
   type UpcomingRecurringTransaction,
 } from "./api/transactions";
 import type { SpaBootstrap } from "./bootstrap";
-import { TransactionRow } from "./components/transaction-row";
+import { TransactionRow, TransactionRowHeader } from "./components/transaction-row";
+import { TablePaginationBar } from "./components/table";
 import { Icon, type IconName } from "./icon";
 import { useDismiss } from "./use-dismiss";
 import {
@@ -32,13 +34,20 @@ import {
   type CategoryId,
   type MerchantId,
   type TagId,
+  type TransactionId,
 } from "./ids";
+import { BulkUpdateDrawer } from "./bulk-update-drawer";
+import { Button } from "./components/button";
+import { IconButton } from "./components/icon-button";
+import { CsrfFields } from "./components/account-actions";
+import { Modal } from "./modal";
 
 type TransactionType = "income" | "expense" | "transfer";
 type AmountOperator = "equal" | "greater" | "less";
 export type TransactionRouteSearch = {
   tab?: "transactions" | "upcoming";
   page?: number;
+  per_page?: number;
   search?: string;
   start_date?: string;
   end_date?: string;
@@ -76,6 +85,8 @@ export function validateTransactionSearch(input: Record<string, unknown>): Trans
   const result: TransactionRouteSearch = {
     page: Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1,
   };
+  const perPageValue = Number(input.per_page);
+  if (Number.isInteger(perPageValue) && perPageValue > 0) result.per_page = perPageValue;
   const tab = stringValue(input.tab);
   if (tab === "upcoming") result.tab = "upcoming";
 
@@ -135,7 +146,7 @@ export function TransactionsPage() {
   const { tab: _tab, ...searchFilters } = routeSearch;
   const query: TransactionQuery = {
     ...searchFilters,
-    per_page: 25,
+    per_page: routeSearch.per_page ?? 25,
   };
   const transactionsQuery = useQuery(
     transactionsQueryOptions(bootstrap.apiPaths.transactions, query),
@@ -158,6 +169,26 @@ export function TransactionsPage() {
     notes: true,
     tags: true,
   });
+  const [selected, setSelected] = useState<Set<TransactionId>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleteForm = useRef<HTMLFormElement>(null);
+
+  const transactionsList = data?.transactions ?? [];
+  const selectedTransactions = transactionsList.filter((t) => selected.has(t.id));
+  const allSelected =
+    transactionsList.length > 0 && selectedTransactions.length === transactionsList.length;
+
+  const select = (ids: TransactionId[], checked: boolean) => {
+    setSelected((previous) => {
+      const next = new Set(previous);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
   const reference = useQuery(
     referenceDataQueryOptions(
       bootstrap.apiPaths.categories,
@@ -196,8 +227,7 @@ export function TransactionsPage() {
     >
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-secondary">Ledger</p>
-          <h1 className="mt-1 text-xl font-medium text-primary" id="transactions-title">
+          <h1 className="text-xl font-medium text-primary" id="transactions-title">
             Transactions
           </h1>
         </div>
@@ -314,6 +344,26 @@ export function TransactionsPage() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto" id="transactions-scroll">
+            <div className="sticky top-0 z-10 hidden bg-container md:block">
+              <TransactionRowHeader
+                selection={
+                  <input
+                    aria-label="Select all"
+                    checked={allSelected}
+                    className="checkbox checkbox--light"
+                    disabled={transactionsList.length === 0}
+                    onChange={(event) => {
+                      select(
+                        transactionsList.map((t) => t.id),
+                        event.currentTarget.checked,
+                      );
+                    }}
+                    type="checkbox"
+                  />
+                }
+                showTags={columns.tags}
+              />
+            </div>
             {error !== undefined ? (
               <div
                 className="m-4 rounded-xl border border-destructive bg-container p-5"
@@ -342,19 +392,41 @@ export function TransactionsPage() {
               <div aria-live="polite" className="divide-y divide-tertiary">
                 {groupedTransactions.map(([date, transactions]) => (
                   <div key={date}>
-                    <div className="flex items-center justify-between bg-container-inset px-4 py-2.5">
+                    <div className="flex items-center gap-3 bg-container-inset px-4 py-2.5">
+                      <input
+                        aria-label={`Select all for ${formatTransactionDate(date)}`}
+                        checked={
+                          transactions.length > 0 && transactions.every((t) => selected.has(t.id))
+                        }
+                        className="checkbox checkbox--light"
+                        disabled={transactions.length === 0}
+                        onChange={(event) => {
+                          select(
+                            transactions.map((t) => t.id),
+                            event.currentTarget.checked,
+                          );
+                        }}
+                        type="checkbox"
+                      />
                       <h2 className="text-xs font-medium uppercase tracking-wide text-secondary">
-                        {formatTransactionDate(date)}
-                      </h2>
-                      <span className="text-xs tabular-nums text-secondary">
+                        {formatTransactionDate(date)} <span className="mx-1">&middot;</span>{" "}
                         {transactions.length}
-                      </span>
+                      </h2>
                     </div>
                     <ul className="divide-y divide-tertiary">
                       {transactions.map((transaction) => (
                         <TransactionRow
+                          categories={reference.categories}
                           columns={columns}
                           key={transaction.id}
+                          selection={{
+                            selected: selected.has(transaction.id),
+                            disabled: false,
+                            onChange: (checked) => {
+                              select([transaction.id], checked);
+                            },
+                            label: `Select ${transaction.name}`,
+                          }}
                           transaction={transaction}
                         />
                       ))}
@@ -366,12 +438,124 @@ export function TransactionsPage() {
           </div>
 
           {data !== undefined ? (
-            <Pagination
+            <TablePaginationBar
+              className="border-t border-tertiary px-4 py-3"
+              disabled={transactionsQuery.isFetching}
+              itemCount={data.transactions.length}
               onPageChange={(page) => {
                 updateSearch({ page });
               }}
+              onPerPageChange={(per_page) => {
+                updateSearch({ per_page, page: 1 });
+              }}
               page={data.pagination.page}
+              perPage={data.pagination.per_page}
+              totalCount={data.pagination.total_count}
               totalPages={data.pagination.total_pages}
+            />
+          ) : null}
+          {selectedTransactions.length > 0 ? (
+            <div className="shadow-border-lg fixed inset-x-4 bottom-4 z-20 mx-auto flex max-w-xl flex-wrap items-center justify-between gap-2 rounded-xl bg-container p-3">
+              <p className="text-sm text-primary">
+                {selectedTransactions.length} transaction
+                {selectedTransactions.length === 1 ? "" : "s"} selected
+              </p>
+              <IconButton
+                icon="x"
+                label="Close"
+                onClick={() => {
+                  setSelected(new Set());
+                }}
+              />
+              <Button
+                onClick={() => {
+                  setBulkEditing(true);
+                }}
+                size="sm"
+                type="button"
+                variant="secondary"
+              >
+                Edit selected
+              </Button>
+              {selectedTransactions.length === 1 ? (
+                <Link
+                  className="focus-ring inline-flex min-h-8 items-center justify-center rounded-lg border border-secondary bg-container px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-surface-hover"
+                  search={{
+                    ...routeSearch,
+                    account_id: selectedTransactions[0].account.id,
+                    duplicate_transaction_id: selectedTransactions[0].id,
+                  }}
+                  to="/transactions/new"
+                >
+                  Duplicate selected
+                </Link>
+              ) : null}
+              <form
+                action={bootstrap.railsPaths.bulkDelete ?? "/transactions/bulk_deletion"}
+                method="post"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setConfirmDelete(true);
+                }}
+                ref={deleteForm}
+              >
+                <CsrfFields />
+                {selectedTransactions.map((transaction) => (
+                  <input
+                    key={transaction.entry_id}
+                    name="bulk_delete[entry_ids][]"
+                    type="hidden"
+                    value={transaction.entry_id}
+                  />
+                ))}
+                <Button size="sm" type="submit" variant="destructive-outline">
+                  Delete selected
+                </Button>
+              </form>
+            </div>
+          ) : null}
+          {confirmDelete ? (
+            <Modal
+              ariaLabelledby="transactions-delete-title"
+              onClose={() => {
+                setConfirmDelete(false);
+              }}
+              open
+              panelClassName="w-full max-w-md rounded-xl bg-container p-6 shadow-border-lg"
+            >
+              <h2 className="text-lg font-medium text-primary" id="transactions-delete-title">
+                Delete selected
+              </h2>
+              <p className="my-4 text-sm text-secondary">
+                Delete the selected transactions? This cannot be undone.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button
+                  onClick={() => {
+                    setConfirmDelete(false);
+                  }}
+                  variant="secondary"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    deleteForm.current?.submit();
+                  }}
+                  variant="destructive"
+                >
+                  Delete selected
+                </Button>
+              </div>
+            </Modal>
+          ) : null}
+          {bulkEditing ? (
+            <BulkUpdateDrawer
+              entryIds={selectedTransactions.map((t) => t.entry_id)}
+              onClose={() => {
+                setBulkEditing(false);
+                setSelected(new Set());
+              }}
             />
           ) : null}
         </div>
@@ -420,8 +604,8 @@ function UpcomingTransactionsView({ recurringPath }: { recurringPath?: string })
       <div className="flex flex-col items-center justify-center rounded-xl bg-container px-6 py-40 shadow-border-xs text-center">
         <p className="mb-2 font-medium text-secondary">No recurring transactions found</p>
         <p className="max-w-xs text-sm text-subdued">
-          Recurring transactions will appear here once patterns are identified from your transaction
-          history.
+          Upcoming items appear once recurrence dates are known. Credit-card payments appear after
+          the estimated statement closes.
         </p>
       </div>
     );
@@ -500,7 +684,9 @@ function UpcomingRow({ item }: { item: UpcomingRecurringTransaction }) {
                   <div className="truncate shrink font-medium text-primary">{displayName}</div>
                   <div className="flex shrink-0 items-center gap-1">
                     <span className="inline-flex items-center rounded-full bg-blue-tint-10 px-2 py-0.5 text-xs font-medium text-link">
-                      Projected
+                      {item.system_managed_kind === "credit_card_payment"
+                        ? "Statement estimate"
+                        : "Projected"}
                     </span>
                   </div>
                 </div>
@@ -515,7 +701,9 @@ function UpcomingRow({ item }: { item: UpcomingRecurringTransaction }) {
       </div>
 
       <div className="col-span-2 hidden items-center gap-1 lg:flex">
-        <span className="text-xs text-secondary">Recurring</span>
+        <span className="text-xs text-secondary">
+          {item.system_managed_kind === "credit_card_payment" ? "Credit card payment" : "Recurring"}
+        </span>
       </div>
 
       <div className="col-span-2 ml-auto shrink-0 text-right">
@@ -566,7 +754,8 @@ function formatUpcomingGroupDate(dateStr: string): string {
   }).format(parsedDate);
 }
 
-function formatExpectedIn(dateStr: string): string {
+function formatExpectedIn(dateStr: string | null): string {
+  if (dateStr === null) return "Due day not configured";
   const target = new Date(`${dateStr}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -583,6 +772,9 @@ function formatUpcomingAmount(item: UpcomingRecurringTransaction): {
   text: string;
   className: string;
 } {
+  if (item.system_managed_kind === "credit_card_payment")
+    return { text: item.amount, className: "text-subdued" };
+
   const amountStr =
     item.manual &&
     typeof item.expected_amount_avg === "string" &&
@@ -608,6 +800,7 @@ function groupUpcomingByDate(
   const groups: Record<string, UpcomingRecurringTransaction[]> = {};
   for (const item of items) {
     const key = item.next_expected_date;
+    if (key === null) continue;
     const list = groups[key] ?? [];
     list.push(item);
     groups[key] = list;
@@ -748,49 +941,6 @@ function TransactionsMenu({
         ))}
       </MenuItems>
     </Menu>
-  );
-}
-
-function Pagination({
-  onPageChange,
-  page,
-  totalPages,
-}: {
-  onPageChange: (page: number) => void;
-  page: number;
-  totalPages: number;
-}) {
-  if (totalPages <= 1) return null;
-
-  return (
-    <nav
-      aria-label="Transaction pages"
-      className="flex shrink-0 items-center justify-between border-t border-tertiary px-4 py-3"
-    >
-      <button
-        className="rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-container-hover disabled:cursor-not-allowed disabled:opacity-40"
-        disabled={page <= 1}
-        onClick={() => {
-          onPageChange(page - 1);
-        }}
-        type="button"
-      >
-        Previous
-      </button>
-      <p className="text-sm tabular-nums text-secondary">
-        Page {page} of {totalPages}
-      </p>
-      <button
-        className="rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-container-hover disabled:cursor-not-allowed disabled:opacity-40"
-        disabled={page >= totalPages}
-        onClick={() => {
-          onPageChange(page + 1);
-        }}
-        type="button"
-      >
-        Next
-      </button>
-    </nav>
   );
 }
 

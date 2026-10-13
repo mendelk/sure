@@ -11,7 +11,8 @@ import { IconButton } from "./components/icon-button";
 import { Modal } from "./modal";
 import { AccountIdSchema, type CategoryId, type MerchantId, type TagId } from "./ids";
 import { readCsrfToken, referenceDataQueryOptions } from "./api/transactions";
-import { CategorySelect, MerchantSelect, TagSelect } from "./transaction-detail-page";
+import { CategorySelect, MerchantSelect } from "./transaction-detail-page";
+import { TagSelect } from "./components/tag-select";
 
 export type BulkUpdateSearch = {
   account_id?: string;

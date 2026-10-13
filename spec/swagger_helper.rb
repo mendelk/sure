@@ -325,6 +325,11 @@ RSpec.configure do |config|
               status: { type: :string, enum: %w[active draft disabled pending_deletion] },
               institution_name: { type: :string, nullable: true },
               institution_domain: { type: :string, nullable: true },
+              notes: { type: :string, nullable: true },
+              exclude_from_reports: { type: :boolean },
+              enable_category_matcher: { type: :boolean },
+              accountable: { '$ref' => '#/components/schemas/AccountableDetails' },
+              address: { '$ref' => '#/components/schemas/AccountAddress' },
               created_at: { type: :string, format: :'date-time' },
               updated_at: { type: :string, format: :'date-time' }
             }
@@ -384,6 +389,7 @@ RSpec.configure do |config|
               mileage_unit: { type: :string },
               available_credit: { type: :number },
               minimum_payment: { type: :number },
+              payment_due_day: { type: :integer, minimum: 1, maximum: 31, nullable: true, description: 'Credit cards only: confirmed monthly due day. Clear to infer a payment day from history; short months clamp to their last day.' },
               apr: { type: :number },
               annual_fee: { type: :number },
               expiration_date: { type: :string, format: :date },
@@ -391,6 +397,21 @@ RSpec.configure do |config|
               interest_rate: { type: :number },
               term_months: { type: :integer },
               initial_balance: { type: :number },
+              start_date: { type: :string, format: :date },
+              down_payment: { type: :number },
+              insurance_rate: { type: :number },
+              insurance_rate_type: { type: :string },
+              rate_changes: {
+                type: :array,
+                items: {
+                  type: :object,
+                  properties: {
+                    effective_date: { type: :string, format: :date },
+                    rate: { type: :number }
+                  }
+                }
+              },
+              subtype: { type: :string, nullable: true, description: 'Nested subtype (native form shape); top-level subtype is preferred.' },
               address: {
                 type: :object,
                 properties: {
@@ -402,6 +423,283 @@ RSpec.configure do |config|
                   postal_code: { type: :string },
                   county: { type: :string }
                 }
+              }
+            }
+          },
+          AccountUpdateRequest: {
+            type: :object,
+            required: %w[account],
+            properties: {
+              account: {
+                type: :object,
+                properties: {
+                  name: { type: :string },
+                  balance: { type: :number, description: 'New current balance in major currency units; applied via a valuation when changed' },
+                  currency: { type: :string },
+                  subtype: { type: :string, nullable: true },
+                  institution_name: { type: :string, nullable: true },
+                  institution_domain: { type: :string, nullable: true },
+                  notes: { type: :string, nullable: true },
+                  exclude_from_reports: { type: :boolean },
+                  enable_category_matcher: { type: :boolean },
+                  accountable: {
+                    '$ref' => '#/components/schemas/AccountableCreateDetails'
+                  }
+                }
+              }
+            }
+          },
+          AccountableDetails: {
+            type: :object,
+            description: 'Type-specific account fields serialized for SPA edit prefill. Only the fields for the account type are present.',
+            properties: {
+              subtype: { type: :string, nullable: true },
+              tax_treatment: { type: :string, nullable: true },
+              year_built: { type: :integer, nullable: true },
+              area_unit: { type: :string, nullable: true },
+              area_value: { type: :integer, nullable: true },
+              make: { type: :string, nullable: true },
+              model: { type: :string, nullable: true },
+              year: { type: :integer, nullable: true },
+              mileage_value: { type: :integer, nullable: true },
+              mileage_unit: { type: :string, nullable: true },
+              available_credit: { type: :string, nullable: true },
+              minimum_payment: { type: :string, nullable: true },
+              payment_due_day: { type: :integer, minimum: 1, maximum: 31, nullable: true },
+              estimated_payment_due_day: { type: :integer, minimum: 1, maximum: 31, nullable: true, readOnly: true, description: 'Historical payment-day estimate, not a bank-confirmed deadline.' },
+              payment_due_day_source: { type: :string, nullable: true, enum: %w[manual estimated], readOnly: true },
+              statement_gap_days: { type: :integer, readOnly: true, description: 'Assumed days from statement close to payment; currently 25.' },
+              apr: { type: :string, nullable: true },
+              annual_fee: { type: :string, nullable: true },
+              expiration_date: { type: :string, format: :date, nullable: true },
+              rate_type: { type: :string, nullable: true },
+              interest_rate: { type: :string, nullable: true },
+              term_months: { type: :integer, nullable: true },
+              initial_balance: { type: :string, nullable: true },
+              start_date: { type: :string, format: :date, nullable: true },
+              down_payment: { type: :string, nullable: true },
+              insurance_rate: { type: :string, nullable: true },
+              insurance_rate_type: { type: :string, nullable: true },
+              rate_changes: {
+                type: :array,
+                items: {
+                  type: :object,
+                  properties: {
+                    effective_date: { type: :string, format: :date },
+                    rate: { type: :string }
+                  }
+                }
+              }
+            }
+          },
+          AccountAddress: {
+            type: :object,
+            nullable: true,
+            description: 'Property address; null for all other account types.',
+            properties: {
+              line1: { type: :string, nullable: true },
+              line2: { type: :string, nullable: true },
+              locality: { type: :string, nullable: true },
+              region: { type: :string, nullable: true },
+              country: { type: :string, nullable: true },
+              postal_code: { type: :string, nullable: true },
+              county: { type: :string, nullable: true }
+            }
+          },
+          PropertyFormOptions: {
+            type: :object,
+            required: %w[subtypes area_units avm_providers currencies default_currency],
+            properties: {
+              subtypes: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string },
+                    short_label: { type: :string, nullable: true }
+                  }
+                }
+              },
+              area_units: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string }
+                  }
+                }
+              },
+              avm_providers: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string }
+                  }
+                }
+              },
+              currencies: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string }
+                  }
+                }
+              },
+              default_currency: { type: :string }
+            }
+          },
+          PropertyAvmProviders: {
+            type: :object,
+            required: %w[providers],
+            properties: {
+              providers: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string }
+                  }
+                }
+              }
+            }
+          },
+          PropertyAvmPreview: {
+            type: :object,
+            required: %w[provider_key preview preview_token],
+            properties: {
+              provider_key: { type: :string },
+              preview: {
+                type: :object,
+                properties: {
+                  valuation: { type: :string },
+                  currency: { type: :string },
+                  property_type: { type: :string, nullable: true },
+                  year_built: { type: :integer, nullable: true },
+                  area_value: { type: :integer, nullable: true },
+                  area_unit: { type: :string }
+                }
+              },
+              preview_token: { type: :string }
+            }
+          },
+          PropertyAccountRef: {
+            type: :object,
+            required: %w[id status],
+            properties: {
+              id: { type: :string, format: :uuid },
+              status: { type: :string }
+            }
+          },
+          AccountFormOptions: {
+            type: :object,
+            required: %w[account_types subtypes tax_treatments loan_rate_types loan_insurance_rate_types mileage_units currencies default_currency],
+            properties: {
+              account_types: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label classification],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string },
+                    classification: { type: :string, enum: %w[asset liability] }
+                  }
+                }
+              },
+              subtypes: {
+                type: :object,
+                properties: {
+                  depository: { '$ref' => '#/components/schemas/AccountSubtypeOptions' },
+                  investment: { '$ref' => '#/components/schemas/AccountSubtypeOptions' },
+                  crypto: { '$ref' => '#/components/schemas/AccountSubtypeOptions' },
+                  vehicle: { '$ref' => '#/components/schemas/AccountSubtypeOptions' },
+                  other_asset: { '$ref' => '#/components/schemas/AccountSubtypeOptions' },
+                  credit_card: { '$ref' => '#/components/schemas/AccountSubtypeOptions' },
+                  loan: { '$ref' => '#/components/schemas/AccountSubtypeOptions' },
+                  other_liability: { '$ref' => '#/components/schemas/AccountSubtypeOptions' }
+                }
+              },
+              tax_treatments: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string },
+                    description: { type: :string, nullable: true }
+                  }
+                }
+              },
+              loan_rate_types: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string }
+                  }
+                }
+              },
+              loan_insurance_rate_types: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string }
+                  }
+                }
+              },
+              mileage_units: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string }
+                  }
+                }
+              },
+              currencies: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[value label],
+                  properties: {
+                    value: { type: :string },
+                    label: { type: :string }
+                  }
+                }
+              },
+              default_currency: { type: :string }
+            }
+          },
+          AccountSubtypeOptions: {
+            type: :array,
+            items: {
+              type: :object,
+              required: %w[value label],
+              properties: {
+                value: { type: :string },
+                label: { type: :string },
+                short_label: { type: :string, nullable: true },
+                group: { type: :string, nullable: true, description: 'Region label for investment subtypes; null otherwise' }
               }
             }
           },
@@ -951,16 +1249,33 @@ RSpec.configure do |config|
             required: %w[id amount amount_cents currency expected_day_of_month last_occurrence_date next_expected_date status occurrence_count manual created_at updated_at],
             properties: {
               id: { type: :string, format: :uuid },
-              amount: { type: :string },
-              amount_cents: { type: :integer, description: 'Amount in currency minor units' },
+              amount: { type: :string, description: 'Formatted series amount. With upcoming=true, managed credit-card rows instead return the current occurrence unpaid remainder.' },
+              amount_cents: { type: :integer, description: 'Amount in currency minor units; with upcoming=true, the unpaid remainder for managed credit-card rows.' },
               currency: { type: :string },
-              expected_day_of_month: { type: :integer, minimum: 1, maximum: 31 },
+              expected_day_of_month: { type: :integer, minimum: 1, maximum: 31, nullable: true, description: 'Null when a managed credit-card payment day cannot be inferred.' },
               last_occurrence_date: { type: :string, format: :date },
-              next_expected_date: { type: :string, format: :date },
+              next_expected_date: { type: :string, format: :date, nullable: true, description: 'Null when a managed credit-card payment day is unknown.' },
               status: { type: :string, enum: %w[suggested active paused inactive ended] },
               occurrence_count: { type: :integer, minimum: 0 },
               name: { type: :string, nullable: true },
               manual: { type: :boolean },
+              system_managed_kind: { type: :string, nullable: true, enum: [ 'credit_card_payment' ], readOnly: true, description: 'Automatic credit-card series cannot be edited, paused, or deleted. Configure the account payment_due_day instead. Series amount is zero except in upcoming=true projections; current_occurrence carries the closed-cycle estimate.' },
+              current_occurrence: {
+                type: :object, nullable: true, readOnly: true, description: 'Credit-card estimate available only after statement close.',
+                properties: {
+                  id: { type: :string, format: :uuid },
+                  due_on: { type: :string, format: :date },
+                  currency: { type: :string, description: 'Currency of this occurrence and its monetary amounts.' },
+                  due_date_source: { type: :string, enum: %w[manual estimated] },
+                  statement_start_on: { type: :string, format: :date },
+                  statement_end_on: { type: :string, format: :date },
+                  statement_balance: { type: :string, description: 'Estimated closing debt, in major currency units.' },
+                  post_statement_credits: { type: :string, description: 'Credits posted since this statement close, in major currency units. Overlapping periods may report the same credits; outstanding amounts do not double-count them.' },
+                  expected_amount: { type: :string, description: 'Estimated obligation, in major currency units.' },
+                  remaining_amount: { type: :string, description: 'Estimated unpaid amount, in major currency units.' },
+                  status: { type: :string, enum: %w[scheduled paid skipped missed] }
+                }
+              },
               payment_url: { type: :string, nullable: true, description: 'Link to the biller portal where this bill is paid. Only http and https are accepted; a bare host is stored as https.' },
               autopay: { type: :boolean, description: 'Whether this bill pays itself automatically.' },
               notes: { type: :string, nullable: true, description: 'Free-text notes shown alongside the bill.' },

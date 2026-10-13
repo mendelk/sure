@@ -407,6 +407,21 @@ export type ReferenceOption<TId extends string> = {
   parentName?: string;
 };
 
+export function recentCategoriesQueryOptions(categoriesPath: string) {
+  return queryOptions({
+    queryKey: ["spa", "reference", "recent-categories", categoriesPath] as const,
+    queryFn: ({ signal }) =>
+      requestReferenceList(
+        `${categoriesPath}?per_page=100&recent=true`,
+        "categories",
+        CategoryIdSchema,
+        signal,
+      ),
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+}
+
 export function referenceDataQueryOptions(
   categoriesPath: string,
   merchantsPath: string,
@@ -589,13 +604,14 @@ export const UpcomingRecurringTransactionSchema = z.object({
   amount: z.string(),
   amount_cents: z.number(),
   currency: z.string(),
-  expected_day_of_month: z.number(),
+  expected_day_of_month: z.nullable(z.number()),
   last_occurrence_date: z.string(),
-  next_expected_date: z.string(),
+  next_expected_date: z.nullable(z.string()),
   status: z.string(),
   occurrence_count: z.number(),
   name: z.optional(z.nullable(z.string())),
   manual: z.boolean(),
+  system_managed_kind: z.optional(z.nullable(z.string())),
   expected_amount_min: z.optional(z.nullable(z.string())),
   expected_amount_min_cents: z.optional(z.nullable(z.number())),
   expected_amount_max: z.optional(z.nullable(z.string())),

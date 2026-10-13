@@ -39,6 +39,69 @@ class Api::V1::RecurringTransactionsControllerTest < ActionDispatch::Integration
     )
   end
 
+  test "managed credit card series are readable but cannot be edited or deleted through the API" do
+    card = accounts(:credit_card)
+    card.accountable.update!(payment_due_day: 10)
+    card.accountable.payment_schedule.refresh!
+    series = card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+
+    get api_v1_recurring_transaction_url(series), headers: api_headers(@api_key)
+    assert_response :success
+    assert_equal "credit_card_payment", response.parsed_body["system_managed_kind"]
+
+    patch api_v1_recurring_transaction_url(series), params: { recurring_transaction: { status: "inactive", expected_day_of_month: 20 } },
+          headers: api_headers(@api_key), as: :json
+    assert_response :forbidden
+    assert series.reload.active?
+    assert_equal 10, series.expected_day_of_month
+
+    delete api_v1_recurring_transaction_url(series), headers: api_headers(@api_key)
+    assert_response :forbidden
+    assert RecurringTransaction.exists?(series.id)
+  end
+
+  test "unknown managed payment dates are null rather than fabricated in the API" do
+    card = accounts(:credit_card)
+    card.accountable.payment_schedule.refresh!
+    series = card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+    get api_v1_recurring_transaction_url(series), headers: api_headers(@api_key)
+    assert_response :success
+    row = response.parsed_body
+    assert_nil row["expected_day_of_month"]
+    assert_nil row["next_expected_date"]
+    assert_nil row["current_occurrence"]
+  end
+
+  test "upcoming cards show unpaid closed-cycle amounts and exclude unknown or settled schedules" do
+    travel_to Time.zone.local(2026, 10, 12, 12) do
+      card = @family.accounts.create!(name: "Upcoming card", owner: @user, balance: 80, currency: "USD",
+                                     accountable: CreditCard.new(payment_due_day: 17))
+      unknown = @family.accounts.create!(name: "Unknown day", owner: @user, balance: 100, currency: "USD",
+                                        accountable: CreditCard.new)
+      series = card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+      unknown_series = unknown.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+      card.entries.create!(date: Date.new(2026, 9, 21), name: "Opening debt", amount: 80, currency: "USD",
+                           entryable: Valuation.new(kind: "opening_anchor"))
+      card.entries.create!(date: Date.new(2026, 10, 10), name: "Payment", amount: -25, currency: "USD",
+                           entryable: Transaction.new)
+      card.accountable.payment_schedule.refresh!
+
+      get api_v1_recurring_transactions_url(upcoming: true), headers: api_headers(@api_key)
+      assert_response :success
+      rows = response.parsed_body.fetch("recurring_transactions")
+      row = rows.find { |item| item["id"] == series.id }
+      assert_equal 5500, row.fetch("amount_cents")
+      assert_equal "2026-10-17", row.fetch("next_expected_date")
+      assert_equal "USD", row.dig("current_occurrence", "currency")
+      refute_includes rows.map { |item| item["id"] }, unknown_series.id
+
+      RecurringTransaction::Allocator.new(series.next_open_occurrence).mark_paid!
+      get api_v1_recurring_transactions_url(upcoming: true), headers: api_headers(@api_key)
+      assert_response :success
+      refute_includes response.parsed_body.fetch("recurring_transactions").map { |item| item["id"] }, series.id
+    end
+  end
+
   test "should list recurring transactions" do
     get api_v1_recurring_transactions_url, headers: api_headers(@api_key)
 

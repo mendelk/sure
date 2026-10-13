@@ -1,19 +1,45 @@
 # frozen_string_literal: true
 
 json.id recurring_transaction.id
-json.amount recurring_transaction.amount_money.format
+display_money = recurring_transaction.amount_money
+if recurring_transaction.credit_card_payment? && params[:upcoming].to_s == "true"
+  display_money = recurring_transaction.current_occurrence.remaining_amount_money
+end
+json.amount display_money.format
 money_to_minor_units = lambda do |money|
   (money.amount * money.currency.minor_unit_conversion).round(0).to_i if money
 end
-json.amount_cents money_to_minor_units.call(recurring_transaction.amount_money)
-json.currency recurring_transaction.currency
-json.expected_day_of_month recurring_transaction.expected_day_of_month
+json.amount_cents money_to_minor_units.call(display_money)
+json.currency display_money.currency.iso_code
+card_schedule = recurring_transaction.account.accountable.payment_schedule if recurring_transaction.credit_card_payment?
+json.expected_day_of_month(card_schedule ? card_schedule.due_day : recurring_transaction.expected_day_of_month)
 json.last_occurrence_date recurring_transaction.last_occurrence_date
-json.next_expected_date recurring_transaction.next_expected_date
+json.next_expected_date(card_schedule ? recurring_transaction.next_due_date : recurring_transaction.next_expected_date)
 json.status recurring_transaction.status
 json.occurrence_count recurring_transaction.occurrence_count
 json.name recurring_transaction.name
 json.manual recurring_transaction.manual
+json.system_managed_kind recurring_transaction.system_managed_kind
+if recurring_transaction.credit_card_payment?
+  occurrence = recurring_transaction.current_occurrence
+  if occurrence
+    json.current_occurrence do
+      json.id occurrence.id
+      json.due_on occurrence.due_on
+      json.currency occurrence.currency
+      json.due_date_source occurrence.due_date_source
+      json.statement_start_on occurrence.statement_start_on
+      json.statement_end_on occurrence.statement_end_on
+      json.statement_balance occurrence.statement_balance&.to_s
+      json.post_statement_credits occurrence.post_statement_credits&.to_s
+      json.expected_amount occurrence.resolved_expected_amount.to_s
+      json.remaining_amount occurrence.remaining_amount.to_s
+      json.status occurrence.status
+    end
+  else
+    json.current_occurrence nil
+  end
+end
 json.payment_url recurring_transaction.payment_url
 json.autopay recurring_transaction.autopay
 json.notes recurring_transaction.notes

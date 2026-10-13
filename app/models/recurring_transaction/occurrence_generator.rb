@@ -18,6 +18,8 @@ class RecurringTransaction
     # exists and not just future ones, through a horizon always extended far
     # enough to include the next occurrence even on annual cadences.
     def generate!(through: nil)
+      return series.account.accountable.payment_schedule.refresh! if series.credit_card_payment?
+
       return 0 unless series.active?
 
       schedule = series.schedule
@@ -36,6 +38,8 @@ class RecurringTransaction
     # After a schedule edit: drop the re-generatable future and rebuild it under
     # the new rules. Rows with payments or closed state are kept as they were.
     def regenerate_future!(through: nil)
+      return generate! if series.system_managed?
+
       series.recurring_occurrences
             .open_status
             .where("due_on >= ?", Date.current)
@@ -48,6 +52,8 @@ class RecurringTransaction
     # Materializes a past window (catch-up/backfill). The caller decides what
     # happens to uncovered past occurrences; this only creates rows.
     def backfill!(from:, through: Date.current)
+      return 0 if series.system_managed?
+
       return 0 unless series.active?
 
       upsert_window(from, through)

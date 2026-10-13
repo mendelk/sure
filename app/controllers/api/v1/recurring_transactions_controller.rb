@@ -12,6 +12,7 @@ class Api::V1::RecurringTransactionsController < Api::V1::BaseController
   before_action :ensure_write_scope, only: %i[create update destroy]
   before_action :set_readable_recurring_transaction, only: :show
   before_action :set_writable_recurring_transaction, only: %i[update destroy]
+  before_action :ensure_not_system_managed, only: %i[update destroy]
 
   def index
     return render_invalid_account_filter if params[:account_id].present? && !valid_uuid?(params[:account_id])
@@ -148,6 +149,13 @@ class Api::V1::RecurringTransactionsController < Api::V1::BaseController
       @recurring_transaction = find_recurring_transaction(write_recurring_transactions_scope)
     end
 
+    def ensure_not_system_managed
+      return unless @recurring_transaction.system_managed?
+
+      render json: { error: "system_managed", message: "Credit card payment series are managed automatically. Configure the due day on the account." },
+             status: :forbidden
+    end
+
     def find_recurring_transaction(scope)
       raise ActiveRecord::RecordNotFound unless valid_uuid?(params[:id])
 
@@ -182,7 +190,15 @@ class Api::V1::RecurringTransactionsController < Api::V1::BaseController
 
       if params[:upcoming].to_s == "true"
         days = (params[:upcoming_days] || 10).to_i.clamp(1, 365)
-        query = query.active.where("next_expected_date >= ? AND next_expected_date <= ?", Date.current, days.days.from_now.to_date)
+        through = days.days.from_now.to_date
+        ordinary = query.where(system_managed_kind: nil).where(next_expected_date: Date.current..through)
+        due_card_series = current_resource_owner.family.recurring_occurrences.open_status
+                                               .group(:recurring_transaction_id)
+                                               .having("MIN(due_on) BETWEEN ? AND ?", Date.current, through)
+                                               .select(:recurring_transaction_id)
+        cards = query.where(system_managed_kind: "credit_card_payment", id: due_card_series,
+                            account_id: Account.visible.select(:id))
+        query = ordinary.or(cards).active
       else
         if params[:start_date].present?
           query = query.where("next_expected_date >= ?", params[:start_date].to_date) rescue query

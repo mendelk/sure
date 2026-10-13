@@ -34,6 +34,37 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
+  test "credit card due day round trips and can be cleared without editing its managed bill" do
+    account = accounts(:credit_card)
+    patch api_v1_account_url(account), params: { account: { accountable: { payment_due_day: 31 } } },
+          headers: api_headers(@read_write_api_key), as: :json
+    assert_response :success
+    assert_equal 31, account.accountable.reload.payment_due_day
+    assert_equal 31, response.parsed_body.dig("accountable", "payment_due_day")
+    assert_equal "manual", response.parsed_body.dig("accountable", "payment_due_day_source")
+    assert account.recurring_transactions.exists?(system_managed_kind: "credit_card_payment")
+
+    patch api_v1_account_url(account), params: { account: { accountable: { payment_due_day: nil } } },
+          headers: api_headers(@read_write_api_key), as: :json
+    assert_response :success
+    assert_nil account.accountable.reload.payment_due_day
+  end
+
+  test "credit card invalid due day and foreign account writes leave the due day unchanged" do
+    account = accounts(:credit_card)
+    account.accountable.update!(payment_due_day: 10)
+    [ 0, 32, 1.5 ].each do |day|
+      patch api_v1_account_url(account), params: { account: { accountable: { payment_due_day: day } } },
+            headers: api_headers(@read_write_api_key), as: :json
+      assert_response :unprocessable_entity
+      assert_equal 10, account.accountable.reload.payment_due_day
+    end
+    patch api_v1_account_url(account), params: { account: { accountable: { payment_due_day: 20 } } },
+          headers: api_headers(@other_family_api_key), as: :json
+    assert_response :forbidden
+    assert_equal 10, account.accountable.reload.payment_due_day
+  end
+
   test "should require authentication" do
     get "/api/v1/accounts"
     assert_response :unauthorized
@@ -206,6 +237,210 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_equal "validation_failed", JSON.parse(response.body)["error"]
+  end
+
+  test "should update an account name, balance and common settings" do
+    account = accounts(:depository)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: {
+        account: {
+          name: "Renamed Checking",
+          balance: account.balance + 250,
+          currency: "USD",
+          subtype: "savings",
+          institution_name: "New Bank",
+          institution_domain: "newbank.example",
+          notes: "Updated through the API",
+          exclude_from_reports: true,
+          enable_category_matcher: false
+        }
+      },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :success
+    response_body = JSON.parse(response.body)
+    assert_equal "Renamed Checking", response_body["name"]
+    assert_equal account.id, response_body["id"]
+
+    account.reload
+    assert_equal "Renamed Checking", account.name
+    assert_equal "New Bank", account.institution_name
+    assert_equal "newbank.example", account.institution_domain
+    assert_equal "Updated through the API", account.notes
+    assert account.exclude_from_reports?
+    refute account.enable_category_matcher?
+    assert_equal "savings", account.subtype
+  end
+
+  test "should update every manual account type with type-specific details" do
+    updates = {
+      depository: [ :depository, { account: { subtype: "savings" } }, ->(a) { assert_equal "savings", a.reload.subtype } ],
+      investment: [ :investment, { account: { subtype: "roth_ira" } }, ->(a) { assert_equal "roth_ira", a.reload.subtype } ],
+      crypto: [ :crypto, { account: { accountable: { subtype: "wallet", tax_treatment: "tax_exempt" } } },
+        ->(a) { assert_equal "tax_exempt", a.reload.crypto.tax_treatment } ],
+      property: [ :property,
+        { account: {
+          subtype: "condominium",
+          accountable: {
+            year_built: 2015, area_value: 1200, area_unit: "sqft",
+            address: { line1: "456 Updated Ave", locality: "Boston", region: "MA", country: "US", postal_code: "02101" }
+          }
+        } },
+        ->(a) {
+          a.reload
+          assert_equal 2015, a.property.year_built
+          assert_equal "456 Updated Ave", a.property.address.line1
+        } ],
+      vehicle: [ :vehicle,
+        { account: { accountable: { make: "Toyota", model: "Camry", year: 2023, mileage_value: 5_000, mileage_unit: "mi" } } },
+        ->(a) { assert_equal "Toyota", a.reload.vehicle.make } ],
+      other_asset: [ :other_asset, { account: { subtype: "collectible", notes: "Still collectible" } },
+        ->(a) { assert_equal "collectible", a.reload.subtype } ],
+      credit_card: [ :credit_card,
+        { account: { accountable: { available_credit: 8000, minimum_payment: 75, apr: 21.99, annual_fee: 0, expiration_date: "2030-01-01" } } },
+        ->(a) {
+          a.reload
+          assert_equal 8000, a.credit_card.available_credit
+          assert_equal Date.new(2030, 1, 1), a.credit_card.expiration_date
+        } ],
+      loan: [ :loan,
+        { account: {
+          accountable: {
+            rate_type: "fixed", interest_rate: 5.5, term_months: 240, initial_balance: 250_000,
+            start_date: "2024-01-01", down_payment: 50_000,
+            insurance_rate: 0.25, insurance_rate_type: "decreasing_life"
+          }
+        } },
+        ->(a) {
+          a.reload
+          assert_equal 240, a.loan.term_months
+          assert_equal Date.new(2024, 1, 1), a.loan.start_date
+        } ],
+      other_liability: [ :other_liability, { account: { subtype: "personal_debt" } },
+        ->(a) { assert_equal "personal_debt", a.reload.subtype } ]
+    }
+
+    updates.each do |label, (fixture_name, params, assertion)|
+      account = accounts(fixture_name)
+
+      patch "/api/v1/accounts/#{account.id}",
+        params: params,
+        headers: api_headers(@read_write_api_key)
+
+      assert_response :success, "expected #{label} update to succeed: #{response.body}"
+      assertion.call(account)
+    end
+  end
+
+  test "should change the balance on update" do
+    account = accounts(:depository)
+    new_balance = account.balance + 1000
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { balance: new_balance } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :success
+    assert_equal new_balance.to_d, account.reload.balance
+  end
+
+  test "should require write scope to update an account" do
+    account = accounts(:depository)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { name: "Forbidden" } },
+      headers: api_headers(@api_key)
+
+    assert_response :forbidden
+    assert_equal "insufficient_scope", JSON.parse(response.body)["error"]
+  end
+
+  test "should require authentication on update" do
+    account = accounts(:depository)
+
+    patch "/api/v1/accounts/#{account.id}", params: { account: { name: "No Auth" } }
+
+    assert_response :unauthorized
+    assert_equal "unauthorized", JSON.parse(response.body)["error"]
+  end
+
+  test "should return 404 for unknown account on update" do
+    patch "/api/v1/accounts/#{SecureRandom.uuid}",
+      params: { account: { name: "Missing" } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :not_found
+    assert_equal "not_found", JSON.parse(response.body)["error"]
+  end
+
+  test "should return 404 for malformed account id on update" do
+    patch "/api/v1/accounts/not-a-uuid",
+      params: { account: { name: "Missing" } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :not_found
+    assert_equal "not_found", JSON.parse(response.body)["error"]
+  end
+
+  test "should reject invalid update details with 422 and errors array" do
+    account = accounts(:crypto)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { name: "", accountable: { tax_treatment: "not-a-tax-treatment" } } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :unprocessable_entity
+    response_body = JSON.parse(response.body)
+    assert_equal "validation_failed", response_body["error"]
+    assert response_body["errors"].is_a?(Array)
+    assert response_body["errors"].any?
+  end
+
+  test "should reject invalid date on update with 422" do
+    account = accounts(:loan)
+
+    patch "/api/v1/accounts/#{account.id}",
+      params: { account: { accountable: { start_date: (Date.current + 1.year).iso8601 } } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :unprocessable_entity
+    response_body = JSON.parse(response.body)
+    assert_equal "validation_failed", response_body["error"]
+    assert response_body["errors"].is_a?(Array)
+  end
+
+  test "should not update other family's accounts" do
+    other_account = @other_family_user.family.accounts.create!(
+      owner: @other_family_user,
+      name: "Other Family Checking",
+      balance: 100,
+      currency: "USD",
+      accountable: Depository.new(subtype: "checking")
+    )
+
+    patch "/api/v1/accounts/#{other_account.id}",
+      params: { account: { name: "Hijacked" } },
+      headers: api_headers(@read_write_api_key)
+
+    assert_response :not_found
+  end
+
+  test "should serialize accountable attributes and address on show" do
+    account = accounts(:property)
+    account.property.update!(year_built: 2012, area_value: 900, area_unit: "sqft")
+
+    get "/api/v1/accounts/#{account.id}", headers: api_headers(@api_key)
+
+    assert_response :success
+    response_body = JSON.parse(response.body)
+    assert response_body.key?("accountable")
+    assert_equal 2012, response_body.dig("accountable", "year_built")
+    assert response_body.key?("address")
+    assert_equal "123 Main Street", response_body.dig("address", "line1")
+    assert_equal "Los Angeles", response_body.dig("address", "locality")
+    assert response_body.key?("notes")
+    assert response_body.key?("exclude_from_reports")
   end
 
   test "should only return active accounts" do

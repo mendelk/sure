@@ -5,6 +5,7 @@ class CreditCardsController < ApplicationController
     :id,
     :available_credit,
     :minimum_payment,
+    :payment_due_day,
     :apr,
     :annual_fee,
     :expiration_date

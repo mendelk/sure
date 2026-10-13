@@ -276,6 +276,25 @@ class Api::V1::CategoriesControllerTest < ActionDispatch::IntegrationTest
     assert body["message"].present?
   end
 
+  test "index supports recent filter returning recently used categories first" do
+    @category.update!(last_used_at: 1.hour.ago)
+    @subcategory.update!(last_used_at: 2.hours.ago)
+
+    get "/api/v1/categories", params: { recent: true }, headers: api_headers(read_only_api_key)
+
+    assert_response :success
+    names = JSON.parse(response.body)["categories"].map { |c| c["name"] }
+    assert_equal [ @category.name, @subcategory.name ], names
+  end
+
+  test "index supports exclude_id filter" do
+    get "/api/v1/categories", params: { exclude_id: @category.id }, headers: api_headers(read_only_api_key)
+
+    assert_response :success
+    ids = JSON.parse(response.body)["categories"].map { |c| c["id"] }
+    assert_not_includes ids, @category.id
+  end
+
   test "create returns 400 when category payload is missing" do
     post "/api/v1/categories",
       params: {},

@@ -1,6 +1,18 @@
 ---
 en:
   bills:
+    credit_card:
+      system_managed: System-managed credit card payment
+      explanation: Estimates the full statement debt, not the minimum payment. Posted charges and carried debt set the amount; later refunds and credits reduce it.
+      gap: "Statement close is estimated %{days} days before payment. This is a fallback, not a bank-confirmed statement date."
+      manual_day: "Monthly, due day %{day}"
+      estimated_day: "Monthly, estimated payment day %{day}"
+      unknown_day: Payment day unknown
+      amount_unavailable: Amount available after statement close
+      insufficient_history: Enter a due day on the account, or wait for at least three consistent monthly payments.
+      period: "Estimated statement: %{start}–%{end}"
+      credits: "Credits posted after this close: %{amount}"
+      configure: Set account due day
     row_overdue: Overdue
     row_today: Today
     detect:

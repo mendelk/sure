@@ -2,15 +2,16 @@
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { CategoryIcon, Icon } from "./icon";
 import { Modal } from "./modal";
 import { Toggle } from "./components/toggle";
+import { TagSelect } from "./components/tag-select";
+import { SearchablePicker, type PickerOption } from "./components/searchable-picker";
 import {
   TransactionApiError,
   createCategory,
   createMerchant,
-  createTag,
   createTransferMatch,
   referenceDataQueryOptions,
   transactionDetailQueryOptions,
@@ -30,7 +31,6 @@ import {
   type TagId,
 } from "./ids";
 import type { SpaBootstrap } from "./bootstrap";
-import { useDismiss } from "./use-dismiss";
 
 export type Bootstrap = Pick<SpaBootstrap, "apiPaths" | "railsPaths">;
 
@@ -246,27 +246,6 @@ function SaveIndicator({ state }: { state: SaveState }) {
   );
 }
 
-function TagPill({ name, color }: { name: string; color?: string }) {
-  const customColor = typeof color === "string" && color.startsWith("#") ? color : "#737373";
-  return (
-    <span
-      className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium leading-none align-middle"
-      style={{
-        backgroundColor: `color-mix(in oklab, ${customColor} 10%, transparent)`,
-        borderColor: `color-mix(in oklab, ${customColor} 20%, transparent)`,
-        color: customColor,
-      }}
-    >
-      <span
-        aria-hidden="true"
-        className="size-1.5 shrink-0 rounded-full"
-        style={{ backgroundColor: customColor }}
-      />
-      <span className="truncate">{name}</span>
-    </span>
-  );
-}
-
 function CategoryPill({ name, color, icon }: { name: string; color?: string; icon?: string }) {
   const customColor = typeof color === "string" && color.startsWith("#") ? color : "#737373";
   return (
@@ -326,60 +305,37 @@ export function CategorySelect({
   selectedCategoryId: CategoryId | "";
 }) {
   const queryClient = useQueryClient();
-  const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-
-  useDismiss(
-    containerRef,
-    () => {
-      setIsOpen(false);
-      triggerRef.current?.focus();
-    },
-    isOpen,
-  );
-
-  useEffect(() => {
-    if (isOpen) searchInputRef.current?.focus();
-  }, [isOpen]);
-
-  function toggle() {
-    setIsOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        setQuery("");
-        setCreateError(null);
-      }
-      return next;
-    });
-  }
-
+  const [createError, setCreateError] = useState<string>();
   const selected =
-    categories.find((c) => c.id === selectedCategoryId) ??
-    (initialCategory !== undefined &&
-    initialCategory !== null &&
-    initialCategory.id === selectedCategoryId
-      ? initialCategory
-      : undefined);
-
+    categories.find((category) => category.id === selectedCategoryId) ??
+    (initialCategory?.id === selectedCategoryId ? initialCategory : undefined);
   const trimmedQuery = query.trim();
   const lowerQuery = trimmedQuery.toLowerCase();
-
-  const filteredCategories = categories.filter((c) => c.name.toLowerCase().includes(lowerQuery));
-  const exactMatch = categories.some((c) => c.name.toLowerCase() === lowerQuery);
-  const canCreate = trimmedQuery.length > 0 && !exactMatch;
+  const options: PickerOption[] = [
+    { value: "", label: "(uncategorized)" },
+    ...categories
+      .filter((category) => category.name.toLowerCase().includes(lowerQuery))
+      .map((category) => ({
+        value: category.id,
+        label: category.name,
+        content: <CategoryPill color={category.color} icon={category.icon} name={category.name} />,
+      })),
+  ];
+  if (
+    trimmedQuery.length > 0 &&
+    !categories.some((category) => category.name.toLowerCase() === lowerQuery)
+  )
+    options.push({ value: "__create", label: `Create "${trimmedQuery}"` });
 
   async function handleCreate() {
-    if (isCreating || trimmedQuery.length === 0) return;
+    if (isCreating || disabled === true) return false;
     setIsCreating(true);
-    setCreateError(null);
+    setCreateError(undefined);
     try {
-      const newCat = await createCategory(bootstrap.apiPaths.categories, trimmedQuery);
-      queryClient.setQueriesData(
+      const category = await createCategory(bootstrap.apiPaths.categories, trimmedQuery);
+      queryClient.setQueriesData<{ categories: ReferenceOption<CategoryId>[] }>(
         {
           queryKey: [
             "spa",
@@ -389,155 +345,58 @@ export function CategorySelect({
             bootstrap.apiPaths.tags,
           ],
         },
-        (
-          old:
-            | {
-                categories: ReferenceOption<CategoryId>[];
-                merchants: ReferenceOption<MerchantId>[];
-                tags: ReferenceOption<TagId>[];
+        (old) =>
+          old
+            ? {
+                ...old,
+                categories: [...old.categories, category].toSorted((left, right) =>
+                  left.name.localeCompare(right.name),
+                ),
               }
-            | undefined,
-        ) => {
-          if (!old) return old;
-          return {
-            ...old,
-            categories: [...old.categories, newCat].toSorted((a, b) =>
-              a.name.localeCompare(b.name),
-            ),
-          };
-        },
+            : old,
       );
-      onSelect(newCat.id);
-      setIsOpen(false);
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Could not create category");
+      onSelect(category.id);
+      return true;
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : "Could not create category");
+      return false;
     } finally {
       setIsCreating(false);
     }
   }
 
   return (
-    <div className="relative" ref={containerRef}>
-      <div className="form-field">
-        <div className="form-field__body">
-          <label className="form-field__label" htmlFor="txn-category-trigger">
-            Category
-          </label>
-          <button
-            aria-expanded={isOpen}
-            className="form-field__input min-h-7 flex cursor-pointer items-center gap-2 pr-8 text-left"
-            disabled={disabled}
-            id="txn-category-trigger"
-            onClick={toggle}
-            ref={triggerRef}
-            type="button"
-          >
-            {selected ? (
-              <CategoryPill color={selected.color} icon={selected.icon} name={selected.name} />
-            ) : (
-              <span className="text-sm text-secondary">Select a Category</span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {isOpen && disabled !== true ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg">
-          <div className="relative mb-1">
-            <input
-              autoComplete="off"
-              className="h-10 w-full rounded-lg border-none bg-container pl-10 pr-3 text-base text-primary placeholder:text-secondary focus:outline-hidden focus:ring-0 sm:text-sm"
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setCreateError(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && canCreate) {
-                  e.preventDefault();
-                  void handleCreate();
-                }
-              }}
-              placeholder="Search categories"
-              ref={searchInputRef}
-              type="search"
-              value={query}
-            />
-            <Icon
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-secondary"
-              name="search"
-            />
-          </div>
-
-          <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
-            <button
-              className={`flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm transition-colors hover:bg-container-inset-hover ${
-                selectedCategoryId.length === 0 ? "bg-container-inset" : ""
-              }`}
-              data-selected={selectedCategoryId.length === 0}
-              onClick={() => {
-                onSelect("");
-                setIsOpen(false);
-              }}
-              type="button"
-            >
-              <span
-                className={`flex size-4 shrink-0 items-center justify-center ${
-                  selectedCategoryId.length === 0 ? "" : "invisible"
-                }`}
-              >
-                <Icon className="size-4 text-primary" name="check" />
-              </span>
-              <span className="text-secondary">(uncategorized)</span>
-            </button>
-
-            {filteredCategories.map((cat) => {
-              const isSelected = cat.id === selectedCategoryId;
-              return (
-                <button
-                  className={`flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm transition-colors hover:bg-container-inset-hover ${
-                    isSelected ? "bg-container-inset" : ""
-                  }`}
-                  data-selected={isSelected}
-                  key={cat.id}
-                  onClick={() => {
-                    onSelect(cat.id);
-                    setIsOpen(false);
-                  }}
-                  type="button"
-                >
-                  <span
-                    className={`flex size-4 shrink-0 items-center justify-center ${
-                      isSelected ? "" : "invisible"
-                    }`}
-                  >
-                    <Icon className="size-4 text-primary" name="check" />
-                  </span>
-                  <CategoryPill color={cat.color} icon={cat.icon} name={cat.name} />
-                </button>
-              );
-            })}
-
-            {canCreate ? (
-              <button
-                className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-primary transition-colors hover:bg-container-inset-hover disabled:opacity-50"
-                disabled={isCreating}
-                onClick={() => {
-                  void handleCreate();
-                }}
-                type="button"
-              >
-                <Icon className="size-4 text-primary" name="plus" />
-                <span>{`Create "${trimmedQuery}"`}</span>
-              </button>
-            ) : null}
-
-            {createError !== null ? (
-              <p className="px-3 py-1 text-xs text-destructive">{createError}</p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <SearchablePicker
+      disabled={disabled === true || isCreating}
+      error={createError}
+      label="Category"
+      onQueryChange={(value) => {
+        setQuery(value);
+        setCreateError(undefined);
+      }}
+      onSelect={(value) => {
+        if (value === "__create") return handleCreate();
+        if (value === "") {
+          onSelect("");
+          return true;
+        }
+        const category = categories.find((candidate) => candidate.id === value);
+        if (category === undefined) return false;
+        onSelect(category.id);
+        return true;
+      }}
+      options={options}
+      query={query}
+      searchLabel="Search categories"
+      selectedValues={[selectedCategoryId]}
+      trigger={
+        selected ? (
+          <CategoryPill color={selected.color} icon={selected.icon} name={selected.name} />
+        ) : (
+          <span className="text-sm text-secondary">Select a Category</span>
+        )
+      }
+    />
   );
 }
 
@@ -557,440 +416,111 @@ export function MerchantSelect({
   selectedMerchantId: MerchantId | "";
 }) {
   const queryClient = useQueryClient();
-  const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-
-  useDismiss(
-    containerRef,
-    () => {
-      setIsOpen(false);
-      triggerRef.current?.focus();
-    },
-    isOpen,
-  );
-
-  useEffect(() => {
-    if (isOpen) searchInputRef.current?.focus();
-  }, [isOpen]);
-
-  function toggle() {
-    setIsOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        setQuery("");
-        setCreateError(null);
-      }
-      return next;
-    });
-  }
-
+  const [createError, setCreateError] = useState<string>();
   const selected =
-    merchants.find((m) => m.id === selectedMerchantId) ??
-    (initialMerchant !== undefined &&
-    initialMerchant !== null &&
-    initialMerchant.id === selectedMerchantId
+    merchants.find((merchant) => merchant.id === selectedMerchantId) ??
+    (initialMerchant?.id === selectedMerchantId
       ? {
-          id: initialMerchant.id,
-          name: initialMerchant.name,
+          ...initialMerchant,
           logoUrl: initialMerchant.logo_url ?? undefined,
         }
       : undefined);
-
   const trimmedQuery = query.trim();
   const lowerQuery = trimmedQuery.toLowerCase();
-
-  const filteredMerchants = merchants.filter((m) => m.name.toLowerCase().includes(lowerQuery));
-  const exactMatch = merchants.some((c) => c.name.toLowerCase() === lowerQuery);
-  const canCreate = trimmedQuery.length > 0 && !exactMatch;
+  const options: PickerOption[] = [
+    { value: "", label: "No merchant" },
+    ...merchants
+      .filter((merchant) => merchant.name.toLowerCase().includes(lowerQuery))
+      .map((merchant) => ({
+        value: merchant.id,
+        label: merchant.name,
+        content: (
+          <>
+            <MerchantAvatar logoUrl={merchant.logoUrl} name={merchant.name} />
+            <span className="truncate">{merchant.name}</span>
+          </>
+        ),
+      })),
+  ];
+  if (
+    trimmedQuery.length > 0 &&
+    !merchants.some((merchant) => merchant.name.toLowerCase() === lowerQuery)
+  )
+    options.push({ value: "__create", label: `Create "${trimmedQuery}"` });
 
   async function handleCreate() {
-    if (isCreating || trimmedQuery.length === 0) return;
+    if (isCreating || disabled === true) return false;
     setIsCreating(true);
-    setCreateError(null);
+    setCreateError(undefined);
     try {
-      const newMerchant = await createMerchant(bootstrap.apiPaths.merchants, trimmedQuery);
-      queryClient.setQueryData(
-        [
-          "spa",
-          "reference",
-          bootstrap.apiPaths.categories,
-          bootstrap.apiPaths.merchants,
-          bootstrap.apiPaths.tags,
-        ],
-        (
-          old:
-            | {
-                categories: ReferenceOption<CategoryId>[];
-                merchants: ReferenceOption<MerchantId>[];
-                tags: ReferenceOption<TagId>[];
-              }
-            | undefined,
-        ) => {
-          if (!old) return old;
-          return {
-            ...old,
-            merchants: [...old.merchants, newMerchant].toSorted((a, b) =>
-              a.name.localeCompare(b.name),
-            ),
-          };
+      const merchant = await createMerchant(bootstrap.apiPaths.merchants, trimmedQuery);
+      queryClient.setQueriesData<{ merchants: ReferenceOption<MerchantId>[] }>(
+        {
+          queryKey: [
+            "spa",
+            "reference",
+            bootstrap.apiPaths.categories,
+            bootstrap.apiPaths.merchants,
+            bootstrap.apiPaths.tags,
+          ],
         },
+        (old) =>
+          old
+            ? {
+                ...old,
+                merchants: [...old.merchants, merchant].toSorted((left, right) =>
+                  left.name.localeCompare(right.name),
+                ),
+              }
+            : old,
       );
-      onSelect(newMerchant.id);
-      setIsOpen(false);
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Could not create merchant");
+      onSelect(merchant.id);
+      return true;
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : "Could not create merchant");
+      return false;
     } finally {
       setIsCreating(false);
     }
   }
 
   return (
-    <div className="relative" ref={containerRef}>
-      <div className="form-field">
-        <div className="form-field__body">
-          <label className="form-field__label" htmlFor="txn-merchant-trigger">
-            Merchant
-          </label>
-          <button
-            aria-expanded={isOpen}
-            className="form-field__input min-h-7 flex cursor-pointer items-center gap-2 pr-8 text-left"
-            disabled={disabled}
-            id="txn-merchant-trigger"
-            onClick={toggle}
-            ref={triggerRef}
-            type="button"
-          >
-            {selected ? (
-              <span className="flex items-center gap-2 truncate">
-                <MerchantAvatar logoUrl={selected.logoUrl} name={selected.name} />
-                <span className="truncate text-sm text-primary">{selected.name}</span>
-              </span>
-            ) : (
-              <span className="text-sm text-secondary">No merchant</span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {isOpen && disabled !== true ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg">
-          <div className="focus-ring-within mb-1 flex items-center rounded-lg border border-secondary bg-container transition-shadow">
-            <div className="relative w-full">
-              <input
-                autoComplete="off"
-                className="h-10 w-full rounded-lg border-none bg-container pl-10 pr-3 text-base text-primary placeholder:text-secondary focus:outline-hidden focus:ring-0 sm:text-sm"
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setCreateError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && canCreate) {
-                    e.preventDefault();
-                    void handleCreate();
-                  }
-                }}
-                placeholder="Search merchants"
-                ref={searchInputRef}
-                type="search"
-                value={query}
-              />
-              <Icon
-                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-secondary"
-                name="search"
-              />
-            </div>
-          </div>
-
-          <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
-            <button
-              className={`flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-container-inset-hover ${
-                selectedMerchantId.length === 0 ? "bg-container-inset" : ""
-              }`}
-              data-selected={selectedMerchantId.length === 0}
-              onClick={() => {
-                onSelect("");
-                setIsOpen(false);
-              }}
-              type="button"
-            >
-              <span
-                className={`flex size-5 shrink-0 items-center justify-center ${
-                  selectedMerchantId.length === 0 ? "" : "invisible"
-                }`}
-              >
-                <Icon className="size-4 text-primary" name="check" />
-              </span>
-              <span className="text-secondary">No merchant</span>
-            </button>
-
-            {filteredMerchants.map((merchant) => {
-              const isSelected = merchant.id === selectedMerchantId;
-              return (
-                <button
-                  className={`flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-container-inset-hover ${
-                    isSelected ? "bg-container-inset" : ""
-                  }`}
-                  data-selected={isSelected}
-                  key={merchant.id}
-                  onClick={() => {
-                    onSelect(merchant.id);
-                    setIsOpen(false);
-                  }}
-                  type="button"
-                >
-                  <span
-                    className={`flex size-5 shrink-0 items-center justify-center ${
-                      isSelected ? "" : "invisible"
-                    }`}
-                  >
-                    <Icon className="size-4 text-primary" name="check" />
-                  </span>
-                  <MerchantAvatar logoUrl={merchant.logoUrl} name={merchant.name} />
-                  <span className="truncate text-sm text-primary">{merchant.name}</span>
-                </button>
-              );
-            })}
-
-            {canCreate ? (
-              <button
-                className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-primary transition-colors hover:bg-container-inset-hover disabled:opacity-50"
-                disabled={isCreating}
-                onClick={() => {
-                  void handleCreate();
-                }}
-                type="button"
-              >
-                <Icon className="size-4 text-primary" name="plus" />
-                <span>{`Create "${trimmedQuery}"`}</span>
-              </button>
-            ) : null}
-
-            {createError !== null ? (
-              <p className="px-3 py-1 text-xs text-destructive">{createError}</p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-export function TagSelect({
-  bootstrap,
-  disabled,
-  initialTags,
-  onSelect,
-  selectedTagIds,
-  tags,
-}: {
-  bootstrap: Bootstrap;
-  disabled?: boolean;
-  initialTags?: Array<{ id: TagId; name: string; color?: string }>;
-  onSelect: (tagIds: TagId[]) => void;
-  selectedTagIds: TagId[];
-  tags: ReferenceOption<TagId>[];
-}) {
-  const queryClient = useQueryClient();
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-
-  useDismiss(
-    containerRef,
-    () => {
-      setIsOpen(false);
-      triggerRef.current?.focus();
-    },
-    isOpen,
-  );
-
-  useEffect(() => {
-    if (isOpen) searchInputRef.current?.focus();
-  }, [isOpen]);
-
-  function toggle() {
-    setIsOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        setQuery("");
-        setCreateError(null);
+    <SearchablePicker
+      disabled={disabled === true || isCreating}
+      error={createError}
+      label="Merchant"
+      onQueryChange={(value) => {
+        setQuery(value);
+        setCreateError(undefined);
+      }}
+      onSelect={(value) => {
+        if (value === "__create") return handleCreate();
+        if (value === "") {
+          onSelect("");
+          return true;
+        }
+        const merchant = merchants.find((candidate) => candidate.id === value);
+        if (merchant === undefined) return false;
+        onSelect(merchant.id);
+        return true;
+      }}
+      options={options}
+      query={query}
+      searchLabel="Search merchants"
+      selectedValues={[selectedMerchantId]}
+      trigger={
+        selected ? (
+          <span className="flex items-center gap-2 truncate">
+            <MerchantAvatar logoUrl={selected.logoUrl} name={selected.name} />
+            <span className="truncate text-sm text-primary">{selected.name}</span>
+          </span>
+        ) : (
+          <span className="text-sm text-secondary">No merchant</span>
+        )
       }
-      return next;
-    });
-  }
-
-  const selectedTags = selectedTagIds.map((id) => {
-    const found = tags.find((t) => t.id === id);
-    if (found !== undefined) return found;
-    const initial = initialTags?.find((t) => t.id === id);
-    if (initial !== undefined) return { id: initial.id, name: initial.name, color: initial.color };
-    return { id, name: id };
-  });
-
-  const trimmedQuery = query.trim();
-  const lowerQuery = trimmedQuery.toLowerCase();
-
-  const filteredTags = tags.filter((t) => t.name.toLowerCase().includes(lowerQuery));
-  const exactMatch = tags.some((t) => t.name.toLowerCase() === lowerQuery);
-  const canCreate = trimmedQuery.length > 0 && !exactMatch;
-
-  async function handleCreate() {
-    if (isCreating || trimmedQuery.length === 0) return;
-    setIsCreating(true);
-    setCreateError(null);
-    try {
-      const newTag = await createTag(bootstrap.apiPaths.tags, trimmedQuery);
-      queryClient.setQueryData(
-        [
-          "spa",
-          "reference",
-          bootstrap.apiPaths.categories,
-          bootstrap.apiPaths.merchants,
-          bootstrap.apiPaths.tags,
-        ],
-        (
-          old:
-            | {
-                categories: ReferenceOption<CategoryId>[];
-                merchants: ReferenceOption<MerchantId>[];
-                tags: ReferenceOption<TagId>[];
-              }
-            | undefined,
-        ) => {
-          if (!old) return old;
-          return {
-            ...old,
-            tags: [...old.tags, newTag].toSorted((a, b) => a.name.localeCompare(b.name)),
-          };
-        },
-      );
-      onSelect([...selectedTagIds, newTag.id]);
-      setQuery("");
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Could not create tag");
-    } finally {
-      setIsCreating(false);
-    }
-  }
-
-  return (
-    <div className="relative" ref={containerRef}>
-      <div className="form-field">
-        <div className="form-field__body">
-          <label className="form-field__label" htmlFor="txn-tags-trigger">
-            Tags
-          </label>
-          <button
-            aria-expanded={isOpen}
-            className="form-field__input form-field__input--multiselect-trigger min-h-7 flex cursor-pointer items-center gap-2 pr-8 text-left"
-            disabled={disabled}
-            id="txn-tags-trigger"
-            onClick={toggle}
-            ref={triggerRef}
-            type="button"
-          >
-            {selectedTags.length > 0 ? (
-              <span className="flex flex-wrap gap-1">
-                {selectedTags.map((tag) => (
-                  <TagPill color={tag.color} key={tag.id} name={tag.name} />
-                ))}
-              </span>
-            ) : (
-              <span className="text-sm text-secondary">None</span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {isOpen && disabled !== true ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 min-w-48 rounded-lg bg-container p-1.5 shadow-lg">
-          <div className="relative mb-1">
-            <input
-              autoComplete="off"
-              className="h-10 w-full rounded-lg border-none bg-container pl-10 pr-3 text-base text-primary placeholder:text-secondary focus:outline-hidden focus:ring-0 sm:text-sm"
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setCreateError(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && canCreate) {
-                  e.preventDefault();
-                  void handleCreate();
-                }
-              }}
-              placeholder="Search tags"
-              ref={searchInputRef}
-              type="search"
-              value={query}
-            />
-            <Icon
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-secondary"
-              name="search"
-            />
-          </div>
-
-          <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
-            {filteredTags.map((tag) => {
-              const isSelected = selectedTagIds.includes(tag.id);
-              return (
-                <button
-                  className={`flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm transition-colors hover:bg-container-inset-hover ${
-                    isSelected ? "bg-container-inset" : ""
-                  }`}
-                  data-selected={isSelected}
-                  key={tag.id}
-                  onClick={() => {
-                    const next = isSelected
-                      ? selectedTagIds.filter((id) => id !== tag.id)
-                      : [...selectedTagIds, tag.id];
-                    onSelect(next);
-                  }}
-                  type="button"
-                >
-                  <span
-                    className={`flex size-4 shrink-0 items-center justify-center ${
-                      isSelected ? "" : "invisible"
-                    }`}
-                  >
-                    <Icon className="size-4 text-primary" name="check" />
-                  </span>
-                  <TagPill color={tag.color} name={tag.name} />
-                </button>
-              );
-            })}
-
-            {canCreate ? (
-              <button
-                className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-primary transition-colors hover:bg-container-inset-hover disabled:opacity-50"
-                disabled={isCreating}
-                onClick={() => {
-                  void handleCreate();
-                }}
-                type="button"
-              >
-                <Icon className="size-4 text-primary" name="plus" />
-                <span>{`Create "${trimmedQuery}"`}</span>
-              </button>
-            ) : null}
-
-            {createError !== null ? (
-              <p className="px-3 py-1 text-xs text-destructive">{createError}</p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-    </div>
+    />
   );
 }
 

@@ -299,7 +299,9 @@ class DashboardsTest < ApplicationSystemTestCase
       assert_button "Save source", disabled: false
       click_button "Save source"
     end
-    click_link "Sources", exact: true
+    # "Sources" is no longer a rail entry (nav parity with the Rails
+    # sidebar); navigate directly like the other source tests.
+    visit sources_url
     edit_source("Category exclusions")
     page.refresh
     within "#source-editor" do

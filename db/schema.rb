@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_29_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -577,8 +577,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_29_120000) do
     t.date "expiration_date"
     t.jsonb "locked_attributes", default: {}
     t.decimal "minimum_payment", precision: 10, scale: 2
+    t.integer "payment_due_day"
     t.string "subtype"
     t.datetime "updated_at", null: false
+    t.check_constraint "payment_due_day IS NULL OR payment_due_day >= 1 AND payment_due_day <= 31", name: "chk_credit_cards_payment_due_day"
   end
 
   create_table "cryptos", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1593,7 +1595,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_29_120000) do
     t.jsonb "variable_rate_schedule", default: {}, null: false
     t.check_constraint "down_payment IS NULL OR down_payment >= 0::numeric", name: "chk_loans_down_payment_non_negative"
     t.check_constraint "insurance_rate IS NULL OR insurance_rate >= 0::numeric", name: "chk_loans_insurance_rate_non_negative"
-    t.check_constraint "insurance_rate_type IS NULL OR (insurance_rate_type::text = ANY (ARRAY['level_term'::character varying, 'decreasing_life'::character varying]::text[]))", name: "chk_loans_insurance_rate_type"
+    t.check_constraint "insurance_rate_type IS NULL OR (insurance_rate_type::text = ANY (ARRAY['level_term'::character varying::text, 'decreasing_life'::character varying::text]))", name: "chk_loans_insurance_rate_type"
   end
 
   create_table "lunchflow_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -2090,13 +2092,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_29_120000) do
     t.string "closed_source"
     t.datetime "created_at", null: false
     t.string "currency", null: false
+    t.string "due_date_source"
     t.date "due_on", null: false
     t.decimal "expected_amount", precision: 19, scale: 4
     t.uuid "family_id", null: false
     t.text "notes"
     t.date "original_due_on", null: false
+    t.decimal "post_statement_credits", precision: 19, scale: 4
     t.uuid "recurring_transaction_id", null: false
     t.date "snoozed_until"
+    t.decimal "statement_balance", precision: 19, scale: 4
+    t.date "statement_end_on"
+    t.date "statement_start_on"
     t.string "status", default: "scheduled", null: false
     t.datetime "updated_at", null: false
     t.index ["family_id", "due_on"], name: "index_recurring_occurrences_on_family_id_and_due_on"
@@ -2161,10 +2168,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_29_120000) do
     t.date "renews_on"
     t.uuid "replaced_by_id"
     t.string "status", default: "active", null: false
+    t.string "system_managed_kind"
     t.date "trial_ends_on"
     t.integer "upcoming_window_days"
     t.datetime "updated_at", null: false
     t.string "weekend_adjust", default: "none", null: false
+    t.index ["account_id"], name: "idx_recurring_card_payment", unique: true, where: "((system_managed_kind)::text = 'credit_card_payment'::text)"
     t.index ["account_id"], name: "index_recurring_transactions_on_account_id"
     t.index ["category_id"], name: "index_recurring_transactions_on_category_id"
     t.index ["destination_account_id"], name: "index_recurring_transactions_on_destination_account_id"
@@ -2178,6 +2187,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_29_120000) do
     t.index ["next_expected_date"], name: "index_recurring_transactions_on_next_expected_date"
     t.check_constraint "destination_account_id IS NULL OR account_id IS NOT NULL", name: "chk_recurring_txns_transfer_requires_source"
     t.check_constraint "destination_account_id IS NULL OR destination_account_id <> account_id", name: "chk_recurring_txns_transfer_distinct_accounts"
+    t.check_constraint "system_managed_kind IS NULL OR system_managed_kind::text = 'credit_card_payment'::text AND account_id IS NOT NULL AND destination_account_id IS NULL", name: "chk_recurring_system_managed_kind"
   end
 
   create_table "redbark_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

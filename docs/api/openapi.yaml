@@ -499,6 +499,17 @@ components:
         institution_domain:
           type: string
           nullable: true
+        notes:
+          type: string
+          nullable: true
+        exclude_from_reports:
+          type: boolean
+        enable_category_matcher:
+          type: boolean
+        accountable:
+          "$ref": "#/components/schemas/AccountableDetails"
+        address:
+          "$ref": "#/components/schemas/AccountAddress"
         created_at:
           type: string
           format: date-time
@@ -602,6 +613,13 @@ components:
           type: number
         minimum_payment:
           type: number
+        payment_due_day:
+          type: integer
+          minimum: 1
+          maximum: 31
+          nullable: true
+          description: 'Credit cards only: confirmed monthly due day. Clear to infer
+            a payment day from history; short months clamp to their last day.'
         apr:
           type: number
         annual_fee:
@@ -617,6 +635,29 @@ components:
           type: integer
         initial_balance:
           type: number
+        start_date:
+          type: string
+          format: date
+        down_payment:
+          type: number
+        insurance_rate:
+          type: number
+        insurance_rate_type:
+          type: string
+        rate_changes:
+          type: array
+          items:
+            type: object
+            properties:
+              effective_date:
+                type: string
+                format: date
+              rate:
+                type: number
+        subtype:
+          type: string
+          nullable: true
+          description: Nested subtype (native form shape); top-level subtype is preferred.
         address:
           type: object
           properties:
@@ -634,6 +675,427 @@ components:
               type: string
             county:
               type: string
+    AccountUpdateRequest:
+      type: object
+      required:
+      - account
+      properties:
+        account:
+          type: object
+          properties:
+            name:
+              type: string
+            balance:
+              type: number
+              description: New current balance in major currency units; applied via
+                a valuation when changed
+            currency:
+              type: string
+            subtype:
+              type: string
+              nullable: true
+            institution_name:
+              type: string
+              nullable: true
+            institution_domain:
+              type: string
+              nullable: true
+            notes:
+              type: string
+              nullable: true
+            exclude_from_reports:
+              type: boolean
+            enable_category_matcher:
+              type: boolean
+            accountable:
+              "$ref": "#/components/schemas/AccountableCreateDetails"
+    AccountableDetails:
+      type: object
+      description: Type-specific account fields serialized for SPA edit prefill. Only
+        the fields for the account type are present.
+      properties:
+        subtype:
+          type: string
+          nullable: true
+        tax_treatment:
+          type: string
+          nullable: true
+        year_built:
+          type: integer
+          nullable: true
+        area_unit:
+          type: string
+          nullable: true
+        area_value:
+          type: integer
+          nullable: true
+        make:
+          type: string
+          nullable: true
+        model:
+          type: string
+          nullable: true
+        year:
+          type: integer
+          nullable: true
+        mileage_value:
+          type: integer
+          nullable: true
+        mileage_unit:
+          type: string
+          nullable: true
+        available_credit:
+          type: string
+          nullable: true
+        minimum_payment:
+          type: string
+          nullable: true
+        payment_due_day:
+          type: integer
+          minimum: 1
+          maximum: 31
+          nullable: true
+        estimated_payment_due_day:
+          type: integer
+          minimum: 1
+          maximum: 31
+          nullable: true
+          readOnly: true
+          description: Historical payment-day estimate, not a bank-confirmed deadline.
+        payment_due_day_source:
+          type: string
+          nullable: true
+          enum:
+          - manual
+          - estimated
+          readOnly: true
+        statement_gap_days:
+          type: integer
+          readOnly: true
+          description: Assumed days from statement close to payment; currently 25.
+        apr:
+          type: string
+          nullable: true
+        annual_fee:
+          type: string
+          nullable: true
+        expiration_date:
+          type: string
+          format: date
+          nullable: true
+        rate_type:
+          type: string
+          nullable: true
+        interest_rate:
+          type: string
+          nullable: true
+        term_months:
+          type: integer
+          nullable: true
+        initial_balance:
+          type: string
+          nullable: true
+        start_date:
+          type: string
+          format: date
+          nullable: true
+        down_payment:
+          type: string
+          nullable: true
+        insurance_rate:
+          type: string
+          nullable: true
+        insurance_rate_type:
+          type: string
+          nullable: true
+        rate_changes:
+          type: array
+          items:
+            type: object
+            properties:
+              effective_date:
+                type: string
+                format: date
+              rate:
+                type: string
+    AccountAddress:
+      type: object
+      nullable: true
+      description: Property address; null for all other account types.
+      properties:
+        line1:
+          type: string
+          nullable: true
+        line2:
+          type: string
+          nullable: true
+        locality:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        postal_code:
+          type: string
+          nullable: true
+        county:
+          type: string
+          nullable: true
+    PropertyFormOptions:
+      type: object
+      required:
+      - subtypes
+      - area_units
+      - avm_providers
+      - currencies
+      - default_currency
+      properties:
+        subtypes:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+              short_label:
+                type: string
+                nullable: true
+        area_units:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+        avm_providers:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+        currencies:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+        default_currency:
+          type: string
+    PropertyAvmProviders:
+      type: object
+      required:
+      - providers
+      properties:
+        providers:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+    PropertyAvmPreview:
+      type: object
+      required:
+      - provider_key
+      - preview
+      - preview_token
+      properties:
+        provider_key:
+          type: string
+        preview:
+          type: object
+          properties:
+            valuation:
+              type: string
+            currency:
+              type: string
+            property_type:
+              type: string
+              nullable: true
+            year_built:
+              type: integer
+              nullable: true
+            area_value:
+              type: integer
+              nullable: true
+            area_unit:
+              type: string
+        preview_token:
+          type: string
+    PropertyAccountRef:
+      type: object
+      required:
+      - id
+      - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+    AccountFormOptions:
+      type: object
+      required:
+      - account_types
+      - subtypes
+      - tax_treatments
+      - loan_rate_types
+      - loan_insurance_rate_types
+      - mileage_units
+      - currencies
+      - default_currency
+      properties:
+        account_types:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            - classification
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+              classification:
+                type: string
+                enum:
+                - asset
+                - liability
+        subtypes:
+          type: object
+          properties:
+            depository:
+              "$ref": "#/components/schemas/AccountSubtypeOptions"
+            investment:
+              "$ref": "#/components/schemas/AccountSubtypeOptions"
+            crypto:
+              "$ref": "#/components/schemas/AccountSubtypeOptions"
+            vehicle:
+              "$ref": "#/components/schemas/AccountSubtypeOptions"
+            other_asset:
+              "$ref": "#/components/schemas/AccountSubtypeOptions"
+            credit_card:
+              "$ref": "#/components/schemas/AccountSubtypeOptions"
+            loan:
+              "$ref": "#/components/schemas/AccountSubtypeOptions"
+            other_liability:
+              "$ref": "#/components/schemas/AccountSubtypeOptions"
+        tax_treatments:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+              description:
+                type: string
+                nullable: true
+        loan_rate_types:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+        loan_insurance_rate_types:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+        mileage_units:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+        currencies:
+          type: array
+          items:
+            type: object
+            required:
+            - value
+            - label
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+        default_currency:
+          type: string
+    AccountSubtypeOptions:
+      type: array
+      items:
+        type: object
+        required:
+        - value
+        - label
+        properties:
+          value:
+            type: string
+          label:
+            type: string
+          short_label:
+            type: string
+            nullable: true
+          group:
+            type: string
+            nullable: true
+            description: Region label for investment subtypes; null otherwise
     FamilySettings:
       type: object
       required:
@@ -1715,21 +2177,28 @@ components:
           format: uuid
         amount:
           type: string
+          description: Formatted series amount. With upcoming=true, managed credit-card
+            rows instead return the current occurrence unpaid remainder.
         amount_cents:
           type: integer
-          description: Amount in currency minor units
+          description: Amount in currency minor units; with upcoming=true, the unpaid
+            remainder for managed credit-card rows.
         currency:
           type: string
         expected_day_of_month:
           type: integer
           minimum: 1
           maximum: 31
+          nullable: true
+          description: Null when a managed credit-card payment day cannot be inferred.
         last_occurrence_date:
           type: string
           format: date
         next_expected_date:
           type: string
           format: date
+          nullable: true
+          description: Null when a managed credit-card payment day is unknown.
         status:
           type: string
           enum:
@@ -1746,6 +2215,63 @@ components:
           nullable: true
         manual:
           type: boolean
+        system_managed_kind:
+          type: string
+          nullable: true
+          enum:
+          - credit_card_payment
+          readOnly: true
+          description: Automatic credit-card series cannot be edited, paused, or deleted.
+            Configure the account payment_due_day instead. Series amount is zero except
+            in upcoming=true projections; current_occurrence carries the closed-cycle
+            estimate.
+        current_occurrence:
+          type: object
+          nullable: true
+          readOnly: true
+          description: Credit-card estimate available only after statement close.
+          properties:
+            id:
+              type: string
+              format: uuid
+            due_on:
+              type: string
+              format: date
+            currency:
+              type: string
+              description: Currency of this occurrence and its monetary amounts.
+            due_date_source:
+              type: string
+              enum:
+              - manual
+              - estimated
+            statement_start_on:
+              type: string
+              format: date
+            statement_end_on:
+              type: string
+              format: date
+            statement_balance:
+              type: string
+              description: Estimated closing debt, in major currency units.
+            post_statement_credits:
+              type: string
+              description: Credits posted since this statement close, in major currency
+                units. Overlapping periods may report the same credits; outstanding
+                amounts do not double-count them.
+            expected_amount:
+              type: string
+              description: Estimated obligation, in major currency units.
+            remaining_amount:
+              type: string
+              description: Estimated unpaid amount, in major currency units.
+            status:
+              type: string
+              enum:
+              - scheduled
+              - paid
+              - skipped
+              - missed
         payment_url:
           type: string
           nullable: true
@@ -4879,6 +5405,40 @@ components:
         error:
           type: string
 paths:
+  "/api/v1/account_form_options":
+    get:
+      summary: Retrieve account form options
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters:
+      - name: currency
+        in: query
+        required: false
+        description: ISO currency code used to prioritize the investment subtype region
+          grouping
+        schema:
+          type: string
+      responses:
+        '200':
+          description: form options retrieved
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AccountFormOptions"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/api/v1/accounts":
     get:
       summary: List accounts
@@ -4991,6 +5551,53 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+    patch:
+      summary: Update an account
+      description: Updates manual and linked accounts. Credit cards accept accountable.payment_due_day
+        (1–31), or null to fall back to an estimated historical payment day. This
+        configures the automatic read-only card payment series.
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: account updated
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AccountDetail"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: account not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: validation failed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AccountUpdateRequest"
+        required: true
   "/api/v1/auth/signup":
     post:
       summary: Sign up a new user
@@ -5999,6 +6606,19 @@ paths:
         in: query
         required: false
         description: Filter by parent category ID
+        schema:
+          type: string
+          format: uuid
+      - name: recent
+        in: query
+        required: false
+        description: Return only recently-used categories (most recent first, capped)
+        schema:
+          type: boolean
+      - name: exclude_id
+        in: query
+        required: false
+        description: Exclude one category ID (e.g. the already-selected one)
         schema:
           type: string
           format: uuid
@@ -8625,6 +9245,280 @@ paths:
           description: merchant deleted
         '404':
           description: merchant not found
+  "/api/v1/properties/form_options":
+    get:
+      summary: Retrieve property form options
+      tags:
+      - Properties
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: form options retrieved
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PropertyFormOptions"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/properties/avm_providers":
+    get:
+      summary: List configured AVM providers
+      tags:
+      - Properties
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: providers listed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PropertyAvmProviders"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/properties":
+    post:
+      summary: Create a draft property account (manual wizard step 1)
+      tags:
+      - Properties
+      security:
+      - apiKeyAuth: []
+      - oauth2:
+        - read_write
+      parameters: []
+      responses:
+        '201':
+          description: draft property created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PropertyAccountRef"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: validation failed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - account
+              properties:
+                account:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    currency:
+                      type: string
+                    institution_name:
+                      type: string
+                      nullable: true
+                    institution_domain:
+                      type: string
+                      nullable: true
+                    notes:
+                      type: string
+                      nullable: true
+                    accountable_attributes:
+                      type: object
+                      properties:
+                        subtype:
+                          type: string
+                        year_built:
+                          type: integer
+                          nullable: true
+                        area_unit:
+                          type: string
+                          nullable: true
+                        area_value:
+                          type: integer
+                          nullable: true
+  "/api/v1/properties/{id}/address":
+    patch:
+      summary: Save the property address, activating a draft account (manual wizard
+        step 3)
+      tags:
+      - Properties
+      security:
+      - apiKeyAuth: []
+      - oauth2:
+        - read_write
+      parameters:
+      - name: id
+        in: path
+        format: uuid
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: address saved
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PropertyAccountRef"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - property
+              properties:
+                property:
+                  type: object
+                  properties:
+                    address_attributes:
+                      type: object
+                      properties:
+                        line1:
+                          type: string
+                        line2:
+                          type: string
+                          nullable: true
+                        locality:
+                          type: string
+                        region:
+                          type: string
+                        country:
+                          type: string
+                        postal_code:
+                          type: string
+                        county:
+                          type: string
+                          nullable: true
+  "/api/v1/properties/avm_lookup":
+    post:
+      summary: Look up a property valuation (AVM step 1, spends one provider request)
+      tags:
+      - Properties
+      security:
+      - apiKeyAuth: []
+      - oauth2:
+        - read_write
+      parameters: []
+      responses:
+        '200':
+          description: preview returned
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PropertyAvmPreview"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: validation failed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                avm_provider:
+                  type: string
+                account:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    address:
+                      type: object
+                      properties:
+                        line1:
+                          type: string
+                        locality:
+                          type: string
+                        region:
+                          type: string
+                        postal_code:
+                          type: string
+  "/api/v1/properties/avm_confirm":
+    post:
+      summary: Confirm an AVM preview from the signed token (AVM step 2, no provider
+        request)
+      tags:
+      - Properties
+      security:
+      - apiKeyAuth: []
+      - oauth2:
+        - read_write
+      parameters: []
+      responses:
+        '201':
+          description: property created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PropertyAccountRef"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: validation failed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                avm_provider:
+                  type: string
+                avm_preview_token:
+                  type: string
+                account:
+                  type: object
   "/api/v1/provider_connections":
     get:
       summary: Lists provider connection status summaries
@@ -8749,6 +9643,23 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: upcoming
+        in: query
+        required: false
+        description: Only upcoming active series. Credit cards require an open, closed-statement
+          occurrence; their amount is its unpaid remainder.
+        schema:
+          type: boolean
+          default: false
+      - name: upcoming_days
+        in: query
+        required: false
+        description: Upcoming horizon in days when upcoming=true.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 365
+          default: 10
       responses:
         '200':
           description: recurring transactions listed
@@ -8939,7 +9850,8 @@ paths:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
         '403':
-          description: forbidden - requires read_write scope
+          description: forbidden - requires read_write scope; system-managed credit-card
+            series are read-only even with write scope
           content:
             application/json:
               schema:
@@ -9011,7 +9923,8 @@ paths:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
         '403':
-          description: forbidden - requires read_write scope
+          description: forbidden - requires read_write scope; system-managed credit-card
+            series cannot be deleted even with write scope
           content:
             application/json:
               schema:

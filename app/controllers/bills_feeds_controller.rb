@@ -31,7 +31,7 @@ class BillsFeedsController < ApplicationController
                         .joins(:recurring_transaction)
                         .merge(RecurringTransaction.accessible_by(user))
                         .where(recurring_transactions: { status: :active })
-                        .where("recurring_transactions.amount > 0")
+                        .merge(RecurringTransaction.payable)
                         .where(due_on: Date.current..(Date.current + HORIZON_DAYS))
                         .includes(:recurring_transaction)
                         .order(:due_on)

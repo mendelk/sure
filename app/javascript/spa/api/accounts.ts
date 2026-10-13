@@ -209,6 +209,66 @@ export const AccountDetailSchema = z.object({
   activity: z.nullable(AccountActivitySchema),
   sections: z.array(AccountSectionSchema),
   text: z.record(z.string(), z.string()),
+  balance: z.optional(z.nullable(z.number())),
+  linked: z.optional(z.nullable(z.boolean())),
+  subtype: z.optional(NullableStringSchema),
+  institution_name: z.optional(NullableStringSchema),
+  institution_domain: z.optional(NullableStringSchema),
+  notes: z.optional(NullableStringSchema),
+  exclude_from_reports: z.optional(z.nullable(z.boolean())),
+  accountable: z.optional(
+    z.nullable(
+      z.object({
+        subtype: z.optional(NullableStringSchema),
+        tax_treatment: z.optional(NullableStringSchema),
+        make: z.optional(NullableStringSchema),
+        model: z.optional(NullableStringSchema),
+        year: z.optional(z.nullable(z.number())),
+        mileage_value: z.optional(z.nullable(z.number())),
+        mileage_unit: z.optional(NullableStringSchema),
+        available_credit: z.optional(z.nullable(z.number())),
+        minimum_payment: z.optional(z.nullable(z.number())),
+        payment_due_day: z.optional(z.nullable(z.number())),
+        estimated_payment_due_day: z.optional(z.nullable(z.number())),
+        payment_due_day_source: z.optional(NullableStringSchema),
+        statement_gap_days: z.optional(z.number()),
+        apr: z.optional(z.nullable(z.number())),
+        annual_fee: z.optional(z.nullable(z.number())),
+        expiration_date: z.optional(NullableStringSchema),
+        year_built: z.optional(z.nullable(z.number())),
+        area_value: z.optional(z.nullable(z.number())),
+        area_unit: z.optional(NullableStringSchema),
+        address: z.optional(
+          z.nullable(
+            z.object({
+              line1: z.optional(NullableStringSchema),
+              line2: z.optional(NullableStringSchema),
+              locality: z.optional(NullableStringSchema),
+              region: z.optional(NullableStringSchema),
+              country: z.optional(NullableStringSchema),
+              postal_code: z.optional(NullableStringSchema),
+              county: z.optional(NullableStringSchema),
+            }),
+          ),
+        ),
+      }),
+    ),
+  ),
+  loan: z.optional(
+    z.nullable(
+      z.object({
+        subtype: NullableStringSchema,
+        initial_balance: z.optional(z.nullable(z.number())),
+        interest_rate: z.optional(z.nullable(z.number())),
+        rate_type: NullableStringSchema,
+        down_payment: z.optional(z.nullable(z.number())),
+        start_date: NullableStringSchema,
+        term_months: z.optional(z.nullable(z.number())),
+        insurance_rate: z.optional(z.nullable(z.number())),
+        insurance_rate_type: NullableStringSchema,
+      }),
+    ),
+  ),
 });
 export type AccountDetail = z.infer<typeof AccountDetailSchema>;
 export type AccountAction = z.infer<typeof AccountActionSchema>;

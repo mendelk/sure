@@ -1,0 +1,16 @@
+<%# locals: (series:, occurrence: nil) %>
+<%= render DS::Alert.new(title: t("bills.credit_card.system_managed"), variant: :info) do %>
+  <p><%= t("bills.credit_card.explanation") %></p>
+  <p><%= t("bills.credit_card.gap", days: CreditCard::PaymentSchedule::STATEMENT_GAP_DAYS) %></p>
+  <% if occurrence %>
+    <p><%= t("bills.credit_card.period", start: l(occurrence.statement_start_on, format: :long), end: l(occurrence.statement_end_on, format: :long)) %></p>
+    <% if occurrence.post_statement_credits.to_d.positive? %>
+      <p class="privacy-sensitive"><%= t("bills.credit_card.credits", amount: format_money(Money.new(occurrence.post_statement_credits, occurrence.currency))) %></p>
+    <% end %>
+  <% elsif !series.account.accountable.payment_schedule.due_day %>
+    <p><%= t("bills.credit_card.insufficient_history") %></p>
+  <% else %>
+    <p><%= t("bills.credit_card.amount_unavailable") %></p>
+  <% end %>
+  <%= render DS::Link.new(text: t("bills.credit_card.configure"), href: edit_account_path(series.account), variant: "default", data: { turbo_frame: "_top" }) %>
+<% end %>

@@ -9,67 +9,74 @@ import { Alert } from "./components/alert";
 import { Icon, type IconName } from "./icon";
 import { useDismiss } from "./use-dismiss";
 
-type NavItem = {
-  label: string;
-  icon: IconName;
-} & (
-  | { spaPath: "/transactions" | "/dashboards" | "/sources"; path?: never }
-  | { path: keyof SpaBootstrap["railsPaths"]; spaPath?: never }
-);
+// Navigation comes from the server (`navItems` in the SPA bootstrap), built
+// by the same composition the Rails sidebar uses — including preview gating
+// for Bills and the Plan/Budgets swap. The SPA only decides *how* to
+// navigate: paths the SPA router owns are client-side `<Link>`s, the rest
+// are full-page anchors into Rails.
+type NavItem = SpaBootstrap["navItems"][number];
 
-// Sources are independently managed in the SPA. The remaining navigation
-// matches the Rails app until those sections gain SPA routes.
-const NAV_ITEMS: NavItem[] = [
-  { label: "Home", path: "home", icon: "pie-chart" },
-  {
-    label: "Dashboards",
-    icon: "layout-dashboard",
-    spaPath: "/dashboards",
-  },
-  { label: "Sources", icon: "box", spaPath: "/sources" },
-  {
-    label: "Transactions",
-    icon: "credit-card",
-    spaPath: "/transactions",
-  },
-  { label: "Reports", path: "reports", icon: "chart-bar" },
-  { label: "Budgets", path: "budgets", icon: "map" },
-];
+// Prefixes the SPA router owns (see router.tsx). Everything else falls
+// through to a plain anchor.
+const SPA_PREFIXES = [
+  "/transactions",
+  "/dashboards",
+  "/sources",
+  "/accounts",
+  "/statements",
+  "/account_statements",
+] as const;
+
+function useNavItems(): NavItem[] {
+  const { bootstrap } = useRouteContext({ from: "__root__" });
+  return bootstrap.navItems;
+}
+
+// Mirrors the Rails `page_active?` semantics: exact match, or prefix match
+// for anything other than the root path.
+function navItemActive(item: NavItem, pathname: string): boolean {
+  if (item.href === "/") return pathname === "/";
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+function spaHref(item: NavItem): boolean {
+  return SPA_PREFIXES.some((prefix) => item.href.startsWith(prefix));
+}
 
 function RailNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
-  const { bootstrap } = useRouteContext({ from: "__root__" });
-  const active = item.spaPath
-    ? pathname === item.spaPath || pathname.startsWith(`${item.spaPath}/`)
-    : pathname.startsWith(`/${item.path}`);
+  const active = navItemActive(item, pathname);
 
   const content = (
-    <div className="flex grow flex-col gap-1 lg:flex-row lg:items-center">
-      <div className={`h-4 w-1 rounded-r-sm lg:h-4 lg:w-1 ${active ? "bg-nav-indicator" : ""}`} />
-      <div
-        className={`relative mx-auto flex size-8 items-center justify-center rounded-lg ${
-          active
-            ? "bg-container text-primary shadow-xs"
-            : "text-secondary group-hover:bg-surface-hover"
-        }`}
-      >
-        <Icon name={item.icon} color="current" />
+    <>
+      <div className="flex grow flex-col items-center gap-1 lg:flex-row">
+        <div
+          className={`h-1 w-4 rounded-b-sm lg:h-4 lg:w-1 lg:rounded-bl-none lg:rounded-tr-sm ${active ? "bg-nav-indicator" : ""}`}
+        />
+        <div
+          className={`relative mx-auto flex size-8 items-center justify-center rounded-lg ${
+            active
+              ? "bg-container text-primary shadow-xs"
+              : "text-secondary group-hover:bg-surface-hover"
+          }`}
+        >
+          <Icon name={item.icon} className={active ? "text-current" : undefined} />
+          {item.preview === true && <PreviewDot />}
+        </div>
       </div>
       <div className="flex grow justify-center lg:pl-2">
         <span className={`text-[11px] font-medium ${active ? "text-primary" : "text-secondary"}`}>
           {item.label}
         </span>
       </div>
-    </div>
+    </>
   );
 
-  if (item.spaPath) {
+  const className = "group relative block space-y-1 rounded-lg pb-1 focus-ring";
+
+  if (spaHref(item)) {
     return (
       <li>
-        <Link
-          to={item.spaPath}
-          className="group relative block space-y-1 rounded-lg pb-1 focus-ring"
-          aria-current={active ? "page" : undefined}
-        >
+        <Link to={item.href} className={className} aria-current={active ? "page" : undefined}>
           {content}
         </Link>
       </li>
@@ -78,14 +85,25 @@ function RailNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
 
   return (
     <li>
-      <a
-        href={bootstrap.railsPaths[item.path]}
-        className="group relative block space-y-1 rounded-lg pb-1 focus-ring"
-        aria-current={active ? "page" : undefined}
-      >
+      <a href={item.href} className={className} aria-current={active ? "page" : undefined}>
         {content}
       </a>
     </li>
+  );
+}
+
+// Matches the DS::Pill `tone: :violet, dot_only: true` preview marker the
+// Rails `_nav_item` partial paints on preview-gated entries.
+function PreviewDot() {
+  return (
+    <span className="absolute -top-0.5 -right-0.5" title="Preview">
+      <span
+        className="inline-block size-[5px] rounded-full"
+        style={{ backgroundColor: "var(--color-violet-500)" }}
+        aria-hidden="true"
+      />
+      <span className="sr-only">Preview</span>
+    </span>
   );
 }
 
@@ -276,6 +294,7 @@ function AccountTypeGroups({
 }
 
 function SidebarContent() {
+  const { bootstrap } = useRouteContext({ from: "__root__" });
   const { data, isLoading } = useSummaryQuery();
   const accounts = data?.accounts ?? [];
   const assets = accounts.filter((a) => a.classification === "asset");
@@ -337,6 +356,13 @@ function SidebarContent() {
           </TabPanel>
         </TabPanels>
       </TabGroup>
+      <Link
+        to="/accounts/new"
+        className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-secondary hover:bg-surface-hover hover:text-primary"
+      >
+        <Icon name="plus" size="sm" />
+        {bootstrap.accountDetailText.accountable_title_new}
+      </Link>
     </div>
   );
 }
@@ -421,21 +447,17 @@ function UserMenu({ rail = false }: { rail?: boolean }) {
         onClick={() => {
           setOpen((value) => !value);
         }}
-        className={`flex items-center justify-center font-medium uppercase ${
-          rail
-            ? "h-9 w-9 rounded-full bg-container-inset text-primary"
-            : "h-9 w-9 rounded-full bg-container-inset text-primary"
-        }`}
+        className="flex size-9 items-center justify-center rounded-full bg-surface-inset text-lg uppercase text-secondary hover:bg-surface-inset-hover focus-ring"
         aria-label="Open account menu"
         aria-expanded={open}
       >
-        <span className="text-xs">{bootstrap.currentUser.initials}</span>
+        {bootstrap.currentUser.initials}
       </button>
 
       {open && (
         <div
-          className={`absolute z-50 mt-2 w-64 overflow-hidden rounded-xl border border-secondary bg-container shadow-lg ${
-            rail ? "left-0" : "right-0"
+          className={`absolute z-50 w-64 overflow-hidden rounded-xl border border-secondary bg-container shadow-lg ${
+            rail ? "bottom-0 left-full ml-4" : "right-0 mt-2"
           }`}
         >
           <div className="flex items-center gap-3 px-4 py-3">
@@ -495,6 +517,7 @@ function UserMenu({ rail = false }: { rail?: boolean }) {
 function IconRail() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navItems = useNavItems();
 
   return (
     <div className="hidden lg:block border-r border-divider">
@@ -506,11 +529,12 @@ function IconRail() {
         </div>
 
         <ul className="space-y-0.5">
-          {NAV_ITEMS.map((item) => (
-            <RailNavItem key={item.label} item={item} pathname={pathname} />
-          ))}
+          {navItems
+            .filter((item) => item.mobileOnly !== true)
+            .map((item) => (
+              <RailNavItem key={item.label} item={item} pathname={pathname} />
+            ))}
         </ul>
-
         <div className="mx-auto mt-auto flex flex-col gap-2 pl-2">
           <a
             href="https://discord.gg/36ZGBsxYEK"
@@ -605,53 +629,19 @@ function MobileTopNav({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 }
 
 function MobileBottomNav() {
-  const { bootstrap } = useRouteContext({ from: "__root__" });
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navItems = useNavItems();
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-10 flex justify-around border-t border-tertiary bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-10 border-t border-tertiary bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
       aria-label="Primary"
     >
-      {NAV_ITEMS.map((item) => {
-        const active = item.spaPath
-          ? pathname === item.spaPath
-          : pathname.startsWith(`/${item.path}`);
-
-        if (item.spaPath) {
-          return (
-            <Link
-              key={item.label}
-              to={item.spaPath}
-              className="flex flex-col items-center gap-1 px-3 py-2"
-              aria-current={active ? "page" : undefined}
-            >
-              <Icon name={item.icon} color={active ? "current" : "default"} />
-              <span
-                className={`text-[11px] font-medium ${active ? "text-primary" : "text-secondary"}`}
-              >
-                {item.label}
-              </span>
-            </Link>
-          );
-        }
-
-        return (
-          <a
-            key={item.label}
-            href={bootstrap.railsPaths[item.path]}
-            className="flex flex-col items-center gap-1 px-3 py-2"
-            aria-current={active ? "page" : undefined}
-          >
-            <Icon name={item.icon} />
-            <span
-              className={`text-[11px] font-medium ${active ? "text-primary" : "text-secondary"}`}
-            >
-              {item.label}
-            </span>
-          </a>
-        );
-      })}
+      <ul className="flex justify-around">
+        {navItems.map((item) => (
+          <RailNavItem key={item.href} item={item} pathname={pathname} />
+        ))}
+      </ul>
     </nav>
   );
 }
@@ -695,9 +685,15 @@ function BreadcrumbBar({
         ? "Dashboards"
         : pathname.startsWith("/sources")
           ? "Sources"
-          : pathname.startsWith("/accounts/")
+          : pathname === "/accounts" ||
+              pathname.startsWith("/accounts/new") ||
+              pathname.endsWith("/edit")
             ? bootstrap.accountDetailText.accounts
-            : "Home";
+            : pathname.startsWith("/account_statements") || pathname.startsWith("/statements")
+              ? "Statements"
+              : pathname.startsWith("/accounts")
+                ? "Account"
+                : "Home";
 
   return (
     <div className="hidden lg:flex items-center justify-between gap-2 mb-6 sticky top-0 z-10 -mx-3 lg:-mx-10 px-3 lg:px-10 py-4 bg-surface border-b border-tertiary">

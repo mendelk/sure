@@ -104,10 +104,7 @@ en:
         refresh: Refresh account
         period: Period
         chart_view: Chart view
-        start_date: Start date
-        end_date: End date
-        apply_range: Apply range
-        reconciliation: Balance reconciliation
+        reset_zoom: Reset zoom
         close: Close
         retry: Try again
         unavailable: Account details are unavailable.
@@ -129,7 +126,113 @@ en:
         creation_rate_loading: Loading exchange rate…
         creation_rate_error: No exchange rate is available for this date. Enter the rate manually.
         creation_rate_required: Enter an exchange rate greater than zero.
-        creation_destination_required: Enter an amount in account currency greater than zero.
+        accountable_save_error: Could not save this account.
+        accountable_options_error: Account options are unavailable.
+        accountable_title_new: New account
+        accountable_title_edit: Edit account
+        accountable_subtitle_new: Enter the account details manually.
+        accountable_subtitle_edit: Update the account details.
+        accountable_name: Account name
+        accountable_name_placeholder: Example account name
+        accountable_balance: Balance
+        accountable_currency: Currency
+        accountable_opening_balance_date: Opening balance date
+        accountable_subtype: Account type
+        accountable_subtype_prompt: Select account type
+        accountable_subtype_none: None
+        accountable_vehicle_make: Make
+        accountable_vehicle_make_placeholder: Toyota
+        accountable_vehicle_model: Model
+        accountable_vehicle_model_placeholder: Camry
+        accountable_vehicle_year: Year
+        accountable_vehicle_year_placeholder: '2023'
+        accountable_mileage: Mileage
+        accountable_mileage_placeholder: '15000'
+        accountable_mileage_unit: Unit
+        accountable_credit_available_credit: Available credit
+        accountable_credit_available_credit_placeholder: '10000'
+        accountable_credit_minimum_payment: Minimum payment
+        accountable_credit_minimum_payment_placeholder: '100'
+        accountable_credit_payment_due_day: Payment due day
+        accountable_credit_payment_due_day_hint: Day of the month (1–31). Leave blank to estimate from payment history. Short months use their last day. Changes apply to new statements; existing cycles keep their dates.
+        accountable_credit_estimated_payment_due_day: "Payment history suggests day %{day}; this is not a confirmed bank deadline."
+        accountable_credit_apr: APR
+        accountable_credit_apr_placeholder: '15.99'
+        accountable_credit_expiration_date: Expiration date
+        accountable_credit_annual_fee: Annual fee
+        accountable_credit_annual_fee_placeholder: '99'
+        accountable_crypto_tax_treatment: Tax treatment
+        accountable_crypto_tax_treatment_hint: Most cryptocurrency is held in taxable accounts. Select a different option if held in a tax-advantaged account.
+        accountable_additional_details: Additional details
+        accountable_institution_name: Institution name
+        accountable_institution_name_placeholder: e.g., Chase Bank
+        accountable_institution_domain: Institution domain
+        accountable_institution_domain_placeholder: e.g., chase.com
+        accountable_notes: Notes
+        accountable_notes_placeholder: Store additional information like account numbers, sort codes, IBAN, routing numbers, etc.
+        accountable_exclude_from_reports: Exclude from reports
+        accountable_save: Save
+        accountable_saving: Saving…
+        accountable_cancel: Cancel
+        accountable_close: Close
+        accountable_loading: Loading account details…
+        accountable_provider_title: Link with a provider
+        accountable_provider_description: This account type can also sync automatically. Continue in the full page to link a provider.
+        accountable_provider_open: Open provider options
+        accountable_type_label: What would you like to add?
+        accountable_type_manual: Enter account balance
+        property_title_new: New property
+        property_title_edit: Edit property
+        property_subtitle_new: Enter the property details manually.
+        property_subtitle_edit: Update the property details.
+        property_step_overview: Overview
+        property_step_value: Value
+        property_step_address: Address
+        property_next: Next
+        property_back: Back
+        property_name: Name
+        property_name_placeholder: Vacation home
+        property_type: Property type
+        property_type_prompt: Select type
+        property_year_built: Year Built (optional)
+        property_year_built_placeholder: '1990'
+        property_area: Area (optional)
+        property_area_placeholder: '1200'
+        property_area_unit: Area Unit
+        property_square_feet: Square Feet
+        property_square_meters: Square Meters
+        property_value: Estimated market value
+        property_value_hint: The estimated market value of your property. This number can often be found on sites like Zillow or Redfin, and is never an exact number.
+        property_line1: Address Line 1
+        property_line1_placeholder: 123 Main Street
+        property_line2: Address Line 2 (optional)
+        property_city: City
+        property_city_placeholder: San Francisco
+        property_region: State/Region
+        property_region_placeholder: CA
+        property_postal_code: Postal Code
+        property_postal_code_placeholder: '12345'
+        property_country: Country
+        property_country_placeholder: USA
+        property_save: Save
+        property_saving: Saving…
+        property_lookup_title: Add property via %{provider}
+        property_lookup_description: Enter a name for the property and its address. %{provider} will look up the property details and estimated market value for you.
+        property_lookup_us_only: "%{provider} only supports properties located in the United States."
+        property_lookup_submit: Look up property
+        property_lookup_searching: Looking up…
+        property_method_manual: Enter property manually
+        property_method_avm: Add via %{provider}
+        property_method_title: How would you like to add the property?
+        property_preview_title: Confirm property details
+        property_preview_description: Here's what %{provider} found. Review the details before adding the property — nothing has been created yet.
+        property_preview_no_record: "%{provider} couldn't find a property record at this address, so the value shown is an estimate based on the surrounding area. Double-check the address before continuing."
+        property_preview_confirm: Add property
+        property_preview_unknown: Unknown
+        property_confirm_error: Could not confirm the property details. The preview may have expired — please look it up again.
+        accountable_new_saved: "%{type} account created"
+        accountable_updated: "%{type} account updated"
+        accountable_delete: Delete account
       term_months:
         one: "%{count} month"
         other: "%{count} months"

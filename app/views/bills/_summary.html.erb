@@ -11,6 +11,9 @@
 
 <div class="space-y-4">
   <%= render "bills/cancelled_notice", series: series %>
+  <% if series.credit_card_payment? %>
+    <%= render "bills/credit_card_estimate", series: series, occurrence: current_occurrence %>
+  <% end %>
 
   <%# Current state. %>
   <% if current_occurrence %>
@@ -32,10 +35,11 @@
   <% else %>
     <div class="space-y-0.5">
       <p class="text-lg font-medium text-primary privacy-sensitive">
-        <%= "~" if series.has_amount_variance? %><%= format_money(Money.new(series.amount.abs, series.currency)) %>
+        <%= bills_amount_label(series) %>
       </p>
       <p class="text-xs text-secondary">
-        <%= series.next_expected_date.present? ? t("bills.detail.around", date: bills_upcoming_date(series.next_expected_date)) : t("bills.detail.next_payment") %>
+        <% next_date = bills_next_payment_date(series) %>
+        <%= next_date ? t("bills.detail.around", date: bills_upcoming_date(next_date)) : t("bills.credit_card.unknown_day") %>
       </p>
     </div>
   <% end %>
@@ -71,7 +75,7 @@
   <% end %>
 
   <%# Two figures, not a dashboard. The rest of the cost story is on the page. %>
-  <% if analytics %>
+  <% if analytics && !series.system_managed? %>
     <p class="text-xs text-secondary privacy-sensitive">
       <%= t("bills.summary.cost_line",
             average: format_money(analytics[:average]),
@@ -102,6 +106,7 @@
 
       <%# Edit, pause and remove stayed two clicks from the Overview rather
           than moving to the page and becoming four. %>
+      <% unless series.system_managed? %>
       <%= render DS::Menu.new do |menu| %>
         <% menu.with_item(
              variant: "link",
@@ -131,6 +136,7 @@
              method: :delete,
              destructive: true,
              confirm: t(series.typed_income? ? "recurring_transactions.confirm_delete_income" : "recurring_transactions.confirm_delete", name: series.display_name)) %>
+      <% end %>
       <% end %>
     </div>
   </div>
