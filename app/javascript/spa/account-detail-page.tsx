@@ -517,7 +517,7 @@ function AccountActivityView({
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto" id="account-activity-scroll">
-        <div className="sticky top-0 z-10 hidden bg-container md:block">
+        <div className="sticky top-0 z-20 hidden bg-container md:block">
           <TransactionRowHeader
             showTags={columns.tags}
             labels={{
@@ -553,7 +553,7 @@ function AccountActivityView({
                 .map((entry) => entry.id);
               return (
                 <div key={group.date}>
-                  <div className="flex items-center justify-between gap-3 bg-container-inset px-4 py-2.5">
+                  <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-container-inset px-4 py-2.5 md:top-10">
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
