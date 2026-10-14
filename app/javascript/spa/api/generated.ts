@@ -61,6 +61,7 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "transactions": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "parent_entry_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Parent entry id for split children; null otherwise.')),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(getApiV1Transactions200ResponseTransactionsItemAmountCentsMin)),
@@ -74,8 +75,10 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
   "classification": /*#__PURE__*/ zod.string(),
+  "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -113,9 +116,53 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
+  "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+}))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
+  "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "investment_activity_label": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Investment activity label for transactions in investment/crypto accounts.')),
+  "protected_from_sync": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether the entry is protected from provider sync overwrites (present in detail responses).')),
+  "bill_allocations": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "allocation_id": /*#__PURE__*/ zod.uuid(),
+  "bill_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "due_on": /*#__PURE__*/ zod.iso.date(),
+  "unreviewed": /*#__PURE__*/ zod.boolean()
+}))).check(/*#__PURE__*/ zod.describe('Bills this transaction was applied to (preview-gated; empty without the flag).')),
+  "potential_duplicate": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "account_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.uuid(),
+  "filename": /*#__PURE__*/ zod.string(),
+  "byte_size": /*#__PURE__*/ zod.int(),
+  "content_type": /*#__PURE__*/ zod.string(),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+}))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
 })),
+  "split_parents": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "account_name": /*#__PURE__*/ zod.string()
+}))).check(/*#__PURE__*/ zod.describe('Split parent entries for grouped headers; children carry parent_entry_id.')),
   "summary": /*#__PURE__*/ zod.strictObject({
   "count": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(getApiV1Transactions200ResponseSummaryCountMin)),
   "income": /*#__PURE__*/ zod.string(),
@@ -180,6 +227,7 @@ export const postApiV1Transactions200ResponseAmountCentsMin = 0;
 export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "parent_entry_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Parent entry id for split children; null otherwise.')),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(postApiV1Transactions200ResponseAmountCentsMin)),
@@ -193,8 +241,10 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
   "classification": /*#__PURE__*/ zod.string(),
+  "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -232,6 +282,43 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
+  "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+}))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
+  "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "investment_activity_label": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Investment activity label for transactions in investment/crypto accounts.')),
+  "protected_from_sync": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether the entry is protected from provider sync overwrites (present in detail responses).')),
+  "bill_allocations": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "allocation_id": /*#__PURE__*/ zod.uuid(),
+  "bill_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "due_on": /*#__PURE__*/ zod.iso.date(),
+  "unreviewed": /*#__PURE__*/ zod.boolean()
+}))).check(/*#__PURE__*/ zod.describe('Bills this transaction was applied to (preview-gated; empty without the flag).')),
+  "potential_duplicate": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "account_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.uuid(),
+  "filename": /*#__PURE__*/ zod.string(),
+  "byte_size": /*#__PURE__*/ zod.int(),
+  "content_type": /*#__PURE__*/ zod.string(),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+}))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
 }).brand("PostApiV1Transactions200Response")
@@ -243,6 +330,7 @@ export const postApiV1Transactions201ResponseAmountCentsMin = 0;
 export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "parent_entry_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Parent entry id for split children; null otherwise.')),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(postApiV1Transactions201ResponseAmountCentsMin)),
@@ -256,8 +344,10 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
   "classification": /*#__PURE__*/ zod.string(),
+  "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -295,6 +385,43 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
+  "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+}))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
+  "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "investment_activity_label": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Investment activity label for transactions in investment/crypto accounts.')),
+  "protected_from_sync": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether the entry is protected from provider sync overwrites (present in detail responses).')),
+  "bill_allocations": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "allocation_id": /*#__PURE__*/ zod.uuid(),
+  "bill_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "due_on": /*#__PURE__*/ zod.iso.date(),
+  "unreviewed": /*#__PURE__*/ zod.boolean()
+}))).check(/*#__PURE__*/ zod.describe('Bills this transaction was applied to (preview-gated; empty without the flag).')),
+  "potential_duplicate": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "account_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.uuid(),
+  "filename": /*#__PURE__*/ zod.string(),
+  "byte_size": /*#__PURE__*/ zod.int(),
+  "content_type": /*#__PURE__*/ zod.string(),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+}))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
 }).brand("PostApiV1Transactions201Response")
@@ -323,6 +450,7 @@ export const getApiV1TransactionsId200ResponseAmountCentsMin = 0;
 export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "parent_entry_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Parent entry id for split children; null otherwise.')),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(getApiV1TransactionsId200ResponseAmountCentsMin)),
@@ -336,8 +464,10 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
   "classification": /*#__PURE__*/ zod.string(),
+  "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -375,6 +505,43 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
+  "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+}))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
+  "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "investment_activity_label": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Investment activity label for transactions in investment/crypto accounts.')),
+  "protected_from_sync": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether the entry is protected from provider sync overwrites (present in detail responses).')),
+  "bill_allocations": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "allocation_id": /*#__PURE__*/ zod.uuid(),
+  "bill_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "due_on": /*#__PURE__*/ zod.iso.date(),
+  "unreviewed": /*#__PURE__*/ zod.boolean()
+}))).check(/*#__PURE__*/ zod.describe('Bills this transaction was applied to (preview-gated; empty without the flag).')),
+  "potential_duplicate": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "account_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.uuid(),
+  "filename": /*#__PURE__*/ zod.string(),
+  "byte_size": /*#__PURE__*/ zod.int(),
+  "content_type": /*#__PURE__*/ zod.string(),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+}))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
 }).brand("GetApiV1TransactionsId200Response")
@@ -409,7 +576,9 @@ export const PatchApiV1TransactionsIdBody = /*#__PURE__*/ zod.object({
   "nature": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['income', 'expense', 'inflow', 'outflow'])),
   "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema))).check(/*#__PURE__*/ zod.describe('Array of tag IDs to assign. Omit to preserve existing tags; use [] to clear all tags.')),
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether provider syncs should preserve user-supplied transaction changes')),
-  "excluded": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Exclude the transaction from reports and budgets. Omit to preserve the current value.'))
+  "excluded": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Exclude the transaction from reports and budgets. Omit to preserve the current value.')),
+  "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'one_time'])).check(/*#__PURE__*/ zod.describe('Mark as one-time (excluded from budget medians) or standard. Other kinds are managed by transfers/splits.')),
+  "investment_activity_label": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Investment activity label (Buy, Sell, Dividend, etc.). Invalid values clear the label.'))
 }))
 }).brand("PatchApiV1TransactionsIdBody")
 
@@ -420,6 +589,7 @@ export const patchApiV1TransactionsId200ResponseAmountCentsMin = 0;
 export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "parent_entry_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Parent entry id for split children; null otherwise.')),
   "date": /*#__PURE__*/ zod.iso.date(),
   "amount": /*#__PURE__*/ zod.string(),
   "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(patchApiV1TransactionsId200ResponseAmountCentsMin)),
@@ -433,8 +603,10 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
   "classification": /*#__PURE__*/ zod.string(),
+  "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -472,6 +644,43 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
+  "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+}))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
+  "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "investment_activity_label": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Investment activity label for transactions in investment/crypto accounts.')),
+  "protected_from_sync": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether the entry is protected from provider sync overwrites (present in detail responses).')),
+  "bill_allocations": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "allocation_id": /*#__PURE__*/ zod.uuid(),
+  "bill_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "due_on": /*#__PURE__*/ zod.iso.date(),
+  "unreviewed": /*#__PURE__*/ zod.boolean()
+}))).check(/*#__PURE__*/ zod.describe('Bills this transaction was applied to (preview-gated; empty without the flag).')),
+  "potential_duplicate": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "account_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.uuid(),
+  "filename": /*#__PURE__*/ zod.string(),
+  "byte_size": /*#__PURE__*/ zod.int(),
+  "content_type": /*#__PURE__*/ zod.string(),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+}))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
 }).brand("PatchApiV1TransactionsId200Response")
@@ -690,3 +899,306 @@ export const PatchApiV1TransfersId422Response = /*#__PURE__*/ zod.strictObject({
 })])),
   "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
 }).brand("PatchApiV1TransfersId422Response")
+
+
+/**
+ * @summary Split a transaction
+ */
+export const PostApiV1TransactionsTransactionIdSplitParams = /*#__PURE__*/ zod.object({
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Parent transaction ID'))
+}).brand("PostApiV1TransactionsTransactionIdSplitParams")
+
+
+
+
+export const PostApiV1TransactionsTransactionIdSplitBody = /*#__PURE__*/ zod.object({
+  "split": /*#__PURE__*/ zod.object({
+  "splits": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.object({
+  "name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.number().check(/*#__PURE__*/ zod.describe('User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.')),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "excluded": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.'))
+})).check(/*#__PURE__*/ zod.minLength(1))
+})
+}).brand("PostApiV1TransactionsTransactionIdSplitBody")
+
+export const postApiV1TransactionsTransactionIdSplit201ResponseSplitsItemAmountCentsMin = 0;
+
+
+
+export const PostApiV1TransactionsTransactionIdSplit201Response = /*#__PURE__*/ zod.strictObject({
+  "parent_transaction_id": /*#__PURE__*/ zod.uuid(),
+  "splits": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.uuid(),
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "parent_entry_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Parent entry id for split children; null otherwise.')),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(postApiV1TransactionsTransactionIdSplit201ResponseSplitsItemAmountCentsMin)),
+  "signed_amount_cents": /*#__PURE__*/ zod.int(),
+  "currency": /*#__PURE__*/ zod.string(),
+  "name": /*#__PURE__*/ zod.string(),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Display logo URL: investment activity security first, otherwise merchant. Brandfetch URLs use the current logo resolution setting.')),
+  "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
+  "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
+  "classification": /*#__PURE__*/ zod.string(),
+  "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
+  "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
+  "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
+  "account": /*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
+}),
+  "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string(),
+  "icon": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+}),/*#__PURE__*/ zod.null()])),
+  "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string()
+})),
+  "transfer": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransferIdSchema),
+  "amount": /*#__PURE__*/ zod.string(),
+  "currency": /*#__PURE__*/ zod.string(),
+  "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
+  "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
+}),/*#__PURE__*/ zod.null()]))
+}),/*#__PURE__*/ zod.null()])),
+  "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+}))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
+  "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "investment_activity_label": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Investment activity label for transactions in investment/crypto accounts.')),
+  "protected_from_sync": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether the entry is protected from provider sync overwrites (present in detail responses).')),
+  "bill_allocations": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "allocation_id": /*#__PURE__*/ zod.uuid(),
+  "bill_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "due_on": /*#__PURE__*/ zod.iso.date(),
+  "unreviewed": /*#__PURE__*/ zod.boolean()
+}))).check(/*#__PURE__*/ zod.describe('Bills this transaction was applied to (preview-gated; empty without the flag).')),
+  "potential_duplicate": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "account_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.uuid(),
+  "filename": /*#__PURE__*/ zod.string(),
+  "byte_size": /*#__PURE__*/ zod.int(),
+  "content_type": /*#__PURE__*/ zod.string(),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+}))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
+  "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+}))
+}).brand("PostApiV1TransactionsTransactionIdSplit201Response")
+
+export const PostApiV1TransactionsTransactionIdSplit401Response = /*#__PURE__*/ zod.strictObject({
+  "error": /*#__PURE__*/ zod.string(),
+  "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "details": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),/*#__PURE__*/ zod.looseObject({
+
+})])),
+  "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
+}).brand("PostApiV1TransactionsTransactionIdSplit401Response")
+
+export const PostApiV1TransactionsTransactionIdSplit403Response = /*#__PURE__*/ zod.strictObject({
+  "error": /*#__PURE__*/ zod.string(),
+  "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "details": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),/*#__PURE__*/ zod.looseObject({
+
+})])),
+  "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
+}).brand("PostApiV1TransactionsTransactionIdSplit403Response")
+
+export const PostApiV1TransactionsTransactionIdSplit404Response = /*#__PURE__*/ zod.strictObject({
+  "error": /*#__PURE__*/ zod.string(),
+  "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "details": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),/*#__PURE__*/ zod.looseObject({
+
+})])),
+  "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
+}).brand("PostApiV1TransactionsTransactionIdSplit404Response")
+
+export const PostApiV1TransactionsTransactionIdSplit422Response = /*#__PURE__*/ zod.strictObject({
+  "error": /*#__PURE__*/ zod.string(),
+  "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "details": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),/*#__PURE__*/ zod.looseObject({
+
+})])),
+  "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
+}).brand("PostApiV1TransactionsTransactionIdSplit422Response")
+
+
+/**
+ * @summary Update a transaction split
+ */
+export const PatchApiV1TransactionsTransactionIdSplitParams = /*#__PURE__*/ zod.object({
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Parent transaction ID'))
+}).brand("PatchApiV1TransactionsTransactionIdSplitParams")
+
+
+
+
+export const PatchApiV1TransactionsTransactionIdSplitBody = /*#__PURE__*/ zod.object({
+  "split": /*#__PURE__*/ zod.object({
+  "splits": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.object({
+  "name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.number().check(/*#__PURE__*/ zod.describe('User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.')),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "excluded": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.'))
+})).check(/*#__PURE__*/ zod.minLength(1))
+})
+}).brand("PatchApiV1TransactionsTransactionIdSplitBody")
+
+export const patchApiV1TransactionsTransactionIdSplit200ResponseSplitsItemAmountCentsMin = 0;
+
+
+
+export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/ zod.strictObject({
+  "parent_transaction_id": /*#__PURE__*/ zod.uuid(),
+  "splits": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.uuid(),
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "parent_entry_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Parent entry id for split children; null otherwise.')),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "amount_cents": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(patchApiV1TransactionsTransactionIdSplit200ResponseSplitsItemAmountCentsMin)),
+  "signed_amount_cents": /*#__PURE__*/ zod.int(),
+  "currency": /*#__PURE__*/ zod.string(),
+  "name": /*#__PURE__*/ zod.string(),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Display logo URL: investment activity security first, otherwise merchant. Brandfetch URLs use the current logo resolution setting.')),
+  "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "external_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)),
+  "source": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "detail_path": /*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.describe('Web app URL for the transaction detail page, present in list responses.')),
+  "classification": /*#__PURE__*/ zod.string(),
+  "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
+  "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
+  "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
+  "account": /*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
+}),
+  "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string(),
+  "icon": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "website_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+}),/*#__PURE__*/ zod.null()])),
+  "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string()
+})),
+  "transfer": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransferIdSchema),
+  "amount": /*#__PURE__*/ zod.string(),
+  "currency": /*#__PURE__*/ zod.string(),
+  "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
+  "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
+}),/*#__PURE__*/ zod.null()]))
+}),/*#__PURE__*/ zod.null()])),
+  "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+}))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
+  "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "investment_activity_label": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Investment activity label for transactions in investment/crypto accounts.')),
+  "protected_from_sync": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether the entry is protected from provider sync overwrites (present in detail responses).')),
+  "bill_allocations": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "allocation_id": /*#__PURE__*/ zod.uuid(),
+  "bill_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string(),
+  "due_on": /*#__PURE__*/ zod.iso.date(),
+  "unreviewed": /*#__PURE__*/ zod.boolean()
+}))).check(/*#__PURE__*/ zod.describe('Bills this transaction was applied to (preview-gated; empty without the flag).')),
+  "potential_duplicate": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "date": /*#__PURE__*/ zod.iso.date(),
+  "account_name": /*#__PURE__*/ zod.string(),
+  "amount": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.uuid(),
+  "filename": /*#__PURE__*/ zod.string(),
+  "byte_size": /*#__PURE__*/ zod.int(),
+  "content_type": /*#__PURE__*/ zod.string(),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+}))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
+  "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+}))
+}).brand("PatchApiV1TransactionsTransactionIdSplit200Response")
+
+export const PatchApiV1TransactionsTransactionIdSplit404Response = /*#__PURE__*/ zod.strictObject({
+  "error": /*#__PURE__*/ zod.string(),
+  "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "details": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),/*#__PURE__*/ zod.looseObject({
+
+})])),
+  "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
+}).brand("PatchApiV1TransactionsTransactionIdSplit404Response")

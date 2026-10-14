@@ -114,5 +114,46 @@ RSpec.describe 'API V1 Transaction Splits', type: :request do
         run_test!
       end
     end
+
+    patch 'Update a transaction split' do
+      tags 'Transactions'
+      security [ { apiKeyAuth: [] } ]
+      consumes 'application/json'
+      produces 'application/json'
+      parameter name: :body, in: :body, required: true,
+                schema: { '$ref' => '#/components/schemas/TransactionSplitRequest' }
+
+      let(:transaction_id) { transaction.id }
+      before do
+        transaction.entry.split!([
+          { name: 'Groceries', amount: -70, category_id: category.id },
+          { name: 'Household', amount: -30 }
+        ])
+      end
+      let(:body) do
+        {
+          split: {
+            splits: [
+              { name: 'Groceries', amount: -60, category_id: category.id },
+              { name: 'Household', amount: -40, excluded: false }
+            ]
+          }
+        }
+      end
+
+      response '200', 'transaction split updated' do
+        schema '$ref' => '#/components/schemas/TransactionSplit'
+
+        run_test!
+      end
+
+      response '404', 'transaction not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:transaction_id) { SecureRandom.uuid }
+
+        run_test!
+      end
+    end
   end
 end

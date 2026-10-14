@@ -2,6 +2,7 @@
 
 json.id transaction.id
 json.entry_id transaction.entry.id
+json.parent_entry_id transaction.entry.parent_entry_id
 json.date transaction.entry.date
 json.amount transaction.entry.amount_money.format
 
@@ -24,6 +25,8 @@ json.source transaction.entry.source
 json.user_modified transaction.entry.user_modified
 json.detail_path spa_transaction_path(transaction.id)
 json.classification transaction.entry.classification
+json.kind transaction.kind
+json.investment_activity_label transaction.investment_activity_label
 json.pending transaction.pending?
 json.excluded transaction.entry.excluded?
 

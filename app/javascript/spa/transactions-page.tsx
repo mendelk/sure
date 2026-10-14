@@ -11,7 +11,7 @@ import {
 } from "@headlessui/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import {
   referenceDataQueryOptions,
   TransactionApiError,
@@ -171,6 +171,10 @@ export function TransactionsPage() {
   const groupedTransactions = useMemo(
     () => groupTransactionsByDate(data?.transactions ?? []),
     [data?.transactions],
+  );
+  const splitParentsByEntryId = useMemo(
+    () => new Map((data?.split_parents ?? []).map((parent) => [parent.entry_id, parent])),
+    [data?.split_parents],
   );
   const activeFilterCount = countActiveFilters(routeSearch);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -430,22 +434,45 @@ export function TransactionsPage() {
                       </h2>
                     </div>
                     <ul className="divide-y divide-tertiary">
-                      {transactions.map((transaction) => (
-                        <TransactionRow
-                          categories={reference.categories}
-                          columns={columns}
-                          key={transaction.id}
-                          selection={{
-                            selected: selected.has(transaction.id),
-                            disabled: false,
-                            onChange: (checked) => {
-                              select([transaction.id], checked);
-                            },
-                            label: `Select ${transaction.name}`,
-                          }}
-                          transaction={transaction}
-                        />
-                      ))}
+                      {clusterSplitGroups(transactions, splitParentsByEntryId).map((row) =>
+                        row.kind === "single" ? (
+                          <TransactionRow
+                            categories={reference.categories}
+                            columns={columns}
+                            key={row.transaction.id}
+                            selection={{
+                              selected: selected.has(row.transaction.id),
+                              disabled: false,
+                              onChange: (checked) => {
+                                select([row.transaction.id], checked);
+                              },
+                              label: `Select ${row.transaction.name}`,
+                            }}
+                            transaction={row.transaction}
+                          />
+                        ) : (
+                          <Fragment key={`split-${row.children[0]?.id ?? row.parent?.entry_id}`}>
+                            <SplitParentHeader parent={row.parent} />
+                            {row.children.map((child) => (
+                              <TransactionRow
+                                categories={reference.categories}
+                                columns={columns}
+                                indent
+                                key={child.id}
+                                selection={{
+                                  selected: selected.has(child.id),
+                                  disabled: false,
+                                  onChange: (checked) => {
+                                    select([child.id], checked);
+                                  },
+                                  label: `Select ${child.name}`,
+                                }}
+                                transaction={child}
+                              />
+                            ))}
+                          </Fragment>
+                        ),
+                      )}
                     </ul>
                   </div>
                 ))}
@@ -828,6 +855,29 @@ function groupUpcomingByDate(
   }
   return Object.entries(groups).toSorted(([a], [b]) => a.localeCompare(b));
 }
+function SplitParentHeader({ parent }: { parent: SplitParent | null }) {
+  if (parent === null) return null;
+  return (
+    <li className="opacity-70 transition-colors hover:bg-container-hover">
+      <Link
+        className="focus-ring flex items-center gap-3 px-4 py-3"
+        params={{ transactionId: parent.transaction_id }}
+        to="/transactions/$transactionId/split/edit"
+      >
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-secondary">
+          {parent.name}
+        </span>
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-container-inset px-2 py-0.5 text-[11px] font-medium text-secondary">
+          <Icon name="split" size="sm" />
+          Split
+        </span>
+        <span className="privacy-sensitive shrink-0 text-sm font-medium tabular-nums text-secondary">
+          {parent.amount}
+        </span>
+      </Link>
+    </li>
+  );
+}
 
 function TransactionSummary({ data }: { data?: TransactionCollection }) {
   const values = data
@@ -992,6 +1042,40 @@ function groupTransactionsByDate(transactions: SpaTransaction[]): [string, SpaTr
   }
 
   return [...groups.entries()];
+}
+
+type SplitParent = NonNullable<TransactionCollection["split_parents"]>[number];
+
+// Clusters a date group's rows so split children sharing a parent_entry_id
+// render consecutively under their parent header. The server appends
+// missing siblings adjacently, but filters can interleave unrelated rows.
+type DateGroupRow =
+  | { kind: "single"; transaction: SpaTransaction }
+  | { kind: "split"; parent: SplitParent | null; children: SpaTransaction[] };
+
+function clusterSplitGroups(
+  transactions: SpaTransaction[],
+  parents: Map<string, SplitParent>,
+): DateGroupRow[] {
+  const rows: DateGroupRow[] = [];
+  const consumed = new Set<string>();
+
+  for (const transaction of transactions) {
+    const parentId = transaction.parent_entry_id;
+    if (parentId === null || parentId === undefined || consumed.has(transaction.id)) {
+      if (!consumed.has(transaction.id)) rows.push({ kind: "single", transaction });
+      continue;
+    }
+    const siblings = transactions.filter((candidate) => candidate.parent_entry_id === parentId);
+    for (const sibling of siblings) consumed.add(sibling.id);
+    rows.push({
+      kind: "split",
+      parent: parents.get(parentId) ?? null,
+      children: siblings,
+    });
+  }
+
+  return rows;
 }
 
 function formatTransactionDate(date: string): string {

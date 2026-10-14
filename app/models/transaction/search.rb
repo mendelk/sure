@@ -121,6 +121,40 @@ class Transaction::Search
     end
   end
 
+  # Split-group integrity for list pages. transactions_scope excludes split
+  # parents but returns children flat; a filter or page boundary can strand
+  # a child without its siblings. with_missing_siblings appends the absent
+  # siblings (still within the filtered scope) directly after their sibling
+  # so groups render intact. Pagination counts are unchanged — siblings
+  # ride along on the page that already contains their group.
+  def with_missing_siblings(page_transactions)
+    parent_ids = page_transactions.map { |t| t.entry.parent_entry_id }.compact.uniq
+    return page_transactions if parent_ids.empty?
+
+    present_ids = page_transactions.map(&:id).to_set
+    siblings = transactions_scope
+      .where(entries: { parent_entry_id: parent_ids })
+      .where.not(id: present_ids.to_a)
+      .includes(entry: :account)
+      .to_a
+    return page_transactions if siblings.empty?
+
+    by_parent = siblings.group_by { |t| t.entry.parent_entry_id }
+    page_transactions.flat_map do |transaction|
+      pid = transaction.entry.parent_entry_id
+      pid ? [ transaction, *(by_parent[pid] || []) ] : [ transaction ]
+    end
+  end
+
+  # Split parent entries for the given transactions, keyed by parent entry
+  # id. Powers the grouped parent header (name + total) on list pages.
+  def split_parents_for(page_transactions)
+    parent_ids = page_transactions.map { |t| t.entry.parent_entry_id }.compact.uniq
+    return {} if parent_ids.empty?
+
+    Entry.where(id: parent_ids).includes(:account).index_by(&:id)
+  end
+
   # Generate cache key based on search filters and family state
   def cache_key_base
     [

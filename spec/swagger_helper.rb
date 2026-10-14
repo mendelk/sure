@@ -1375,6 +1375,7 @@ RSpec.configure do |config|
             properties: {
               id: { type: :string, format: :uuid },
               entry_id: { type: :string, format: :uuid },
+              parent_entry_id: { type: :string, format: :uuid, nullable: true, description: 'Parent entry id for split children; null otherwise.' },
               date: { type: :string, format: :date },
               amount: { type: :string },
               amount_cents: { type: :integer, minimum: 0 },
@@ -1388,8 +1389,10 @@ RSpec.configure do |config|
               user_modified: { type: :boolean },
               detail_path: { type: :string, description: 'Web app URL for the transaction detail page, present in list responses.' },
               classification: { type: :string },
+              kind: { type: :string, enum: %w[standard funds_movement cc_payment loan_payment one_time investment_contribution], description: 'Transaction kind for budget classification.' },
               pending: { type: :boolean, description: 'Whether the transaction is still pending at a provider (present in list responses).' },
               excluded: { type: :boolean, description: 'Whether the transaction is excluded from reports (present in list responses).' },
+              recurring_exists: { type: :boolean, description: 'Whether a manual recurring transaction already exists for this pattern (present in detail responses).' },
               account: { '$ref' => '#/components/schemas/Account' },
               category: { '$ref' => '#/components/schemas/Category', nullable: true },
               merchant: { '$ref' => '#/components/schemas/Merchant', nullable: true },
@@ -1398,8 +1401,82 @@ RSpec.configure do |config|
                 items: { '$ref' => '#/components/schemas/Tag' }
               },
               transfer: { '$ref' => '#/components/schemas/Transfer', nullable: true },
+              split_children: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/SplitChild' },
+                description: 'Split child entries (present in detail responses when the entry is a split parent).'
+              },
+              split_parent: { '$ref' => '#/components/schemas/SplitParentDetail', nullable: true },
+              investment_activity_label: { type: :string, nullable: true, description: 'Investment activity label for transactions in investment/crypto accounts.' },
+              protected_from_sync: { type: :boolean, description: 'Whether the entry is protected from provider sync overwrites (present in detail responses).' },
+              bill_allocations: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/BillAllocation' },
+                description: 'Bills this transaction was applied to (preview-gated; empty without the flag).'
+              },
+              potential_duplicate: { '$ref' => '#/components/schemas/PotentialDuplicate', nullable: true },
+              attachments: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/TransactionAttachment' },
+                description: 'File attachments (present in detail responses).'
+              },
               created_at: { type: :string, format: :'date-time' },
               updated_at: { type: :string, format: :'date-time' }
+            }
+          },
+          TransactionAttachment: {
+            type: :object,
+            required: %w[id filename byte_size content_type created_at],
+            properties: {
+              id: { type: :string, format: :uuid },
+              filename: { type: :string },
+              byte_size: { type: :integer },
+              content_type: { type: :string },
+              created_at: { type: :string, format: :'date-time' }
+            }
+          },
+          PotentialDuplicate: {
+            type: :object,
+            required: %w[entry_id name date account_name amount],
+            properties: {
+              entry_id: { type: :string, format: :uuid },
+              name: { type: :string },
+              date: { type: :string, format: :date },
+              account_name: { type: :string },
+              amount: { type: :string }
+            }
+          },
+          BillAllocation: {
+            type: :object,
+            required: %w[allocation_id bill_name amount due_on unreviewed],
+            properties: {
+              allocation_id: { type: :string, format: :uuid },
+              bill_name: { type: :string },
+              amount: { type: :string },
+              due_on: { type: :string, format: :date },
+              unreviewed: { type: :boolean }
+            }
+          },
+          SplitChild: {
+            type: :object,
+            required: %w[entry_id name amount],
+            properties: {
+              entry_id: { type: :string, format: :uuid },
+              name: { type: :string },
+              amount: { type: :string },
+              category_id: { type: :string, format: :uuid, nullable: true },
+              category_name: { type: :string, nullable: true }
+            }
+          },
+          SplitParentDetail: {
+            type: :object,
+            required: %w[entry_id transaction_id name date amount],
+            properties: {
+              entry_id: { type: :string, format: :uuid },
+              transaction_id: { type: :string, format: :uuid },
+              name: { type: :string },
+              date: { type: :string, format: :date },
+              amount: { type: :string }
             }
           },
           TransactionSummary: {
@@ -1422,8 +1499,24 @@ RSpec.configure do |config|
                 type: :array,
                 items: { '$ref' => '#/components/schemas/Transaction' }
               },
+              split_parents: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/SplitParent' },
+                description: 'Split parent entries for grouped headers; children carry parent_entry_id.'
+              },
               summary: { '$ref' => '#/components/schemas/TransactionSummary' },
               pagination: { '$ref' => '#/components/schemas/Pagination' }
+            }
+          },
+          SplitParent: {
+            type: :object,
+            required: %w[entry_id transaction_id name amount account_name],
+            properties: {
+              entry_id: { type: :string, format: :uuid },
+              transaction_id: { type: :string, format: :uuid },
+              name: { type: :string },
+              amount: { type: :string },
+              account_name: { type: :string }
             }
           },
           TransactionSplitRequest: {

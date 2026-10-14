@@ -5,8 +5,8 @@ class Api::V1::TransactionsController < Api::V1::BaseController
 
   # Ensure proper scope authorization for read vs write access
   before_action :ensure_read_scope, only: [ :index, :show ]
-  before_action :ensure_write_scope, only: [ :create, :update, :destroy ]
-  before_action :set_transaction, only: [ :show, :update, :destroy ]
+  before_action :ensure_write_scope, only: [ :create, :update, :destroy, :mark_as_recurring, :unlock, :merge_duplicate, :dismiss_duplicate ]
+  before_action :set_transaction, only: [ :show, :update, :destroy, :mark_as_recurring, :unlock, :merge_duplicate, :dismiss_duplicate ]
 
   def index
     family = current_resource_owner.family
@@ -40,6 +40,13 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       page: safe_page_param,
       limit: safe_per_page_param
     )
+
+    # Keep split groups intact: a filter or page boundary must never orphan
+    # a child from its siblings. Missing siblings (same parent, in the
+    # filtered scope but cut off the page) are appended right after their
+    # sibling; the split parent records go to @split_parents for headers.
+    @transactions = @search.with_missing_siblings(@transactions.to_a)
+    @split_parents = @search.split_parents_for(@transactions)
 
     Transaction::ActivitySecurityPreloader.new(@transactions).preload
 
@@ -221,6 +228,59 @@ class Api::V1::TransactionsController < Api::V1::BaseController
     }, status: :internal_server_error
   end
 
+  def mark_as_recurring
+    if @transaction.existing_manual_recurring_transaction.present?
+      render json: { error: "validation_failed", message: "A recurring transaction already exists for this pattern" }, status: :unprocessable_entity
+      return
+    end
+
+    recurring = RecurringTransaction.create_from_transaction(@transaction)
+    render json: { id: recurring.id, message: "Transaction marked as recurring" }, status: :created
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: "validation_failed", message: e.message }, status: :unprocessable_entity
+  rescue => e
+    Rails.logger.error "TransactionsController#mark_as_recurring error: #{e.message}"
+    render json: { error: "internal_server_error", message: "An unexpected error occurred" }, status: :internal_server_error
+  end
+
+  def unlock
+    @entry.unlock_for_sync!
+    render json: { message: "Entry unlocked for sync" }, status: :ok
+  rescue => e
+    Rails.logger.error "TransactionsController#unlock error: #{e.message}"
+    render json: { error: "internal_server_error", message: "An unexpected error occurred" }, status: :internal_server_error
+  end
+
+  def merge_duplicate
+    if @transaction.merge_with_duplicate!
+      render json: { message: "Duplicate transactions merged" }, status: :ok
+    else
+      render json: { error: "validation_failed", message: "Could not merge duplicate transactions" }, status: :unprocessable_entity
+    end
+  rescue ActiveRecord::RecordNotFound, ActiveRecord::RecordInvalid,
+         ActiveRecord::RecordNotDestroyed, ActiveRecord::Deadlocked,
+         ActiveRecord::LockWaitTimeout => e
+    Rails.logger.error("Failed to merge duplicate transaction #{params[:id]}: #{e.message}")
+    render json: { error: "validation_failed", message: "Could not merge duplicate transactions" }, status: :unprocessable_entity
+  rescue => e
+    Rails.logger.error "TransactionsController#merge_duplicate error: #{e.message}"
+    render json: { error: "internal_server_error", message: "An unexpected error occurred" }, status: :internal_server_error
+  end
+
+  def dismiss_duplicate
+    if @transaction.dismiss_duplicate_suggestion!
+      render json: { message: "Duplicate suggestion dismissed" }, status: :ok
+    else
+      render json: { error: "validation_failed", message: "Could not dismiss duplicate suggestion" }, status: :unprocessable_entity
+    end
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error("Failed to dismiss duplicate suggestion for transaction #{params[:id]}: #{e.message}")
+    render json: { error: "validation_failed", message: "Could not dismiss duplicate suggestion" }, status: :unprocessable_entity
+  rescue => e
+    Rails.logger.error "TransactionsController#dismiss_duplicate error: #{e.message}"
+    render json: { error: "internal_server_error", message: "An unexpected error occurred" }, status: :internal_server_error
+  end
+
   private
 
     def set_transaction
@@ -232,11 +292,34 @@ class Api::V1::TransactionsController < Api::V1::BaseController
         .merge(Account.accessible_by(current_resource_owner))
         .find(params[:id])
       @entry = @transaction.entry
+      # Split context for the drawer: children when this is a split parent,
+      # parent summary when this is a split child. Mirrors the legacy
+      # transactions/show sections.
+      @split_children = @entry.split_parent? ? @entry.child_entries.includes(entryable: :category).order(:created_at) : []
+      @split_parent = @entry.split_child? ? @entry.parent_entry : nil
+      # Recurring state for the drawer's Mark as Recurring row.
+      @recurring_exists = @transaction.existing_manual_recurring_transaction.present?
+      # Sync-protection state for the drawer's protection indicator.
+      @protected_from_sync = @entry.protected_from_sync? && !@entry.excluded?
+      # Bill allocations (preview-gated, mirrors BillsHelper#entry_bill_allocations).
+      @bill_allocations = bill_allocations_for(@entry)
+      # Potential-duplicate suggestion for the drawer's duplicate alert.
+      @potential_duplicate = @transaction.has_potential_duplicate? ? @transaction.potential_duplicate_entry : nil
     rescue ActiveRecord::RecordNotFound
       render json: {
         error: "not_found",
         message: "Transaction not found"
       }, status: :not_found
+    end
+
+    # Mirrors BillsHelper#entry_bill_allocations (preview-gated; bill links
+    # would dead-end without the flag).
+    def bill_allocations_for(entry)
+      return [] unless current_resource_owner.preview_features_enabled?
+
+      entry.recurring_allocations
+        .includes(recurring_occurrence: :recurring_transaction)
+        .reject { |allocation| allocation.recurring_occurrence.nil? }
     end
 
     def ensure_read_scope
@@ -354,10 +437,10 @@ class Api::V1::TransactionsController < Api::V1::BaseController
     end
 
     def transaction_params
-      params.require(:transaction).permit(
+      @transaction_params ||= params.require(:transaction).permit(
         :date, :amount, :name, :description, :notes, :currency,
         :category_id, :merchant_id, :nature, :user_modified,
-        :excluded, tag_ids: []
+        :excluded, :kind, :investment_activity_label, tag_ids: []
       )
     end
 
@@ -410,6 +493,13 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       end
       if transaction_params.key?(:merchant_id)
         entryable_attrs[:merchant_id] = transaction_params[:merchant_id].presence
+      end
+      if transaction_params.key?(:kind)
+        entryable_attrs[:kind] = transaction_params[:kind].presence_in(%w[standard one_time]) || "standard"
+      end
+      if transaction_params.key?(:investment_activity_label)
+        label = transaction_params[:investment_activity_label].presence_in(Transaction::ACTIVITY_LABELS)
+        entryable_attrs[:investment_activity_label] = label
       end
       entry_params[:entryable_attributes] = entryable_attrs if entryable_attrs.size > 1
 

@@ -2505,6 +2505,11 @@ components:
         entry_id:
           type: string
           format: uuid
+        parent_entry_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Parent entry id for split children; null otherwise.
         date:
           type: string
           format: date
@@ -2541,6 +2546,16 @@ components:
             responses.
         classification:
           type: string
+        kind:
+          type: string
+          enum:
+          - standard
+          - funds_movement
+          - cc_payment
+          - loan_payment
+          - one_time
+          - investment_contribution
+          description: Transaction kind for budget classification.
         pending:
           type: boolean
           description: Whether the transaction is still pending at a provider (present
@@ -2549,6 +2564,10 @@ components:
           type: boolean
           description: Whether the transaction is excluded from reports (present in
             list responses).
+        recurring_exists:
+          type: boolean
+          description: Whether a manual recurring transaction already exists for this
+            pattern (present in detail responses).
         account:
           "$ref": "#/components/schemas/Account"
         category:
@@ -2564,12 +2583,150 @@ components:
         transfer:
           "$ref": "#/components/schemas/Transfer"
           nullable: true
+        split_children:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SplitChild"
+          description: Split child entries (present in detail responses when the entry
+            is a split parent).
+        split_parent:
+          "$ref": "#/components/schemas/SplitParentDetail"
+          nullable: true
+        investment_activity_label:
+          type: string
+          nullable: true
+          description: Investment activity label for transactions in investment/crypto
+            accounts.
+        protected_from_sync:
+          type: boolean
+          description: Whether the entry is protected from provider sync overwrites
+            (present in detail responses).
+        bill_allocations:
+          type: array
+          items:
+            "$ref": "#/components/schemas/BillAllocation"
+          description: Bills this transaction was applied to (preview-gated; empty
+            without the flag).
+        potential_duplicate:
+          "$ref": "#/components/schemas/PotentialDuplicate"
+          nullable: true
+        attachments:
+          type: array
+          items:
+            "$ref": "#/components/schemas/TransactionAttachment"
+          description: File attachments (present in detail responses).
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+    TransactionAttachment:
+      type: object
+      required:
+      - id
+      - filename
+      - byte_size
+      - content_type
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        byte_size:
+          type: integer
+        content_type:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    PotentialDuplicate:
+      type: object
+      required:
+      - entry_id
+      - name
+      - date
+      - account_name
+      - amount
+      properties:
+        entry_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        date:
+          type: string
+          format: date
+        account_name:
+          type: string
+        amount:
+          type: string
+    BillAllocation:
+      type: object
+      required:
+      - allocation_id
+      - bill_name
+      - amount
+      - due_on
+      - unreviewed
+      properties:
+        allocation_id:
+          type: string
+          format: uuid
+        bill_name:
+          type: string
+        amount:
+          type: string
+        due_on:
+          type: string
+          format: date
+        unreviewed:
+          type: boolean
+    SplitChild:
+      type: object
+      required:
+      - entry_id
+      - name
+      - amount
+      properties:
+        entry_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        amount:
+          type: string
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        category_name:
+          type: string
+          nullable: true
+    SplitParentDetail:
+      type: object
+      required:
+      - entry_id
+      - transaction_id
+      - name
+      - date
+      - amount
+      properties:
+        entry_id:
+          type: string
+          format: uuid
+        transaction_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        date:
+          type: string
+          format: date
+        amount:
+          type: string
     TransactionSummary:
       type: object
       required:
@@ -2604,10 +2761,36 @@ components:
           type: array
           items:
             "$ref": "#/components/schemas/Transaction"
+        split_parents:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SplitParent"
+          description: Split parent entries for grouped headers; children carry parent_entry_id.
         summary:
           "$ref": "#/components/schemas/TransactionSummary"
         pagination:
           "$ref": "#/components/schemas/Pagination"
+    SplitParent:
+      type: object
+      required:
+      - entry_id
+      - transaction_id
+      - name
+      - amount
+      - account_name
+      properties:
+        entry_id:
+          type: string
+          format: uuid
+        transaction_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        amount:
+          type: string
+        account_name:
+          type: string
     TransactionSplitRequest:
       type: object
       required:
@@ -11263,6 +11446,70 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/transactions/{transaction_id}/attachments":
+    parameters:
+    - name: transaction_id
+      in: path
+      required: true
+      description: Parent transaction ID
+      schema:
+        type: string
+        format: uuid
+    get:
+      summary: List transaction attachments
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: attachments listed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - attachments
+                properties:
+                  attachments:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/TransactionAttachment"
+        '404':
+          description: transaction not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/transactions/{transaction_id}/attachments/{id}":
+    parameters:
+    - name: transaction_id
+      in: path
+      required: true
+      description: Parent transaction ID
+      schema:
+        type: string
+        format: uuid
+    - name: id
+      in: path
+      required: true
+      description: Attachment ID
+      schema:
+        type: integer
+        format: int64
+    delete:
+      summary: Delete a transaction attachment
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      responses:
+        '404':
+          description: attachment not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/api/v1/transactions/{transaction_id}/split":
     parameters:
     - name: transaction_id
@@ -11306,6 +11553,32 @@ paths:
                 "$ref": "#/components/schemas/ErrorResponse"
         '422':
           description: split amounts do not match parent
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/TransactionSplitRequest"
+        required: true
+    patch:
+      summary: Update a transaction split
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: transaction split updated
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TransactionSplit"
+        '404':
+          description: transaction not found
           content:
             application/json:
               schema:
@@ -11920,6 +12193,18 @@ paths:
                       type: boolean
                       description: Exclude the transaction from reports and budgets.
                         Omit to preserve the current value.
+                    kind:
+                      type: string
+                      enum:
+                      - standard
+                      - one_time
+                      description: Mark as one-time (excluded from budget medians)
+                        or standard. Other kinds are managed by transfers/splits.
+                    investment_activity_label:
+                      type: string
+                      nullable: true
+                      description: Investment activity label (Buy, Sell, Dividend,
+                        etc.). Invalid values clear the label.
         required: true
     delete:
       summary: Delete a transaction
@@ -11934,6 +12219,142 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/DeleteResponse"
+        '404':
+          description: transaction not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/transactions/{id}/mark_as_recurring":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      description: Transaction ID
+    post:
+      summary: Mark a transaction as recurring
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      responses:
+        '201':
+          description: transaction marked as recurring
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - message
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  message:
+                    type: string
+        '404':
+          description: transaction not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/transactions/{id}/unlock":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      description: Transaction ID
+    post:
+      summary: Unlock an entry for sync
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: entry unlocked
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: transaction not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/transactions/{id}/merge_duplicate":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      description: Transaction ID
+    post:
+      summary: Merge a pending transaction with its posted duplicate
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: duplicates merged
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: transaction not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/transactions/{id}/dismiss_duplicate":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      description: Transaction ID
+    post:
+      summary: Dismiss a duplicate suggestion
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: duplicate suggestion dismissed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    type: string
         '404':
           description: transaction not found
           content:

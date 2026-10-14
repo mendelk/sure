@@ -564,17 +564,14 @@ function CategoryMenu({
       }
       footer={
         <div className="mt-2 border-t border-tertiary pt-2">
-          <a
+          <Link
             className="focus-ring flex items-center gap-2 rounded-lg p-2 text-sm text-secondary hover:bg-container-inset-hover"
-            data-turbo-frame="modal"
-            href={bootstrap.railsUrlTemplates.newTransactionSplit.replace(
-              ":transaction_id",
-              transaction.id,
-            )}
+            params={{ transactionId: transaction.id }}
+            to="/transactions/$transactionId/split/new"
           >
             <Icon name="split" size="sm" />
             Split
-          </a>
+          </Link>
           <label className="flex cursor-pointer items-center gap-2 rounded-lg p-2 text-sm text-secondary hover:bg-container-inset-hover">
             <input
               checked={transaction.excluded}

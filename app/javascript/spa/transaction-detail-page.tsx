@@ -1,7 +1,7 @@
 /* eslint-disable import/max-dependencies -- Transaction forms compose shared controls, API operations, and drawer navigation. */
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { CategoryIcon, Icon } from "./icon";
 import { Modal } from "./modal";
@@ -20,6 +20,12 @@ import {
   transferMatchCandidatesQueryOptions,
   updateTransaction,
   updateTransferStatus,
+  markTransactionRecurring,
+  deleteTransaction,
+  unlockEntry,
+  mergeDuplicate,
+  dismissDuplicate,
+  readCsrfToken,
   type ReferenceOption,
   type SpaTransactionDetail,
   type TransactionUpdateInput,
@@ -101,53 +107,73 @@ export function TransactionDetailDrawer() {
   }
 
   return (
-    <Modal
-      ariaLabelledby="transaction-detail-title"
-      onClose={close}
-      open
-      panelClassName="relative flex size-full flex-col overflow-hidden rounded-xl bg-container p-0 shadow-border-xs lg:w-[550px]"
-      placement="drawer"
-    >
-      <div className="flex grow flex-col gap-4 overflow-y-auto p-4">
-        {error !== undefined ? (
-          <div className="rounded-xl border border-destructive bg-container p-5" role="alert">
-            <p className="font-medium text-primary">Transaction unavailable</p>
-            <p className="mt-1 text-sm text-secondary">{error}</p>
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                className="text-sm font-medium text-link hover:underline"
-                onClick={() => void detailQuery.refetch()}
-                type="button"
-              >
-                Try again
-              </button>
-              <button
-                className="text-sm font-medium text-link hover:underline"
-                onClick={close}
-                type="button"
-              >
-                {accountId ? bootstrap.accountDetailText.close : "Back to transactions"}
-              </button>
+    <>
+      <Modal
+        ariaLabelledby="transaction-detail-title"
+        onClose={close}
+        open
+        panelClassName="relative flex size-full flex-col overflow-hidden rounded-xl bg-container p-0 shadow-border-xs lg:w-[550px]"
+        placement="drawer"
+      >
+        <div className="flex grow flex-col gap-4 overflow-y-auto p-4">
+          {error !== undefined ? (
+            <div className="rounded-xl border border-destructive bg-container p-5" role="alert">
+              <p className="font-medium text-primary">Transaction unavailable</p>
+              <p className="mt-1 text-sm text-secondary">{error}</p>
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  className="text-sm font-medium text-link hover:underline"
+                  onClick={() => void detailQuery.refetch()}
+                  type="button"
+                >
+                  Try again
+                </button>
+                <button
+                  className="text-sm font-medium text-link hover:underline"
+                  onClick={close}
+                  type="button"
+                >
+                  {accountId ? bootstrap.accountDetailText.close : "Back to transactions"}
+                </button>
+              </div>
             </div>
-          </div>
-        ) : transaction === undefined ? (
-          <TransactionDetailSkeleton />
-        ) : (
-          <>
-            <TransactionDetailHeader transaction={transaction} onClose={close} />
-            {transaction.transfer ? (
-              <TransactionDetailTransfer bootstrap={bootstrap} transaction={transaction} />
-            ) : null}
-            <TransactionEditableForm bootstrap={bootstrap} transaction={transaction} />
-            {!transaction.transfer && !transaction.pending ? (
-              <TransferMatcher bootstrap={bootstrap} transaction={transaction} />
-            ) : null}
-            <TransactionDetailBody transaction={transaction} />
-            <TransactionDetailMeta transaction={transaction} />
-          </>
-        )}
-      </div>
-    </Modal>
+          ) : transaction === undefined ? (
+            <TransactionDetailSkeleton />
+          ) : (
+            <>
+              <TransactionDetailHeader transaction={transaction} onClose={close} />
+              <TransactionDuplicateAlert bootstrap={bootstrap} transaction={transaction} />
+              <TransactionProtectionBanner bootstrap={bootstrap} transaction={transaction} />
+              {transaction.transfer ? (
+                <TransactionDetailTransfer bootstrap={bootstrap} transaction={transaction} />
+              ) : null}
+              <TransactionEditableForm bootstrap={bootstrap} transaction={transaction} />
+              {!transaction.transfer && !transaction.pending ? (
+                <TransferMatcher bootstrap={bootstrap} transaction={transaction} />
+              ) : null}
+              <TransactionDetailBody transaction={transaction} />
+              <TransactionAttachmentsSection bootstrap={bootstrap} transaction={transaction} />
+              {(transaction.split_children?.length ?? 0) > 0 ? (
+                <TransactionSplitParentSection
+                  splitChildren={transaction.split_children ?? []}
+                  transaction={transaction}
+                />
+              ) : null}
+              {transaction.split_parent ? (
+                <TransactionSplitChildSection parent={transaction.split_parent} />
+              ) : null}
+              <TransactionDetailSettings
+                bootstrap={bootstrap}
+                onDeleted={close}
+                transaction={transaction}
+              />
+              <TransactionDetailMeta transaction={transaction} />
+            </>
+          )}
+        </div>
+      </Modal>
+      <Outlet />
+    </>
   );
 }
 
@@ -974,6 +1000,161 @@ function TransactionDetailBody({ transaction }: { transaction: SpaTransactionDet
   );
 }
 
+type SplitChild = NonNullable<SpaTransactionDetail["split_children"]>[number];
+type SplitParentSummary = NonNullable<SpaTransactionDetail["split_parent"]>;
+
+async function unsplitTransaction(transactionId: TransactionId): Promise<void> {
+  const response = await fetch(`/transactions/${transactionId}/split.json`, {
+    method: "DELETE",
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "X-CSRF-Token": readCsrfToken() },
+  });
+  if (!response.ok) throw new Error(`Unsplit failed with status ${response.status}`);
+}
+
+function SplitActions({
+  transactionId,
+  editTransactionId,
+}: {
+  transactionId: TransactionId;
+  editTransactionId: TransactionId;
+}) {
+  const queryClient = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [unsplitting, setUnsplitting] = useState(false);
+
+  async function confirmUnsplit() {
+    setUnsplitting(true);
+    setError(null);
+    try {
+      await unsplitTransaction(transactionId);
+      await queryClient.invalidateQueries();
+      setConfirming(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not unsplit transaction");
+    } finally {
+      setUnsplitting(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="flex items-center gap-3 pt-2">
+        <Link
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          params={{ transactionId: editTransactionId }}
+          to="/transactions/$transactionId/split/edit"
+        >
+          <Icon name="pencil" size="sm" />
+          Edit Split
+        </Link>
+        <button
+          className="inline-flex items-center gap-1 text-sm font-medium text-destructive hover:underline"
+          onClick={() => {
+            setConfirming(true);
+          }}
+          type="button"
+        >
+          <Icon name="rotate-ccw" size="sm" />
+          Unsplit
+        </button>
+      </div>
+      {confirming ? (
+        <Modal
+          ariaLabelledby="unsplit-confirm-title"
+          onClose={() => {
+            setConfirming(false);
+          }}
+          open
+          panelClassName="w-full max-w-md rounded-xl bg-container p-6 shadow-border-lg"
+        >
+          <h2 className="text-lg font-medium text-primary" id="unsplit-confirm-title">
+            Unsplit Transaction
+          </h2>
+          <p className="my-4 text-sm text-secondary">
+            This will remove all split entries and restore the original transaction.
+          </p>
+          {error !== null ? (
+            <p className="my-2 text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              className="rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary hover:bg-surface-hover"
+              onClick={() => {
+                setConfirming(false);
+              }}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="rounded-lg bg-destructive px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              disabled={unsplitting}
+              onClick={() => {
+                void confirmUnsplit();
+              }}
+              type="button"
+            >
+              Unsplit
+            </button>
+          </div>
+        </Modal>
+      ) : null}
+    </>
+  );
+}
+
+function TransactionSplitParentSection({
+  transaction,
+  splitChildren,
+}: {
+  transaction: SpaTransactionDetail;
+  splitChildren: SplitChild[];
+}) {
+  return (
+    <Section defaultOpen title="Split Entries">
+      <p className="text-xs text-secondary">
+        This transaction has been split into the following entries.
+      </p>
+      {splitChildren.map((child) => (
+        <div
+          className="flex items-center justify-between rounded-lg border border-primary p-2"
+          key={child.entry_id}
+        >
+          <div>
+            <p className="text-sm font-medium text-primary">{child.name}</p>
+            <p className="text-xs text-secondary">{child.category_name ?? "(uncategorized)"}</p>
+          </div>
+          <p className="privacy-sensitive text-sm font-medium text-primary">{child.amount}</p>
+        </div>
+      ))}
+      <SplitActions editTransactionId={transaction.id} transactionId={transaction.id} />
+    </Section>
+  );
+}
+
+function TransactionSplitChildSection({ parent }: { parent: SplitParentSummary }) {
+  return (
+    <Section defaultOpen title="Part of Split">
+      <div className="space-y-3 rounded-lg border border-secondary p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-primary">{parent.name}</p>
+            <p className="text-xs text-secondary">{formatShortDate(parent.date)}</p>
+          </div>
+          <p className="privacy-sensitive text-sm font-medium text-primary">{parent.amount}</p>
+        </div>
+      </div>
+      <SplitActions
+        editTransactionId={parent.transaction_id}
+        transactionId={parent.transaction_id}
+      />
+    </Section>
+  );
+}
 function MerchantLinks({ transaction }: { transaction: SpaTransactionDetail }) {
   const merchant = transaction.merchant;
   if (!merchant) return null;
@@ -1018,6 +1199,170 @@ function MerchantLinks({ transaction }: { transaction: SpaTransactionDetail }) {
     </span>
   );
 }
+function formatAttachmentSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function TransactionAttachmentsSection({
+  bootstrap,
+  transaction,
+}: {
+  bootstrap: Bootstrap;
+  transaction: SpaTransactionDetail;
+}) {
+  const queryClient = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const attachments = transaction.attachments ?? [];
+  function refreshDetail() {
+    void queryClient.invalidateQueries({
+      queryKey: ["spa", "transaction", bootstrap.apiPaths.transactions, transaction.id],
+    });
+  }
+
+  async function upload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      for (const file of files) form.append("attachments[]", file, file.name);
+      const response = await fetch(
+        `${bootstrap.apiPaths.transactions}/${transaction.id}/attachments`,
+        {
+          body: form,
+          credentials: "same-origin",
+          headers: { Accept: "application/json", "X-CSRF-Token": readCsrfToken() },
+          method: "POST",
+        },
+      );
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null);
+        let message = `Upload failed with status ${response.status}`;
+        if (typeof payload === "object" && payload !== null && "message" in payload) {
+          const raw: unknown = payload.message;
+          if (typeof raw === "string") message = raw;
+        }
+        throw new Error(message);
+      }
+      refreshDetail();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not upload files");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeAttachment(id: string) {
+    setDeletingId(id);
+    setError(null);
+    try {
+      const response = await fetch(
+        `${bootstrap.apiPaths.transactions}/${transaction.id}/attachments/${id}`,
+        {
+          credentials: "same-origin",
+          headers: { Accept: "application/json", "X-CSRF-Token": readCsrfToken() },
+          method: "DELETE",
+        },
+      );
+      if (!response.ok) throw new Error(`Delete failed with status ${response.status}`);
+      refreshDetail();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not delete file");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  return (
+    <Section title="Attachments">
+      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-secondary bg-container px-4 py-8 text-center transition-colors hover:bg-container-inset-hover">
+        <Icon className="text-secondary" name="plus" />
+        <span className="text-sm font-medium text-primary">Browse to add files</span>
+        <span className="text-xs text-secondary">
+          {attachments.length} of 10 used · up to 10 MB each
+        </span>
+        <input
+          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
+          className="hidden"
+          disabled={uploading}
+          multiple
+          onChange={(event) => {
+            void upload(event.target.files);
+            event.target.value = "";
+          }}
+          type="file"
+        />
+      </label>
+      {uploading ? <p className="text-xs text-secondary">Uploading…</p> : null}
+      {error !== null ? (
+        <p className="text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {attachments.length === 0 ? (
+        <p className="text-sm text-secondary">No attachments</p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-primary">Files ({attachments.length})</p>
+          {attachments.map((attachment) => (
+            <div
+              className="flex items-center justify-between gap-2 rounded-lg border border-primary bg-container p-3"
+              key={attachment.id}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <Icon
+                  className="shrink-0 text-secondary"
+                  name={attachment.content_type.startsWith("image/") ? "image" : "file-text"}
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-primary">{attachment.filename}</p>
+                  <p className="text-xs text-secondary">
+                    {formatAttachmentSize(attachment.byte_size)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <a
+                  aria-label={`View ${attachment.filename}`}
+                  className="rounded-lg p-2 text-secondary hover:bg-container-inset-hover hover:text-primary"
+                  href={`${bootstrap.apiPaths.transactions}/${transaction.id}/attachments/${attachment.id}`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <Icon name="eye" size="sm" />
+                </a>
+                <a
+                  aria-label={`Download ${attachment.filename}`}
+                  className="rounded-lg p-2 text-secondary hover:bg-container-inset-hover hover:text-primary"
+                  href={`${bootstrap.apiPaths.transactions}/${transaction.id}/attachments/${attachment.id}?disposition=attachment`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <Icon name="download" size="sm" />
+                </a>
+                <button
+                  aria-label={`Delete ${attachment.filename}`}
+                  className="rounded-lg p-2 text-secondary hover:bg-container-inset-hover hover:text-destructive disabled:opacity-50"
+                  disabled={deletingId === attachment.id}
+                  onClick={() => {
+                    void removeAttachment(attachment.id);
+                  }}
+                  type="button"
+                >
+                  <Icon name="trash-2" size="sm" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
 
 function TransactionDetailMeta({ transaction }: { transaction: SpaTransactionDetail }) {
   return (
@@ -1046,6 +1391,476 @@ function TransactionDetailMeta({ transaction }: { transaction: SpaTransactionDet
           <span>Updated {formatShortDate(transaction.updated_at.slice(0, 10))}</span>
         </div>
       </dl>
+    </Section>
+  );
+}
+
+function TransactionDuplicateAlert({
+  bootstrap,
+  transaction,
+}: {
+  bootstrap: Bootstrap;
+  transaction: SpaTransactionDetail;
+}) {
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const duplicate = transaction.potential_duplicate ?? null;
+
+  if (duplicate === null) return null;
+
+  async function resolve(action: "merge" | "dismiss") {
+    setBusy(true);
+    setError(null);
+    try {
+      if (action === "merge") await mergeDuplicate(bootstrap.apiPaths.transactions, transaction.id);
+      else await dismissDuplicate(bootstrap.apiPaths.transactions, transaction.id);
+      await queryClient.invalidateQueries({
+        queryKey: ["spa", "transaction", bootstrap.apiPaths.transactions, transaction.id],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not resolve duplicate");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-warning bg-container p-4" role="alert">
+      <div className="flex items-start gap-3">
+        <Icon className="mt-0.5 shrink-0 text-warning" name="circle-alert" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="text-sm font-medium text-primary">Possible duplicate detected</p>
+          <p className="text-sm text-secondary">
+            This pending transaction may be the same as the posted transaction below. If so, merge
+            them to avoid double-counting.
+          </p>
+          <div className="rounded-lg border border-primary bg-container p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-primary">{duplicate.name}</p>
+                <p className="text-xs text-secondary">
+                  {formatShortDate(duplicate.date)} · {duplicate.account_name}
+                </p>
+              </div>
+              <p className="privacy-sensitive shrink-0 text-sm font-medium text-primary">
+                {duplicate.amount}
+              </p>
+            </div>
+          </div>
+          {error !== null ? (
+            <p className="text-xs text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-lg button-bg-primary px-3 py-1.5 text-sm font-medium text-inverse hover:opacity-90 disabled:opacity-50"
+              disabled={busy}
+              onClick={() => {
+                void resolve("merge");
+              }}
+              type="button"
+            >
+              Yes, merge them
+            </button>
+            <button
+              className="rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary hover:bg-surface-hover disabled:opacity-50"
+              disabled={busy}
+              onClick={() => {
+                void resolve("dismiss");
+              }}
+              type="button"
+            >
+              No, keep both
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TransactionProtectionBanner({
+  bootstrap,
+  transaction,
+}: {
+  bootstrap: Bootstrap;
+  transaction: SpaTransactionDetail;
+}) {
+  const queryClient = useQueryClient();
+  const [unlocking, setUnlocking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (transaction.protected_from_sync !== true) return null;
+
+  async function unlock() {
+    setUnlocking(true);
+    setError(null);
+    try {
+      await unlockEntry(bootstrap.apiPaths.transactions, transaction.id);
+      await queryClient.invalidateQueries({
+        queryKey: ["spa", "transaction", bootstrap.apiPaths.transactions, transaction.id],
+      });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not unlock entry");
+    } finally {
+      setUnlocking(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl bg-container p-3 text-xs text-secondary shadow-border-xs">
+      <div className="flex items-center justify-between gap-2">
+        <p className="inline-flex items-center gap-2 font-medium uppercase">
+          <Icon name="lock" size="sm" />
+          Protected from sync
+        </p>
+        <button
+          className="text-xs font-medium text-link hover:underline disabled:opacity-50"
+          disabled={unlocking}
+          onClick={() => {
+            void unlock();
+          }}
+          type="button"
+        >
+          Unlock
+        </button>
+      </div>
+      <p className="mt-1">Manual changes are preserved when the provider syncs.</p>
+      {error !== null ? (
+        <p className="mt-1 text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+const ACTIVITY_LABELS = [
+  "Buy",
+  "Sell",
+  "Sweep In",
+  "Sweep Out",
+  "Dividend",
+  "Reinvestment",
+  "Interest",
+  "Fee",
+  "Transfer",
+  "Contribution",
+  "Withdrawal",
+  "Exchange",
+  "Other",
+] as const;
+
+function TransactionActivityLabelRow({
+  bootstrap,
+  transaction,
+}: {
+  bootstrap: Bootstrap;
+  transaction: SpaTransactionDetail;
+}) {
+  const queryClient = useQueryClient();
+  const [saving, setSaving] = useState(false);
+  // Investment/crypto accounts expose the accountable type; only those get
+  // the activity label (mirrors the legacy settings gate).
+  const accountType = transaction.account.account_type ?? "";
+  if (accountType !== "investment" && accountType !== "crypto") return null;
+
+  async function changeLabel(value: string) {
+    setSaving(true);
+    try {
+      await updateTransaction(bootstrap.apiPaths.transactions, transaction.id, {
+        investment_activity_label: value === "" ? null : value,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["spa", "transaction", bootstrap.apiPaths.transactions, transaction.id],
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-0.5">
+        <p className="text-sm font-medium text-primary">Activity type</p>
+        <p className="text-xs text-secondary">How this investment activity is classified.</p>
+      </div>
+      <select
+        aria-label="Activity type"
+        className="form-field__input max-w-40 border border-secondary px-3 py-1.5 text-sm"
+        disabled={saving}
+        onChange={(event) => {
+          void changeLabel(event.target.value);
+        }}
+        value={transaction.investment_activity_label ?? ""}
+      >
+        <option value="">—</option>
+        {ACTIVITY_LABELS.map((label) => (
+          <option key={label} value={label}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function TransactionBillAllocations({ transaction }: { transaction: SpaTransactionDetail }) {
+  const allocations = transaction.bill_allocations ?? [];
+  if (allocations.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-primary">Applied to bills</p>
+      {allocations.map((allocation) => (
+        <div
+          className="flex items-center justify-between gap-2 text-sm"
+          key={allocation.allocation_id}
+        >
+          <div>
+            <p className="font-medium text-primary">{allocation.bill_name}</p>
+            <p className="privacy-sensitive text-xs text-secondary">
+              {allocation.amount} · {formatShortDate(allocation.due_on)}
+            </p>
+          </div>
+          {allocation.unreviewed ? <span className="text-xs text-warning">Unreviewed</span> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TransactionDetailSettings({
+  bootstrap,
+  transaction,
+  onDeleted,
+}: {
+  bootstrap: Bootstrap;
+  transaction: SpaTransactionDetail;
+  onDeleted: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const isSplitChild = (transaction.parent_entry_id ?? null) !== null;
+  const isIncome = transaction.signed_amount_cents > 0;
+  const [recurringDone, setRecurringDone] = useState(transaction.recurring_exists ?? false);
+  const [recurringError, setRecurringError] = useState<string | null>(null);
+  const [recurringBusy, setRecurringBusy] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function toggleOneTime(next: boolean) {
+    await updateTransaction(bootstrap.apiPaths.transactions, transaction.id, {
+      kind: next ? "one_time" : "standard",
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ["spa", "transaction", bootstrap.apiPaths.transactions, transaction.id],
+    });
+    void queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] });
+  }
+
+  async function markRecurring() {
+    setRecurringBusy(true);
+    setRecurringError(null);
+    try {
+      await markTransactionRecurring(bootstrap.apiPaths.transactions, transaction.id);
+      setRecurringDone(true);
+    } catch (caught) {
+      setRecurringError(caught instanceof Error ? caught.message : "Could not mark as recurring");
+    } finally {
+      setRecurringBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteTransaction(bootstrap.apiPaths.transactions, transaction.id);
+      await queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] });
+      await queryClient.invalidateQueries({ queryKey: ["spa", "account"] });
+      onDeleted();
+    } catch (caught) {
+      setDeleteError(caught instanceof Error ? caught.message : "Could not delete transaction");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <Section title="Settings">
+      {!isSplitChild ? (
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-primary">
+              {isIncome ? "One-time Income" : "One-time Expense"}
+            </p>
+            <p className="text-xs text-secondary">
+              One-time transactions will be excluded from certain budgeting calculations and reports
+              to help you see what&apos;s really important.
+            </p>
+          </div>
+          <Toggle
+            checked={transaction.kind === "one_time"}
+            id="txn-one-time"
+            label={isIncome ? "One-time Income" : "One-time Expense"}
+            onChange={(next) => {
+              void toggleOneTime(next);
+            }}
+          />
+        </div>
+      ) : null}
+      {!isSplitChild ? (
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-primary">Recurring Transaction</p>
+            <p className="text-xs text-secondary">
+              {recurringDone
+                ? "A recurring transaction already exists for this pattern."
+                : "Track this as a recurring transaction. Amount variance is automatically calculated from past 6 months of similar transactions."}
+            </p>
+            {recurringError !== null ? (
+              <p className="text-xs text-destructive" role="alert">
+                {recurringError}
+              </p>
+            ) : null}
+          </div>
+          <button
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-hover disabled:opacity-50"
+            disabled={recurringBusy || recurringDone}
+            onClick={() => {
+              void markRecurring();
+            }}
+            type="button"
+          >
+            <Icon name="refresh-ccw" size="sm" />
+            Mark as Recurring
+          </button>
+        </div>
+      ) : null}
+      <TransactionActivityLabelRow bootstrap={bootstrap} transaction={transaction} />
+      <TransactionBillAllocations transaction={transaction} />
+      {!isSplitChild && transaction.pending ? (
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-primary">Duplicate of Posted Transaction?</p>
+            <p className="text-xs text-secondary">
+              Manually merge this pending transaction with its posted version.
+            </p>
+          </div>
+          <a
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
+            href={`/transactions/${transaction.id}/pending_duplicate_merges/new`}
+          >
+            <Icon name="git-branch" size="sm" />
+            Open merger
+          </a>
+        </div>
+      ) : null}
+      {!isSplitChild && (transaction.split_children?.length ?? 0) === 0 && !transaction.transfer ? (
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-primary">Split Transaction</p>
+            <p className="text-xs text-secondary">
+              Split this transaction into multiple entries with different categories and amounts.
+            </p>
+          </div>
+          <Link
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
+            params={{ transactionId: transaction.id }}
+            to="/transactions/$transactionId/split/new"
+          >
+            <Icon name="split" size="sm" />
+            Split
+          </Link>
+        </div>
+      ) : null}
+      {!isSplitChild &&
+      !transaction.excluded &&
+      transaction.account.account_type === "investment" ? (
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-primary">Convert to trade</p>
+            <p className="text-xs text-secondary">
+              Record this as a buy or sell of a security instead of a cash transaction.
+            </p>
+          </div>
+          <a
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
+            href={`/transactions/${transaction.id}/convert_to_trade`}
+          >
+            <Icon name="arrow-left-right" size="sm" />
+            Convert
+          </a>
+        </div>
+      ) : null}
+      {!isSplitChild ? (
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-primary">Delete transaction</p>
+            <p className="text-xs text-secondary">
+              This permanently deletes the transaction, affects your historical balances, and cannot
+              be undone.
+            </p>
+            {deleteError !== null ? (
+              <p className="text-xs text-destructive" role="alert">
+                {deleteError}
+              </p>
+            ) : null}
+          </div>
+          <button
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-surface-hover"
+            onClick={() => {
+              setConfirmingDelete(true);
+            }}
+            type="button"
+          >
+            Delete
+          </button>
+        </div>
+      ) : null}
+      {confirmingDelete ? (
+        <Modal
+          ariaLabelledby="delete-transaction-title"
+          onClose={() => {
+            setConfirmingDelete(false);
+          }}
+          open
+          panelClassName="w-full max-w-md rounded-xl bg-container p-6 shadow-border-lg"
+        >
+          <h2 className="text-lg font-medium text-primary" id="delete-transaction-title">
+            Delete transaction
+          </h2>
+          <p className="my-4 text-sm text-secondary">
+            This permanently deletes {transaction.name}, affects your historical balances, and
+            cannot be undone.
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              className="rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary hover:bg-surface-hover"
+              onClick={() => {
+                setConfirmingDelete(false);
+              }}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="rounded-lg bg-destructive px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              disabled={deleting}
+              onClick={() => {
+                void confirmDelete();
+              }}
+              type="button"
+            >
+              Delete
+            </button>
+          </div>
+        </Modal>
+      ) : null}
     </Section>
   );
 }

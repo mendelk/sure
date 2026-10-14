@@ -10,6 +10,8 @@ Rails.application.routes.draw do
   get "transactions/new", to: "spa#show", as: :new_transaction
   get "transactions/bulk_update/new", to: "spa#show", as: :new_transactions_bulk_update
   get "transactions/:id", to: "spa#show", as: :spa_transaction, constraints: { id: /[0-9a-f-]{36}/i }
+  get "transactions/:transaction_id/split/new", to: "spa#show", constraints: { transaction_id: /[0-9a-f-]{36}/i }
+  get "transactions/:transaction_id/split/edit", to: "spa#show", constraints: { transaction_id: /[0-9a-f-]{36}/i }
   get "dashboards", to: "spa#show", as: :dashboards
   get "sources", to: "spa#show", as: :sources
   get "sources/new", to: "spa#show", as: :new_source
@@ -803,9 +805,14 @@ Rails.application.routes.draw do
       resources :tags, only: [ :index, :show, :create, :update, :destroy ]
 
       resources :transactions, only: [ :index, :show, :create, :update, :destroy ] do
-        resource :split, only: :create, controller: "transaction_splits"
+        resource :split, only: [ :create, :update ], controller: "transaction_splits"
+        resources :attachments, only: [ :index, :show, :create, :destroy ], controller: "transaction_attachments"
         get :transfer_match_candidates, on: :member, controller: :transaction_transfer_matches
         resource :transfer_match, only: :create, controller: "transaction_transfer_matches"
+        post :mark_as_recurring, on: :member
+        post :unlock, on: :member
+        post :merge_duplicate, on: :member
+        post :dismiss_duplicate, on: :member
       end
       resources :trades, only: [ :index, :show, :create, :update, :destroy ]
       resources :holdings, only: [ :index, :show ]

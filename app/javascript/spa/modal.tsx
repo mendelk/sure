@@ -2,11 +2,13 @@ import { Dialog, DialogPanel } from "@headlessui/react";
 import type { ReactNode } from "react";
 
 type ModalPlacement = "center" | "drawer";
+type ModalLayer = "default" | "above";
 
 export function Modal({
   ariaLabelledby,
   children,
   id,
+  layer = "default",
   onClose,
   open,
   panelClassName,
@@ -15,6 +17,7 @@ export function Modal({
   ariaLabelledby?: string;
   children: ReactNode;
   id?: string;
+  layer?: ModalLayer;
   onClose: () => void;
   open: boolean;
   panelClassName: string;
@@ -28,7 +31,7 @@ export function Modal({
   return (
     <Dialog
       aria-labelledby={ariaLabelledby}
-      className="relative z-40"
+      className={layer === "above" ? "relative z-50" : "relative z-40"}
       onClose={onClose}
       open={open}
     >
