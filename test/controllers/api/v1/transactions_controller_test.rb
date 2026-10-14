@@ -1194,9 +1194,280 @@ end
                         "non-income transactions should have non-positive signed_amount_cents"
       end
     end
-
     def create_disabled_account_transaction(name:, date: Date.current)
       create_account_transaction(status: "disabled", name: name, date: date)
+    end
+
+    test "index exposes parent_entry_id and split_parents for grouped headers" do
+      parent_entry = create_transaction(amount: 56, name: "Delta Airlines", account: @account)
+      parent_entry.split!([
+        { name: "Whatever", amount: 46, category_id: nil },
+        { name: "Delta Airlines", amount: 10, category_id: nil }
+      ])
+
+      get api_v1_transactions_url, headers: api_headers(@read_only_api_key)
+      assert_response :success
+
+      body = JSON.parse(response.body)
+      children = body["transactions"].select { |t| t["parent_entry_id"] == parent_entry.id }
+      assert_equal 2, children.length, "expected both split children with parent_entry_id"
+
+      parents = body["split_parents"]
+      header = parents.find { |p| p["entry_id"] == parent_entry.id }
+      assert_not_nil header, "expected split_parents to include the parent entry"
+      assert_equal "Delta Airlines", header["name"]
+    end
+
+    test "index keeps split groups intact across page boundaries" do
+      parent_entry = create_transaction(amount: 56, name: "Split Parent", account: @account)
+      parent_entry.split!([
+        { name: "Child One", amount: 46, category_id: nil },
+        { name: "Child Two", amount: 10, category_id: nil }
+      ])
+
+      get api_v1_transactions_url, params: { per_page: 1 }, headers: api_headers(@read_only_api_key)
+      assert_response :success
+
+      body = JSON.parse(response.body)
+      page_ids = body["transactions"].map { |t| t["id"] }
+      parent_ids = body["transactions"].map { |t| t["parent_entry_id"] }.compact.uniq
+      # Siblings ride along even when pagination would strand them
+      header_ids = body["split_parents"].map { |p| p["entry_id"] }
+      assert parent_ids.all? { |pid|
+        body["transactions"].count { |t| t["parent_entry_id"] == pid } > 1 ||
+          header_ids.include?(pid)
+      }, "expected groups intact, got #{page_ids.length} rows"
+    end
+
+    test "show includes split_children for split parent" do
+      parent_entry = create_transaction(amount: 56, name: "Delta Airlines", account: @account)
+      parent_entry.split!([
+        { name: "Delta Airlines", amount: 10, category_id: categories(:food_and_drink).id },
+        { name: "Whatever", amount: 46, category_id: nil }
+      ])
+
+      get api_v1_transaction_url(parent_entry.entryable), headers: api_headers(@read_only_api_key)
+      assert_response :success
+
+      body = JSON.parse(response.body)
+      assert_equal 2, body["split_children"].length
+      names = body["split_children"].map { |c| c["name"] }
+      assert_includes names, "Delta Airlines"
+      assert_includes names, "Whatever"
+      categorized = body["split_children"].find { |c| c["name"] == "Delta Airlines" }
+      assert_equal "Food & Drink", categorized["category_name"]
+      assert_nil body["split_parent"]
+    end
+
+    test "show includes split_parent for split child" do
+      parent_entry = create_transaction(amount: 56, name: "Delta Airlines", account: @account)
+      children = parent_entry.split!([
+        { name: "Delta Airlines", amount: 10, category_id: nil },
+        { name: "Whatever", amount: 46, category_id: nil }
+      ])
+
+      get api_v1_transaction_url(children.first.entryable), headers: api_headers(@read_only_api_key)
+      assert_response :success
+
+      body = JSON.parse(response.body)
+      assert_equal [], body["split_children"]
+      assert_equal parent_entry.id, body["split_parent"]["entry_id"]
+      assert_equal "Delta Airlines", body["split_parent"]["name"]
+    end
+
+    test "update toggles one_time kind" do
+      entry = create_transaction(amount: 50, name: "Concert", account: @account)
+      transaction = entry.entryable
+      assert_equal "standard", transaction.kind
+
+      patch api_v1_transaction_url(transaction),
+        params: { transaction: { kind: "one_time" } },
+        headers: api_headers(@api_key)
+      assert_response :success
+      assert_equal "one_time", transaction.reload.kind
+      assert_equal "one_time", JSON.parse(response.body)["kind"]
+
+      patch api_v1_transaction_url(transaction),
+        params: { transaction: { kind: "standard" } },
+        headers: api_headers(@api_key)
+      assert_response :success
+      assert_equal "standard", transaction.reload.kind
+    end
+
+    test "update rejects invalid kind" do
+      entry = create_transaction(amount: 50, name: "Concert", account: @account)
+
+      patch api_v1_transaction_url(entry.entryable),
+        params: { transaction: { kind: "bogus" } },
+        headers: api_headers(@api_key)
+      assert_response :success
+      assert_equal "standard", entry.entryable.reload.kind
+    end
+
+    test "mark_as_recurring creates recurring transaction" do
+      entry = create_transaction(amount: 42, name: "Gym", account: @account)
+
+      post mark_as_recurring_api_v1_transaction_url(entry.entryable),
+        headers: api_headers(@api_key)
+      assert_response :created
+
+      body = JSON.parse(response.body)
+      assert body["id"].present?
+      assert entry.entryable.reload.existing_manual_recurring_transaction.present?
+    end
+
+    test "mark_as_recurring rejects duplicates" do
+      entry = create_transaction(amount: 42, name: "Gym", account: @account)
+      transaction = entry.entryable
+      RecurringTransaction.create_from_transaction(transaction)
+
+      post mark_as_recurring_api_v1_transaction_url(transaction),
+        headers: api_headers(@api_key)
+      assert_response :unprocessable_entity
+    end
+
+    test "mark_as_recurring requires write scope" do
+      entry = create_transaction(amount: 42, name: "Gym", account: @account)
+
+      post mark_as_recurring_api_v1_transaction_url(entry.entryable),
+        headers: api_headers(@read_only_api_key)
+      assert_response :forbidden
+    end
+
+    test "update sets investment_activity_label" do
+      entry = create_transaction(amount: 100, name: "AAPL Buy", account: @account)
+
+      patch api_v1_transaction_url(entry.entryable),
+        params: { transaction: { investment_activity_label: "Buy" } },
+        headers: api_headers(@api_key)
+      assert_response :success
+      assert_equal "Buy", entry.entryable.reload.investment_activity_label
+      assert_equal "Buy", JSON.parse(response.body)["investment_activity_label"]
+    end
+
+    test "update clears investment_activity_label with invalid value" do
+      entry = create_transaction(amount: 100, name: "AAPL Buy", account: @account)
+      entry.entryable.update!(investment_activity_label: "Buy")
+
+      patch api_v1_transaction_url(entry.entryable),
+        params: { transaction: { investment_activity_label: "Bogus" } },
+        headers: api_headers(@api_key)
+      assert_response :success
+      assert_nil entry.entryable.reload.investment_activity_label
+    end
+
+    test "unlock clears sync protection" do
+      entry = create_transaction(amount: 50, name: "Locked", account: @account)
+      entry.update!(user_modified: true)
+      assert entry.reload.protected_from_sync?
+
+      post unlock_api_v1_transaction_url(entry.entryable),
+        headers: api_headers(@api_key)
+      assert_response :success
+      refute entry.reload.protected_from_sync?
+    end
+
+    test "unlock requires write scope" do
+      entry = create_transaction(amount: 50, name: "Locked", account: @account)
+
+      post unlock_api_v1_transaction_url(entry.entryable),
+        headers: api_headers(@read_only_api_key)
+      assert_response :forbidden
+    end
+
+    test "show includes protection and empty bill allocations" do
+      entry = create_transaction(amount: 50, name: "Protected", account: @account)
+      entry.update!(user_modified: true)
+
+      get api_v1_transaction_url(entry.entryable), headers: api_headers(@read_only_api_key)
+      assert_response :success
+
+      body = JSON.parse(response.body)
+      assert_equal true, body["protected_from_sync"]
+      assert_equal [], body["bill_allocations"]
+    end
+
+    test "show includes potential_duplicate suggestion" do
+      posted = create_transaction(amount: -50, name: "Posted Coffee", account: @account)
+      pending_entry = create_transaction(amount: -50, name: "Pending Coffee", account: @account)
+      pending_entry.entryable.update!(
+        extra: {
+          "simplefin" => { "pending" => true },
+          "potential_posted_match" => {
+            "entry_id" => posted.id,
+            "reason" => "fuzzy_match",
+            "confidence" => "high",
+            "posted_amount" => "-50.0"
+          }
+        }
+      )
+
+      get api_v1_transaction_url(pending_entry.entryable), headers: api_headers(@read_only_api_key)
+      assert_response :success
+
+      duplicate = JSON.parse(response.body)["potential_duplicate"]
+      assert_not_nil duplicate
+      assert_equal posted.id, duplicate["entry_id"]
+      assert_equal "Posted Coffee", duplicate["name"]
+    end
+
+    test "show omits potential_duplicate without suggestion" do
+      entry = create_transaction(amount: 50, name: "Plain", account: @account)
+
+      get api_v1_transaction_url(entry.entryable), headers: api_headers(@read_only_api_key)
+      assert_response :success
+
+      assert_nil JSON.parse(response.body)["potential_duplicate"]
+    end
+
+    test "dismiss_duplicate clears suggestion" do
+      posted = create_transaction(amount: -50, name: "Posted", account: @account)
+      pending_entry = create_transaction(amount: -50, name: "Pending", account: @account)
+      pending_entry.entryable.update!(
+        extra: {
+          "simplefin" => { "pending" => true },
+          "potential_posted_match" => { "entry_id" => posted.id }
+        }
+      )
+
+      post dismiss_duplicate_api_v1_transaction_url(pending_entry.entryable),
+        headers: api_headers(@api_key)
+      assert_response :success
+
+      get api_v1_transaction_url(pending_entry.entryable), headers: api_headers(@read_only_api_key)
+      assert_nil JSON.parse(response.body)["potential_duplicate"]
+    end
+
+    test "dismiss_duplicate requires write scope" do
+      entry = create_transaction(amount: 50, name: "Plain", account: @account)
+
+      post dismiss_duplicate_api_v1_transaction_url(entry.entryable),
+        headers: api_headers(@read_only_api_key)
+      assert_response :forbidden
+    end
+
+    test "merge_duplicate merges pending into posted" do
+      posted = create_transaction(amount: -50, name: "Posted Coffee", account: @account)
+      pending_entry = create_transaction(amount: -50, name: "Pending Coffee", account: @account)
+      pending_entry.entryable.update!(
+        extra: {
+          "simplefin" => { "pending" => true },
+          "potential_posted_match" => { "entry_id" => posted.id }
+        }
+      )
+
+      post merge_duplicate_api_v1_transaction_url(pending_entry.entryable),
+        headers: api_headers(@api_key)
+      assert_response :success
+      assert_nil Entry.find_by(id: pending_entry.id)
+    end
+
+    test "merge_duplicate rejects without suggestion" do
+      entry = create_transaction(amount: 50, name: "Plain", account: @account)
+
+      post merge_duplicate_api_v1_transaction_url(entry.entryable),
+        headers: api_headers(@api_key)
+      assert_response :unprocessable_entity
     end
 
     def create_account_transaction(status:, name:, date: Date.current)

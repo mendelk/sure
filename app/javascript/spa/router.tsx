@@ -26,6 +26,7 @@ import {
 } from "./source-pages";
 import { validateNewTransactionSearch, NewTransactionPage } from "./new-transaction-page";
 import { BulkUpdateDrawer, validateBulkUpdateSearch } from "./bulk-update-drawer";
+import { SplitTransactionPage } from "./split-transaction-page";
 import { TransactionDetailDrawer } from "./transaction-detail-page";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
 import { AccountsIndexPage, SharingDialog } from "./accounts-index-page";
@@ -169,6 +170,26 @@ const transactionDetailRoute = createRoute({
   getParentRoute: () => transactionsRoute,
   path: "$transactionId",
   component: TransactionDetailDrawer,
+});
+
+function SplitNewPage() {
+  return <SplitTransactionPage mode="create" />;
+}
+
+function SplitEditPage() {
+  return <SplitTransactionPage mode="update" />;
+}
+
+const splitNewRoute = createRoute({
+  getParentRoute: () => transactionDetailRoute,
+  path: "split/new",
+  component: SplitNewPage,
+});
+
+const splitEditRoute = createRoute({
+  getParentRoute: () => transactionDetailRoute,
+  path: "split/edit",
+  component: SplitEditPage,
 });
 
 const newTransactionRoute = createRoute({
@@ -886,7 +907,7 @@ const routeTree = rootRoute.addChildren([
     accountSharingRoute,
   ]),
   transactionsRoute.addChildren([
-    transactionDetailRoute,
+    transactionDetailRoute.addChildren([splitNewRoute, splitEditRoute]),
     newTransactionRoute,
     bulkUpdateTransactionRoute,
   ]),

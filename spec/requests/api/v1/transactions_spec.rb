@@ -397,6 +397,14 @@ RSpec.describe 'API V1 Transactions', type: :request do
               excluded: {
                 type: :boolean,
                 description: 'Exclude the transaction from reports and budgets. Omit to preserve the current value.'
+              },
+              kind: {
+                type: :string, enum: %w[standard one_time],
+                description: 'Mark as one-time (excluded from budget medians) or standard. Other kinds are managed by transfers/splits.'
+              },
+              investment_activity_label: {
+                type: :string, nullable: true,
+                description: 'Investment activity label (Buy, Sell, Dividend, etc.). Invalid values clear the label.'
               }
             }
           }
@@ -436,6 +444,127 @@ RSpec.describe 'API V1 Transactions', type: :request do
 
       response '200', 'transaction deleted' do
         schema '$ref' => '#/components/schemas/DeleteResponse'
+
+        run_test!
+      end
+
+      response '404', 'transaction not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+    end
+  end
+
+  path '/api/v1/transactions/{id}/mark_as_recurring' do
+    parameter name: :id, in: :path, schema: { type: :string, format: :uuid }, required: true, description: 'Transaction ID'
+
+    post 'Mark a transaction as recurring' do
+      tags 'Transactions'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+
+      let(:id) { transaction.id }
+
+      response '201', 'transaction marked as recurring' do
+        schema type: :object,
+          required: %w[id message],
+          properties: {
+            id: { type: :string, format: :uuid },
+            message: { type: :string }
+          }
+
+        run_test!
+      end
+
+      response '404', 'transaction not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+    end
+  end
+
+  path '/api/v1/transactions/{id}/unlock' do
+    parameter name: :id, in: :path, schema: { type: :string, format: :uuid }, required: true, description: 'Transaction ID'
+
+    post 'Unlock an entry for sync' do
+      tags 'Transactions'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+
+      let(:id) { transaction.id }
+
+      response '200', 'entry unlocked' do
+        schema type: :object,
+          required: %w[message],
+          properties: {
+            message: { type: :string }
+          }
+
+        run_test!
+      end
+
+      response '404', 'transaction not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+    end
+  end
+
+  path '/api/v1/transactions/{id}/merge_duplicate' do
+    parameter name: :id, in: :path, schema: { type: :string, format: :uuid }, required: true, description: 'Transaction ID'
+
+    post 'Merge a pending transaction with its posted duplicate' do
+      tags 'Transactions'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+
+      let(:id) { transaction.id }
+
+      response '200', 'duplicates merged' do
+        schema type: :object,
+          required: %w[message],
+          properties: {
+            message: { type: :string }
+          }
+
+        run_test!
+      end
+
+      response '404', 'transaction not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+    end
+  end
+
+  path '/api/v1/transactions/{id}/dismiss_duplicate' do
+    parameter name: :id, in: :path, schema: { type: :string, format: :uuid }, required: true, description: 'Transaction ID'
+
+    post 'Dismiss a duplicate suggestion' do
+      tags 'Transactions'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+
+      let(:id) { transaction.id }
+
+      response '200', 'duplicate suggestion dismissed' do
+        schema type: :object,
+          required: %w[message],
+          properties: {
+            message: { type: :string }
+          }
 
         run_test!
       end

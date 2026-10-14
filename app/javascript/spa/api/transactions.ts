@@ -288,6 +288,35 @@ export async function updateTransaction(
   });
   return GetApiV1TransactionsId200Response.parse(payload);
 }
+
+const MarkRecurringSchema = z.object({
+  id: z.pipe(z.uuid(), TransactionIdSchema),
+  message: z.string(),
+});
+
+export async function markTransactionRecurring(
+  basePath: string,
+  id: TransactionId,
+): Promise<z.infer<typeof MarkRecurringSchema>> {
+  const payload = await requestJson(`${basePath}/${id}/mark_as_recurring`, "POST");
+  return MarkRecurringSchema.parse(payload);
+}
+
+export async function deleteTransaction(basePath: string, id: TransactionId): Promise<void> {
+  await requestJson(`${basePath}/${id}`, "DELETE");
+}
+
+export async function unlockEntry(basePath: string, id: TransactionId): Promise<void> {
+  await requestJson(`${basePath}/${id}/unlock`, "POST");
+}
+
+export async function mergeDuplicate(basePath: string, id: TransactionId): Promise<void> {
+  await requestJson(`${basePath}/${id}/merge_duplicate`, "POST");
+}
+
+export async function dismissDuplicate(basePath: string, id: TransactionId): Promise<void> {
+  await requestJson(`${basePath}/${id}/dismiss_duplicate`, "POST");
+}
 const TransactionCreatedSchema = z.object({
   id: z.pipe(z.uuid(), TransactionIdSchema),
   entry_id: z.pipe(z.uuid(), EntryIdSchema),

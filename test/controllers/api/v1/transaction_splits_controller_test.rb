@@ -330,6 +330,48 @@ class Api::V1::TransactionSplitsControllerTest < ActionDispatch::IntegrationTest
     assert_equal(-30, transfer_child.transaction.transfer.inflow_transaction.entry.amount.to_i)
   end
 
+  test "should update an existing split" do
+    @entry.split!([
+      { name: "Groceries", amount: 70, category_id: categories(:food_and_drink).id },
+      { name: "Household", amount: 30 }
+    ])
+
+    patch api_v1_transaction_split_url(@entry.transaction),
+      params: {
+        split: {
+          splits: [
+            { name: "Groceries", amount: -60, category_id: categories(:food_and_drink).id },
+            { name: "Household", amount: -40 }
+          ]
+        }
+      },
+      headers: api_headers(@api_key)
+
+    assert_response :success
+    children = @entry.reload.child_entries.order(:created_at)
+    assert_equal 2, children.count
+    assert_equal [ 60, 40 ], children.map { |child| child.amount.to_i }
+
+    response_body = JSON.parse(response.body)
+    assert_equal @entry.transaction.id, response_body["parent_transaction_id"]
+  end
+
+  test "should reject split update on unsplit transaction" do
+    patch api_v1_transaction_split_url(@entry.transaction),
+      params: { split: { splits: [ { name: "A", amount: -60 }, { name: "B", amount: -40 } ] } },
+      headers: api_headers(@api_key)
+
+    assert_response :unprocessable_entity
+  end
+
+  test "should require write scope for split update" do
+    patch api_v1_transaction_split_url(@entry.transaction),
+      params: { split: { splits: [ { name: "A", amount: -60 }, { name: "B", amount: -40 } ] } },
+      headers: api_headers(@read_only_api_key)
+
+    assert_response :forbidden
+  end
+
   private
     def api_headers(api_key)
       { "X-Api-Key" => api_key.plain_key }

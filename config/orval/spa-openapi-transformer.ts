@@ -5,6 +5,7 @@ const SHOW_PATH = "/api/v1/transactions/{id}";
 const CANDIDATES_PATH = "/api/v1/transactions/{transaction_id}/transfer_match_candidates";
 const MATCH_PATH = "/api/v1/transactions/{transaction_id}/transfer_match";
 const TRANSFER_SHOW_PATH = "/api/v1/transfers/{id}";
+const SPLIT_PATH = "/api/v1/transactions/{transaction_id}/split";
 
 export default defineTransformer((document) => {
   const transactionPath = document.paths?.[TRANSACTION_PATH];
@@ -12,6 +13,7 @@ export default defineTransformer((document) => {
   const candidatesPath = document.paths?.[CANDIDATES_PATH];
   const matchPath = document.paths?.[MATCH_PATH];
   const transferShowPath = document.paths?.[TRANSFER_SHOW_PATH];
+  const splitPath = document.paths?.[SPLIT_PATH];
 
   if (!transactionPath?.get)
     throw new Error(`${TRANSACTION_PATH} GET is missing from the OpenAPI document`);
@@ -31,6 +33,8 @@ export default defineTransformer((document) => {
   if (!transferShowPath?.get && !transferShowPath?.patch)
     throw new Error(`${TRANSFER_SHOW_PATH} is missing from the OpenAPI document`);
 
+  if (!splitPath?.post) throw new Error(`${SPLIT_PATH} POST is missing from the OpenAPI document`);
+
   const transactionGet = transactionPath.get;
   const transactionPost = transactionPath.post;
   const showGet = showPath.get;
@@ -38,6 +42,8 @@ export default defineTransformer((document) => {
   const candidatesGet = candidatesPath.get;
   const matchPost = matchPath.post;
   const transferShowPatch = transferShowPath.patch;
+  const splitPost = splitPath.post;
+  const splitPatch = splitPath.patch;
 
   return {
     ...document,
@@ -62,6 +68,11 @@ export default defineTransformer((document) => {
       [TRANSFER_SHOW_PATH]: {
         ...(transferShowPath.parameters && { parameters: transferShowPath.parameters }),
         patch: transferShowPatch,
+      },
+      [SPLIT_PATH]: {
+        ...(splitPath.parameters && { parameters: splitPath.parameters }),
+        post: splitPost,
+        ...(splitPatch && { patch: splitPatch }),
       },
     },
   };
