@@ -80,7 +80,7 @@ export function TransactionRow({
   badges?: ReactNode;
   categories?: ReferenceOption<CategoryId>[];
   category?: ReactNode;
-  columns: { merchant: boolean; notes: boolean; tags: boolean };
+  columns: { merchant: boolean; tags: boolean };
   indent?: boolean;
   logoUrl?: string | null;
   positive?: boolean;
@@ -177,13 +177,6 @@ export function TransactionRow({
               {transaction.account.name}
             </Link>
           </p>
-          {columns.notes &&
-          typeof transaction.notes === "string" &&
-          transaction.notes.length > 0 ? (
-            <p className="mt-0.5 truncate text-xs text-tertiary" title={transaction.notes}>
-              {transaction.notes}
-            </p>
-          ) : null}
         </div>
       </div>
 

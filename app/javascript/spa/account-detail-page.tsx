@@ -381,17 +381,15 @@ function AccountActivityView({
         raw !== null &&
         typeof raw === "object" &&
         "merchant" in raw &&
-        "notes" in raw &&
         "tags" in raw &&
         typeof raw.merchant === "boolean" &&
-        typeof raw.notes === "boolean" &&
         typeof raw.tags === "boolean"
       )
-        return { merchant: raw.merchant, notes: raw.notes, tags: raw.tags };
+        return { merchant: raw.merchant, tags: raw.tags };
     } catch {
       /* Ignore unavailable storage or obsolete preferences. */
     }
-    return { merchant: true, notes: true, tags: true };
+    return { merchant: true, tags: true };
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const deleteForm = useRef<HTMLFormElement>(null);
@@ -502,7 +500,7 @@ function AccountActivityView({
               {text.columns}
             </PopoverButton>
             <PopoverPanel className="shadow-border-lg absolute right-0 z-30 mt-2 w-48 space-y-3 rounded-xl bg-container p-4">
-              {(["merchant", "notes", "tags"] as const).map((column) => (
+              {(["merchant", "tags"] as const).map((column) => (
                 <label key={column} className="flex items-center gap-2 text-sm text-primary">
                   <input
                     type="checkbox"
@@ -738,7 +736,7 @@ function ActivityEntryView({
   accountId: AccountId;
   search: AccountSearch;
   text: Record<string, string>;
-  columns: { merchant: boolean; notes: boolean; tags: boolean };
+  columns: { merchant: boolean; tags: boolean };
   categories: ReferenceOption<CategoryId>[];
   selected: boolean;
   onSelect: (value: boolean) => void;
@@ -819,11 +817,6 @@ function ActivityEntryView({
             <EntryBadges entry={entry} />
           </div>
           {extras}
-          {columns.notes && entry.notes !== null && entry.notes !== "" ? (
-            <p className="truncate text-xs text-secondary" title={entry.notes}>
-              {entry.notes}
-            </p>
-          ) : null}
         </div>
         <span
           className={`privacy-sensitive whitespace-nowrap text-sm font-medium tabular-nums ${entry.type === "valuation" ? "text-primary" : entry.positive ? "text-success" : "text-primary"}`}

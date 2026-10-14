@@ -175,7 +175,6 @@ export function TransactionsPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [columns, setColumns] = useState({
     merchant: true,
-    notes: true,
     tags: true,
   });
   const [selected, setSelected] = useState<Set<TransactionId>>(new Set());
@@ -216,7 +215,7 @@ export function TransactionsPage() {
     });
   }
 
-  function setColumn(column: "merchant" | "notes" | "tags", value: boolean) {
+  function setColumn(column: "merchant" | "tags", value: boolean) {
     setColumns((previous) => ({ ...previous, [column]: value }));
   }
   function setTab(tab: "transactions" | "upcoming") {
@@ -1574,8 +1573,8 @@ function TransactionColumnsPopover({
   columns,
   onToggle,
 }: {
-  columns: { merchant: boolean; notes: boolean; tags: boolean };
-  onToggle: (column: "merchant" | "notes" | "tags", value: boolean) => void;
+  columns: { merchant: boolean; tags: boolean };
+  onToggle: (column: "merchant" | "tags", value: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -1587,7 +1586,6 @@ function TransactionColumnsPopover({
   const entries = [
     ["tags", "Tags", "tag"],
     ["merchant", "Merchant", "store"],
-    ["notes", "Notes", "receipt-text"],
   ] as const;
 
   return (
