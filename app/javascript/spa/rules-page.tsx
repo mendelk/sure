@@ -5,7 +5,7 @@ import * as z from "zod/mini";
 import type { SpaBootstrap } from "./bootstrap";
 import { referenceDataQueryOptions, type ReferenceOption } from "./api/transactions";
 import { Alert } from "./components/alert";
-import { Button } from "./components/button";
+import { Button, MenuItem } from "./components/button";
 import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { TablePaginationBar } from "./components/table";
@@ -317,39 +317,31 @@ function RuleRowMenu({
           className="shadow-border-lg absolute right-0 z-30 mt-2 min-w-52 rounded-lg bg-container py-1"
           role="menu"
         >
-          <button
-            className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+          <MenuItem
             onClick={() => {
               setOpen(false);
               onAction("edit", rule);
             }}
-            role="menuitem"
-            type="button"
           >
             {RULES_TEXT.edit}
-          </button>
-          <button
-            className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+          </MenuItem>
+          <MenuItem
             onClick={() => {
               setOpen(false);
               onAction("reapply", rule);
             }}
-            role="menuitem"
-            type="button"
           >
             {RULES_TEXT.re_apply_rule}
-          </button>
-          <button
-            className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+          </MenuItem>
+          <MenuItem
+            destructive
             onClick={() => {
               setOpen(false);
               onAction("delete", rule);
             }}
-            role="menuitem"
-            type="button"
           >
             {RULES_TEXT.delete}
-          </button>
+          </MenuItem>
         </div>
       ) : null}
     </div>
@@ -587,28 +579,23 @@ export function RulesIndexPage({
                     className="shadow-border-lg absolute right-0 z-30 mt-2 min-w-52 rounded-lg bg-container py-1"
                     role="menu"
                   >
-                    <button
-                      className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+                    <MenuItem
                       onClick={() => {
                         setMenuOpen(false);
                         setPendingClearCache(true);
                       }}
-                      role="menuitem"
-                      type="button"
                     >
                       {RULES_TEXT.reset_ai_cache}
-                    </button>
-                    <button
-                      className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+                    </MenuItem>
+                    <MenuItem
+                      destructive
                       onClick={() => {
                         setMenuOpen(false);
                         setPendingDeleteAll(true);
                       }}
-                      role="menuitem"
-                      type="button"
                     >
                       {RULES_TEXT.delete_all_rules}
-                    </button>
+                    </MenuItem>
                   </div>
                 ) : null}
               </div>

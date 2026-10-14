@@ -350,13 +350,15 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
             </div>
           ))}
 
-          <button
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-secondary py-2 text-sm font-medium text-secondary transition-colors hover:border-primary hover:text-primary"
+          <Button
+            className="border-dashed"
+            fullWidth
+            iconProps={{ name: "plus", size: "sm" }}
             onClick={addRow}
-            type="button"
+            variant="outline_muted"
           >
-            + Add split
-          </button>
+            Add split
+          </Button>
 
           <div
             className={`rounded-lg border p-3 text-sm ${Math.abs(remaining) < 0.005 ? "border-secondary bg-container" : "border-destructive"}`}

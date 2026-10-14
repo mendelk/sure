@@ -178,7 +178,11 @@ en:
     missing_cell: "—"
     missing_cell_help: A dash indicates a missing intersection or a null aggregate. Zero is displayed as a number.
     uncategorized: Uncategorized
+    no_merchant: No merchant
+    untagged: Untagged
     field_category: Category
+    field_merchant: Merchant
+    field_tag: Tag
     field_account: Account
     field_date: Date
     field_name: Name

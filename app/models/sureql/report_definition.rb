@@ -5,12 +5,14 @@ require "sureql"
 class Sureql::ReportDefinition
   DEFAULT_PAGE_SIZE = 10
   MAX_COLUMNS = 24
-  MAX_DETAIL_COLUMNS = 6
+  MAX_DETAIL_COLUMNS = 7
   IDENTIFIER = /\A[A-Za-z_][A-Za-z0-9_]{0,63}\z/
   UUID = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i
   DATE_BUCKETS = Sureql::Pivot::DATE_BUCKETS
   FIELDS = {
     "category" => { kind: "text", column: "category_id", label_column: "category_name", dimension: true, detail: true, aggregations: %w[count_distinct], operators: %w[equals not_equals] },
+    "merchant" => { kind: "text", column: "merchant_id", label_column: "merchant_name", dimension: true, detail: true, aggregations: %w[count_distinct], operators: %w[equals not_equals] },
+    "tag" => { kind: "text", dimension: false, detail: false, aggregations: [], operators: %w[equals not_equals] },
     "account" => { kind: "text", column: "account_id", label_column: "account_name", dimension: true, detail: true, aggregations: %w[count_distinct], operators: %w[equals] },
     "date" => { kind: "date", column: "date", dimension: true, detail: true, aggregations: %w[count_distinct], operators: %w[last] },
     "currency" => { kind: "currency", column: "currency", dimension: true, detail: true, aggregations: %w[count_distinct], operators: %w[equals] },
@@ -35,14 +37,32 @@ class Sureql::ReportDefinition
   def catalog
     sql = source_sql
     options = {}
-    %w[category account currency].each do |key|
+    %w[category merchant account currency].each do |key|
       field = FIELDS.fetch(key)
       column = quote_column(field.fetch(:column))
       label = quote_column(field[:label_column] || field.fetch(:column))
       options[key] = connection.exec_query("SELECT DISTINCT #{column} AS value, #{label} AS label FROM (#{sql}) AS catalog_source ORDER BY label NULLS FIRST, value NULLS FIRST").map do |row|
-        { value: row["value"].to_s, label: row["label"] || text("uncategorized") }
+        fallback = key == "merchant" ? text("no_merchant") : text("uncategorized")
+        { value: row["value"].to_s, label: row["label"] || fallback }
       end
     end
+    options["tag"] = connection.exec_query(<<~SQL.squish).map do |row|
+      SELECT DISTINCT tg.id AS value, tg.name AS label
+      FROM (#{sql}) AS catalog_source
+      INNER JOIN taggings AS tgg ON tgg.taggable_type = 'Transaction' AND tgg.taggable_id = catalog_source.transaction_id
+      INNER JOIN tags AS tg ON tg.id = tgg.tag_id
+      ORDER BY label NULLS FIRST, value NULLS FIRST
+    SQL
+      { value: row["value"].to_s, label: row["label"] }
+    end
+    has_untagged = connection.select_value(<<~SQL.squish).to_i.positive?
+      SELECT 1 FROM (#{sql}) AS catalog_source
+      WHERE NOT EXISTS (
+        SELECT 1 FROM taggings AS tgg
+        WHERE tgg.taggable_type = 'Transaction' AND tgg.taggable_id = catalog_source.transaction_id
+      ) LIMIT 1
+    SQL
+    options["tag"].unshift({ value: "", label: text("untagged") }) if has_untagged
     {
       source: "transactions",
       fields: FIELDS.map do |key, field|
@@ -249,7 +269,7 @@ class Sureql::ReportDefinition
           invalid!("#{path}.unit", "unit") if filter.key?("unit")
           valid = filter["value"].is_a?(String)
           valid &&= case filter["field"]
-          when "category" then filter["value"].empty? || filter["value"].match?(UUID)
+          when "category", "merchant", "tag" then filter["value"].empty? || filter["value"].match?(UUID)
           when "account" then filter["value"].match?(UUID)
           when "currency" then filter["value"].match?(/\A[A-Z]{3,6}\z/)
           end
@@ -308,7 +328,13 @@ class Sureql::ReportDefinition
     def detail_column(field_key)
       field = FIELDS.fetch(field_key)
       column = quote_column(field[:label_column] || field.fetch(:column))
-      field_key == "category" ? "COALESCE(#{column}, #{connection.quote(text('uncategorized'))})" : column
+      if field_key == "category"
+        "COALESCE(#{column}, #{connection.quote(text('uncategorized'))})"
+      elsif field_key == "merchant"
+        "COALESCE(#{column}, #{connection.quote(text('no_merchant'))})"
+      else
+        column
+      end
     end
 
     def detail_result(source, spec, page:)
@@ -376,26 +402,46 @@ class Sureql::ReportDefinition
       base = Sureql::Compiler.new(@user).call("from transactions").strip.delete_suffix(";")
       invalid!("report", "execution") unless base.match?(/\A(?:SELECT|WITH)\b/i) && !base.include?(";")
       sql = <<~SQL.squish
-        SELECT e.id, e.name, e.amount, e.date, e.currency, t.category_id, c.name AS category_name,
+        SELECT e.id, t.id AS transaction_id, e.name, e.amount, e.date, e.currency, t.category_id, c.name AS category_name,
+          t.merchant_id, m.name AS merchant_name,
           a.id AS account_id, a.name AS account_name
         FROM (#{base}) AS e
         INNER JOIN transactions AS t ON t.id = e.entryable_id
         INNER JOIN accounts AS a ON a.id = e.account_id
         LEFT JOIN categories AS c ON c.id = t.category_id AND c.family_id = a.family_id
+        LEFT JOIN merchants AS m ON m.id = t.merchant_id
       SQL
       predicates = filters.map do |filter|
-        column = "e.#{quote_column(FIELDS.fetch(filter.fetch('field')).fetch(:column))}"
-        column = "t.category_id" if filter["field"] == "category"
-        if filter["operator"] == "last"
-          # Match the database's current_date, inclusive, with no future rows.
-          "#{column} BETWEEN CURRENT_DATE - #{filter.fetch('value') - 1} AND CURRENT_DATE"
-        elsif filter["field"] == "category" && filter["value"].empty?
-          "#{column} IS #{filter["operator"] == "not_equals" ? "NOT " : ""}NULL"
-        elsif filter["operator"] == "not_equals"
-          # Null-safe inequality retains uncategorized transactions.
-          "#{column} IS DISTINCT FROM #{connection.quote(filter.fetch('value'))}"
+        if filter["field"] == "tag"
+          if filter["value"].empty?
+            if filter["operator"] == "equals"
+              "NOT EXISTS (SELECT 1 FROM taggings AS tgg WHERE tgg.taggable_type = 'Transaction' AND tgg.taggable_id = t.id)"
+            else
+              "EXISTS (SELECT 1 FROM taggings AS tgg WHERE tgg.taggable_type = 'Transaction' AND tgg.taggable_id = t.id)"
+            end
+          else
+            quoted = connection.quote(filter.fetch("value"))
+            if filter["operator"] == "equals"
+              "EXISTS (SELECT 1 FROM taggings AS tgg WHERE tgg.taggable_type = 'Transaction' AND tgg.taggable_id = t.id AND tgg.tag_id = #{quoted})"
+            else
+              "NOT EXISTS (SELECT 1 FROM taggings AS tgg WHERE tgg.taggable_type = 'Transaction' AND tgg.taggable_id = t.id AND tgg.tag_id = #{quoted})"
+            end
+          end
         else
-          "#{column} = #{connection.quote(filter.fetch('value'))}"
+          column = "e.#{quote_column(FIELDS.fetch(filter.fetch('field')).fetch(:column))}"
+          column = "t.category_id" if filter["field"] == "category"
+          column = "t.merchant_id" if filter["field"] == "merchant"
+          if filter["operator"] == "last"
+            # Match the database's current_date, inclusive, with no future rows.
+            "#{column} BETWEEN CURRENT_DATE - #{filter.fetch('value') - 1} AND CURRENT_DATE"
+          elsif %w[category merchant].include?(filter["field"]) && filter["value"].empty?
+            "#{column} IS #{filter["operator"] == "not_equals" ? "NOT " : ""}NULL"
+          elsif filter["operator"] == "not_equals"
+            # Null-safe inequality retains uncategorized transactions.
+            "#{column} IS DISTINCT FROM #{connection.quote(filter.fetch('value'))}"
+          else
+            "#{column} = #{connection.quote(filter.fetch('value'))}"
+          end
         end
       end
       sql += " WHERE #{predicates.join(' AND ')}" if predicates.any?
@@ -466,7 +512,8 @@ class Sureql::ReportDefinition
         if dimension["field"] == "date" && dimension["dateBucket"] == "month"
           label = "TO_CHAR(#{prefix}#{index}, 'YYYY-MM')"
         end
-        "COALESCE(#{label}, #{connection.quote(text('uncategorized'))})"
+        fallback = dimension["field"] == "merchant" ? text("no_merchant") : text("uncategorized")
+        "COALESCE(#{label}, #{connection.quote(fallback)})"
       end
       json = "'key', jsonb_build_array(#{values.join(', ')})::text, 'values', jsonb_build_array(#{values.join(', ')}), 'labels', jsonb_build_array(#{labels.join(', ')})"
       json += ", 'totals', jsonb_build_array(#{totals.join(', ')})" if totals

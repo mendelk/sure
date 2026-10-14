@@ -11,6 +11,7 @@ import type { editor, languages, Position } from "monaco-editor";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import prqlSyntax, { PRQL_TRANSFORMS } from "./prql-syntax";
 import { Icon } from "./icon";
+import { Button } from "./components/button";
 
 type Monaco = typeof MonacoType;
 
@@ -77,6 +78,13 @@ const SUREQL_JOINS: Record<
       alias: "c",
       condition: "(==category_id)",
       columns: ["id", "name", "color", "parent_id"],
+      detail: "dimension join",
+    },
+    {
+      relation: "merchants",
+      alias: "m",
+      condition: "(==merchant_id)",
+      columns: ["id", "name", "color", "website_url"],
       detail: "dimension join",
     },
     {
@@ -430,59 +438,47 @@ export function SureqlEditor({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
+          <Button
+            className="min-h-7"
+            iconProps={
+              copied
+                ? { name: "check", size: "sm", className: "size-3! text-success" }
+                : { name: "copy", size: "sm", className: "size-3!" }
+            }
             onClick={() => {
               void handleCopy();
             }}
+            size="xs"
             title="Copy query to clipboard"
-            className="inline-flex min-h-7 items-center gap-1 rounded-lg border border-secondary bg-container px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
+            variant="secondary"
           >
-            {copied ? (
-              <>
-                <Icon name="check" size="sm" className="size-3! text-success" />
-                <span>Copied</span>
-              </>
-            ) : (
-              <>
-                <Icon name="copy" size="sm" className="size-3!" />
-                <span>Copy</span>
-              </>
-            )}
-          </button>
+            {copied ? "Copied" : "Copy"}
+          </Button>
 
-          <button
-            type="button"
+          <Button
+            className="min-h-7"
+            iconProps={{ name: "rotate-ccw", size: "sm", className: "size-3!" }}
             onClick={handleReset}
+            size="xs"
             title="Reset to default query"
-            className="inline-flex min-h-7 items-center gap-1 rounded-lg border border-secondary bg-container px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-surface-hover focus-ring"
+            variant="secondary"
           >
-            <Icon name="rotate-ccw" size="sm" className="size-3!" />
-            <span>Reset</span>
-          </button>
+            Reset
+          </Button>
 
-          <button
-            type="button"
-            onClick={onRun}
+          <Button
+            className="min-h-7"
             disabled={loading || value.trim().length === 0}
-            className="inline-flex min-h-7 items-center justify-center gap-1 rounded-lg button-bg-primary px-2 py-1 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 focus-ring"
+            iconProps={
+              loading
+                ? { name: "loader-circle", size: "sm", className: "size-3! animate-spin" }
+                : { name: "play", size: "sm", className: "size-3!" }
+            }
+            onClick={onRun}
+            size="xs"
           >
-            {loading ? (
-              <>
-                <Icon
-                  name="loader-circle"
-                  size="sm"
-                  className="size-3! animate-spin text-inverse"
-                />
-                <span>Running…</span>
-              </>
-            ) : (
-              <>
-                <Icon name="play" size="sm" className="size-3! text-inverse" />
-                <span>Run</span>
-              </>
-            )}
-          </button>
+            {loading ? "Running…" : "Run"}
+          </Button>
         </div>
       </div>
     </section>

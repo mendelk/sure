@@ -7,6 +7,8 @@ import { type SummaryAccount, useSummaryQuery } from "./api/summary";
 import { readCsrfToken } from "./api/transactions";
 import type { SpaBootstrap } from "./bootstrap";
 import { Alert } from "./components/alert";
+import { Button } from "./components/button";
+import { IconButton } from "./components/icon-button";
 import { Icon, type IconName } from "./icon";
 import { GlobalSearchPalette } from "./global-search";
 import { useDismiss } from "./use-dismiss";
@@ -393,14 +395,7 @@ function MobileSidebar({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-20 h-full w-full overflow-y-auto bg-surface p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] pr-3 lg:hidden">
       <div className="mb-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg p-2 text-secondary hover:bg-container-inset-hover hover:text-primary"
-          aria-label="Close navigation"
-        >
-          <Icon name="x" />
-        </button>
+        <IconButton icon="x" label="Close navigation" onClick={onClose} />
       </div>
       <div className="flex h-full flex-col">
         <SidebarContent />
@@ -448,17 +443,16 @@ function UserMenu({ rail = false }: { rail?: boolean }) {
 
   return (
     <div className="relative" ref={ref}>
-      <button
-        type="button"
+      <Button
+        aria-expanded={open}
+        aria-label={open ? "Close account menu" : "Open account menu"}
+        className="size-9 shrink-0 rounded-full bg-surface-inset text-lg uppercase text-secondary hover:bg-surface-inset-hover"
         onClick={() => {
           setOpen((value) => !value);
         }}
-        className="flex size-9 items-center justify-center rounded-full bg-surface-inset text-lg uppercase text-secondary hover:bg-surface-inset-hover focus-ring"
-        aria-label="Open account menu"
-        aria-expanded={open}
       >
         {bootstrap.currentUser.initials}
-      </button>
+      </Button>
 
       {open && (
         <div
@@ -506,13 +500,14 @@ function UserMenu({ rail = false }: { rail?: boolean }) {
             }}
           >
             <input type="hidden" name="_method" value="delete" />
-            <button
+            <Button
+              className="w-full justify-start px-4 py-2.5 text-left font-normal"
               type="submit"
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-primary hover:bg-container-hover"
+              variant="ghost"
             >
               <Icon name="log-out" size="sm" />
               Log out
-            </button>
+            </Button>
           </form>
         </div>
       )}
@@ -577,32 +572,19 @@ function PrivacyToggle() {
   }
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      className="rounded-lg p-2 text-secondary hover:bg-container-inset-hover hover:text-primary"
-      title="Privacy mode"
+    <IconButton
       aria-label="Privacy mode"
       aria-pressed={active}
-    >
-      <Icon name="eye-off" size="sm" className={active ? "hidden" : ""} />
-      <Icon name="eye" size="sm" className={active ? "" : "hidden"} />
-    </button>
+      icon={active ? "eye" : "eye-off"}
+      label={`Privacy mode${active ? " on" : " off"}`}
+      onClick={toggle}
+      title={`Privacy mode${active ? " on" : " off"}`}
+    />
   );
 }
 
 function RefreshSummaryButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-lg p-2 text-secondary hover:bg-container-inset-hover hover:text-primary"
-      aria-label="Refresh data"
-      title="Refresh data"
-    >
-      <Icon name="refresh-ccw" />
-    </button>
-  );
+  return <IconButton icon="refresh-ccw" label="Refresh data" onClick={onClick} />;
 }
 
 function MobileTopNav({ onOpenSidebar }: { onOpenSidebar: () => void }) {
@@ -613,14 +595,7 @@ function MobileTopNav({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       className="flex items-center justify-between p-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] lg:hidden"
       aria-label="Primary"
     >
-      <button
-        type="button"
-        onClick={onOpenSidebar}
-        className="rounded-lg p-2 text-secondary hover:bg-container-inset-hover hover:text-primary"
-        aria-label="Open navigation"
-      >
-        <Icon name="panel-left" />
-      </button>
+      <IconButton label="Open navigation" icon="panel-left" onClick={onOpenSidebar} />
 
       <a href={bootstrap.railsPaths.home} className="block" aria-label="Sure home">
         <img src={bootstrap.railsPaths.logo} alt="" className="mx-auto h-9 w-9" />
@@ -704,14 +679,7 @@ function BreadcrumbBar({
   return (
     <div className="hidden lg:flex items-center justify-between gap-2 mb-6 sticky top-0 z-10 -mx-3 lg:-mx-10 px-3 lg:px-10 py-4 bg-surface border-b border-tertiary">
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onToggleSidebar}
-          className="rounded-lg p-2 text-secondary hover:bg-container-inset-hover hover:text-primary"
-          aria-label="Toggle sidebar"
-        >
-          <Icon name="panel-left" />
-        </button>
+        <IconButton icon="panel-left" label="Toggle sidebar" onClick={onToggleSidebar} />
 
         <div className="flex items-center gap-2 py-2">
           {pageName !== "Home" && (
@@ -737,14 +705,11 @@ function BreadcrumbBar({
           }}
         />
         <PrivacyToggle />
-        <button
-          type="button"
+        <IconButton
+          icon="panel-right"
+          label="Toggle right sidebar"
           onClick={onToggleRightSidebar}
-          className="rounded-lg p-2 text-secondary hover:bg-container-inset-hover hover:text-primary"
-          aria-label="Toggle right sidebar"
-        >
-          <Icon name="panel-right" />
-        </button>
+        />
       </div>
     </div>
   );

@@ -1,9 +1,13 @@
 en:
   report_definition:
     uncategorized: Uncategorized
+    no_merchant: No merchant
+    untagged: Untagged
     measure_label: "%{aggregation} of %{field}"
     fields:
       category: Category
+      merchant: Merchant
+      tag: Tag
       account: Account
       date: Date
       currency: Currency

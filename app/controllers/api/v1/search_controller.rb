@@ -4,7 +4,7 @@ module Api
   module V1
     # Global search backing the SPA ⌘K palette. Runs one family-scoped
     # pg_search query per type (accounts, transactions, categories,
-    # merchants) and returns grouped hits with the URL each hit navigates to.
+    # merchants, tags) and returns grouped hits with the URL each hit navigates to.
     class SearchController < BaseController
       before_action :ensure_read_scope, only: :index
 
@@ -25,7 +25,8 @@ module Api
             accounts: account_hits(family, user, query, per_type),
             transactions: transaction_hits(family, user, query, per_type),
             categories: category_hits(family, query, per_type),
-            merchants: merchant_hits(family, user, query, per_type)
+            merchants: merchant_hits(family, user, query, per_type),
+            tags: tag_hits(family, query, per_type)
           }
         })
       end
@@ -33,7 +34,7 @@ module Api
       private
 
         def empty_results
-          { accounts: [], transactions: [], categories: [], merchants: [] }
+          { accounts: [], transactions: [], categories: [], merchants: [], tags: [] }
         end
 
         def clamped_per_type
@@ -122,6 +123,21 @@ module Api
                 title: category.name,
                 subtitle: "Category",
                 url: "/transactions?#{URI.encode_www_form([ [ "categories[]", category.name ] ])}"
+              }
+            end
+        end
+
+        def tag_hits(family, query, limit)
+          family.tags
+            .global_search(query)
+            .limit(limit)
+            .map do |tag|
+              {
+                id: tag.id,
+                type: "tag",
+                title: tag.name,
+                subtitle: "Tag",
+                url: "/transactions?#{URI.encode_www_form([ [ "tags[]", tag.name ] ])}"
               }
             end
         end

@@ -26,7 +26,17 @@ import type {
   ReportValue,
   StructuredReportResult,
 } from "./report-definition";
-import { ReportDimensionIdSchema, ReportMeasureIdSchema } from "./ids";
+import { useRouteContext } from "@tanstack/react-router";
+import { referenceDataQueryOptions } from "./api/transactions";
+import { CategorySelect, MerchantSelect } from "./transaction-detail-page";
+import { TagSelect } from "./components/tag-select";
+import {
+  CategoryIdSchema,
+  MerchantIdSchema,
+  ReportDimensionIdSchema,
+  ReportMeasureIdSchema,
+  TagIdSchema,
+} from "./ids";
 
 type Shelf = "rows" | "columns" | "values" | "filters";
 type OrderedShelf = Exclude<Shelf, "filters">;
@@ -88,6 +98,17 @@ export function ReportBuilder({
   const [definition, setDefinition] = useState<ReportDefinition>(() =>
     structuredClone(initialDefinition),
   );
+  const { bootstrap } = useRouteContext({ from: "__root__" });
+  const reference = useQuery(
+    referenceDataQueryOptions(
+      bootstrap.apiPaths.categories,
+      bootstrap.apiPaths.merchants,
+      bootstrap.apiPaths.tags,
+    ),
+  );
+  const categories = reference.data?.categories ?? [];
+  const merchants = reference.data?.merchants ?? [];
+  const tags = reference.data?.tags ?? [];
   const drafts = useRef<Partial<Record<ReportDefinition["mode"], ReportDefinition>>>({});
   const shelves: Shelf[] = definition.mode === "detail" ? ["columns", "filters"] : SHELVES;
   const capacity = definition.mode === "detail" ? { ...CAPACITY, columns: 6 } : CAPACITY;
@@ -272,7 +293,7 @@ export function ReportBuilder({
       } else if (destination === "filters") {
         const filter: ReportFilter = field.operators.includes("last")
           ? { field: field.key, operator: "last", value: 90, unit: "days" }
-          : { field: field.key, operator: "equals", value: field.options[0].value };
+          : { field: field.key, operator: "equals", value: field.options[0]?.value ?? "" };
         next.filters.push(filter);
       }
       change(next);
@@ -322,7 +343,7 @@ export function ReportBuilder({
     } else {
       const item: ReportFilter = field.operators.includes("last")
         ? { field: field.key, operator: "last", value: 90, unit: "days" }
-        : { field: field.key, operator: "equals", value: field.options[0].value };
+        : { field: field.key, operator: "equals", value: field.options[0]?.value ?? "" };
       next.filters.push(item);
     }
     change(next);
@@ -961,6 +982,79 @@ export function ReportBuilder({
                                     });
                                   }}
                                 />
+                              ) : entry.field === "category" ? (
+                                <div className="space-y-1">
+                                  <span className="text-xs font-medium text-secondary">
+                                    {t("filter_value")}
+                                  </span>
+                                  <CategorySelect
+                                    bootstrap={bootstrap}
+                                    categories={categories}
+                                    label={t("filter_value")}
+                                    placeholder={t("uncategorized")}
+                                    portal={false}
+                                    selectedCategoryId={
+                                      entry.value === "" ? "" : CategoryIdSchema.parse(entry.value)
+                                    }
+                                    onSelect={(categoryId) => {
+                                      updateEntry(shelf, index, { value: categoryId });
+                                    }}
+                                  />
+                                  {fieldError(`${entryPath}.value`) !== undefined ? (
+                                    <p className="text-xs text-destructive">
+                                      {fieldError(`${entryPath}.value`)}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ) : entry.field === "merchant" ? (
+                                <div className="space-y-1">
+                                  <span className="text-xs font-medium text-secondary">
+                                    {t("filter_value")}
+                                  </span>
+                                  <MerchantSelect
+                                    bootstrap={bootstrap}
+                                    merchants={merchants}
+                                    label={t("filter_value")}
+                                    placeholder={t("no_merchant")}
+                                    portal={false}
+                                    selectedMerchantId={
+                                      entry.value === "" ? "" : MerchantIdSchema.parse(entry.value)
+                                    }
+                                    onSelect={(merchantId) => {
+                                      updateEntry(shelf, index, { value: merchantId });
+                                    }}
+                                  />
+                                  {fieldError(`${entryPath}.value`) !== undefined ? (
+                                    <p className="text-xs text-destructive">
+                                      {fieldError(`${entryPath}.value`)}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ) : entry.field === "tag" ? (
+                                <div className="space-y-1">
+                                  <span className="text-xs font-medium text-secondary">
+                                    {t("filter_value")}
+                                  </span>
+                                  <TagSelect
+                                    bootstrap={bootstrap}
+                                    tags={tags}
+                                    multiple={false}
+                                    triggerLabel={t("filter_value")}
+                                    placeholder={t("untagged")}
+                                    portal={false}
+                                    selectedTagIds={
+                                      entry.value === "" ? [] : [TagIdSchema.parse(entry.value)]
+                                    }
+                                    onSelectSingle={(tagId) => {
+                                      updateEntry(shelf, index, { value: tagId });
+                                    }}
+                                  />
+                                  {fieldError(`${entryPath}.value`) !== undefined ? (
+                                    <p className="text-xs text-destructive">
+                                      {fieldError(`${entryPath}.value`)}
+                                    </p>
+                                  ) : null}
+                                </div>
                               ) : (
                                 <FormField
                                   as="select"

@@ -150,13 +150,14 @@ class Transaction < ApplicationRecord
     joins(entry: :account).where(accounts: { family_id: family.id })
   end
 
-  # Global search (⌘K): entry name/notes plus merchant and category names.
+  # Global search (⌘K): entry name/notes plus merchant, category, and tag names.
   # Amount matching is handled separately (see Api::V1::SearchController).
   pg_search_scope :global_search,
     associated_against: {
       entry: [ :name, :notes ],
       merchant: [ :name ],
-      category: [ :name ]
+      category: [ :name ],
+      tags: [ :name ]
     },
     using: { tsearch: { prefix: true }, trigram: { threshold: 0.3 } },
     ignoring: :accents

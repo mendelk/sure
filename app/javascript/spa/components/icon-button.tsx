@@ -11,7 +11,7 @@ export type IconButtonSize = keyof typeof BUTTON_SIZES;
 
 export type IconButtonProps = Omit<
   ButtonProps,
-  "aria-label" | "children" | "iconProps" | "label" | "labelClassName" | "size" | "title"
+  "children" | "iconProps" | "label" | "labelClassName"
 > & {
   icon: IconName;
   label: string;

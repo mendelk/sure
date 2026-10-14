@@ -6,6 +6,8 @@ import { useState } from "react";
 import { CategoryIcon, Icon } from "./icon";
 import { Modal } from "./modal";
 import { Toggle } from "./components/toggle";
+import { Button } from "./components/button";
+import { IconButton } from "./components/icon-button";
 import { TagSelect } from "./components/tag-select";
 import { SearchablePicker, type PickerOption } from "./components/searchable-picker";
 import { BrandLogo } from "./components/brand-logo";
@@ -121,20 +123,19 @@ export function TransactionDetailDrawer() {
               <p className="font-medium text-primary">Transaction unavailable</p>
               <p className="mt-1 text-sm text-secondary">{error}</p>
               <div className="mt-4 flex items-center gap-3">
-                <button
-                  className="text-sm font-medium text-link hover:underline"
-                  onClick={() => void detailQuery.refetch()}
-                  type="button"
+                <Button
+                  className="text-sm font-medium"
+                  onClick={() => {
+                    void detailQuery.refetch();
+                  }}
+                  size="sm"
+                  variant="link"
                 >
                   Try again
-                </button>
-                <button
-                  className="text-sm font-medium text-link hover:underline"
-                  onClick={close}
-                  type="button"
-                >
+                </Button>
+                <Button className="text-sm font-medium" onClick={close} size="sm" variant="link">
                   {accountId ? bootstrap.accountDetailText.close : "Back to transactions"}
-                </button>
+                </Button>
               </div>
             </div>
           ) : transaction === undefined ? (
@@ -213,14 +214,7 @@ function TransactionDetailHeader({
             ) : null}
           </div>
         </div>
-        <button
-          aria-label="Close"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-container-hover hover:text-primary"
-          onClick={onClose}
-          type="button"
-        >
-          <Icon name="x" />
-        </button>
+        <IconButton icon="x" label="Close" onClick={onClose} />
       </div>
     </div>
   );
@@ -318,14 +312,20 @@ export function CategorySelect({
   categories,
   disabled,
   initialCategory,
+  label = "Category",
   onSelect,
+  placeholder = "Select a Category",
+  portal = true,
   selectedCategoryId,
 }: {
   bootstrap: Bootstrap;
   categories: ReferenceOption<CategoryId>[];
   disabled?: boolean;
   initialCategory?: { id: CategoryId; name: string; color: string; icon: string } | null;
+  label?: string;
   onSelect: (categoryId: CategoryId | "") => void;
+  placeholder?: string;
+  portal?: boolean;
   selectedCategoryId: CategoryId | "";
 }) {
   const queryClient = useQueryClient();
@@ -393,7 +393,8 @@ export function CategorySelect({
     <SearchablePicker
       disabled={disabled === true || isCreating}
       error={createError}
-      label="Category"
+      label={label}
+      portal={portal}
       onQueryChange={(value) => {
         setQuery(value);
         setCreateError(undefined);
@@ -417,7 +418,7 @@ export function CategorySelect({
         selected ? (
           <CategoryPill color={selected.color} icon={selected.icon} name={selected.name} />
         ) : (
-          <span className="text-sm text-secondary">Select a Category</span>
+          <span className="text-sm text-secondary">{placeholder}</span>
         )
       }
     />
@@ -428,15 +429,21 @@ export function MerchantSelect({
   bootstrap,
   disabled,
   initialMerchant,
+  label = "Merchant",
   merchants,
   onSelect,
+  placeholder = "No merchant",
+  portal = true,
   selectedMerchantId,
 }: {
   bootstrap: Bootstrap;
   disabled?: boolean;
   initialMerchant?: { id: MerchantId; name: string; logo_url?: string | null } | null;
+  label?: string;
   merchants: ReferenceOption<MerchantId>[];
   onSelect: (merchantId: MerchantId | "") => void;
+  placeholder?: string;
+  portal?: boolean;
   selectedMerchantId: MerchantId | "";
 }) {
   const queryClient = useQueryClient();
@@ -514,7 +521,8 @@ export function MerchantSelect({
     <SearchablePicker
       disabled={disabled === true || isCreating}
       error={createError}
-      label="Merchant"
+      label={label}
+      portal={portal}
       onQueryChange={(value) => {
         setQuery(value);
         setCreateError(undefined);
@@ -541,7 +549,7 @@ export function MerchantSelect({
             <span className="truncate text-sm text-primary">{selected.name}</span>
           </span>
         ) : (
-          <span className="text-sm text-secondary">No merchant</span>
+          <span className="text-sm text-secondary">{placeholder}</span>
         )
       }
     />
@@ -859,16 +867,16 @@ function TransferMatcher({
                     {candidate.date_diff > 0 ? ` · ${candidate.date_diff}d apart` : ""}
                   </p>
                 </div>
-                <button
-                  className="focus-ring shrink-0 rounded-lg button-bg-primary px-2.5 py-1 text-xs font-medium text-inverse disabled:opacity-50"
+                <Button
+                  className="shrink-0"
                   disabled={match.isPending}
                   onClick={() => {
                     match.mutate(counterpart.id);
                   }}
-                  type="button"
+                  size="sm"
                 >
                   Match
-                </button>
+                </Button>
               </li>
             );
           })}
@@ -922,26 +930,25 @@ function TransactionDetailTransfer({
           </span>
           {transfer.status === "pending" ? (
             <span className="flex gap-1.5">
-              <button
-                className="focus-ring rounded-lg button-bg-primary px-2.5 py-1 text-xs font-medium text-inverse disabled:opacity-50"
+              <Button
                 disabled={decide.isPending}
                 onClick={() => {
                   decide.mutate("confirmed");
                 }}
-                type="button"
+                size="sm"
               >
                 Keep match
-              </button>
-              <button
-                className="focus-ring rounded-lg border border-secondary px-2.5 py-1 text-xs font-medium text-secondary disabled:opacity-50"
+              </Button>
+              <Button
                 disabled={decide.isPending}
                 onClick={() => {
                   decide.mutate("rejected");
                 }}
-                type="button"
+                size="sm"
+                variant="secondary"
               >
                 Reject
-              </button>
+              </Button>
             </span>
           ) : null}
         </div>
@@ -1049,16 +1056,17 @@ function SplitActions({
           <Icon name="pencil" size="sm" />
           Edit Split
         </Link>
-        <button
-          className="inline-flex items-center gap-1 text-sm font-medium text-destructive hover:underline"
+        <Button
+          className="text-destructive hover:underline"
           onClick={() => {
             setConfirming(true);
           }}
-          type="button"
+          size="sm"
+          variant="link"
         >
           <Icon name="rotate-ccw" size="sm" />
           Unsplit
-        </button>
+        </Button>
       </div>
       {confirming ? (
         <Modal
@@ -1081,25 +1089,23 @@ function SplitActions({
             </p>
           ) : null}
           <div className="mt-4 flex justify-end gap-2">
-            <button
-              className="rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary hover:bg-surface-hover"
+            <Button
               onClick={() => {
                 setConfirming(false);
               }}
-              type="button"
+              variant="secondary"
             >
               Cancel
-            </button>
-            <button
-              className="rounded-lg bg-destructive px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            </Button>
+            <Button
               disabled={unsplitting}
               onClick={() => {
                 void confirmUnsplit();
               }}
-              type="button"
+              variant="destructive"
             >
               Unsplit
-            </button>
+            </Button>
           </div>
         </Modal>
       ) : null}
@@ -1216,6 +1222,7 @@ function TransactionAttachmentsSection({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  void deletingId;
   const attachments = transaction.attachments ?? [];
   function refreshDetail() {
     void queryClient.invalidateQueries({
@@ -1344,17 +1351,14 @@ function TransactionAttachmentsSection({
                 >
                   <Icon name="download" size="sm" />
                 </a>
-                <button
-                  aria-label={`Delete ${attachment.filename}`}
-                  className="rounded-lg p-2 text-secondary hover:bg-container-inset-hover hover:text-destructive disabled:opacity-50"
-                  disabled={deletingId === attachment.id}
+                <IconButton
+                  icon="trash-2"
+                  label={`Delete ${attachment.filename}`}
                   onClick={() => {
                     void removeAttachment(attachment.id);
                   }}
-                  type="button"
-                >
-                  <Icon name="trash-2" size="sm" />
-                </button>
+                  size="sm"
+                />
               </div>
             </div>
           ))}
@@ -1455,26 +1459,23 @@ function TransactionDuplicateAlert({
             </p>
           ) : null}
           <div className="flex items-center gap-2">
-            <button
-              className="rounded-lg button-bg-primary px-3 py-1.5 text-sm font-medium text-inverse hover:opacity-90 disabled:opacity-50"
+            <Button
               disabled={busy}
               onClick={() => {
                 void resolve("merge");
               }}
-              type="button"
             >
               Yes, merge them
-            </button>
-            <button
-              className="rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary hover:bg-surface-hover disabled:opacity-50"
+            </Button>
+            <Button
               disabled={busy}
               onClick={() => {
                 void resolve("dismiss");
               }}
-              type="button"
+              variant="secondary"
             >
               No, keep both
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -1517,16 +1518,15 @@ function TransactionProtectionBanner({
           <Icon name="lock" size="sm" />
           Protected from sync
         </p>
-        <button
-          className="text-xs font-medium text-link hover:underline disabled:opacity-50"
+        <Button
+          className="text-xs font-medium"
           disabled={unlocking}
-          onClick={() => {
-            void unlock();
-          }}
-          type="button"
+          onClick={() => void unlock()}
+          size="sm"
+          variant="link"
         >
           Unlock
-        </button>
+        </Button>
       </div>
       <p className="mt-1">Manual changes are preserved when the provider syncs.</p>
       {error !== null ? (
@@ -1728,17 +1728,15 @@ function TransactionDetailSettings({
               </p>
             ) : null}
           </div>
-          <button
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-hover disabled:opacity-50"
+          <Button
+            className="shrink-0"
             disabled={recurringBusy || recurringDone}
-            onClick={() => {
-              void markRecurring();
-            }}
-            type="button"
+            iconProps={{ name: "refresh-ccw", size: "sm" }}
+            onClick={() => void markRecurring()}
+            variant="outline"
           >
-            <Icon name="refresh-ccw" size="sm" />
             Mark as Recurring
-          </button>
+          </Button>
         </div>
       ) : null}
       <TransactionActivityLabelRow bootstrap={bootstrap} transaction={transaction} />
@@ -1811,15 +1809,15 @@ function TransactionDetailSettings({
               </p>
             ) : null}
           </div>
-          <button
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-surface-hover"
+          <Button
+            className="shrink-0"
             onClick={() => {
               setConfirmingDelete(true);
             }}
-            type="button"
+            variant="outline_destructive"
           >
             Delete
-          </button>
+          </Button>
         </div>
       ) : null}
       {confirmingDelete ? (
@@ -1839,25 +1837,23 @@ function TransactionDetailSettings({
             cannot be undone.
           </p>
           <div className="mt-4 flex justify-end gap-2">
-            <button
-              className="rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary hover:bg-surface-hover"
+            <Button
               onClick={() => {
                 setConfirmingDelete(false);
               }}
-              type="button"
+              variant="secondary"
             >
               Cancel
-            </button>
-            <button
-              className="rounded-lg bg-destructive px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            </Button>
+            <Button
               disabled={deleting}
               onClick={() => {
                 void confirmDelete();
               }}
-              type="button"
+              variant="destructive"
             >
               Delete
-            </button>
+            </Button>
           </div>
         </Modal>
       ) : null}

@@ -207,8 +207,11 @@ function DetailReportTable({
   const model = useMemo(() => {
     const formatters = new Map<string, Intl.NumberFormat>();
     function format(value: string | number | null | undefined, field: string, currency: string) {
-      if (value === null || value === undefined || value === "")
-        return field === "category" ? text.uncategorized : text.missing_cell;
+      if (value === null || value === undefined || value === "") {
+        if (field === "category") return text.uncategorized;
+        if (field === "merchant") return text.no_merchant;
+        return text.missing_cell;
+      }
       if (field !== "amount") return String(value);
       let formatter = formatters.get(currency);
       if (!formatter) {
@@ -277,8 +280,11 @@ export function SourceResultTable({
         header: column.label,
         cell: ({ row }) => {
           const value = row.original.values[column.key];
-          if (value === null || value === undefined || value === "")
-            return column.key === "category" ? text.uncategorized : text.missing_cell;
+          if (value === null || value === undefined || value === "") {
+            if (column.key === "category") return text.uncategorized;
+            if (column.key === "merchant") return text.no_merchant;
+            return text.missing_cell;
+          }
           if (column.kind !== "currency") return String(value);
           const currency = column.currency ?? row.original.currency;
           if (!currency) return String(value);

@@ -80,6 +80,17 @@ module Sureql
           bridge_fk: "category_id",
           dim_pk: "id",
           bridge_columns: %w[transfer_id category_id merchant_id kind]
+        ),
+        DimensionJoin.new(
+          dimension: "merchants",
+          key: "merchant_id",
+          bridge: "transactions",
+          bridge_alias: "t",
+          from_key: "entryable_id",
+          bridge_pk: "id",
+          bridge_fk: "merchant_id",
+          dim_pk: "id",
+          bridge_columns: %w[transfer_id category_id merchant_id kind]
         )
       ]
     ),

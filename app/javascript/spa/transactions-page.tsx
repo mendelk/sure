@@ -31,7 +31,7 @@ import {
   type TransactionId,
 } from "./ids";
 import { BulkUpdateDrawer } from "./bulk-update-drawer";
-import { Button } from "./components/button";
+import { Button, TabButton } from "./components/button";
 import { BulkActionsBar } from "./components/bulk-actions-bar";
 import { Modal } from "./modal";
 
@@ -60,6 +60,7 @@ export type TransactionRouteSearch = {
   excluded_account_ids?: AccountId[];
   excluded_types?: TransactionType[];
   excluded_status?: ("pending" | "confirmed")[];
+  filter_order?: string[];
 };
 
 const ARRAY_FILTERS = [
@@ -72,6 +73,71 @@ const ARRAY_FILTERS = [
   "excluded_tags",
   "excluded_accounts",
 ] as const;
+
+// Order entries mirror token keys: `${inputKey}:${value}`. Single-value
+// filters (dates, amount) use their inputKey as value.
+const SINGLE_VALUE_ORDER_KEYS = ["start_date", "end_date", "amount"] as const;
+
+function orderEntry(inputKey: string, value: string): string {
+  return `${inputKey}:${value}`;
+}
+
+// Keeps filter_order (the URL source of truth for chip order) in sync with
+// each updateSearch call: drops entries for removed values, appends entries
+// for added values, preserves surviving order. Returns undefined when empty
+// so the key stays out of the URL.
+function syncFilterOrder(
+  next: TransactionRouteSearch,
+  changes: Partial<TransactionRouteSearch>,
+): string[] | undefined {
+  const arrayKeys = [
+    ...ARRAY_FILTERS,
+    "types",
+    "status",
+    "excluded_types",
+    "excluded_status",
+    "account_ids",
+    "excluded_account_ids",
+  ] as const satisfies readonly (keyof TransactionRouteSearch)[];
+  const nextValues = new Map<string, string[]>();
+  for (const key of arrayKeys) {
+    const values: unknown = next[key];
+    if (Array.isArray(values)) nextValues.set(key, values.map(String));
+  }
+  for (const key of SINGLE_VALUE_ORDER_KEYS) {
+    const value = next[key];
+    if (value !== undefined) nextValues.set(key, [String(value)]);
+  }
+
+  const kept = (next.filter_order ?? []).filter((entry) => {
+    const separator = entry.indexOf(":");
+    if (separator === -1) return false;
+    const values = nextValues.get(entry.slice(0, separator));
+    return values?.includes(entry.slice(separator + 1)) ?? false;
+  });
+  const keptSet = new Set(kept);
+  const appended: string[] = [];
+  // Only keys touched by this update can introduce new entries; untouched
+  // keys keep their surviving positions.
+  for (const key of Object.keys(changes)) {
+    const values = nextValues.get(key);
+    if (values === undefined) continue;
+    for (const value of values) {
+      const entry = orderEntry(key, value);
+      if (!keptSet.has(entry) && !appended.includes(entry)) appended.push(entry);
+    }
+  }
+  // Values present without an order entry (deep links, legacy URLs) go last
+  // in type order so every active filter still renders a chip.
+  for (const key of [...arrayKeys, ...SINGLE_VALUE_ORDER_KEYS]) {
+    for (const value of nextValues.get(key) ?? []) {
+      const entry = orderEntry(key, value);
+      if (!keptSet.has(entry) && !appended.includes(entry)) appended.push(entry);
+    }
+  }
+  const order = [...kept, ...appended];
+  return order.length > 0 ? order : undefined;
+}
 
 export function validateTransactionSearch(input: Record<string, unknown>): TransactionRouteSearch {
   const pageValue = Number(input.page);
@@ -118,6 +184,8 @@ export function validateTransactionSearch(input: Record<string, unknown>): Trans
     const values = arrayValue(input[filter] ?? input[`q[${filter}][]`]);
     if (values.length > 0) result[filter] = values;
   }
+  const filterOrder = arrayValue(input.filter_order ?? input["q[filter_order][]"]);
+  if (filterOrder.length > 0) result.filter_order = filterOrder;
   const uncategorized = input.uncategorized ?? input["q[uncategorized]"];
   if (
     uncategorized === true ||
@@ -144,7 +212,7 @@ export function TransactionsPage() {
   const recurringDisabled = Boolean(bootstrap.recurringTransactionsDisabled);
   const activeTab = recurringDisabled ? "transactions" : (routeSearch.tab ?? "transactions");
 
-  const { tab: _tab, ...searchFilters } = routeSearch;
+  const { tab: _tab, filter_order: _order, ...searchFilters } = routeSearch;
   const query: TransactionQuery = {
     ...searchFilters,
     per_page: routeSearch.per_page ?? 25,
@@ -230,13 +298,13 @@ export function TransactionsPage() {
     ),
   ).data ?? { accounts: [], categories: [], merchants: [], tags: [] };
   function updateSearch(changes: Partial<TransactionRouteSearch>) {
-    void navigate({
-      search: {
-        ...routeSearch,
-        ...changes,
-        page: changes.page ?? 1,
-      },
-    });
+    const next: TransactionRouteSearch = {
+      ...routeSearch,
+      ...changes,
+      page: changes.page ?? 1,
+    };
+    next.filter_order = syncFilterOrder(next, changes);
+    void navigate({ search: next });
   }
 
   function addMerchantFilter(merchantName: string) {
@@ -307,36 +375,22 @@ export function TransactionsPage() {
 
       {!recurringDisabled ? (
         <div className="flex max-w-fit rounded-lg bg-surface-inset p-1" role="tablist">
-          <button
-            aria-selected={activeTab === "transactions"}
-            className={`inline-flex w-full items-center justify-center rounded-md px-6 py-1 text-sm font-medium motion-safe:transition-colors motion-safe:duration-200 ${
-              activeTab === "transactions"
-                ? "tab-item-active text-primary shadow-sm"
-                : "text-secondary hover:bg-surface-inset-hover"
-            }`}
+          <TabButton
             onClick={() => {
               setTab("transactions");
             }}
-            role="tab"
-            type="button"
+            selected={activeTab === "transactions"}
           >
             Transactions
-          </button>
-          <button
-            aria-selected={activeTab === "upcoming"}
-            className={`inline-flex w-full items-center justify-center rounded-md px-6 py-1 text-sm font-medium motion-safe:transition-colors motion-safe:duration-200 ${
-              activeTab === "upcoming"
-                ? "tab-item-active text-primary shadow-sm"
-                : "text-secondary hover:bg-surface-inset-hover"
-            }`}
+          </TabButton>
+          <TabButton
             onClick={() => {
               setTab("upcoming");
             }}
-            role="tab"
-            type="button"
+            selected={activeTab === "upcoming"}
           >
             Upcoming
-          </button>
+          </TabButton>
         </div>
       ) : null}
 
@@ -356,22 +410,22 @@ export function TransactionsPage() {
                 tags={reference.tags}
                 updateSearch={updateSearch}
               />
-              <button
+              <Button
                 aria-expanded={filterOpen}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
+                className="shrink-0"
+                iconProps={{ name: "filter", size: "sm" }}
                 onClick={() => {
                   setFilterOpen((value) => !value);
                 }}
-                type="button"
+                variant="outline"
               >
-                <Icon name="filter" size="sm" />
                 Filter
                 {activeFilterCount > 0 ? (
                   <span className="rounded-full bg-container-inset px-1.5 text-xs tabular-nums">
                     {activeFilterCount}
                   </span>
                 ) : null}
-              </button>
+              </Button>
               <TransactionColumnsPopover columns={columns} onToggle={setColumn} />
             </div>
 
@@ -415,13 +469,13 @@ export function TransactionsPage() {
               >
                 <p className="font-medium text-primary">Transactions unavailable</p>
                 <p className="mt-1 text-sm text-secondary">{error}</p>
-                <button
-                  className="mt-4 text-sm font-medium text-link hover:underline"
+                <Button
+                  className="mt-4"
                   onClick={() => void transactionsQuery.refetch()}
-                  type="button"
+                  variant="link"
                 >
                   Try again
-                </button>
+                </Button>
               </div>
             ) : data === undefined ? (
               <TransactionSkeleton />
@@ -648,13 +702,9 @@ function UpcomingTransactionsView({ recurringPath }: { recurringPath?: string })
       >
         <p className="font-medium text-primary">Upcoming transactions unavailable</p>
         <p className="mt-1 text-sm text-secondary">{error}</p>
-        <button
-          className="mt-4 text-sm font-medium text-link hover:underline"
-          onClick={() => void upcomingQuery.refetch()}
-          type="button"
-        >
+        <Button className="mt-4" onClick={() => void upcomingQuery.refetch()} variant="link">
           Try again
-        </button>
+        </Button>
       </div>
     );
   }
@@ -1131,17 +1181,16 @@ function TransactionColumnsPopover({
 
   return (
     <div className="relative shrink-0" ref={ref}>
-      <button
+      <Button
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
+        iconProps={{ name: "sliders-horizontal", size: "sm" }}
         onClick={() => {
           setOpen((value) => !value);
         }}
-        type="button"
+        variant="outline"
       >
-        <Icon name="sliders-horizontal" size="sm" />
         Columns
-      </button>
+      </Button>
       {open ? (
         <div className="absolute right-0 z-30 mt-1 w-44 rounded-xl border border-secondary bg-container p-2 shadow-lg">
           <p className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-secondary">
@@ -1202,22 +1251,16 @@ function TransactionFilterPanel({
     <div className="overflow-hidden rounded-xl border border-secondary">
       <div className="flex gap-1 overflow-x-auto border-b border-secondary p-2" role="tablist">
         {TABS.map(([key, label]) => (
-          <button
-            aria-selected={tab === key}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              tab === key
-                ? "bg-container-inset text-primary"
-                : "text-secondary hover:bg-container-hover"
-            }`}
+          <TabButton
+            className="px-3 py-1.5"
             key={key}
             onClick={() => {
               setTab(key);
             }}
-            role="tab"
-            type="button"
+            selected={tab === key}
           >
             {label}
-          </button>
+          </TabButton>
         ))}
       </div>
       <div className="max-h-64 overflow-y-auto p-3">
@@ -1386,8 +1429,7 @@ function TransactionFilterPanel({
         <span className="px-2 text-xs text-secondary">
           Tip: prefix with - for exclusions (e.g. -category:Groceries).
         </span>
-        <button
-          className="rounded-lg px-3 py-1.5 text-sm font-medium text-link hover:underline"
+        <Button
           onClick={() => {
             updateSearch({
               accounts: undefined,
@@ -1409,10 +1451,10 @@ function TransactionFilterPanel({
               types: undefined,
             });
           }}
-          type="button"
+          variant="link"
         >
           Clear filters
-        </button>
+        </Button>
       </div>
     </div>
   );

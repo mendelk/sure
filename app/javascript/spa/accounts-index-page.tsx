@@ -19,7 +19,7 @@ import { readCsrfToken } from "./api/transactions";
 import { AccountIdSchema } from "./ids";
 import { CategoryIcon, Icon } from "./icon";
 import { Alert } from "./components/alert";
-import { Button } from "./components/button";
+import { Button, MenuItem as MenuItemButton } from "./components/button";
 import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Toggle } from "./components/toggle";
@@ -685,18 +685,15 @@ function ProviderCard({
                       {action.label}
                     </a>
                   ) : (
-                    <button
-                      className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+                    <MenuItemButton
                       key={action.key}
                       onClick={() => {
                         setMenuOpen(false);
                         setConfirm(action);
                       }}
-                      role="menuitem"
-                      type="button"
                     >
                       {action.label}
-                    </button>
+                    </MenuItemButton>
                   ),
                 )}
               </div>

@@ -6,11 +6,12 @@ import { useNavigate } from "@tanstack/react-router";
 import { Fragment, useState } from "react";
 import * as z from "zod/mini";
 import { Icon } from "./icon";
+import { Button } from "./components/button";
 import { Modal } from "./modal";
 
 const SearchHitSchema = z.object({
   id: z.string(),
-  type: z.enum(["account", "transaction", "category", "merchant"]),
+  type: z.enum(["account", "transaction", "category", "merchant", "tag"]),
   title: z.string(),
   subtitle: z.string(),
   url: z.string(),
@@ -25,6 +26,7 @@ const SearchResponseSchema = z.object({
     transactions: z.array(SearchHitSchema),
     categories: z.array(SearchHitSchema),
     merchants: z.array(SearchHitSchema),
+    tags: z.array(SearchHitSchema),
   }),
 });
 
@@ -35,15 +37,17 @@ const GROUP_LABELS: Record<SearchGroup, string> = {
   transactions: "Transactions",
   categories: "Categories",
   merchants: "Merchants",
+  tags: "Tags",
 };
 
-const GROUP_ORDER: SearchGroup[] = ["merchants", "categories", "accounts", "transactions"];
+const GROUP_ORDER: SearchGroup[] = ["merchants", "categories", "tags", "accounts", "transactions"];
 
 const HIT_GROUP: Record<SearchHit["type"], SearchGroup> = {
   account: "accounts",
   transaction: "transactions",
   category: "categories",
   merchant: "merchants",
+  tag: "tags",
 };
 
 // Module scope: captures nothing, so recreating it per render is waste.
@@ -106,8 +110,8 @@ export function GlobalSearchPalette() {
     setQuery("");
   }
 
-  // Category/merchant hits target the filtered transactions list; the query
-  // string carries the name filter (?categories[]=X).
+  // Category/merchant/tag hits target the filtered transactions list; the
+  // query string carries the name filter (?categories[]=X).
   function navigateToHit(hit: SearchHit) {
     const separator = hit.url.indexOf("?");
     if (separator === -1) {
@@ -117,10 +121,12 @@ export function GlobalSearchPalette() {
     const params = new URLSearchParams(hit.url.slice(separator + 1));
     const categories = params.getAll("categories[]");
     const merchants = params.getAll("merchants[]");
+    const tags = params.getAll("tags[]");
     void navigate({
       search: {
         ...(categories.length > 0 ? { categories } : {}),
         ...(merchants.length > 0 ? { merchants } : {}),
+        ...(tags.length > 0 ? { tags } : {}),
       },
       to: hit.url.slice(0, separator),
     });
@@ -135,17 +141,19 @@ export function GlobalSearchPalette() {
 
   return (
     <>
-      <button
-        className="focus-ring inline-flex items-center gap-2 rounded-lg border border-secondary bg-container px-3 py-1.5 text-sm text-secondary hover:text-primary"
+      <Button
+        className="text-secondary hover:text-primary"
+        iconProps={{ name: "search", size: "sm" }}
         onClick={() => {
           setOpen(true);
         }}
-        type="button"
+        variant="outline"
       >
-        <Icon name="search" size="sm" />
         <span className="hidden md:inline">Search…</span>
-        <kbd className="hidden rounded-sm border border-secondary px-1.5 text-xs md:inline">⌘K</kbd>
-      </button>
+        <kbd className="hidden rounded-sm border border-secondary px-1.5 text-xs font-normal md:inline">
+          ⌘K
+        </kbd>
+      </Button>
       <Modal
         onClose={close}
         open={open}
@@ -160,6 +168,14 @@ export function GlobalSearchPalette() {
               displayValue={() => query}
               onChange={(event) => {
                 setQuery(event.target.value);
+              }}
+              onKeyDown={(event) => {
+                // Headless consumes the first Escape to close the listbox;
+                // claim it here so one press closes the whole palette.
+                if (event.key !== "Escape") return;
+                event.preventDefault();
+                event.stopPropagation();
+                close();
               }}
               placeholder="Search accounts, transactions, categories, merchants…"
               ref={focusSearchInput}

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Button } from "./components/button";
 import { FormField } from "./components/form-field";
 import {
   MAX_PIVOT_CATEGORY_GROUPS,
@@ -404,29 +405,30 @@ export function PivotChartConfigurator({
           })}
           <div className="flex gap-2">
             {value.series === undefined && value.measures.length < 3 && (
-              <button
-                type="button"
-                className="text-xs font-medium text-link"
+              <Button
                 onClick={() => {
                   onChange({
                     ...value,
                     measures: [...value.measures, { aggregation: "count" }],
                   });
                 }}
+                size="xs"
+                variant="link"
               >
                 Add measure
-              </button>
+              </Button>
             )}
             {value.measures.length > 1 && (
-              <button
-                type="button"
-                className="text-xs font-medium text-destructive"
+              <Button
+                className="text-destructive hover:underline"
                 onClick={() => {
                   onChange({ ...value, measures: value.measures.slice(0, -1) });
                 }}
+                size="xs"
+                variant="link"
               >
                 Remove last measure
-              </button>
+              </Button>
             )}
           </div>
         </div>

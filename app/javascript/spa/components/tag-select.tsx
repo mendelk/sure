@@ -16,16 +16,24 @@ export function TagSelect({
   tags,
   trigger,
   triggerLabel = "Tags",
+  multiple = true,
+  placeholder = "Untagged",
+  portal = true,
+  onSelectSingle,
 }: {
   bootstrap: Pick<SpaBootstrap, "apiPaths" | "railsPaths">;
   disabled?: boolean;
   error?: string;
   initialTags?: Array<{ id: TagId; name: string; color?: string }>;
-  onSelect: (tagIds: TagId[]) => void | Promise<void>;
+  onSelect?: (tagIds: TagId[]) => void | Promise<void>;
+  onSelectSingle?: (tagId: TagId | "") => void | Promise<void>;
   selectedTagIds: TagId[];
   tags?: ReferenceOption<TagId>[];
   trigger?: ReactNode;
   triggerLabel?: string;
+  multiple?: boolean;
+  placeholder?: string;
+  portal?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [loadTags, setLoadTags] = useState(false);
@@ -84,7 +92,8 @@ export function TagSelect({
               }
             : old,
       );
-      await onSelect([...selectedTagIds, newTag.id]);
+      await onSelect?.(multiple ? [...selectedTagIds, newTag.id] : [newTag.id]);
+      await onSelectSingle?.(newTag.id);
       setQuery("");
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Could not create tag");
@@ -93,11 +102,14 @@ export function TagSelect({
     }
   }
 
-  const options: PickerOption[] = filteredTags.map((tag) => ({
-    value: tag.id,
-    label: tag.name,
-    content: <TagPill color={tag.color} name={tag.name} />,
-  }));
+  const options: PickerOption[] = [
+    ...(!multiple ? [{ value: "", label: placeholder }] : []),
+    ...filteredTags.map((tag) => ({
+      value: tag.id,
+      label: tag.name,
+      content: <TagPill color={tag.color} name={tag.name} />,
+    })),
+  ];
   if (canCreate) {
     options.push({
       value: "__create",
@@ -117,7 +129,8 @@ export function TagSelect({
       inline={trigger !== undefined}
       label={triggerLabel}
       loading={loading}
-      multiple
+      multiple={multiple}
+      portal={portal}
       onOpen={() => {
         setLoadTags(true);
       }}
@@ -131,8 +144,19 @@ export function TagSelect({
           return;
         }
         const tag = availableTags.find((candidate) => candidate.id === value);
+        if (!multiple) {
+          if (value === "") {
+            void onSelect?.([]);
+            void onSelectSingle?.("");
+            return;
+          }
+          if (tag === undefined) return;
+          void onSelect?.([tag.id]);
+          void onSelectSingle?.(tag.id);
+          return;
+        }
         if (tag === undefined) return;
-        void onSelect(
+        void onSelect?.(
           selectedTagIds.includes(tag.id)
             ? selectedTagIds.filter((id) => id !== tag.id)
             : [...selectedTagIds, tag.id],
@@ -145,13 +169,17 @@ export function TagSelect({
       trigger={
         trigger ??
         (selectedTags.length > 0 ? (
-          <span className="flex flex-wrap gap-1">
-            {selectedTags.map((tag) => (
-              <TagPill color={tag.color} key={tag.id} name={tag.name} />
-            ))}
-          </span>
+          multiple ? (
+            <span className="flex flex-wrap gap-1">
+              {selectedTags.map((tag) => (
+                <TagPill color={tag.color} key={tag.id} name={tag.name} />
+              ))}
+            </span>
+          ) : (
+            <TagPill color={selectedTags[0].color} name={selectedTags[0].name} />
+          )
         ) : (
-          <span className="text-sm text-secondary">None</span>
+          <span className="text-sm text-secondary">{multiple ? "None" : placeholder}</span>
         ))
       }
     />
