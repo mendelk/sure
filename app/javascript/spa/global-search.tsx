@@ -170,7 +170,7 @@ export function GlobalSearchPalette() {
             ) : null}
           </div>
           {hits.length > 0 || (term.length > 0 && !searching) ? (
-            <ComboboxOptions className="max-h-80 overflow-y-auto p-2" static>
+            <ComboboxOptions className="max-h-80 overflow-y-auto p-2" modal={false} static>
               {hits.length === 0 ? (
                 <p className="px-3 py-6 text-center text-sm text-secondary">No matches found</p>
               ) : null}
