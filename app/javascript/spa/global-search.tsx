@@ -37,7 +37,7 @@ const GROUP_LABELS: Record<SearchGroup, string> = {
   merchants: "Merchants",
 };
 
-const GROUP_ORDER: SearchGroup[] = ["accounts", "transactions", "categories", "merchants"];
+const GROUP_ORDER: SearchGroup[] = ["merchants", "categories", "accounts", "transactions"];
 
 const HIT_GROUP: Record<SearchHit["type"], SearchGroup> = {
   account: "accounts",
