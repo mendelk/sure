@@ -1824,6 +1824,63 @@ components:
       type: array
       items:
         "$ref": "#/components/schemas/TagDetail"
+    GlobalSearchHit:
+      type: object
+      required:
+      - id
+      - type
+      - title
+      - subtitle
+      - url
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - account
+          - transaction
+          - category
+          - merchant
+        title:
+          type: string
+        subtitle:
+          type: string
+        url:
+          type: string
+    GlobalSearchResults:
+      type: object
+      required:
+      - query
+      - results
+      properties:
+        query:
+          type: string
+        results:
+          type: object
+          required:
+          - accounts
+          - transactions
+          - categories
+          - merchants
+          properties:
+            accounts:
+              type: array
+              items:
+                "$ref": "#/components/schemas/GlobalSearchHit"
+            transactions:
+              type: array
+              items:
+                "$ref": "#/components/schemas/GlobalSearchHit"
+            categories:
+              type: array
+              items:
+                "$ref": "#/components/schemas/GlobalSearchHit"
+            merchants:
+              type: array
+              items:
+                "$ref": "#/components/schemas/GlobalSearchHit"
     RuleAction:
       type: object
       required:
@@ -10391,6 +10448,34 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/search":
+    get:
+      summary: Global search
+      tags:
+      - Search
+      security:
+      - apiKeyAuth: []
+      parameters:
+      - name: q
+        in: query
+        required: false
+        description: Free-text query matched against accounts, transactions, categories
+          and merchants
+        schema:
+          type: string
+      - name: per_type
+        in: query
+        required: false
+        description: Max hits per type (default 6, max 20)
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: grouped search results
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GlobalSearchResults"
   "/api/v1/securities":
     get:
       summary: List securities referenced by family investment data

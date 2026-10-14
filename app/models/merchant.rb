@@ -1,4 +1,6 @@
 class Merchant < ApplicationRecord
+  include PgSearch::Model
+
   TYPES = %w[FamilyMerchant ProviderMerchant].freeze
 
   # Merchant name key for i18n
@@ -17,6 +19,12 @@ class Merchant < ApplicationRecord
   validates :type, inclusion: { in: TYPES }
 
   scope :alphabetically, -> { order(:name) }
+
+  # Global search (⌘K): prefix + trigram fallback on name.
+  pg_search_scope :global_search,
+    against: [ :name ],
+    using: { tsearch: { prefix: true }, trigram: { threshold: 0.3 } },
+    ignoring: :accents
 
   class << self
     def no_merchant

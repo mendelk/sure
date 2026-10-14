@@ -1,5 +1,6 @@
 class Account < ApplicationRecord
   include AASM, Syncable, Monetizable, Chartable, Linkable, Enrichable, Anchorable, Reconcileable, TaxTreatable
+  include PgSearch::Model
 
   before_validation :assign_default_owner, if: -> { owner_id.blank? }
 
@@ -57,6 +58,12 @@ class Account < ApplicationRecord
   scope :assets, -> { where(classification: "asset") }
   scope :liabilities, -> { where(classification: "liability") }
   scope :alphabetically, -> { order(:name) }
+
+  # Global search (⌘K): prefix + trigram fallback on name/institution.
+  pg_search_scope :global_search,
+    against: [ :name ],
+    using: { tsearch: { prefix: true }, trigram: { threshold: 0.3 } },
+    ignoring: :accents
   scope :manual, -> {
     left_joins(:account_providers)
       .where(account_providers: { id: nil })

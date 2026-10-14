@@ -1,4 +1,6 @@
 class Category < ApplicationRecord
+  include PgSearch::Model
+
   has_many :transactions, dependent: :nullify, class_name: "Transaction"
   has_many :import_mappings, as: :mappable, dependent: :destroy, class_name: "Import::Mapping"
 
@@ -39,9 +41,12 @@ class Category < ApplicationRecord
       .order(:name, :id)
   }
   scope :roots, -> { where(parent_id: nil) }
+  # Global search (⌘K): prefix + trigram fallback on name.
+  pg_search_scope :global_search,
+    against: [ :name ],
+    using: { tsearch: { prefix: true }, trigram: { threshold: 0.3 } },
+    ignoring: :accents
   # Legacy scopes - classification removed; these now return all categories
-  scope :incomes, -> { all }
-  scope :expenses, -> { all }
 
   COLORS = %w[#e99537 #4da568 #6471eb #db5a54 #df4e92 #c44fe9 #eb5429 #61c9ea #805dee #6ad28a]
 

@@ -1,5 +1,6 @@
 class Transaction < ApplicationRecord
   include Entryable, Transferable, Ruleable, Splittable
+  include PgSearch::Model
 
   belongs_to :category, optional: true
   belongs_to :merchant, optional: true
@@ -148,6 +149,17 @@ class Transaction < ApplicationRecord
   def self.family_scope(family)
     joins(entry: :account).where(accounts: { family_id: family.id })
   end
+
+  # Global search (⌘K): entry name/notes plus merchant and category names.
+  # Amount matching is handled separately (see Api::V1::SearchController).
+  pg_search_scope :global_search,
+    associated_against: {
+      entry: [ :name, :notes ],
+      merchant: [ :name ],
+      category: [ :name ]
+    },
+    using: { tsearch: { prefix: true }, trigram: { threshold: 0.3 } },
+    ignoring: :accents
 
   # Overarching grouping method for all transfer-type transactions
   def transfer?
