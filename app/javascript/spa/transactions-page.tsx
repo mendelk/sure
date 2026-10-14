@@ -279,8 +279,6 @@ export function TransactionsPage() {
         </div>
       </header>
 
-      <TransactionSummary data={data} />
-
       {!recurringDisabled ? (
         <div className="flex max-w-fit rounded-lg bg-surface-inset p-1" role="tablist">
           <button
@@ -876,33 +874,6 @@ function SplitParentHeader({ parent }: { parent: SplitParent | null }) {
         </span>
       </Link>
     </li>
-  );
-}
-
-function TransactionSummary({ data }: { data?: TransactionCollection }) {
-  const values = data
-    ? [
-        ["Total transactions", data.summary.count.toLocaleString()],
-        ["Income", data.summary.income],
-        ["Expenses", data.summary.expense],
-      ]
-    : [
-        ["Total transactions", "—"],
-        ["Income", "—"],
-        ["Expenses", "—"],
-      ];
-
-  return (
-    <dl className="grid grid-cols-1 divide-y divide-tertiary overflow-hidden rounded-xl bg-container shadow-border-xs sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-      {values.map(([label, value]) => (
-        <div className="space-y-2 p-4" key={label}>
-          <dt className="text-sm text-secondary">{label}</dt>
-          <dd className="privacy-sensitive text-xl font-medium tabular-nums text-primary">
-            {value}
-          </dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 

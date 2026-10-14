@@ -47,8 +47,6 @@ export const GetApiV1TransactionsQueryParams = /*#__PURE__*/ zod.object({
 
 export const getApiV1Transactions200ResponseTransactionsItemAmountCentsMin = 0;
 
-export const getApiV1Transactions200ResponseSummaryCountMin = 0;
-
 
 
 export const getApiV1Transactions200ResponsePaginationTotalCountMin = 0;
@@ -163,14 +161,6 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "amount": /*#__PURE__*/ zod.string(),
   "account_name": /*#__PURE__*/ zod.string()
 }))).check(/*#__PURE__*/ zod.describe('Split parent entries for grouped headers; children carry parent_entry_id.')),
-  "summary": /*#__PURE__*/ zod.strictObject({
-  "count": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(getApiV1Transactions200ResponseSummaryCountMin)),
-  "income": /*#__PURE__*/ zod.string(),
-  "expense": /*#__PURE__*/ zod.string(),
-  "transfer_inflow": /*#__PURE__*/ zod.string(),
-  "transfer_outflow": /*#__PURE__*/ zod.string(),
-  "currency": /*#__PURE__*/ zod.string()
-}),
   "pagination": /*#__PURE__*/ zod.strictObject({
   "page": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(1)),
   "per_page": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(1)),
