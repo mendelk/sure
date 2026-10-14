@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "net/http"
+
 # One-off backfill for Brandfetch-backed logo URLs.
 #
 # Run with:
@@ -31,6 +33,35 @@ unless Setting.brand_fetch_client_id.present?
     or provide the BRAND_FETCH_CLIENT_ID environment variable, then re-run.
   MSG
 end
+
+# Validate the configured client ID against the CDN before rewriting stored
+# URLs — an invalid ID would otherwise 403 every logo image at render time
+# (signed IDs reject with client_id_invalid_signature; Brandfetch's dashboard
+# snippet is the source of truth for the value). Interstitial/anti-hotlink
+# responses come back as text/html, not an image.
+probe_url = "https://cdn.brandfetch.io/domain/apple.com/w/40/h/40?c=#{Setting.brand_fetch_client_id}"
+# A browser-like User-Agent is required: default Ruby/curl UAs hit Brandfetch's
+# anti-hotlinking interstitial (302 text/html) even with a valid ID, because the
+# CDN serves it to non-browser agents. Browsers (and <img> tags) send a UA.
+uri = URI.parse(probe_url)
+probe_req = Net::HTTP::Get.new(uri, {
+  "User-Agent" => "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+  "Accept" => "image/*,*/*;q=0.8"
+})
+probe = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(probe_req) }
+final_code, final_type = probe.code, probe["content-type"]
+if final_code == "302" || final_code == "301"
+  redirect = Net::HTTP.get_response(URI.parse(probe["location"]))
+  final_code, final_type = redirect.code, redirect["content-type"]
+end
+unless final_code == "200" && final_type&.start_with?("image/")
+  abort <<~MSG
+    The configured Brandfetch client ID was rejected by the CDN (#{final_code} #{final_type}).
+    #{probe.body.to_s[0, 200]}
+    Copy the exact Client ID from the Brandfetch dashboard snippet, then re-run.
+  MSG
+end
+puts({ client_id_validated: true, probe_content_type: final_type }.to_json)
 
 DRY_RUN = ARGV.intersect?(%w[--dry-run -n])
 SIZE = Setting.brand_fetch_logo_size
