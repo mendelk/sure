@@ -1,7 +1,10 @@
+/* eslint-disable import/max-dependencies -- Account actions compose menus, dialogs, routing, mutations, and shared form fields. */
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { AccountAction, AccountSearch } from "../api/accounts";
+import { invalidateAccountQueries, postAccountAction } from "../api/account-spa";
 import { readCsrfToken } from "../api/transactions";
 import { CategoryIcon, Icon } from "../icon";
 import type { AccountId } from "../ids";
@@ -67,8 +70,9 @@ export function AccountActionControl({
   iconOnly?: boolean;
 }) {
   const navigate = useNavigate();
-  const form = useRef<HTMLFormElement>(null);
+  const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const confirmation = action.confirm ?? (action.method === "delete" ? text.delete_confirm : null);
   const content = (
     <>
@@ -77,6 +81,17 @@ export function AccountActionControl({
     </>
   );
   const buttonClass = compact ? "w-full justify-start! rounded-none!" : undefined;
+  const mutation = useMutation({
+    mutationFn: postAccountAction,
+    onError: (caught) => {
+      setError(caught instanceof Error ? caught.message : "Action failed");
+    },
+    onSuccess: (_data, acted) => {
+      setConfirming(false);
+      if (acted.method === "get") follow();
+      else void invalidateAccountQueries(queryClient);
+    },
+  });
   const follow = () => {
     const url = new URL(action.href, window.location.origin);
     for (const [key, value] of Object.entries(action.params)) url.searchParams.set(key, value);
@@ -174,33 +189,21 @@ export function AccountActionControl({
           {content}
         </Button>
       ) : (
-        <form
-          ref={form}
-          action={action.href}
-          method="post"
-          onSubmit={(event) => {
-            if (confirmation !== null && confirmation !== "") {
-              event.preventDefault();
-              setConfirming(true);
-            }
+        <Button
+          aria-label={iconOnly ? action.label : undefined}
+          className={buttonClass}
+          disabled={disabled || mutation.isPending}
+          onClick={() => {
+            if (confirmation !== null && confirmation !== "") setConfirming(true);
+            else mutation.mutate(action);
           }}
+          title={iconOnly ? action.label : undefined}
+          type="button"
+          variant={action.method === "delete" ? "destructive-outline" : "ghost"}
+          size={iconOnly ? "icon-sm" : "sm"}
         >
-          <CsrfFields method={action.method} />
-          {Object.entries(action.params).map(([name, value]) => (
-            <input key={name} type="hidden" name={name} value={value} />
-          ))}
-          <Button
-            type="submit"
-            variant={action.method === "delete" ? "destructive-outline" : "ghost"}
-            size={iconOnly ? "icon-sm" : "sm"}
-            aria-label={iconOnly ? action.label : undefined}
-            title={iconOnly ? action.label : undefined}
-            disabled={disabled}
-            className={buttonClass}
-          >
-            {content}
-          </Button>
-        </form>
+          {content}
+        </Button>
       )}
       {confirming ? (
         <ConfirmSubmit
@@ -212,16 +215,23 @@ export function AccountActionControl({
           }}
         >
           <Button
+            disabled={mutation.isPending}
             variant={action.method === "delete" ? "destructive" : "primary"}
             onClick={() => {
-              setConfirming(false);
-              if (action.method === "get") follow();
-              else form.current?.submit();
+              if (action.method === "get") {
+                setConfirming(false);
+                follow();
+              } else mutation.mutate(action);
             }}
           >
             {action.label}
           </Button>
         </ConfirmSubmit>
+      ) : null}
+      {error !== null ? (
+        <p className="text-xs text-destructive" role="alert">
+          {error}
+        </p>
       ) : null}
     </>
   );
