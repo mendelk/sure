@@ -1,3 +1,4 @@
+// eslint-disable import/max-dependencies -- App shell composes nav, sidebars, summary query, session actions, search palette, and flash messages.
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useRouteContext, useRouterState } from "@tanstack/react-router";
@@ -7,6 +8,7 @@ import { readCsrfToken } from "./api/transactions";
 import type { SpaBootstrap } from "./bootstrap";
 import { Alert } from "./components/alert";
 import { Icon, type IconName } from "./icon";
+import { GlobalSearchPalette } from "./global-search";
 import { useDismiss } from "./use-dismiss";
 
 // Navigation comes from the server (`navItems` in the SPA bootstrap), built
@@ -728,6 +730,7 @@ function BreadcrumbBar({
       </div>
 
       <div className="flex items-center gap-2">
+        <GlobalSearchPalette />
         <RefreshSummaryButton
           onClick={() => {
             void queryClient.invalidateQueries();

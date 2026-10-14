@@ -1070,6 +1070,34 @@ RSpec.configure do |config|
             type: :array,
             items: { '$ref' => '#/components/schemas/TagDetail' }
           },
+          GlobalSearchHit: {
+            type: :object,
+            required: %w[id type title subtitle url],
+            properties: {
+              id: { type: :string, format: :uuid },
+              type: { type: :string, enum: %w[account transaction category merchant] },
+              title: { type: :string },
+              subtitle: { type: :string },
+              url: { type: :string }
+            }
+          },
+          GlobalSearchResults: {
+            type: :object,
+            required: %w[query results],
+            properties: {
+              query: { type: :string },
+              results: {
+                type: :object,
+                required: %w[accounts transactions categories merchants],
+                properties: {
+                  accounts: { type: :array, items: { '$ref' => '#/components/schemas/GlobalSearchHit' } },
+                  transactions: { type: :array, items: { '$ref' => '#/components/schemas/GlobalSearchHit' } },
+                  categories: { type: :array, items: { '$ref' => '#/components/schemas/GlobalSearchHit' } },
+                  merchants: { type: :array, items: { '$ref' => '#/components/schemas/GlobalSearchHit' } }
+                }
+              }
+            }
+          },
           RuleAction: {
             type: :object,
             required: %w[id action_type created_at updated_at],

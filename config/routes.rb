@@ -788,6 +788,7 @@ Rails.application.routes.draw do
         post :avm_confirm, on: :collection
       end
       resources :accounts, only: [ :index, :show, :create, :update ]
+      get :search, to: "search#index"
       resources :balances, only: [ :index, :show ]
       resources :budgets, only: [ :index, :show ]
       resources :budget_categories, only: [ :index, :show ]
