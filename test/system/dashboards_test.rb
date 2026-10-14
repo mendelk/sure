@@ -289,7 +289,10 @@ class DashboardsTest < ApplicationSystemTestCase
       click_button "Fields", exact: true
       find("button[aria-label='Add to Filters: Category']").click
       find("button[id$='-filters']").click
-      select categories(:one).name, from: "Match value"
+      click_button "Match value"
+    end
+    find("[role='option']", text: categories(:one).name).click
+    within "#source-editor" do
       assert_selector "tbody tr", count: 1
       assert_selector "tbody th", text: categories(:one).name, exact_text: true
       all(:select, "Condition").last.select("Not equals")
@@ -306,7 +309,7 @@ class DashboardsTest < ApplicationSystemTestCase
     page.refresh
     within "#source-editor" do
       find("button[id$='-filters']").click
-      assert_select "Match value", selected: categories(:one).name
+      assert_selector "button[aria-label='Match value']", text: categories(:one).name
       assert_select "Condition", selected: "Not equals"
       assert_no_selector "tbody th", text: categories(:one).name, exact_text: true
       assert_selector "tbody th", text: categories(:income).name, exact_text: true
@@ -314,6 +317,65 @@ class DashboardsTest < ApplicationSystemTestCase
       click_button "Cancel"
     end
   end
+  test "structured aggregate merchant exclusions survive saving and editor reload" do
+    [ [ merchants(:amazon), 100 ], [ merchants(:netflix), 7 ] ].each do |merchant, amount|
+      accounts(:depository).entries.create!(name: "Merchant exclusion #{merchant.name}", date: Date.current, amount: amount, currency: "USD", entryable: Transaction.new(merchant: merchant))
+    end
+    visit dashboards_url
+    click_button "Create source", match: :first
+    within "#source-editor" do
+      fill_in "Source name", with: "Merchant exclusions"
+      click_button "Fields", exact: true
+      find("button[aria-label='Add to Filters: Merchant']").click
+      find("button[id$='-filters']").click
+      click_button "Match value"
+    end
+    find("[role='option']", text: merchants(:amazon).name).click
+    within "#source-editor" do
+      all(:select, "Condition").last.select("Not equals")
+      assert_button "Save source", disabled: false
+      click_button "Save source"
+    end
+    visit sources_url
+    edit_source("Merchant exclusions")
+    page.refresh
+    within "#source-editor" do
+      find("button[id$='-filters']").click
+      assert_selector "button[aria-label='Match value']", text: merchants(:amazon).name
+      assert_select "Condition", selected: "Not equals"
+      click_button "Cancel"
+    end
+  end
+  test "structured aggregate tag exclusions survive saving and editor reload" do
+    [ [ tags(:one), 100 ], [ tags(:two), 7 ] ].each do |tag, amount|
+      accounts(:depository).entries.create!(name: "Tag exclusion #{tag.name}", date: Date.current, amount: amount, currency: "USD", entryable: Transaction.new(tags: [ tag ]))
+    end
+    visit dashboards_url
+    click_button "Create source", match: :first
+    within "#source-editor" do
+      fill_in "Source name", with: "Tag exclusions"
+      click_button "Fields", exact: true
+      find("button[aria-label='Add to Filters: Tag']").click
+      find("button[id$='-filters']").click
+      click_button "Match value"
+    end
+    find("[role='option']", text: tags(:one).name).click
+    within "#source-editor" do
+      all(:select, "Condition").last.select("Not equals")
+      assert_button "Save source", disabled: false
+      click_button "Save source"
+    end
+    visit sources_url
+    edit_source("Tag exclusions")
+    page.refresh
+    within "#source-editor" do
+      find("button[id$='-filters']").click
+      assert_selector "button[aria-label='Match value']", text: tags(:one).name
+      assert_select "Condition", selected: "Not equals"
+      click_button "Cancel"
+    end
+  end
+
 
   test "structured aggregate charts include all row groups beyond the first hundred" do
     account = @user.family.accounts.create!(name: "All aggregate groups", owner: @user, currency: "USD", balance: 0, accountable: Depository.new)

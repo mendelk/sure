@@ -1,7 +1,7 @@
 class Tag < ApplicationRecord
-  COLORS = %w[#e99537 #4da568 #6471eb #db5a54 #df4e92 #c44fe9 #eb5429 #61c9ea #805dee #6ad28a]
+  include PgSearch::Model
 
-  UNCATEGORIZED_COLOR = "#737373"
+  COLORS = %w[#e99537 #4da568 #6471eb #db5a54 #df4e92 #c44fe9 #eb5429 #61c9ea #805dee #6ad28a]
 
   # Tag name key for i18n
   UNTAGGED_NAME_KEY = "models.tag.untagged"
@@ -21,6 +21,12 @@ class Tag < ApplicationRecord
   validates :color, format: { with: /\A#[0-9A-Fa-f]{6}\z/ }, allow_nil: true
 
   scope :alphabetically, -> { order(:name, :id) }
+
+  # Global search (⌘K): prefix + trigram fallback on name.
+  pg_search_scope :global_search,
+    against: [ :name ],
+    using: { tsearch: { prefix: true }, trigram: { threshold: 0.3 } },
+    ignoring: :accents
 
   class << self
     def untagged

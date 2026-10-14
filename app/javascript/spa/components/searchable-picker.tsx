@@ -32,6 +32,7 @@ export function SearchablePicker({
   onQueryChange,
   onSelect,
   options,
+  portal = true,
   query,
   searchLabel,
   selectedValues,
@@ -48,6 +49,7 @@ export function SearchablePicker({
   onQueryChange: (query: string) => void;
   onSelect: (value: string) => boolean | undefined | Promise<boolean | undefined>;
   options: PickerOption[];
+  portal?: boolean;
   query: string;
   searchLabel: string;
   selectedValues: string[];
@@ -182,7 +184,7 @@ export function SearchablePicker({
               anchor="bottom start"
               className={`z-50 min-w-48 max-w-[calc(100vw-2rem)] rounded-lg bg-container p-1.5 shadow-lg [--anchor-gap:0.375rem] ${inline ? "w-72" : "w-(--button-width)"}`}
               focus
-              portal
+              portal={portal}
             >
               {multiple ? (
                 <Combobox

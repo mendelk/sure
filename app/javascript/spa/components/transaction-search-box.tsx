@@ -26,6 +26,7 @@ export type SearchFilters = {
   excluded_account_ids?: AccountId[];
   excluded_types?: ("income" | "expense" | "transfer")[];
   excluded_status?: ("pending" | "confirmed")[];
+  filter_order?: string[];
 };
 
 type SlackFilterDefinition =
@@ -447,7 +448,14 @@ function selectedTokens(routeSearch: SearchFilters): {
     });
   }
 
-  return tokens;
+  // URL is the source of truth: chips follow filter_order (last added last),
+  // with unordered entries (legacy/deep links) keeping type order at the end.
+  const order = new Map((routeSearch.filter_order ?? []).map((entry, index) => [entry, index]));
+  return tokens.toSorted((left, right) => {
+    const leftIndex = order.get(`${left.inputKey}:${left.value}`) ?? Number.MAX_SAFE_INTEGER;
+    const rightIndex = order.get(`${right.inputKey}:${right.value}`) ?? Number.MAX_SAFE_INTEGER;
+    return leftIndex - rightIndex;
+  });
 }
 
 export function TransactionSearchBox({

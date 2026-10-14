@@ -335,6 +335,101 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     totals = result.fetch("metadata").fetch("rows").each_with_index.to_h { |row, index| [ row.fetch("values").first, result.fetch("result")[index].fetch("sum").to_d ] }
     assert_equal({ categories(:one).id => 100, categories(:income).id => 7 }, totals)
   end
+  test "catalog exposes merchant and tag fields with options" do
+    add(10, merchant: merchants(:amazon), tags: [ tags(:one) ])
+    add(20)
+    merchant_field = @reports.catalog.fetch(:fields).find { |field| field[:key] == "merchant" }
+    assert merchant_field
+    assert_equal I18n.t("report_definition.fields.merchant"), merchant_field[:label]
+    assert_equal "text", merchant_field[:kind]
+    assert merchant_field[:dimension]
+    assert merchant_field[:detail]
+    assert_equal %w[count_distinct], merchant_field[:aggregations]
+    assert_equal %w[equals not_equals], merchant_field[:operators]
+    options = merchant_field[:options]
+    assert_includes options, { value: "", label: I18n.t("report_definition.no_merchant") }
+    assert_includes options, { value: merchants(:amazon).id, label: merchants(:amazon).name }
+
+    tag_field = @reports.catalog.fetch(:fields).find { |field| field[:key] == "tag" }
+    assert tag_field
+    assert_equal I18n.t("report_definition.fields.tag"), tag_field[:label]
+    assert_equal "text", tag_field[:kind]
+    assert_not tag_field[:dimension]
+    assert_not tag_field[:detail]
+    assert_equal %w[equals not_equals], tag_field[:operators]
+    tag_options = tag_field[:options]
+    assert_includes tag_options, { value: "", label: I18n.t("report_definition.untagged") }
+    assert_includes tag_options, { value: tags(:one).id, label: tags(:one).name }
+  end
+
+  test "merchant as row dimension groups by merchant and labels nil as no merchant" do
+    add(15, merchant: merchants(:amazon))
+    add(25, merchant: merchants(:netflix))
+    add(35)
+    result = @reports.call(definition(
+      rows: [ { id: "merchant", field: "merchant" } ],
+      columns: [],
+      values: [
+        { id: "sum", field: "amount", aggregation: "sum" },
+        { id: "merchants_count", field: "merchant", aggregation: "count_distinct" }
+      ]
+    ))
+    rows = result.fetch("metadata").fetch("rows")
+    assert_equal [ merchants(:amazon).id, merchants(:netflix).id, nil ].sort_by(&:to_s), rows.map { |r| r.fetch("values").first }.sort_by(&:to_s)
+    no_merchant_row = rows.find { |r| r.fetch("values") == [ nil ] }
+    assert_equal [ I18n.t("report_definition.no_merchant") ], no_merchant_row.fetch("labels")
+    amazon_row = rows.find { |r| r.fetch("values") == [ merchants(:amazon).id ] }
+    assert_equal [ merchants(:amazon).name ], amazon_row.fetch("labels")
+    assert_equal 15, result.fetch("result")[rows.index(amazon_row)].fetch("sum").to_d
+    assert_equal 35, result.fetch("result")[rows.index(no_merchant_row)].fetch("sum").to_d
+  end
+
+  test "merchant equals and not equals filters handle both uuid and no merchant" do
+    add(10, merchant: merchants(:amazon))
+    add(20, merchant: merchants(:netflix))
+    add(30)
+    result = @reports.call(definition(rows: [], columns: [], filters: account_filter + [ { field: "merchant", operator: "equals", value: merchants(:amazon).id } ]))
+    assert_equal 10, result.fetch("result").first.fetch("sum").to_d
+
+    result = @reports.call(definition(rows: [], columns: [], filters: account_filter + [ { field: "merchant", operator: "equals", value: "" } ]))
+    assert_equal 30, result.fetch("result").first.fetch("sum").to_d
+
+    result = @reports.call(definition(rows: [], columns: [], filters: account_filter + [ { field: "merchant", operator: "not_equals", value: merchants(:amazon).id } ]))
+    assert_equal 50, result.fetch("result").first.fetch("sum").to_d
+
+    result = @reports.call(definition(rows: [], columns: [], filters: account_filter + [ { field: "merchant", operator: "not_equals", value: "" } ]))
+    assert_equal 30, result.fetch("result").first.fetch("sum").to_d
+  end
+
+  test "tag equals and not equals filters handle both uuid and untagged" do
+    add(10, tags: [ tags(:one) ])
+    add(20, tags: [ tags(:two) ])
+    add(30)
+    result = @reports.call(definition(rows: [], columns: [], filters: account_filter + [ { field: "tag", operator: "equals", value: tags(:one).id } ]))
+    assert_equal 10, result.fetch("result").first.fetch("sum").to_d
+
+    result = @reports.call(definition(rows: [], columns: [], filters: account_filter + [ { field: "tag", operator: "equals", value: "" } ]))
+    assert_equal 30, result.fetch("result").first.fetch("sum").to_d
+
+    result = @reports.call(definition(rows: [], columns: [], filters: account_filter + [ { field: "tag", operator: "not_equals", value: tags(:one).id } ]))
+    assert_equal 50, result.fetch("result").first.fetch("sum").to_d
+
+    result = @reports.call(definition(rows: [], columns: [], filters: account_filter + [ { field: "tag", operator: "not_equals", value: "" } ]))
+    assert_equal 30, result.fetch("result").first.fetch("sum").to_d
+  end
+
+  test "detail mode displays merchant name and labels nil as no merchant" do
+    with_merchant = add(10, merchant: merchants(:amazon))
+    without_merchant = add(20)
+    result = @reports.call(detail_definition(
+      columns: [ { field: "merchant" }, { field: "amount" } ],
+      sort: [ { field: "merchant", direction: "asc" } ]
+    ))
+    rows = result.fetch("result")
+    assert_equal 2, rows.size
+    assert_includes rows.map { |r| r["merchant"] }, merchants(:amazon).name
+    assert_includes rows.map { |r| r["merchant"] }, I18n.t("report_definition.no_merchant")
+  end
 
   test "detail keeps duplicate looking entries separate and preserves selected field order" do
     first = add("-900719925474099.1234", name: "Duplicate", currency: "EUR", category: categories(:one))
@@ -483,7 +578,7 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
       [ detail_definition(rows: []), "report" ],
       [ detail_definition(values: []), "report" ],
       [ detail_definition(columns: []), "columns" ],
-      [ detail_definition(columns: Array.new(7) { { field: "name" } }), "columns" ],
+      [ detail_definition(columns: Array.new(8) { { field: "name" } }), "columns" ],
       [ detail_definition(columns: [ nil ]), "columns.0" ],
       [ detail_definition(columns: [ { field: "name", id: "name" } ]), "columns.0" ],
       [ detail_definition(columns: [ { field: "date", dateBucket: "month" } ]), "columns.0" ],
@@ -494,7 +589,7 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
       [ detail_definition(columns: [ { field: "name" } ], sort: [ { field: "date", direction: "desc" } ]), "sort.0.field" ],
       [ detail_definition(sort: [ { field: "date", direction: "desc" }, { field: "date", direction: "asc" } ]), "sort.1.field" ],
       [ detail_definition(sort: [ { field: "date", direction: "random" } ]), "sort.0.direction" ],
-      [ detail_definition(sort: Array.new(7) { { field: "date", direction: "asc" } }), "sort" ],
+      [ detail_definition(sort: Array.new(8) { { field: "date", direction: "asc" } }), "sort" ],
       [ detail_definition(filters: [ { field: "name", operator: "equals", value: "Transaction" } ]), "filters.0.operator" ],
       [ definition(rows: [ { id: "name", field: "name" } ]), "rows.0.field" ],
       [ definition(values: [ { id: "names", field: "name", aggregation: "count_distinct" } ]), "values.0.aggregation" ]
@@ -504,7 +599,7 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
       assert_equal expected_field, error.field
     end
     entry = add(1)
-    full_sort = %w[date name account category amount currency].map { |field| { field: field, direction: "asc" } }
+    full_sort = %w[date name account category merchant amount currency].map { |field| { field: field, direction: "asc" } }
     assert_equal [ entry.id ], @reports.call(detail_definition(sort: full_sort)).fetch("metadata").fetch("rows").map { |row| row.fetch("id") }
   end
 
@@ -530,7 +625,7 @@ class Sureql::ReportDefinitionTest < ActiveSupport::TestCase
     def detail_definition(**overrides)
       {
         version: 1, source: "transactions", mode: "detail",
-        columns: %w[date name account category amount currency].map { |field| { field: field } },
+        columns: %w[date name account category merchant amount currency].map { |field| { field: field } },
         filters: account_filter, sort: [ { field: "date", direction: "desc" } ]
       }.merge(overrides)
     end

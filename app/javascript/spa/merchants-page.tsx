@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useSearchShortcut } from "./use-search-shortcut";
 import { Alert } from "./components/alert";
-import { Button } from "./components/button";
+import { Button, MenuItem } from "./components/button";
 import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { SearchablePicker } from "./components/searchable-picker";
@@ -168,28 +168,23 @@ function RowMenu({
           >
             {MERCHANTS_TEXT.view_transactions}
           </a>
-          <button
-            className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+          <MenuItem
             onClick={() => {
               setOpen(false);
               onEdit(row);
             }}
-            role="menuitem"
-            type="button"
           >
             {MERCHANTS_TEXT.edit}
-          </button>
-          <button
-            className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+          </MenuItem>
+          <MenuItem
+            destructive
             onClick={() => {
               setOpen(false);
               onConfirm(row);
             }}
-            role="menuitem"
-            type="button"
           >
             {isProvider ? MERCHANTS_TEXT.remove : MERCHANTS_TEXT.delete}
-          </button>
+          </MenuItem>
         </div>
       ) : null}
     </div>

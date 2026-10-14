@@ -15,7 +15,7 @@ import {
 } from "./api/tags";
 import { TagIdSchema, type TagId } from "./ids";
 import { Alert } from "./components/alert";
-import { Button } from "./components/button";
+import { Button, MenuItem } from "./components/button";
 import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Modal } from "./modal";
@@ -407,28 +407,23 @@ function TagRowMenu({
           className="shadow-border-lg absolute right-0 z-30 mt-2 min-w-52 rounded-lg bg-container py-1"
           role="menu"
         >
-          <button
-            className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+          <MenuItem
             onClick={() => {
               setOpen(false);
               onEdit();
             }}
-            role="menuitem"
-            type="button"
           >
             {TAGS_TEXT.edit}
-          </button>
-          <button
-            className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+          </MenuItem>
+          <MenuItem
+            destructive
             onClick={() => {
               setOpen(false);
               onDelete();
             }}
-            role="menuitem"
-            type="button"
           >
             {TAGS_TEXT.delete}
-          </button>
+          </MenuItem>
         </div>
       ) : null}
     </div>

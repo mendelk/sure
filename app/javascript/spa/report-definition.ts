@@ -39,7 +39,15 @@ export const AggregateReportDefinitionSchema = z.object({
   filters: z.array(ReportFilterSchema),
   sort: z.array(ReportSortSchema),
 });
-export const DETAIL_FIELDS = ["date", "name", "account", "category", "amount", "currency"] as const;
+export const DETAIL_FIELDS = [
+  "date",
+  "name",
+  "account",
+  "category",
+  "merchant",
+  "amount",
+  "currency",
+] as const;
 export const DetailReportColumnSchema = z.object({ field: z.enum(DETAIL_FIELDS) });
 export const DetailReportSortSchema = z.object({
   field: z.enum(DETAIL_FIELDS),
@@ -50,9 +58,9 @@ export const DetailReportDefinitionSchema = z
     version: z.literal(1),
     source: z.literal("transactions"),
     mode: z.literal("detail"),
-    columns: z.array(DetailReportColumnSchema).check(z.minLength(1), z.maxLength(6)),
+    columns: z.array(DetailReportColumnSchema).check(z.minLength(1), z.maxLength(7)),
     filters: z.array(ReportFilterSchema),
-    sort: z.array(DetailReportSortSchema).check(z.maxLength(6)),
+    sort: z.array(DetailReportSortSchema).check(z.maxLength(7)),
   })
   .check(
     z.refine(

@@ -86,6 +86,57 @@ class SureqlCompilerTest < ActiveSupport::TestCase
     end
     assert_match(/`t` is reserved/, error.message)
   end
+  test "merchants shorthand compiles to bridged joins with qualified columns" do
+    source = <<~PRQL
+      from transactions
+      filter amount > 0
+      join m=merchants (==merchant_id)
+      filter transfer_id == null
+      group {m.name} (
+        aggregate {
+          total_spent = sum amount,
+          n = count this,
+        }
+      )
+      sort {-total_spent}
+      take 5
+    PRQL
+
+    sql = Sureql::Compiler.new(users(:family_admin)).call(source)
+
+    assert_includes sql, "INNER JOIN transactions AS t"
+    assert_includes sql, "INNER JOIN merchants AS m"
+    assert_includes sql, "t.transfer_id IS NULL"
+    assert_includes sql, "GROUP BY"
+    assert_match(/total_spent DESC/, sql)
+    assert_match(/LIMIT\s+5/, sql)
+  end
+
+  test "merchants shorthand shares t bridge with categories shorthand" do
+    source = <<~PRQL
+      from transactions
+      join c=categories (==category_id)
+      join m=merchants (==merchant_id)
+      filter transfer_id == null
+      take 5
+    PRQL
+
+    sql = Sureql::Compiler.new(users(:family_admin)).call(source)
+
+    assert_equal 1, sql.scan(/JOIN transactions AS t/).size
+    assert_includes sql, "INNER JOIN categories AS c"
+    assert_includes sql, "INNER JOIN merchants AS m"
+    assert_includes sql, "t.transfer_id IS NULL"
+  end
+
+  test "merchants shorthand rejects t as the dimension alias" do
+    source = "from transactions\njoin t=merchants (==merchant_id)\ntake 5"
+
+    error = assert_raises(Sureql::CompileError) do
+      Sureql::Compiler.new(users(:family_admin)).call(source)
+    end
+    assert_match(/`t` is reserved/, error.message)
+  end
 
   test "leaves string literals and dotted paths unqualified" do
     compiler = Sureql::Compiler.new(users(:family_admin))

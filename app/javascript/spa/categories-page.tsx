@@ -24,7 +24,7 @@ import {
 import { CategoryIdSchema } from "./ids";
 import { CategoryIcon, Icon } from "./icon";
 import { Alert } from "./components/alert";
-import { Button } from "./components/button";
+import { Button, MenuItem } from "./components/button";
 import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { SearchablePicker, type PickerOption } from "./components/searchable-picker";
@@ -210,29 +210,24 @@ function RowMenu({
           className="shadow-border-lg absolute right-0 z-30 mt-2 min-w-44 rounded-lg bg-container py-1"
           role="menu"
         >
-          <button
-            className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+          <MenuItem
             onClick={() => {
               setOpen(false);
               onEdit(row);
             }}
-            role="menuitem"
-            type="button"
           >
             {CATEGORIES_TEXT.edit}
-          </button>
-          <button
-            className="block w-full px-4 py-2 text-left text-sm text-destructive hover:bg-container-hover"
+          </MenuItem>
+          <MenuItem
             data-testid={hasTransactions ? "category-delete-replace" : "category-delete-direct"}
+            destructive
             onClick={() => {
               setOpen(false);
               onDelete(row);
             }}
-            role="menuitem"
-            type="button"
           >
             {CATEGORIES_TEXT.delete}
-          </button>
+          </MenuItem>
         </div>
       ) : null}
     </div>
@@ -448,17 +443,18 @@ function CategoryFormDialog({
             {contrastWarning ? (
               <p className="mt-2 flex items-center gap-1 text-xs text-destructive" role="alert">
                 <span>{CATEGORIES_TEXT.formPoorContrast}</span>
-                <button
-                  className="cursor-pointer underline"
+                <Button
+                  className="cursor-pointer underline focus:ring-0 disabled:cursor-auto disabled:opacity-100"
                   onClick={() => {
                     const adjusted = darkenHex(color);
                     setColor(adjusted);
                     setCustomColor(adjusted);
                   }}
-                  type="button"
+                  size="xs"
+                  variant="link"
                 >
                   {CATEGORIES_TEXT.formAutoAdjust}
-                </button>
+                </Button>
               </p>
             ) : null}
           </fieldset>
