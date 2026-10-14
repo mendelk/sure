@@ -486,7 +486,7 @@ function AccountActivityView({
     });
   };
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-container shadow-border-xs">
+    <section className="relative flex min-h-[400px] flex-1 flex-col overflow-hidden rounded-xl bg-container shadow-border-xs">
       <div className="space-y-4 border-b border-tertiary p-4">
         <header className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-medium text-primary">{text.activity}</h2>
