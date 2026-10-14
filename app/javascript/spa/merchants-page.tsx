@@ -1,7 +1,8 @@
 // eslint-disable import/max-dependencies -- Merchants page composes the family/provider/unlinked tables, the merchant form modal, the merge dialog, and the enhance banner.
 import { DialogTitle } from "@headlessui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useSearchShortcut } from "./use-search-shortcut";
 import { Alert } from "./components/alert";
 import { Button } from "./components/button";
 import { FormField } from "./components/form-field";
@@ -282,6 +283,8 @@ function MerchantSection({
   hasRows: boolean;
   pagination?: React.ReactNode;
 }) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useSearchShortcut(searchInputRef);
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-secondary uppercase">
@@ -302,6 +305,7 @@ function MerchantSection({
                 onSearchChange(event.target.value);
               }}
               placeholder={searchPlaceholder}
+              ref={searchInputRef}
               type="search"
               value={searchValue}
             />
