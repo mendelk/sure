@@ -1,6 +1,6 @@
 // eslint-disable import/max-dependencies -- Accounts index composes provider cards, group tables, the sync toolbar, action menus, the sharing dialog, and the new-account handoff.
-import { DialogTitle } from "@headlessui/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { DialogTitle, Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -35,33 +35,29 @@ const ROW_TEXT = {
 
 type ConfirmState = { action: SpaAction };
 
-function actionForm(action: SpaAction): HTMLFormElement {
-  const form = document.createElement("form");
-  form.method = "post";
-  form.action = action.href;
-  const csrf = document.createElement("input");
-  csrf.type = "hidden";
-  csrf.name = "authenticity_token";
-  csrf.value = readCsrfToken();
-  form.append(csrf);
+// Runs a server-driven row action (disable/enable, exclude/include, delete)
+// as a same-origin fetch instead of a hand-built DOM form: CSRF header for
+// auth, method override for patch/delete, then account query invalidation
+// so the list reflects the new state without a full-page reload.
+async function runSpaAction(action: SpaAction): Promise<void> {
+  const body = new URLSearchParams();
   const method = action.method ?? "post";
-  if (method !== "post" && method !== "get") {
-    const override = document.createElement("input");
-    override.type = "hidden";
-    override.name = "_method";
-    override.value = method;
-    form.append(override);
-  }
-  for (const [name, value] of Object.entries(action.params ?? {})) {
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = name;
-    input.value = value;
-    form.append(input);
-  }
-  return form;
-}
+  if (method !== "post" && method !== "get") body.set("_method", method);
+  for (const [name, value] of Object.entries(action.params ?? {})) body.set(name, value);
 
+  const response = await fetch(action.href, {
+    body: method === "get" ? null : body,
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json, text/html",
+      "X-CSRF-Token": readCsrfToken(),
+    },
+    method: method === "get" ? "GET" : "POST",
+    redirect: "manual",
+  });
+  if (!response.ok && response.type !== "opaqueredirect")
+    throw new Error(`Action failed with status ${response.status}`);
+}
 function AccountLettermark({
   name,
   color,
@@ -121,7 +117,10 @@ function StatusLine({ item }: { item: ProviderItem }) {
   }
   if (item.status === "error") {
     return (
-      <p className="flex items-center gap-1 text-destructive" title={item.status_label}>
+      <p
+        className="flex items-center gap-1 text-destructive"
+        title={item.status_label ?? undefined}
+      >
         <Icon name="circle-alert" size="sm" />
         {item.status_label}
       </p>
@@ -137,8 +136,20 @@ function ConfirmationDialog({
 }: {
   state: ConfirmState;
   onCancel: () => void;
-  onConfirm: (action: SpaAction) => void;
+  onConfirm: () => void;
 }) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const mutation = useMutation({
+    mutationFn: runSpaAction,
+    onError: (caught) => {
+      setError(caught instanceof Error ? caught.message : "Action failed");
+    },
+    onSuccess: () => {
+      onConfirm();
+      void invalidateAccountQueries(queryClient);
+    },
+  });
   return (
     <Modal
       ariaLabelledby="spa-confirm-title"
@@ -150,13 +161,19 @@ function ConfirmationDialog({
         {state.action.confirm?.title ?? state.action.label}
       </h2>
       <p className="my-4 text-sm text-secondary">{state.action.confirm?.body ?? ""}</p>
+      {error !== null ? (
+        <p className="my-2 text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
       <div className="flex justify-end gap-2">
         <Button onClick={onCancel} variant="secondary">
           Cancel
         </Button>
         <Button
+          disabled={mutation.isPending}
           onClick={() => {
-            onConfirm(state.action);
+            mutation.mutate(state.action);
           }}
           variant="destructive"
         >
@@ -174,54 +191,49 @@ function AccountRowMenu({
   row: AccountListRow;
   onConfirm: (action: SpaAction) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const editable = row.actions.filter((action) => action.key !== "complete_setup");
   if (editable.length === 0) return null;
+  // Portal escapes the group's overflow-hidden section, which would
+  // otherwise clip the open menu under the following group.
   return (
-    <div className="relative">
-      <IconButton
+    <Menu>
+      <MenuButton
+        aria-label={`${row.name} menu`}
+        as={IconButton}
         icon="more-horizontal"
         label={`${row.name} menu`}
-        onClick={() => {
-          setOpen((value) => !value);
-        }}
       />
-      {open ? (
-        <div
-          className="shadow-border-lg absolute right-0 z-30 mt-2 min-w-52 rounded-lg bg-container py-1"
-          role="menu"
-        >
-          {editable.map((action) =>
-            action.method === "get" ? (
+      <MenuItems
+        anchor="bottom end"
+        className="shadow-border-lg z-50 min-w-52 rounded-lg bg-container py-1 focus:outline-none"
+        portal
+      >
+        {editable.map((action) =>
+          action.method === "get" ? (
+            <MenuItem key={action.key}>
               <a
-                className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
+                className="block w-full px-4 py-2 text-left text-sm text-primary data-focus:bg-container-hover"
                 href={action.href}
-                key={action.key}
-                onClick={() => {
-                  setOpen(false);
-                }}
-                role="menuitem"
               >
                 {action.label}
               </a>
-            ) : (
+            </MenuItem>
+          ) : (
+            <MenuItem key={action.key}>
               <button
-                className="block w-full px-4 py-2 text-left text-sm text-primary hover:bg-container-hover"
-                key={action.key}
+                className="block w-full px-4 py-2 text-left text-sm text-primary data-focus:bg-container-hover"
                 onClick={() => {
-                  setOpen(false);
                   onConfirm(action);
                 }}
-                role="menuitem"
                 type="button"
               >
                 {action.label}
               </button>
-            ),
-          )}
-        </div>
-      ) : null}
-    </div>
+            </MenuItem>
+          ),
+        )}
+      </MenuItems>
+    </Menu>
   );
 }
 
@@ -340,21 +352,37 @@ function GroupTable({
   );
 }
 
-function submitPost(href: string) {
-  const form = document.createElement("form");
-  form.method = "post";
-  form.action = href;
-  const csrf = document.createElement("input");
-  csrf.type = "hidden";
-  csrf.name = "authenticity_token";
-  csrf.value = readCsrfToken();
-  form.append(csrf);
-  document.body.append(form);
-  form.submit();
+async function submitPost(
+  href: string,
+  invalidate: () => Promise<void>,
+  setError: (message: string | null) => void,
+): Promise<void> {
+  setError(null);
+  try {
+    const response = await fetch(href, {
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json, text/html",
+        "X-CSRF-Token": readCsrfToken(),
+      },
+      method: "POST",
+      redirect: "manual",
+    });
+    if (!response.ok && response.type !== "opaqueredirect")
+      throw new Error(`Request failed with status ${response.status}`);
+    await invalidate();
+  } catch (caught) {
+    setError(caught instanceof Error ? caught.message : "Request failed");
+  }
 }
 
 function SyncControls({ sync }: { sync: AccountsIndex["sync"] }) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
   const syncing = sync.syncing;
+  function postAction(href: string) {
+    void submitPost(href, () => invalidateAccountQueries(queryClient), setError);
+  }
   return (
     <div className="flex shrink-0 items-center gap-2" id="accounts-sync-controls">
       <IconButton
@@ -363,19 +391,24 @@ function SyncControls({ sync }: { sync: AccountsIndex["sync"] }) {
         icon={syncing ? "loader-circle" : "refresh-ccw"}
         label={sync.syncing_label}
         onClick={() => {
-          if (!syncing) submitPost(sync.sync_href);
+          if (!syncing) postAction(sync.sync_href);
         }}
       />
       {sync.cancel_path !== null ? (
         <Button
           onClick={() => {
-            submitPost(sync.cancel_path ?? "");
+            postAction(sync.cancel_path ?? "");
           }}
           size="sm"
           variant="ghost"
         >
           {sync.cancel_label}
         </Button>
+      ) : null}
+      {error !== null ? (
+        <p className="text-xs text-destructive" role="alert">
+          {error}
+        </p>
       ) : null}
     </div>
   );
@@ -580,7 +613,6 @@ function ProviderCard({
   item: ProviderItem;
   onRowConfirm: (action: SpaAction) => void;
 }) {
-  const queryClient = useQueryClient();
   const [confirm, setConfirm] = useState<SpaAction | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   if (item.scheduled_for_deletion) {
@@ -702,10 +734,8 @@ function ProviderCard({
           onCancel={() => {
             setConfirm(null);
           }}
-          onConfirm={(action) => {
+          onConfirm={() => {
             setConfirm(null);
-            actionForm(action).submit();
-            void invalidateAccountQueries(queryClient);
           }}
           state={{ action: confirm }}
         />
@@ -787,10 +817,8 @@ export function AccountsIndexPage() {
           onCancel={() => {
             setConfirm(null);
           }}
-          onConfirm={(action) => {
+          onConfirm={() => {
             setConfirm(null);
-            actionForm(action).submit();
-            void invalidateAccountQueries(queryClient);
           }}
           state={{ action: confirm }}
         />

@@ -9,7 +9,7 @@ import {
   TabPanel,
   TabPanels,
 } from "@headlessui/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Link,
   Outlet,
@@ -18,13 +18,14 @@ import {
   useRouteContext,
   useSearch,
 } from "@tanstack/react-router";
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import {
   accountDetailQueryOptions,
   type AccountActivity,
   type AccountSearch,
 } from "./api/accounts";
-import { referenceDataQueryOptions, type ReferenceOption } from "./api/transactions";
+import { readCsrfToken, referenceDataQueryOptions, type ReferenceOption } from "./api/transactions";
+import { invalidateAccountQueries } from "./api/account-spa";
 import { AccountIdSchema, type AccountId, type CategoryId, type EntryId } from "./ids";
 import { CategoryIcon, Icon } from "./icon";
 import {
@@ -43,7 +44,19 @@ import { BulkUpdateDrawer } from "./bulk-update-drawer";
 import { TransactionRow, TransactionRowHeader } from "./components/transaction-row";
 import { TablePaginationBar } from "./components/table";
 import { BrandLogo } from "./components/brand-logo";
-import { useSearchShortcut } from "./use-search-shortcut";
+import { TransactionSearchBox } from "./components/transaction-search-box";
+
+function arrayValue(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String).filter((item) => item.length > 0);
+  if (typeof value === "string" && value.length > 0) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+  return [];
+}
+
 export function validateAccountSearch(input: Record<string, unknown>): AccountSearch {
   const page = Number(input.page);
   const result: AccountSearch = { page: Number.isInteger(page) && page > 0 ? page : 1 };
@@ -52,33 +65,47 @@ export function validateAccountSearch(input: Record<string, unknown>): AccountSe
     if (typeof value === "string" && value.length > 0) result[key] = value;
   }
   for (const key of ["start_date", "end_date"] as const) {
-    const value = input[key];
+    const raw = input[key] ?? input[`q[${key}]`];
     if (
-      typeof value === "string" &&
-      /^\d{4}-\d{2}-\d{2}$/u.test(value) &&
-      Number.isFinite(Date.parse(value))
+      typeof raw === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/u.test(raw) &&
+      Number.isFinite(Date.parse(raw))
     )
-      result[key] = value;
+      result[key] = raw;
   }
-  const nested = input.q;
-  const nestedSearch =
-    typeof nested === "object" && nested !== null && "search" in nested ? nested.search : undefined;
-  const nestedStatus =
-    typeof nested === "object" && nested !== null && "status" in nested ? nested.status : undefined;
-  const nestedUncategorized =
-    typeof nested === "object" && nested !== null && "uncategorized" in nested
-      ? nested.uncategorized
-      : undefined;
-  const search = input.search ?? input["q[search]"] ?? nestedSearch;
-  if (typeof search === "string" && search.length > 0) result.search = search;
-  const status = input.status ?? input["q[status][]"] ?? nestedStatus;
-  const statuses = (
-    Array.isArray(status) ? status : typeof status === "string" ? status.split(",") : []
-  ).filter(
+  const nested = typeof input.q === "object" && input.q !== null ? input.q : null;
+  const readField = (key: string): unknown => {
+    if (key in input) return input[key];
+    const qKey = `q[${key}]`;
+    if (qKey in input) return input[qKey];
+    const qArray = `q[${key}][]`;
+    if (qArray in input) return input[qArray];
+    if (nested !== null && key in nested) return Reflect.get(nested, key);
+    return undefined;
+  };
+
+  const rawSearch = readField("search");
+  if (typeof rawSearch === "string" && rawSearch.length > 0) result.search = rawSearch;
+
+  const parsedAmount = Number(readField("amount"));
+  if (Number.isFinite(parsedAmount)) result.amount = parsedAmount;
+
+  const rawOperator = readField("amount_operator");
+  if (rawOperator === "equal" || rawOperator === "greater" || rawOperator === "less")
+    result.amount_operator = rawOperator;
+
+  const types = arrayValue(readField("types")).filter(
+    (value): value is "income" | "expense" | "transfer" =>
+      value === "income" || value === "expense" || value === "transfer",
+  );
+  if (types.length > 0) result.types = types;
+
+  const status = arrayValue(readField("status")).filter(
     (value): value is "confirmed" | "pending" => value === "confirmed" || value === "pending",
   );
-  if (statuses.length > 0) result.status = [...new Set(statuses)];
-  const uncategorized = input.uncategorized ?? input["q[uncategorized]"] ?? nestedUncategorized;
+  if (status.length > 0) result.status = [...new Set(status)];
+
+  const uncategorized = readField("uncategorized");
   if (
     uncategorized === true ||
     uncategorized === "true" ||
@@ -86,6 +113,22 @@ export function validateAccountSearch(input: Record<string, unknown>): AccountSe
     uncategorized === "on"
   )
     result.uncategorized = true;
+
+  for (const filter of ["categories", "tags", "excluded_categories", "excluded_tags"] as const) {
+    const values = arrayValue(readField(filter));
+    if (values.length > 0) result[filter] = values;
+  }
+
+  const excludedTypes = arrayValue(readField("excluded_types")).filter(
+    (value): value is "income" | "expense" | "transfer" =>
+      value === "income" || value === "expense" || value === "transfer",
+  );
+  if (excludedTypes.length > 0) result.excluded_types = excludedTypes;
+
+  const excludedStatus = arrayValue(readField("excluded_status")).filter(
+    (value): value is "confirmed" | "pending" => value === "confirmed" || value === "pending",
+  );
+  if (excludedStatus.length > 0) result.excluded_status = [...new Set(excludedStatus)];
   const perPage = Number(input.per_page);
   if (Number.isInteger(perPage) && perPage > 0 && perPage <= 100) result.per_page = perPage;
   const year = Number(input.statement_year);
@@ -110,7 +153,7 @@ export function AccountDetailPage() {
     void navigate({
       to: "/accounts/$accountId",
       params: { accountId },
-      search: (previous) => ({ ...previous, ...patch }),
+      search: (previous) => ({ ...previous, ...patch, page: patch.page ?? 1 }),
       resetScroll: false,
     });
   };
@@ -257,7 +300,7 @@ export function AccountDetailPage() {
               {tab.id === data.active_tab ? (
                 data.activity ? (
                   <AccountActivityView
-                    key={`${accountId}-${search.page}-${search.search}-${search.status?.join(",")}-${search.uncategorized}`}
+                    key={`${accountId}-${JSON.stringify(search)}`}
                     activity={data.activity}
                     accountId={accountId}
                     search={search}
@@ -374,8 +417,6 @@ function AccountActivityView({
 }) {
   const [selected, setSelected] = useState<Set<EntryId>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  useSearchShortcut(searchInputRef);
   const [columns, setColumns] = useState(() => {
     try {
       const raw: unknown = JSON.parse(localStorage.getItem("account-activity-columns") ?? "null");
@@ -394,7 +435,34 @@ function AccountActivityView({
     return { merchant: true, tags: true };
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const deleteForm = useRef<HTMLFormElement>(null);
+  const queryClient = useQueryClient();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (entryIds: EntryId[]) => {
+      const body = new URLSearchParams();
+      for (const id of entryIds) body.append("bulk_delete[entry_ids][]", id);
+      const response = await fetch(activity.bulk_actions.delete, {
+        body,
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json, text/html",
+          "X-CSRF-Token": readCsrfToken(),
+        },
+        method: "POST",
+        redirect: "manual",
+      });
+      if (!response.ok && response.type !== "opaqueredirect")
+        throw new Error(`Delete failed with status ${response.status}`);
+    },
+    onError: (caught) => {
+      setDeleteError(caught instanceof Error ? caught.message : "Delete failed");
+    },
+    onSuccess: () => {
+      setConfirmDelete(false);
+      setSelected(new Set());
+      void invalidateAccountQueries(queryClient);
+    },
+  });
   const { bootstrap } = useRouteContext({ from: "__root__" });
   const reference = useQuery(
     referenceDataQueryOptions(
@@ -431,28 +499,12 @@ function AccountActivityView({
           />
         </header>
         <div className="flex flex-wrap items-center gap-2">
-          <form
-            key={search.search ?? ""}
-            className="min-w-40 flex-1"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const value = new FormData(event.currentTarget).get("search");
-              onSearchChange({
-                search: typeof value === "string" && value.length > 0 ? value : undefined,
-                page: 1,
-              });
-            }}
-          >
-            <FormField
-              id="account-entry-search"
-              name="search"
-              type="search"
-              aria-label={text.search_placeholder}
-              placeholder={text.search_placeholder}
-              defaultValue={search.search ?? ""}
-              ref={searchInputRef}
-            />
-          </form>
+          <TransactionSearchBox
+            categories={reference.categories}
+            routeSearch={search}
+            tags={reference.tags}
+            updateSearch={onSearchChange}
+          />
           <Popover className="relative">
             <PopoverButton as={Button} variant="secondary" size="sm" iconProps={{ name: "filter" }}>
               {text.filter}
@@ -668,29 +720,23 @@ function AccountActivityView({
               {text.duplicate_selected}
             </Link>
           ) : null}
-          <form
-            ref={deleteForm}
-            action={activity.bulk_actions.delete}
-            method="post"
-            onSubmit={(event) => {
-              event.preventDefault();
+          <Button
+            disabled={bulkDeleteMutation.isPending}
+            onClick={() => {
               setConfirmDelete(true);
             }}
+            size="sm"
+            type="button"
+            variant="destructive-outline"
           >
-            <CsrfFields />
-            {selectedEntries.map((entry) => (
-              <input
-                key={entry.id}
-                type="hidden"
-                name="bulk_delete[entry_ids][]"
-                value={entry.id}
-              />
-            ))}
-            <Button type="submit" variant="destructive-outline" size="sm">
-              {text.delete_selected}
-            </Button>
-          </form>
+            {text.delete_selected}
+          </Button>
         </div>
+      ) : null}
+      {deleteError !== null ? (
+        <p className="text-xs text-destructive" role="alert">
+          {deleteError}
+        </p>
       ) : null}
       {confirmDelete ? (
         <ConfirmSubmit
@@ -702,9 +748,10 @@ function AccountActivityView({
           }}
         >
           <Button
+            disabled={bulkDeleteMutation.isPending}
             variant="destructive"
             onClick={() => {
-              deleteForm.current?.submit();
+              bulkDeleteMutation.mutate(selectedEntries.map((entry) => entry.id));
             }}
           >
             {text.delete_selected}

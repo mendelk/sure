@@ -437,4 +437,31 @@ export async function invalidateAccountQueries(queryClient: {
   await queryClient.invalidateQueries({ queryKey: ["spa", "summary"] });
 }
 
+// Runs a server-driven account action (disable/enable, sync, delete) as a
+// same-origin fetch: CSRF header for auth, method override for patch/delete,
+// then the caller invalidates so lists re-render without a reload.
+export async function postAccountAction(action: {
+  href: string;
+  method?: "delete" | "get" | "patch" | "post";
+  params?: Record<string, string>;
+}): Promise<void> {
+  const body = new URLSearchParams();
+  const method = action.method ?? "post";
+  if (method !== "post" && method !== "get") body.set("_method", method);
+  for (const [name, value] of Object.entries(action.params ?? {})) body.set(name, value);
+
+  const response = await fetch(action.href, {
+    body: method === "get" ? null : body,
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json, text/html",
+      "X-CSRF-Token": readCsrfToken(),
+    },
+    method: method === "get" ? "GET" : "POST",
+    redirect: "manual",
+  });
+  if (!response.ok && response.type !== "opaqueredirect")
+    throw new Error(`Action failed with status ${response.status}`);
+}
+
 export type { Confirm };
