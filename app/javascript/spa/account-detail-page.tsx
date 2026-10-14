@@ -24,7 +24,8 @@ import {
   type AccountActivity,
   type AccountSearch,
 } from "./api/accounts";
-import { AccountIdSchema, type AccountId, type EntryId } from "./ids";
+import { referenceDataQueryOptions, type ReferenceOption } from "./api/transactions";
+import { AccountIdSchema, type AccountId, type CategoryId, type EntryId } from "./ids";
 import { CategoryIcon, Icon } from "./icon";
 import {
   AccountActionControl,
@@ -394,6 +395,14 @@ function AccountActivityView({
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const deleteForm = useRef<HTMLFormElement>(null);
+  const { bootstrap } = useRouteContext({ from: "__root__" });
+  const reference = useQuery(
+    referenceDataQueryOptions(
+      bootstrap.apiPaths.categories,
+      bootstrap.apiPaths.merchants,
+      bootstrap.apiPaths.tags,
+    ),
+  ).data ?? { accounts: [], categories: [], merchants: [], tags: [] };
   const entries = activity.groups.flatMap((group) => group.entries);
   const selectable = entries.filter((entry) => entry.selectable);
   const selectedEntries = selectable.filter((entry) => selected.has(entry.id));
@@ -585,6 +594,7 @@ function AccountActivityView({
                         search={search}
                         text={text}
                         columns={columns}
+                        categories={reference.categories}
                         selected={selected.has(entry.id)}
                         onSelect={(value) => {
                           select([entry.id], value);
@@ -719,6 +729,7 @@ function ActivityEntryView({
   search,
   text,
   columns,
+  categories,
   selected,
   onSelect,
 }: {
@@ -728,6 +739,7 @@ function ActivityEntryView({
   search: AccountSearch;
   text: Record<string, string>;
   columns: { merchant: boolean; notes: boolean; tags: boolean };
+  categories: ReferenceOption<CategoryId>[];
   selected: boolean;
   onSelect: (value: boolean) => void;
 }) {
@@ -764,6 +776,7 @@ function ActivityEntryView({
         amount={entry.amount}
         positive={entry.positive}
         logoUrl={entry.logo_url}
+        categories={categories}
         category={extras}
         badges={<EntryBadges entry={entry} />}
       />
