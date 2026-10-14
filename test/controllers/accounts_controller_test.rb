@@ -61,6 +61,8 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     item = response.parsed_body["items"].find { |it| it["id"] == plaid_items(:one).id }
+    assert item["status_label"].present?
+    assert_match(/\ASynced|Not synced/i, item["status_label"])
     assert_equal edit_plaid_item_path(plaid_items(:one), add_accounts: true), item["manage_href"]
   end
 

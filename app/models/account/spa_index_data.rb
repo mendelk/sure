@@ -151,6 +151,7 @@ class Account::SpaIndexData
     end
 
     def item_payload(spec)
+      status = item_status(spec)
       base = {
         kind: spec[:kind],
         provider_key: spec[:key].to_s,
@@ -162,8 +163,8 @@ class Account::SpaIndexData
         logo_color: Provider::Metadata.for(spec[:key])[:logo_color]
       }
       base.merge(
-        status: item_status(spec),
-        status_label: item_status_label(spec, base[:status]),
+        status: status,
+        status_label: item_status_label(spec, status),
         syncing: spec[:item].syncing?,
         scheduled_for_deletion: item_scheduled_for_deletion?(spec),
         group: group_payload_for_accounts(spec[:accounts]),
@@ -210,10 +211,12 @@ class Account::SpaIndexData
       case status
       when "syncing" then I18n.t("accounts.index.syncing_default", default: "Syncing")
       when "ok"
-        I18n.t("accounts.index.synced_ago", time: concise_time_ago(item.last_synced_at), default: "Synced #{concise_time_ago(item.last_synced_at)} ago")
+        time = item.last_synced_at ? concise_time_ago(item.last_synced_at) : nil
+        time ? I18n.t("accounts.index.synced_ago", time: time, default: "Synced #{time} ago") : I18n.t("accounts.index.never_synced", default: "Not synced yet")
       when "never" then I18n.t("accounts.index.never_synced", default: "Not synced yet")
       when "requires_update" then I18n.t("accounts.index.requires_update", default: "Reconnection required")
-      when "error" then item.sync_error.to_s
+      when "error" then item.sync_error.presence || I18n.t("accounts.index.sync_error", default: "Sync failed")
+      else ""
       end
     end
 
