@@ -326,7 +326,7 @@ class AccountsController < ApplicationController
           last_synced_at: nil,
           sync_error: nil
         )
-        [{ kind: "financekit", key: :financekit, item: item, accounts: @financekit_accounts.to_a }]
+        [ { kind: "financekit", key: :financekit, item: item, accounts: @financekit_accounts.to_a } ]
       else
         []
       end
@@ -383,15 +383,8 @@ class AccountsController < ApplicationController
     end
 
     def build_activity_data
-      legacy = params[:q].is_a?(ActionController::Parameters) ? params[:q].permit(:search, :uncategorized, status: []) : {}
-      @q = legacy.to_h.symbolize_keys
-      @q[:search] = params[:search] if params.key?(:search) && params[:search].is_a?(String)
-      if params.key?(:status)
-        statuses = params[:status].is_a?(Array) ? params[:status] : [ params[:status] ]
-        @q[:status] = statuses.select { |status| status.is_a?(String) && status.in?(%w[confirmed pending]) }
-      end
-      @q[:uncategorized] = ActiveModel::Type::Boolean.new.cast(params[:uncategorized]) if params.key?(:uncategorized)
-      entries = @account.entries.excluding_split_parents.search(@q).reverse_chronological.preload(:account, :entryable)
+      @q = activity_search_filters
+      entries = @account.entries.excluding_split_parents.search(@q, family: @account.family).reverse_chronological.preload(:account, :entryable)
       per_page = safe_per_page(stored_per_page_default)
       store_per_page!(per_page) if params[:per_page].present?
       @pagy, @entries = pagy(entries, limit: per_page, page: [ params[:page].to_i, 1 ].max)
@@ -413,6 +406,78 @@ class AccountsController < ApplicationController
         {}
       end
       @activity_feed_data = Account::ActivityFeedData.new(@account, @entries, split_parents: @split_parents)
+    end
+
+    def activity_search_filters
+      q_param = params[:q].is_a?(ActionController::Parameters) ? params[:q] : {}
+
+      filters = {}
+
+      search_val = params[:search].presence || q_param[:search].presence
+      filters[:search] = search_val if search_val.is_a?(String)
+
+      start_date = params[:start_date].presence || q_param[:start_date].presence
+      filters[:start_date] = start_date if start_date.present?
+
+      end_date = params[:end_date].presence || q_param[:end_date].presence
+      filters[:end_date] = end_date if end_date.present?
+
+      amount = params[:amount].presence || q_param[:amount].presence
+      filters[:amount] = amount if amount.present?
+
+      amount_op = params[:amount_operator].presence || q_param[:amount_operator].presence
+      filters[:amount_operator] = amount_op if amount_op.present?
+
+      statuses = array_param(:status) | array_param_from(q_param, :status)
+      filters[:status] = statuses.select { |s| s.in?(%w[confirmed pending]) } if statuses.present?
+
+      types = array_param(:types) | array_param(:type) | array_param_from(q_param, :types)
+      filters[:types] = types.select { |t| t.in?(%w[income expense transfer]) } if types.present?
+
+      categories = array_param(:categories) | array_param(:category) | array_param_from(q_param, :categories)
+      filters[:categories] = categories if categories.present?
+
+      tags = array_param(:tags) | array_param(:tag) | array_param_from(q_param, :tags)
+      filters[:tags] = tags if tags.present?
+
+      uncat = params.key?(:uncategorized) ? params[:uncategorized] : q_param[:uncategorized]
+      filters[:uncategorized] = ActiveModel::Type::Boolean.new.cast(uncat) unless uncat.nil?
+
+      exc_categories = array_param(:excluded_categories) | array_param_from(q_param, :excluded_categories)
+      filters[:excluded_categories] = exc_categories if exc_categories.present?
+
+      exc_tags = array_param(:excluded_tags) | array_param_from(q_param, :excluded_tags)
+      filters[:excluded_tags] = exc_tags if exc_tags.present?
+
+      exc_types = array_param(:excluded_types) | array_param_from(q_param, :excluded_types)
+      filters[:excluded_types] = exc_types.select { |t| t.in?(%w[income expense transfer]) } if exc_types.present?
+
+      exc_status = array_param(:excluded_status) | array_param_from(q_param, :excluded_status)
+      filters[:excluded_status] = exc_status.select { |s| s.in?(%w[confirmed pending]) } if exc_status.present?
+
+      filters
+    end
+
+    def array_param(key)
+      raw = params[key]
+      if raw.is_a?(Array)
+        raw.map(&:to_s).compact_blank
+      elsif raw.is_a?(String)
+        raw.split(",").compact_blank
+      else
+        []
+      end
+    end
+
+    def array_param_from(hash, key)
+      raw = hash[key]
+      if raw.is_a?(Array)
+        raw.map(&:to_s).compact_blank
+      elsif raw.is_a?(String)
+        raw.split(",").compact_blank
+      else
+        []
+      end
     end
 
     def ensure_linked_account

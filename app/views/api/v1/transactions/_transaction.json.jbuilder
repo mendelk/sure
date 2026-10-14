@@ -25,7 +25,7 @@ json.source transaction.entry.source
 json.user_modified transaction.entry.user_modified
 json.detail_path spa_transaction_path(transaction.id)
 json.classification transaction.entry.classification
-json.kind transaction.kind
+json.kind transaction.kind.presence_in(Transaction.kinds.keys) || "standard"
 json.investment_activity_label transaction.investment_activity_label
 json.pending transaction.pending?
 json.excluded transaction.entry.excluded?

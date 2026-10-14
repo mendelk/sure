@@ -34,6 +34,52 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "show filters account activity by category, tag, type, amount, date, and exclusions" do
+    tag = @user.family.tags.create!(name: "Vacation", color: "#3b82f6")
+    cat1 = categories(:food_and_drink)
+    cat2 = categories(:income)
+
+    t1 = create_transaction(account: @account, name: "Restaurant Dinner", amount: 85.50, date: Date.current, category: cat1)
+    t1.entryable.tags << tag
+
+    t2 = create_transaction(account: @account, name: "Consulting Gig", amount: -500.00, date: 5.days.ago.to_date, category: cat2)
+
+    # Filter by category
+    get account_url(@account, format: :json), params: { categories: [ cat1.name ] }
+    assert_response :success
+    ids = response.parsed_body.dig("activity", "groups").flat_map { |g| g["entries"] }.map { |e| e["id"] }
+    assert_includes ids, t1.id
+    assert_not_includes ids, t2.id
+
+    # Filter by excluded category
+    get account_url(@account, format: :json), params: { excluded_categories: [ cat1.name ] }
+    assert_response :success
+    ids = response.parsed_body.dig("activity", "groups").flat_map { |g| g["entries"] }.map { |e| e["id"] }
+    assert_not_includes ids, t1.id
+    assert_includes ids, t2.id
+
+    # Filter by tag
+    get account_url(@account, format: :json), params: { tags: [ "Vacation" ] }
+    assert_response :success
+    ids = response.parsed_body.dig("activity", "groups").flat_map { |g| g["entries"] }.map { |e| e["id"] }
+    assert_includes ids, t1.id
+    assert_not_includes ids, t2.id
+
+    # Filter by type: income
+    get account_url(@account, format: :json), params: { types: [ "income" ] }
+    assert_response :success
+    ids = response.parsed_body.dig("activity", "groups").flat_map { |g| g["entries"] }.map { |e| e["id"] }
+    assert_not_includes ids, t1.id
+    assert_includes ids, t2.id
+
+    # Filter by amount greater than
+    get account_url(@account, format: :json), params: { amount: 100, amount_operator: "greater" }
+    assert_response :success
+    ids = response.parsed_body.dig("activity", "groups").flat_map { |g| g["entries"] }.map { |e| e["id"] }
+    assert_not_includes ids, t1.id
+    assert_includes ids, t2.id
+  end
+
   test "account activity keeps merchant logos when no investment security is present" do
     merchant = @user.family.merchants.create!(
       name: "Activity Logo Merchant", logo_url: "https://example.com/merchant.png"

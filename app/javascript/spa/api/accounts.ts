@@ -10,8 +10,17 @@ export type AccountSearch = {
   end_date?: string;
   chart_view?: string;
   search?: string;
+  amount?: number;
+  amount_operator?: "equal" | "greater" | "less";
+  types?: ("income" | "expense" | "transfer")[];
   status?: ("pending" | "confirmed")[];
   uncategorized?: boolean;
+  categories?: string[];
+  tags?: string[];
+  excluded_categories?: string[];
+  excluded_tags?: string[];
+  excluded_types?: ("income" | "expense" | "transfer")[];
+  excluded_status?: ("pending" | "confirmed")[];
   page?: number;
   per_page?: number;
   statement_year?: number;
@@ -293,8 +302,7 @@ export function accountDetailQueryOptions(id: AccountId, input: AccountSearch) {
       const params: Record<string, unknown> = input;
       for (const [key, value] of Object.entries(params)) {
         if (Array.isArray(value)) {
-          for (const item of value)
-            if (typeof item === "string") search.append("q[status][]", item);
+          for (const item of value) if (typeof item === "string") search.append(`${key}[]`, item);
         } else if (
           typeof value === "string" ||
           typeof value === "number" ||

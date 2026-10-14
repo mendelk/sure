@@ -545,8 +545,8 @@ class Entry < ApplicationRecord
   end
 
   class << self
-    def search(params)
-      EntrySearch.new(params).build_query(all)
+    def search(params, family: nil)
+      EntrySearch.new(params, family: family).build_query(all)
     end
 
     # arbitrary cutoff date to avoid expensive sync operations
