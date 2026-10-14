@@ -128,8 +128,11 @@ function syncFilterOrder(
     }
   }
   // Values present without an order entry (deep links, legacy URLs) go last
-  // in type order so every active filter still renders a chip.
+  // in type order — but only when their key was untouched by this update, so
+  // a fresh addition always lands after existing filters.
+  const changedKeys = new Set(Object.keys(changes));
   for (const key of [...arrayKeys, ...SINGLE_VALUE_ORDER_KEYS]) {
+    if (changedKeys.has(key)) continue;
     for (const value of nextValues.get(key) ?? []) {
       const entry = orderEntry(key, value);
       if (!keptSet.has(entry) && !appended.includes(entry)) appended.push(entry);
