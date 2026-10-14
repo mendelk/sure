@@ -1479,21 +1479,9 @@ RSpec.configure do |config|
               amount: { type: :string }
             }
           },
-          TransactionSummary: {
-            type: :object,
-            required: %w[count income expense transfer_inflow transfer_outflow currency],
-            properties: {
-              count: { type: :integer, minimum: 0 },
-              income: { type: :string },
-              expense: { type: :string },
-              transfer_inflow: { type: :string },
-              transfer_outflow: { type: :string },
-              currency: { type: :string }
-            }
-          },
           TransactionCollection: {
             type: :object,
-            required: %w[transactions pagination summary],
+            required: %w[transactions pagination],
             properties: {
               transactions: {
                 type: :array,
@@ -1504,7 +1492,6 @@ RSpec.configure do |config|
                 items: { '$ref' => '#/components/schemas/SplitParent' },
                 description: 'Split parent entries for grouped headers; children carry parent_entry_id.'
               },
-              summary: { '$ref' => '#/components/schemas/TransactionSummary' },
               pagination: { '$ref' => '#/components/schemas/Pagination' }
             }
           },
