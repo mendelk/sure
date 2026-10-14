@@ -220,9 +220,16 @@ export function TransactionsPage() {
     });
   }
 
+  function addMerchantFilter(merchantName: string) {
+    const current = routeSearch.merchants ?? [];
+    if (current.includes(merchantName)) return;
+    updateSearch({ merchants: [...current, merchantName] });
+  }
+
   function setColumn(column: "merchant" | "tags", value: boolean) {
     setColumns((previous) => ({ ...previous, [column]: value }));
   }
+
   function setTab(tab: "transactions" | "upcoming") {
     void navigate({
       search: {
@@ -438,6 +445,7 @@ export function TransactionsPage() {
                             categories={reference.categories}
                             columns={columns}
                             key={row.transaction.id}
+                            onAddMerchantFilter={addMerchantFilter}
                             selection={{
                               selected: selected.has(row.transaction.id),
                               disabled: false,
@@ -457,6 +465,7 @@ export function TransactionsPage() {
                                 columns={columns}
                                 indent
                                 key={child.id}
+                                onAddMerchantFilter={addMerchantFilter}
                                 selection={{
                                   selected: selected.has(child.id),
                                   disabled: false,

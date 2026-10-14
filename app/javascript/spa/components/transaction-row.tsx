@@ -74,6 +74,7 @@ export function TransactionRow({
   positive,
   selection,
   transaction,
+  onAddMerchantFilter,
 }: {
   accountId?: AccountId;
   amount?: string;
@@ -91,6 +92,7 @@ export function TransactionRow({
     label: string;
   };
   transaction: SpaTransaction;
+  onAddMerchantFilter?: (merchantName: string) => void;
 }) {
   const { bootstrap } = useRouteContext({ from: "__root__" });
   const categoryName =
@@ -166,6 +168,7 @@ export function TransactionRow({
                 categoryName={transaction.category?.name}
                 merchantId={transaction.merchant.id}
                 merchantName={transaction.merchant.name}
+                onAddFilter={onAddMerchantFilter}
                 transactionId={transaction.id}
               />
             ) : null}
@@ -683,12 +686,14 @@ function MerchantMenu({
   categoryName,
   merchantId,
   merchantName,
+  onAddFilter,
   transactionId,
 }: {
   categoryId?: CategoryId;
   categoryName?: string;
   merchantId: MerchantId;
   merchantName: string;
+  onAddFilter?: (merchantName: string) => void;
   transactionId?: TransactionId;
 }) {
   const [open, setOpen] = useState(false);
@@ -807,6 +812,26 @@ function MerchantMenu({
                 </span>
               </Link>
             </div>
+            {onAddFilter !== undefined ? (
+              <div className="px-1" role="none">
+                <button
+                  className="focus-ring flex w-full cursor-pointer items-center gap-2 rounded-md p-2 text-left text-sm text-primary transition-colors hover:bg-container-hover"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setOpen(false);
+                    onAddFilter(merchantName);
+                  }}
+                  role="menuitem"
+                  tabIndex={-1}
+                  type="button"
+                >
+                  <Icon name="plus" size="sm" />
+                  <span className="min-w-0 wrap-break-word text-sm text-primary">
+                    Add to current filters
+                  </span>
+                </button>
+              </div>
+            ) : null}
             <div className="px-1" role="none">
               <Link
                 className="focus-ring flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-primary transition-colors hover:bg-container-hover"
