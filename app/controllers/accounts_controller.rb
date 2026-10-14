@@ -317,9 +317,22 @@ class AccountsController < ApplicationController
           { kind: kind, key: key, item: item, accounts: accounts }
         end
       end
+      financekit_specs = if @financekit_accounts.present?
+        item = OpenStruct.new(
+          id: "financekit",
+          name: I18n.t("accounts.index.financekit_accounts.title", default: "Apple Wallet & Apple Card"),
+          syncing?: false,
+          scheduled_for_deletion?: false,
+          last_synced_at: nil,
+          sync_error: nil
+        )
+        [{ kind: "financekit", key: :financekit, item: item, accounts: @financekit_accounts.to_a }]
+      else
+        []
+      end
 
       [
-        *item_spec.call("financekit", :financekit, @financekit_accounts),
+        *financekit_specs,
         *item_spec.call("provider", :plaid, @plaid_items),
         *item_spec.call("provider", :simplefin, @simplefin_items),
         *item_spec.call("provider", :lunchflow, @lunchflow_items),

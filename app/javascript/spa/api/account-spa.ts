@@ -95,7 +95,7 @@ export const ProviderItemSchema = z.object({
   logo_icon: z.optional(z.nullable(z.string())),
   logo_color: z.nullable(z.string()),
   status: z.string(),
-  status_label: z.string(),
+  status_label: z.nullable(z.string()),
   syncing: z.boolean(),
   scheduled_for_deletion: z.boolean(),
   group: z.nullable(z.array(AccountGroupSchema)),
