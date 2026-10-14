@@ -1,9 +1,10 @@
 /* eslint-disable import/max-dependencies -- Transactions route composes search, table pagination, drawers, and menus. */
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { Fragment, useMemo, useRef, useState } from "react";
 import {
+  readCsrfToken,
   referenceDataQueryOptions,
   TransactionApiError,
   transactionsQueryOptions,
@@ -31,8 +32,7 @@ import {
 } from "./ids";
 import { BulkUpdateDrawer } from "./bulk-update-drawer";
 import { Button } from "./components/button";
-import { IconButton } from "./components/icon-button";
-import { CsrfFields } from "./components/account-actions";
+import { BulkActionsBar } from "./components/bulk-actions-bar";
 import { Modal } from "./modal";
 
 type TransactionType = "income" | "expense" | "transfer";
@@ -176,7 +176,35 @@ export function TransactionsPage() {
   const [selected, setSelected] = useState<Set<TransactionId>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const deleteForm = useRef<HTMLFormElement>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (entryIds: string[]) => {
+      const deletePath = bootstrap.railsPaths.bulkDelete ?? "/transactions/bulk_deletion";
+      const body = new URLSearchParams();
+      for (const id of entryIds) body.append("bulk_delete[entry_ids][]", id);
+      const response = await fetch(deletePath, {
+        body,
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json, text/html",
+          "X-CSRF-Token": readCsrfToken(),
+        },
+        method: "POST",
+        redirect: "manual",
+      });
+      if (!response.ok && response.type !== "opaqueredirect")
+        throw new Error(`Delete failed with status ${response.status}`);
+    },
+    onError: (caught) => {
+      setDeleteError(caught instanceof Error ? caught.message : "Delete failed");
+    },
+    onSuccess: () => {
+      setConfirmDelete(false);
+      setSelected(new Set());
+      void queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] });
+    },
+  });
 
   const transactionsList = data?.transactions ?? [];
   const selectedTransactions = transactionsList.filter((t) => selected.has(t.id));
@@ -496,18 +524,13 @@ export function TransactionsPage() {
             />
           ) : null}
           {selectedTransactions.length > 0 ? (
-            <div className="shadow-border-lg fixed inset-x-4 bottom-4 z-20 mx-auto flex max-w-xl flex-wrap items-center justify-between gap-2 rounded-xl bg-container p-3">
-              <p className="text-sm text-primary">
-                {selectedTransactions.length} transaction
-                {selectedTransactions.length === 1 ? "" : "s"} selected
-              </p>
-              <IconButton
-                icon="x"
-                label="Close"
-                onClick={() => {
-                  setSelected(new Set());
-                }}
-              />
+            <BulkActionsBar
+              closeLabel="Close"
+              countLabel={`${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"} selected`}
+              onClose={() => {
+                setSelected(new Set());
+              }}
+            >
               <Button
                 onClick={() => {
                   setBulkEditing(true);
@@ -531,29 +554,23 @@ export function TransactionsPage() {
                   Duplicate selected
                 </Link>
               ) : null}
-              <form
-                action={bootstrap.railsPaths.bulkDelete ?? "/transactions/bulk_deletion"}
-                method="post"
-                onSubmit={(event) => {
-                  event.preventDefault();
+              <Button
+                disabled={bulkDeleteMutation.isPending}
+                onClick={() => {
                   setConfirmDelete(true);
                 }}
-                ref={deleteForm}
+                size="sm"
+                type="button"
+                variant="destructive-outline"
               >
-                <CsrfFields />
-                {selectedTransactions.map((transaction) => (
-                  <input
-                    key={transaction.entry_id}
-                    name="bulk_delete[entry_ids][]"
-                    type="hidden"
-                    value={transaction.entry_id}
-                  />
-                ))}
-                <Button size="sm" type="submit" variant="destructive-outline">
-                  Delete selected
-                </Button>
-              </form>
-            </div>
+                Delete selected
+              </Button>
+            </BulkActionsBar>
+          ) : null}
+          {deleteError !== null ? (
+            <p className="text-xs text-destructive" role="alert">
+              {deleteError}
+            </p>
           ) : null}
           {confirmDelete ? (
             <Modal
@@ -580,8 +597,9 @@ export function TransactionsPage() {
                   Cancel
                 </Button>
                 <Button
+                  disabled={bulkDeleteMutation.isPending}
                   onClick={() => {
-                    deleteForm.current?.submit();
+                    bulkDeleteMutation.mutate(selectedTransactions.map((t) => t.entry_id));
                   }}
                   variant="destructive"
                 >

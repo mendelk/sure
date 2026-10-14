@@ -37,8 +37,8 @@ import {
 import { AccountChartCard } from "./components/account-chart";
 import { AccountSectionView } from "./components/account-sections";
 import { Button } from "./components/button";
+import { BulkActionsBar } from "./components/bulk-actions-bar";
 import { FormField } from "./components/form-field";
-import { IconButton } from "./components/icon-button";
 import { Alert } from "./components/alert";
 import { BulkUpdateDrawer } from "./bulk-update-drawer";
 import { TransactionRow, TransactionRowHeader } from "./components/transaction-row";
@@ -684,17 +684,13 @@ function AccountActivityView({
         totalPages={activity.pagination.total_pages}
       />
       {selectedEntries.length > 0 ? (
-        <div className="shadow-border-lg fixed inset-x-4 bottom-4 z-20 mx-auto flex max-w-xl flex-wrap items-center justify-between gap-2 rounded-xl bg-container p-3">
-          <p className="text-sm text-primary">
-            {text.selected_entries.replace("%{count}", String(selectedEntries.length))}
-          </p>
-          <IconButton
-            icon="x"
-            label={text.close}
-            onClick={() => {
-              setSelected(new Set());
-            }}
-          />
+        <BulkActionsBar
+          closeLabel={text.close}
+          countLabel={text.selected_entries.replace("%{count}", String(selectedEntries.length))}
+          onClose={() => {
+            setSelected(new Set());
+          }}
+        >
           <Button
             onClick={() => {
               setBulkEditing(true);
@@ -731,7 +727,7 @@ function AccountActivityView({
           >
             {text.delete_selected}
           </Button>
-        </div>
+        </BulkActionsBar>
       ) : null}
       {deleteError !== null ? (
         <p className="text-xs text-destructive" role="alert">
