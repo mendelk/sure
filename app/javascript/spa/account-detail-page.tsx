@@ -43,7 +43,7 @@ import { BulkUpdateDrawer } from "./bulk-update-drawer";
 import { TransactionRow, TransactionRowHeader } from "./components/transaction-row";
 import { TablePaginationBar } from "./components/table";
 import { BrandLogo } from "./components/brand-logo";
-
+import { useSearchShortcut } from "./use-search-shortcut";
 export function validateAccountSearch(input: Record<string, unknown>): AccountSearch {
   const page = Number(input.page);
   const result: AccountSearch = { page: Number.isInteger(page) && page > 0 ? page : 1 };
@@ -374,6 +374,8 @@ function AccountActivityView({
 }) {
   const [selected, setSelected] = useState<Set<EntryId>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useSearchShortcut(searchInputRef);
   const [columns, setColumns] = useState(() => {
     try {
       const raw: unknown = JSON.parse(localStorage.getItem("account-activity-columns") ?? "null");
@@ -448,6 +450,7 @@ function AccountActivityView({
               aria-label={text.search_placeholder}
               placeholder={text.search_placeholder}
               defaultValue={search.search ?? ""}
+              ref={searchInputRef}
             />
           </form>
           <Popover className="relative">

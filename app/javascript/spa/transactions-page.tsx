@@ -29,6 +29,7 @@ import { TablePaginationBar } from "./components/table";
 import { BrandLogo } from "./components/brand-logo";
 import { Icon, type IconName } from "./icon";
 import { useDismiss } from "./use-dismiss";
+import { useSearchShortcut } from "./use-search-shortcut";
 import {
   AccountIdSchema,
   type AccountId,
@@ -1444,6 +1445,8 @@ function TransactionSearchBox({
   updateSearch: (changes: Partial<TransactionRouteSearch>) => void;
 }) {
   const [text, setText] = useState(routeSearch.search ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useSearchShortcut(inputRef);
   const tokens = selectedTokens(routeSearch);
   const searchParam = routeSearch.search ?? "";
   const [committedSearch, setCommittedSearch] = useState(searchParam);
@@ -1542,6 +1545,7 @@ function TransactionSearchBox({
             placeholder={
               tokens.length > 0 ? "" : "Search or filter... (category:, -tag:, amount-greater:...)"
             }
+            ref={inputRef}
           />
         </div>
         {options.length > 0 && term !== null && definition !== null ? (
