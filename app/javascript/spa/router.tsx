@@ -27,6 +27,7 @@ import {
 import { validateNewTransactionSearch, NewTransactionPage } from "./new-transaction-page";
 import { BulkUpdateDrawer, validateBulkUpdateSearch } from "./bulk-update-drawer";
 import { SplitTransactionPage } from "./split-transaction-page";
+import { TransferMatchPage } from "./transfer-match-page";
 import { TransactionDetailDrawer } from "./transaction-detail-page";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
 import { AccountsIndexPage, SharingDialog } from "./accounts-index-page";
@@ -190,6 +191,12 @@ const splitEditRoute = createRoute({
   getParentRoute: () => transactionDetailRoute,
   path: "split/edit",
   component: SplitEditPage,
+});
+
+const transferMatchRoute = createRoute({
+  getParentRoute: () => transactionDetailRoute,
+  path: "transfer_match/new",
+  component: TransferMatchPage,
 });
 
 const newTransactionRoute = createRoute({
@@ -907,7 +914,7 @@ const routeTree = rootRoute.addChildren([
     accountSharingRoute,
   ]),
   transactionsRoute.addChildren([
-    transactionDetailRoute.addChildren([splitNewRoute, splitEditRoute]),
+    transactionDetailRoute.addChildren([splitNewRoute, splitEditRoute, transferMatchRoute]),
     newTransactionRoute,
     bulkUpdateTransactionRoute,
   ]),
