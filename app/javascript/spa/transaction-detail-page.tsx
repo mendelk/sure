@@ -16,10 +16,8 @@ import {
   TransactionApiError,
   createCategory,
   createMerchant,
-  createTransferMatch,
   referenceDataQueryOptions,
   transactionDetailQueryOptions,
-  transferMatchCandidatesQueryOptions,
   updateTransaction,
   updateTransferStatus,
   markTransactionRecurring,
@@ -149,9 +147,6 @@ export function TransactionDetailDrawer() {
                 <TransactionDetailTransfer bootstrap={bootstrap} transaction={transaction} />
               ) : null}
               <TransactionEditableForm bootstrap={bootstrap} transaction={transaction} />
-              {!transaction.transfer && !transaction.pending ? (
-                <TransferMatcher bootstrap={bootstrap} transaction={transaction} />
-              ) : null}
               <TransactionDetailBody transaction={transaction} />
               <TransactionAttachmentsSection bootstrap={bootstrap} transaction={transaction} />
               {(transaction.split_children?.length ?? 0) > 0 ? (
@@ -793,95 +788,6 @@ function TransactionEditableForm({
           <SaveIndicator state={saveState} />
         </div>
       </div>
-    </Section>
-  );
-}
-
-function TransferMatcher({
-  bootstrap,
-  transaction,
-}: {
-  bootstrap: Bootstrap;
-  transaction: SpaTransactionDetail;
-}) {
-  const queryClient = useQueryClient();
-  const [matcherError, setMatcherError] = useState<string | null>(null);
-  const candidatesQuery = useQuery(
-    transferMatchCandidatesQueryOptions(bootstrap.apiPaths.transactions, transaction.id),
-  );
-
-  const match = useMutation({
-    mutationFn: async (counterpartId: TransactionId) => {
-      const counterpart = await queryClient.query(
-        transactionDetailQueryOptions(bootstrap.apiPaths.transactions, counterpartId),
-      );
-      return createTransferMatch(bootstrap.apiPaths.transactions, transaction.id, {
-        method: "existing",
-        matched_entry_id: counterpart.entry_id,
-      });
-    },
-    onError: (error) => {
-      setMatcherError(error instanceof TransactionApiError ? error.message : "Match failed");
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ["spa", "transaction", bootstrap.apiPaths.transactions, transaction.id],
-      });
-      void queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] });
-      void queryClient.invalidateQueries({ queryKey: ["spa", "account"] });
-    },
-  });
-
-  const candidates = candidatesQuery.data?.candidates ?? [];
-
-  return (
-    <Section title="Match transfer">
-      {matcherError !== null ? (
-        <p
-          className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive"
-          role="alert"
-        >
-          {matcherError}
-        </p>
-      ) : null}
-      {candidatesQuery.isLoading ? (
-        <p className="text-sm text-secondary">Looking for possible matches…</p>
-      ) : candidates.length === 0 ? (
-        <p className="text-sm text-secondary">No possible matches found.</p>
-      ) : (
-        <ul className="space-y-2">
-          {candidates.map((candidate) => {
-            const counterpart =
-              candidate.outflow_transaction_id === transaction.id
-                ? candidate.inflow_transaction
-                : candidate.outflow_transaction;
-            return (
-              <li
-                className="flex items-center justify-between gap-3 rounded-lg border border-tertiary px-3 py-2"
-                key={`${candidate.inflow_transaction_id}-${candidate.outflow_transaction_id}`}
-              >
-                <div className="min-w-0 space-y-0.5">
-                  <p className="truncate text-sm font-medium text-primary">{counterpart.name}</p>
-                  <p className="text-xs text-secondary">
-                    {counterpart.account.name} · {counterpart.date} · {counterpart.amount}
-                    {candidate.date_diff > 0 ? ` · ${candidate.date_diff}d apart` : ""}
-                  </p>
-                </div>
-                <Button
-                  className="shrink-0"
-                  disabled={match.isPending}
-                  onClick={() => {
-                    match.mutate(counterpart.id);
-                  }}
-                  size="sm"
-                >
-                  Match
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </Section>
   );
 }
@@ -1773,6 +1679,24 @@ function TransactionDetailSettings({
           >
             <Icon name="split" size="sm" />
             Split
+          </Link>
+        </div>
+      ) : null}
+      {!isSplitChild ? (
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-primary">Transfer or Debt Payment?</p>
+            <p className="text-xs text-secondary">
+              Connect this transaction to its counterpart in another account.
+            </p>
+          </div>
+          <Link
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
+            params={{ transactionId: transaction.id }}
+            to="/transactions/$transactionId/transfer_match/new"
+          >
+            <Icon name="arrow-left-right" size="sm" />
+            Open matcher
           </Link>
         </div>
       ) : null}

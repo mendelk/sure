@@ -59,6 +59,13 @@ pickers. Enter or Space opens a picker, arrow keys navigate options, Enter selec
 an option, and Escape closes only the picker and restores trigger focus. Tags
 support multiple selections; category and merchant selections are single-valued.
 
+The transaction drawer's Settings section includes an **Open matcher** row that
+opens a native `/transactions/$transactionId/transfer_match/new` page. It shows
+the current side first, then a counterpart picker with **Match existing** and
+**Create new** methods backed by the transfer-match API — the same two paths as
+the Rails modal. With no candidates it defaults to creating a counterpart in a
+chosen account.
+
 The React navigation rail follows the Rails sidebar's icon-above-label layout,
 including the active indicator and preview dots. Navigation uses the
 server-provided, localized item list; Bills and Plan remain subject to the

@@ -179,17 +179,35 @@ class TransactionsTest < ApplicationSystemTestCase
     )
     assert_not_equal inflow.id, inflow.entryable.id
 
-    visit "/transactions/#{outflow.entryable.id}"
+    visit "/transactions/#{outflow.entryable.id}/transfer_match/new"
     within "[role='dialog']" do
-      find("summary", text: /\AMatch transfer\z/i).click
-      within find("li", text: "Transfer match inflow") do
-        click_button "Match"
-      end
-      assert_no_selector "summary", text: /\AMatch transfer\z/i
-      assert_selector "summary", text: /\AMatching transfer\z/i
+      click_button "Select a transaction"
+      fill_in "Search possible matches", with: "Transfer match inflow"
+      click_button "Transfer match inflow", exact: true
+      click_button "Create transfer match"
+      assert_selector "summary", text: /\AMatching transfer\z/i, wait: 10
     end
     transfer = Transfer.find_by!(outflow_transaction_id: outflow.entryable.id)
     assert_equal inflow.entryable.id, transfer.inflow_transaction_id
+  end
+
+  test "creates a transfer counterpart in another account from the matcher" do
+    outflow = create_transaction("Transfer create outflow", Date.current, 77.25)
+    target = accounts(:investment)
+
+    visit "/transactions/#{outflow.entryable.id}/transfer_match/new"
+    within "[role='dialog']" do
+      assert_text "We couldn't find any transactions to match"
+      click_button "Select an account"
+      fill_in "Search accounts", with: target.name
+      click_button target.name, exact: true
+      assert_difference [ "Transfer.count", "Entry.count", "Transaction.count" ], 1 do
+        click_button "Create transfer match"
+        assert_selector "summary", text: /\AMatching transfer\z/i, wait: 10
+      end
+    end
+    transfer = Transfer.find_by!(outflow_transaction_id: outflow.entryable.id)
+    assert_equal target.id, transfer.inflow_transaction.entry.account_id
   end
 
   test "changes a transaction category from the row menu" do
