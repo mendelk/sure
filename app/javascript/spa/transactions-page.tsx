@@ -367,7 +367,7 @@ export function TransactionsPage() {
 
           <Link
             aria-label="New transaction"
-            className="focus-ring inline-flex md:hidden h-9 w-9 items-center justify-center rounded-full button-bg-primary text-inverse transition-colors hover:button-bg-primary-hover"
+            className="focus-ring inline-flex md:hidden size-9 items-center justify-center rounded-full button-bg-primary text-inverse transition-colors hover:button-bg-primary-hover"
             search={{ account_id: undefined, nature: undefined }}
             to="/transactions/new"
           >
@@ -1032,7 +1032,7 @@ function TransactionsMenu({
     <Menu as="div" className="relative shrink-0">
       <MenuButton
         aria-label="Transactions menu"
-        className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-container-inset-hover"
+        className="focus-ring inline-flex size-9 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-container-inset-hover"
         data-testid="transactions-menu-button"
       >
         <Icon name="more-horizontal" size="md" />

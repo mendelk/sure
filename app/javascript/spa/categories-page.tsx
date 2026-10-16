@@ -341,7 +341,7 @@ function CategoryFormDialog({
         <div className="mx-auto w-fit">
           <span
             aria-hidden="true"
-            className="flex h-14 w-14 items-center justify-center rounded-full"
+            className="flex size-14 items-center justify-center rounded-full"
             style={{
               backgroundColor: `color-mix(in oklab, ${effectiveColor} 10%, transparent)`,
               color: effectiveColor,

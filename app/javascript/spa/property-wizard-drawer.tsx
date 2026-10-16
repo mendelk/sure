@@ -274,7 +274,7 @@ export function PropertyNewDrawer() {
           <ul className="space-y-1">
             <li>
               <Button
-                className="flex w-full items-center gap-4 rounded-lg border border-transparent px-2 py-2 text-left hover:bg-surface-hover"
+                className="flex w-full items-center gap-4 rounded-lg border border-transparent p-2 text-left hover:bg-surface-hover"
                 onClick={() => {
                   void navigate({ params: {}, resetScroll: false, to: "/properties/new/manual" });
                 }}
@@ -288,7 +288,7 @@ export function PropertyNewDrawer() {
             {providers.map((provider) => (
               <li key={provider.value}>
                 <Button
-                  className="flex w-full items-center gap-4 rounded-lg border border-transparent px-2 py-2 text-left hover:bg-surface-hover"
+                  className="flex w-full items-center gap-4 rounded-lg border border-transparent p-2 text-left hover:bg-surface-hover"
                   onClick={() => {
                     void navigate({
                       resetScroll: false,

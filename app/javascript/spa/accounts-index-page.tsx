@@ -331,7 +331,7 @@ function AccountRowView({
   onConfirm: (action: SpaAction) => void;
 }) {
   return (
-    <li className="relative flex items-center justify-between gap-3 px-4 py-4 hover:bg-surface-hover">
+    <li className="relative flex items-center justify-between gap-3 p-4 hover:bg-surface-hover">
       <div className="flex min-w-0 items-center gap-3">
         <AccountLettermark color={row.color} logoUrl={row.logo_url} name={row.name} />
         <div className="min-w-0">
