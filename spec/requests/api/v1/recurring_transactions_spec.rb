@@ -90,8 +90,8 @@ RSpec.describe 'API V1 Recurring Transactions', type: :request do
                 description: 'Only upcoming active series. Credit cards require an open, closed-statement occurrence; their amount is its unpaid remainder.',
                 schema: { type: :boolean, default: false }
       parameter name: :upcoming_days, in: :query, required: false,
-                description: 'Upcoming horizon in days when upcoming=true.',
-                schema: { type: :integer, minimum: 1, maximum: 365, default: 10 }
+                description: 'Upcoming horizon in days when upcoming=true. Defaults to 10 for ordinary series and the statement-to-due gap (currently 25) for credit cards. An explicit value overrides both.',
+                schema: { type: :integer, minimum: 1, maximum: 365 }
 
       response '200', 'recurring transactions listed' do
         schema '$ref' => '#/components/schemas/RecurringTransactionCollection'

@@ -9994,12 +9994,13 @@ paths:
       - name: upcoming_days
         in: query
         required: false
-        description: Upcoming horizon in days when upcoming=true.
+        description: Upcoming horizon in days when upcoming=true. Defaults to 10 for
+          ordinary series and the statement-to-due gap (currently 25) for credit cards.
+          An explicit value overrides both.
         schema:
           type: integer
           minimum: 1
           maximum: 365
-          default: 10
       responses:
         '200':
           description: recurring transactions listed

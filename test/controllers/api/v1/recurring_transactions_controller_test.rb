@@ -75,7 +75,7 @@ class Api::V1::RecurringTransactionsControllerTest < ActionDispatch::Integration
   test "upcoming cards show unpaid closed-cycle amounts and exclude unknown or settled schedules" do
     travel_to Time.zone.local(2026, 10, 12, 12) do
       card = @family.accounts.create!(name: "Upcoming card", owner: @user, balance: 80, currency: "USD",
-                                     accountable: CreditCard.new(payment_due_day: 17))
+                                     accountable: CreditCard.new(payment_due_day: 31))
       unknown = @family.accounts.create!(name: "Unknown day", owner: @user, balance: 100, currency: "USD",
                                         accountable: CreditCard.new)
       series = card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
@@ -85,15 +85,27 @@ class Api::V1::RecurringTransactionsControllerTest < ActionDispatch::Integration
       card.entries.create!(date: Date.new(2026, 10, 10), name: "Payment", amount: -25, currency: "USD",
                            entryable: Transaction.new)
       card.accountable.payment_schedule.refresh!
+      @recurring_transaction.update!(next_expected_date: Date.new(2026, 10, 31))
 
       get api_v1_recurring_transactions_url(upcoming: true), headers: api_headers(@api_key)
       assert_response :success
       rows = response.parsed_body.fetch("recurring_transactions")
       row = rows.find { |item| item["id"] == series.id }
       assert_equal 5500, row.fetch("amount_cents")
-      assert_equal "2026-10-17", row.fetch("next_expected_date")
+      assert_equal "2026-10-31", row.fetch("next_expected_date")
       assert_equal "USD", row.dig("current_occurrence", "currency")
       refute_includes rows.map { |item| item["id"] }, unknown_series.id
+      refute_includes rows.map { |item| item["id"] }, @recurring_transaction.id
+
+      get api_v1_recurring_transactions_url(upcoming: true, upcoming_days: 10), headers: api_headers(@api_key)
+      assert_response :success
+      refute_includes response.parsed_body.fetch("recurring_transactions").map { |item| item["id"] }, series.id
+
+      get api_v1_recurring_transactions_url(upcoming: true, upcoming_days: 25), headers: api_headers(@api_key)
+      assert_response :success
+      ids = response.parsed_body.fetch("recurring_transactions").map { |item| item["id"] }
+      assert_includes ids, series.id
+      assert_includes ids, @recurring_transaction.id
 
       RecurringTransaction::Allocator.new(series.next_open_occurrence).mark_paid!
       get api_v1_recurring_transactions_url(upcoming: true), headers: api_headers(@api_key)

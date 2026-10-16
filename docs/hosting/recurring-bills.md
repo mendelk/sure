@@ -123,9 +123,12 @@ with the estimated statement dates, closing balance, post-close credits,
 expected amount, remaining amount, currency, and due-date source. The
 series-level `amount` is zero bookkeeping, not an estimate: use occurrence
 amounts for these series. With `upcoming=true`, only cards with a dated open
-occurrence appear, and `amount` / `amount_cents` instead report that
-occurrence's unpaid remainder. Unknown due days and next dates are null,
-not invented dates.
+occurrence due today or within the statement-to-due gap appear (currently
+25 days, from `CreditCard::PaymentSchedule::STATEMENT_GAP_DAYS`). Ordinary
+recurring items retain their 10-day default. An explicit `upcoming_days`
+overrides both windows. The `amount` / `amount_cents` fields report the
+card occurrence's unpaid remainder. Unknown due days and next dates are
+null, not invented dates.
 Updating or deleting the series returns HTTP 403; configure the due day
 through the account endpoint instead.
 
