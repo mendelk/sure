@@ -44,14 +44,42 @@ class CreditCard::PaymentScheduleTest < ActiveSupport::TestCase
     assert occurrence.scheduled?
   end
 
-  test "no occurrence exists for a statement on its closing day" do
-    travel_to Time.zone.local(2026, 10, 2, 12)
-    configure_day(27)
-    assert_nil series.recurring_occurrences.find_by(original_due_on: Date.new(2026, 10, 27))
+  test "first payment is calculated on closing day and refreshes as posted charges arrive" do
+    travel_to Time.zone.local(2026, 10, 16, 12)
+    charge(40, Date.current)
+    charge(900, Date.current, extra: { plaid: { pending: true } })
+    charge(300, Date.current + 1)
+    configure_day(10)
 
-    travel_to Time.zone.local(2026, 10, 3, 0)
+    assert_equal [ Date.new(2026, 11, 10) ], series.recurring_occurrences.pluck(:due_on)
+    assert_equal Date.current, occurrence.statement_end_on
+    assert_equal 140, occurrence.remaining_amount
+    identity = occurrence.id
+
+    charge(25, Date.current)
     refresh
-    assert_equal Date.new(2026, 10, 2), series.recurring_occurrences.find_by!(original_due_on: Date.new(2026, 10, 27)).statement_end_on
+    assert_equal identity, occurrence.id
+    assert_equal 165, occurrence.remaining_amount
+
+    travel_to Time.zone.local(2026, 10, 17, 12)
+    refresh
+    assert_equal 165, occurrence.remaining_amount
+  end
+
+  test "existing schedule calculates the next payment on closing day but not before" do
+    travel_to Time.zone.local(2026, 10, 15, 12)
+    charge(-100, Date.new(2026, 10, 10), name: "Autopay")
+    charge(34.46, Date.new(2026, 10, 16))
+    configure_day(10)
+    assert_equal [ Date.new(2026, 10, 10) ], series.recurring_occurrences.pluck(:due_on)
+    assert occurrence.paid?
+
+    travel_to Time.zone.local(2026, 10, 16, 0)
+    refresh
+    current = series.next_open_occurrence
+    assert_equal Date.new(2026, 11, 10), current.due_on
+    assert_equal Date.current, current.statement_end_on
+    assert_equal BigDecimal("34.46"), current.remaining_amount
   end
 
   test "post-close refund reduces the estimate and a repayment reduces only the remainder" do

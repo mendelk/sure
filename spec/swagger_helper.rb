@@ -1303,7 +1303,7 @@ RSpec.configure do |config|
               manual: { type: :boolean },
               system_managed_kind: { type: :string, nullable: true, enum: [ 'credit_card_payment' ], readOnly: true, description: 'Automatic credit-card series cannot be edited, paused, or deleted. Configure the account payment_due_day instead. Series amount is zero except in upcoming=true projections; current_occurrence carries the closed-cycle estimate.' },
               current_occurrence: {
-                type: :object, nullable: true, readOnly: true, description: 'Credit-card estimate available only after statement close.',
+                type: :object, nullable: true, readOnly: true, description: 'Credit-card estimate available from its estimated statement closing date.',
                 properties: {
                   id: { type: :string, format: :uuid },
                   due_on: { type: :string, format: :date },
