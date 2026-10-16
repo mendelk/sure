@@ -29,6 +29,7 @@ import { BulkUpdateDrawer, validateBulkUpdateSearch } from "./bulk-update-drawer
 import { SplitTransactionPage } from "./split-transaction-page";
 import { TransferMatchPage } from "./transfer-match-page";
 import { TransactionDetailDrawer } from "./transaction-detail-page";
+import { TransferDetailDrawer } from "./transfer-detail-drawer";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
 import { AccountsIndexPage, SharingDialog } from "./accounts-index-page";
 import { StatementDetailPage, StatementsIndexPage } from "./statements-page";
@@ -101,6 +102,11 @@ const accountTransactionRoute = createRoute({
   path: "transactions/$transactionId",
   component: TransactionDetailDrawer,
 });
+const accountTransferRoute = createRoute({
+  getParentRoute: () => accountDetailRoute,
+  path: "transfers/$transferId",
+  component: TransferDetailDrawer,
+});
 
 const newAccountTransactionRoute = createRoute({
   getParentRoute: () => accountDetailRoute,
@@ -171,6 +177,26 @@ const transactionDetailRoute = createRoute({
   getParentRoute: () => transactionsRoute,
   path: "$transactionId",
   component: TransactionDetailDrawer,
+});
+const transferDetailRoute = createRoute({
+  getParentRoute: () => transactionsRoute,
+  path: "transfers/$transferId",
+  component: TransferDetailDrawer,
+});
+
+function StandaloneTransferPage() {
+  return (
+    <>
+      <TransactionsPage />
+      <TransferDetailDrawer />
+    </>
+  );
+}
+
+const standaloneTransferRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/transfers/$transferId",
+  component: StandaloneTransferPage,
 });
 
 function SplitNewPage() {
@@ -910,11 +936,13 @@ const ruleConfirmAllRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   accountDetailRoute.addChildren([
     accountTransactionRoute,
+    accountTransferRoute,
     newAccountTransactionRoute,
     accountSharingRoute,
   ]),
   transactionsRoute.addChildren([
     transactionDetailRoute.addChildren([splitNewRoute, splitEditRoute, transferMatchRoute]),
+    transferDetailRoute,
     newTransactionRoute,
     bulkUpdateTransactionRoute,
   ]),
@@ -945,6 +973,7 @@ const routeTree = rootRoute.addChildren([
   propertyBalancesRoute,
   propertyAddressRoute,
   propertyEditRoute,
+  standaloneTransferRoute,
 ]);
 export type SpaRouter = Router<typeof routeTree>;
 

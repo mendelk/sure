@@ -187,6 +187,107 @@ class Api::V1::TransfersControllerTest < ActionDispatch::IntegrationTest
   ensure
     api_key_without_read&.destroy
   end
+  test "updates transfer notes and tags" do
+    read_write_key = ApiKey.create!(
+      user: @user,
+      name: "Test Read Write Key Notes",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "test_rw_notes_#{SecureRandom.hex(8)}"
+    )
+    tag = @family.tags.create!(name: "Vacation")
+
+    patch api_v1_transfer_url(@transfer),
+          params: { transfer: { notes: "Updated note", tag_ids: [ tag.id ] } },
+          headers: api_headers(read_write_key),
+          as: :json
+
+    assert_response :success
+    response_data = JSON.parse(response.body)
+    assert_equal "Updated note", response_data["notes"]
+    assert_equal "Updated note", @transfer.reload.notes
+    assert_includes @transfer.outflow_transaction.reload.tag_ids, tag.id
+    assert_includes @transfer.inflow_transaction.reload.tag_ids, tag.id
+  end
+
+  test "deletes transfer" do
+    read_write_key = ApiKey.create!(
+      user: @user,
+      name: "Test Read Write Key Destroy",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "test_rw_destroy_#{SecureRandom.hex(8)}"
+    )
+
+    assert_difference "Transfer.count", -1 do
+      delete api_v1_transfer_url(@transfer), headers: api_headers(read_write_key)
+      assert_response :no_content
+    end
+  end
+
+  test "destroy requires read_write scope" do
+    delete api_v1_transfer_url(@transfer), headers: api_headers(@api_key)
+    assert_response :forbidden
+  end
+
+  test "destroy requires authentication" do
+    delete api_v1_transfer_url(@transfer)
+    assert_response :unauthorized
+  end
+
+  test "destroy returns not found for another family's transfer" do
+    read_write_key = ApiKey.create!(
+      user: @user,
+      name: "Test Read Write Key Other Destroy",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "test_rw_other_destroy_#{SecureRandom.hex(8)}"
+    )
+
+    delete api_v1_transfer_url(@other_transfer), headers: api_headers(read_write_key)
+    assert_response :not_found
+  end
+
+  test "marks transfer as recurring" do
+    read_write_key = ApiKey.create!(
+      user: @user,
+      name: "Test Read Write Key Recurring",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "test_rw_rec_#{SecureRandom.hex(8)}"
+    )
+
+    assert_difference "RecurringTransaction.count", 1 do
+      post mark_as_recurring_api_v1_transfer_url(@transfer), headers: api_headers(read_write_key)
+      assert_response :created
+    end
+
+    response_data = JSON.parse(response.body)
+    assert_equal "Transfer marked as recurring", response_data["message"]
+    assert response_data["recurring_transaction_id"].present?
+  end
+
+  test "mark as recurring returns conflict if already exists" do
+    read_write_key = ApiKey.create!(
+      user: @user,
+      name: "Test Read Write Key Rec Conflict",
+      scopes: [ "read_write" ],
+      source: "web",
+      display_key: "test_rw_rec_conf_#{SecureRandom.hex(8)}"
+    )
+
+    RecurringTransaction.create_from_transfer(@transfer)
+
+    assert_no_difference "RecurringTransaction.count" do
+      post mark_as_recurring_api_v1_transfer_url(@transfer), headers: api_headers(read_write_key)
+      assert_response :conflict
+    end
+  end
+
+  test "mark as recurring requires read_write scope" do
+    post mark_as_recurring_api_v1_transfer_url(@transfer), headers: api_headers(@api_key)
+    assert_response :forbidden
+  end
 
   private
 

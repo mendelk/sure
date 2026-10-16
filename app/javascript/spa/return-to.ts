@@ -20,7 +20,7 @@ export function currentReturnTo(): string {
 // dialog closes or its save completes.
 export function useDialogClose(fallbackTo: string): () => void {
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as Record<string, unknown>;
+  const search = useSearch({ strict: false });
   const value = search[RETURN_TO_KEY];
   const target = parseReturnTo(value, fallbackTo);
   return () => {

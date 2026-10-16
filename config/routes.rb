@@ -12,6 +12,8 @@ Rails.application.routes.draw do
   get "transactions/:id", to: "spa#show", as: :spa_transaction, constraints: { id: /[0-9a-f-]{36}/i }
   get "transactions/:transaction_id/split/new", to: "spa#show", constraints: { transaction_id: /[0-9a-f-]{36}/i }
   get "transactions/:transaction_id/split/edit", to: "spa#show", constraints: { transaction_id: /[0-9a-f-]{36}/i }
+  get "transactions/transfers/:id", to: "spa#show", constraints: { id: /[0-9a-f-]{36}/i }
+  get "accounts/:account_id/transfers/:id", to: "spa#show", constraints: { account_id: /[0-9a-f-]{36}/i, id: /[0-9a-f-]{36}/i }
   get "dashboards", to: "spa#show", as: :dashboards
   get "sources", to: "spa#show", as: :sources
   get "sources/new", to: "spa#show", as: :new_source
@@ -413,6 +415,7 @@ Rails.application.routes.draw do
   namespace :settings do
     resource :profile, only: [ :show, :destroy ]
     resource :preferences, only: %i[show update]
+    resource :web_notifications, only: %i[show update]
     resource :budget_shares, only: :update
     resource :appearance, only: %i[show update]
     resource :debug, only: :show
@@ -672,6 +675,13 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :web_notifications, only: %i[index update] do
+    post :mark_all_read, on: :collection
+  end
+  resources :web_push_subscriptions, only: %i[create destroy] do
+    post :test, on: :member
+  end
+
   resources :accountable_sparklines, only: :show, param: :accountable_type
 
   direct :entry do |entry, options|
@@ -816,7 +826,9 @@ Rails.application.routes.draw do
       end
       resources :trades, only: [ :index, :show, :create, :update, :destroy ]
       resources :holdings, only: [ :index, :show ]
-      resources :transfers, only: [ :index, :show, :update ]
+      resources :transfers, only: [ :index, :show, :update, :destroy ] do
+        post :mark_as_recurring, on: :member
+      end
       resources :rejected_transfers, only: [ :index, :show ]
       resources :valuations, only: [ :index, :create, :update, :show ]
       resources :recurring_transactions, only: [ :index, :show, :create, :update, :destroy ]

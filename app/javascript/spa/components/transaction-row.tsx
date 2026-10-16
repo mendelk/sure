@@ -99,6 +99,29 @@ export function TransactionRow({
     transaction.category?.name ??
     (transaction.classification === "income" ? "Income" : "Uncategorized");
 
+  const isConfirmedTransfer = transaction.transfer?.status === "confirmed";
+  const isTransferKind = [
+    "funds_movement",
+    "cc_payment",
+    "loan_payment",
+    "investment_contribution",
+  ].includes(transaction.kind ?? "");
+  const isTransfer = Boolean(transaction.transfer) || isTransferKind;
+
+  const isPayment =
+    transaction.kind === "cc_payment" ||
+    transaction.transfer?.other_account?.account_type === "credit_card" ||
+    transaction.transfer?.other_account?.account_type === "liability";
+
+  const isLoanPayment = transaction.kind === "loan_payment";
+  const transferPrefix = isLoanPayment ? "Loan payment" : "Transfer";
+  const isGlobalTransfer = !accountId && (isConfirmedTransfer || isTransferKind);
+
+  const virtualTransferCategory = isPayment
+    ? { name: "Payment", color: "#db5a54", icon: "arrow-right" }
+    : { name: "Transfer", color: "#444CE7", icon: "arrow-left-right" };
+
+  const showVirtualBadge = isConfirmedTransfer && !isLoanPayment;
   return (
     <li
       className={`group ${transactionGridClass} px-4 py-3 transition-colors hover:bg-container-hover ${
@@ -121,31 +144,64 @@ export function TransactionRow({
             type="checkbox"
           />
         ) : null}
-        <BrandLogo
-          className="size-10 rounded-full bg-container-inset text-sm font-semibold text-secondary"
-          src={logoUrl ?? transaction.logo_url ?? transaction.merchant?.logo_url}
-        >
-          {transaction.name.slice(0, 1).toUpperCase()}
-        </BrandLogo>
+        {isConfirmedTransfer ? (
+          <div
+            aria-hidden="true"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full"
+            style={{
+              backgroundColor: "color-mix(in srgb, #444CE7 15%, transparent)",
+              color: "#444CE7",
+            }}
+          >
+            <Icon name="arrow-left-right" size="md" />
+          </div>
+        ) : (
+          <BrandLogo
+            className="size-10 rounded-full bg-container-inset text-sm font-semibold text-secondary"
+            src={logoUrl ?? transaction.logo_url ?? transaction.merchant?.logo_url}
+          >
+            {transaction.name.slice(0, 1).toUpperCase()}
+          </BrandLogo>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <Link
-              className="truncate text-sm font-medium text-primary hover:underline"
-              params={
-                accountId
-                  ? { accountId, transactionId: transaction.id }
-                  : { transactionId: transaction.id }
-              }
-              resetScroll={false}
-              search={(previous) => previous}
-              to={
-                accountId
-                  ? "/accounts/$accountId/transactions/$transactionId"
-                  : "/transactions/$transactionId"
-              }
-            >
-              {transaction.name}
-            </Link>
+            {isConfirmedTransfer && transaction.transfer ? (
+              <Link
+                className="truncate text-sm font-medium text-primary hover:underline"
+                params={
+                  accountId
+                    ? { accountId, transferId: transaction.transfer.id }
+                    : { transferId: transaction.transfer.id }
+                }
+                resetScroll={false}
+                search={(previous) => previous}
+                to={
+                  accountId
+                    ? "/accounts/$accountId/transfers/$transferId"
+                    : "/transactions/transfers/$transferId"
+                }
+              >
+                {transaction.name}
+              </Link>
+            ) : (
+              <Link
+                className="truncate text-sm font-medium text-primary hover:underline"
+                params={
+                  accountId
+                    ? { accountId, transactionId: transaction.id }
+                    : { transactionId: transaction.id }
+                }
+                resetScroll={false}
+                search={(previous) => previous}
+                to={
+                  accountId
+                    ? "/accounts/$accountId/transactions/$transactionId"
+                    : "/transactions/$transactionId"
+                }
+              >
+                {transaction.name}
+              </Link>
+            )}
             {transaction.pending ? (
               <span className="rounded-full bg-container-inset px-2 py-0.5 text-[11px] font-medium text-secondary">
                 Pending
@@ -161,31 +217,58 @@ export function TransactionRow({
               </span>
             ) : null}
           </div>
-          <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-secondary">
-            {transaction.merchant && columns.merchant ? (
-              <MerchantMenu
-                categoryId={transaction.category?.id}
-                categoryName={transaction.category?.name}
-                merchantId={transaction.merchant.id}
-                merchantName={transaction.merchant.name}
-                onAddFilter={onAddMerchantFilter}
-                transactionId={transaction.id}
-              />
-            ) : null}
-            <Link
-              className="truncate hover:underline"
-              params={{ accountId: transaction.account.id }}
-              to="/accounts/$accountId"
-            >
-              {transaction.account.name}
-            </Link>
-          </p>
+          {isTransfer ? (
+            <p className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-xs text-secondary">
+              <span>{transferPrefix} •</span>
+              <Link
+                className="truncate hover:underline"
+                params={{ accountId: transaction.account.id }}
+                to="/accounts/$accountId"
+              >
+                {transaction.account.name}
+              </Link>
+              {transaction.transfer?.other_account ? (
+                <>
+                  <span>{transaction.classification === "expense" ? "→" : "←"}</span>
+                  <Link
+                    className="truncate hover:underline"
+                    params={{ accountId: transaction.transfer.other_account.id }}
+                    to="/accounts/$accountId"
+                  >
+                    {transaction.transfer.other_account.name}
+                  </Link>
+                </>
+              ) : null}
+            </p>
+          ) : (
+            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-secondary">
+              {transaction.merchant && columns.merchant ? (
+                <MerchantMenu
+                  categoryId={transaction.category?.id}
+                  categoryName={transaction.category?.name}
+                  merchantId={transaction.merchant.id}
+                  merchantName={transaction.merchant.name}
+                  onAddFilter={onAddMerchantFilter}
+                  transactionId={transaction.id}
+                />
+              ) : null}
+              <Link
+                className="truncate hover:underline"
+                params={{ accountId: transaction.account.id }}
+                to="/accounts/$accountId"
+              >
+                {transaction.account.name}
+              </Link>
+            </p>
+          )}
         </div>
       </div>
 
       <div className="hidden min-w-0 items-center gap-2 md:col-span-3 md:flex">
         {category ??
-          (categories !== undefined ? (
+          (showVirtualBadge ? (
+            <CategoryBadge category={virtualTransferCategory} />
+          ) : categories !== undefined ? (
             <CategoryMenu bootstrap={bootstrap} categories={categories} transaction={transaction} />
           ) : (
             <CategoryBadge category={transaction.category ?? { name: categoryName }} />
@@ -200,10 +283,16 @@ export function TransactionRow({
 
       <p
         className={`privacy-sensitive text-right text-sm font-medium tabular-nums md:col-span-2 ${
-          (positive ?? transaction.signed_amount_cents > 0) ? "text-success" : "text-primary"
+          isGlobalTransfer
+            ? "text-primary"
+            : (positive ?? transaction.signed_amount_cents > 0)
+              ? "text-success"
+              : "text-primary"
         }`}
       >
-        {amount ?? transaction.amount}
+        {isGlobalTransfer
+          ? `+/- ${(amount ?? transaction.amount).replace(/^[+-]\s*/u, "")}`
+          : (amount ?? transaction.amount)}
       </p>
     </li>
   );

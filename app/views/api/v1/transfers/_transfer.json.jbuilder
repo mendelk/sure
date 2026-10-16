@@ -8,10 +8,56 @@ json.amount_cents money_to_minor_units(transfer.amount_abs)
 json.currency transfer.inflow_transaction.entry.currency
 json.transfer_type transfer.transfer_type
 json.notes transfer.notes
+json.name transfer.name
+json.payment transfer.payment?
+json.categorizable transfer.categorizable?
 json.source_fee_amount transfer.derived_source_fee_amount.to_s("F")
 json.source_fee_currency transfer.from_account&.currency
 json.destination_fee_amount transfer.derived_destination_fee_amount.to_s("F")
 json.destination_fee_currency transfer.to_account&.currency
+if transfer.outflow_transaction&.category.present?
+  json.category do
+    json.id transfer.outflow_transaction.category.id
+    json.name transfer.outflow_transaction.category.name
+    json.color transfer.outflow_transaction.category.color
+    json.icon transfer.outflow_transaction.category.lucide_icon
+  end
+else
+  json.category nil
+end
+
+json.tags(transfer.outflow_transaction&.tags || []) do |tag|
+  json.id tag.id
+  json.name tag.name
+  json.color tag.color
+end
+
+endpoint_ids = [ transfer.from_account&.id, transfer.to_account&.id ].compact
+writable_count = if defined?(current_resource_owner) && current_resource_owner
+  Account.writable_by(current_resource_owner).where(id: endpoint_ids).distinct.count
+else
+  2
+end
+json.can_mark_as_recurring(
+  !transfer.from_account&.family&.recurring_transactions_disabled? &&
+  endpoint_ids.size == 2 &&
+  writable_count == 2
+)
+
+source_account = transfer.from_account
+destination_account = transfer.to_account
+json.recurring_exists(
+  if source_account && destination_account
+    RecurringTransaction.exists?(
+      account_id: source_account.id,
+      destination_account_id: destination_account.id,
+      amount: transfer.outflow_transaction.entry.amount,
+      currency: transfer.outflow_transaction.entry.currency
+    )
+  else
+    false
+  end
+)
 
 json.inflow_transaction do
   json.partial! "api/v1/transfers/transaction_side", transaction: transfer.inflow_transaction

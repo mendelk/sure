@@ -834,6 +834,16 @@ function TransactionDetailTransfer({
             <Icon name="arrow-left-right" />
             {transfer.status === "pending" ? "Pending match" : "Matched"}
           </span>
+          {transfer.status === "confirmed" ? (
+            <Link
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              params={{ transferId: transfer.id }}
+              to="/transactions/transfers/$transferId"
+            >
+              View transfer
+              <Icon name="chevron-right" size="sm" />
+            </Link>
+          ) : null}
           {transfer.status === "pending" ? (
             <span className="flex gap-1.5">
               <Button
