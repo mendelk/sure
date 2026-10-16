@@ -393,7 +393,7 @@ function LeftSidebar({ open }: { open: boolean }) {
 
 function MobileSidebar({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-20 h-full w-full overflow-y-auto bg-surface p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] pr-3 lg:hidden">
+    <div className="fixed inset-0 z-20 size-full overflow-y-auto bg-surface p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] pr-3 lg:hidden">
       <div className="mb-2">
         <IconButton icon="x" label="Close navigation" onClick={onClose} />
       </div>
@@ -461,7 +461,7 @@ function UserMenu({ rail = false }: { rail?: boolean }) {
           }`}
         >
           <div className="flex items-center gap-3 px-4 py-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-container-inset font-medium uppercase">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-container-inset font-medium uppercase">
               <span className="text-xs">{bootstrap.currentUser.initials}</span>
             </div>
             <div className="overflow-hidden text-ellipsis text-sm">
@@ -530,7 +530,7 @@ function IconRail() {
       <nav className="flex h-full w-[84px] flex-col py-4" aria-label="Primary">
         <div className="mb-3 pl-2">
           <a href={bootstrap.railsPaths.home} className="block" aria-label="Sure home">
-            <img src={bootstrap.railsPaths.logo} alt="" className="mx-auto h-9 w-9" />
+            <img src={bootstrap.railsPaths.logo} alt="" className="mx-auto size-9" />
           </a>
         </div>
 
@@ -546,7 +546,7 @@ function IconRail() {
             href="https://discord.gg/36ZGBsxYEK"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-container-inset-hover hover:text-primary"
+            className="inline-flex size-9 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-container-inset-hover hover:text-primary"
             aria-label="Help (Discord)"
           >
             <Icon name="message-circle-question" />
@@ -603,7 +603,7 @@ function MobileTopNav({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       <IconButton label="Open navigation" icon="panel-left" onClick={onOpenSidebar} />
 
       <a href={bootstrap.railsPaths.home} className="block" aria-label="Sure home">
-        <img src={bootstrap.railsPaths.logo} alt="" className="mx-auto h-9 w-9" />
+        <img src={bootstrap.railsPaths.logo} alt="" className="mx-auto size-9" />
       </a>
 
       <div className="flex items-center gap-1">
@@ -620,7 +620,7 @@ function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-10 border-t border-tertiary bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="fixed bottom-0 inset-x-0 z-10 border-t border-tertiary bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
       aria-label="Primary"
     >
       <ul className="flex justify-around">

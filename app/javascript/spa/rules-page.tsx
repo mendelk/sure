@@ -1273,7 +1273,7 @@ function BuilderConditionRow({
           <span className="text-xs font-medium uppercase">and</span>
         </div>
       ) : null}
-      <div className="grid h-full w-full grid-cols-2 items-center gap-2">
+      <div className="grid size-full grid-cols-2 items-center gap-2">
         <FormField
           as="select"
           aria-label="Condition field"
@@ -1386,7 +1386,7 @@ function BuilderConditionGroup({
             const operators = operatorOptions(filter);
             return (
               <li className="flex items-center gap-3" key={sub.key}>
-                <div className="grid h-full w-full grid-cols-2 items-center gap-2">
+                <div className="grid size-full grid-cols-2 items-center gap-2">
                   <FormField
                     as="select"
                     aria-label="Condition field"
@@ -1480,7 +1480,7 @@ function BuilderActionRow({
   const executor = executors.find((candidate) => candidate.key === action.action_type);
   return (
     <li className="flex items-center gap-3">
-      <div className="grid h-full w-full grid-cols-1 items-center gap-2">
+      <div className="grid size-full grid-cols-1 items-center gap-2">
         <FormField
           as="select"
           aria-label="Action type"

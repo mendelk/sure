@@ -399,7 +399,7 @@ export function MerchantFormModal({
                   />
                   <span
                     aria-hidden="true"
-                    className="block w-6 h-6 rounded-full cursor-pointer peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-blue-500"
+                    className="block size-6 rounded-full cursor-pointer peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-blue-500"
                     style={{ backgroundColor: option }}
                   />
                 </label>
@@ -661,7 +661,7 @@ function EnhanceBanner({
   return (
     <div className="flex items-center justify-between p-4 bg-container-inset border border-secondary rounded-lg">
       <div className="flex items-start gap-2">
-        <Icon className="w-5 h-5 text-link mt-0.5 shrink-0" name="sparkles" />
+        <Icon className="size-5 text-link mt-0.5 shrink-0" name="sparkles" />
         <p className="text-xs/relaxed text-secondary">
           {`${enhance.eligible_count} provider merchant${enhance.eligible_count === 1 ? " is" : "s are"} missing website information. Enhance with AI to detect websites, display logos, and merge duplicate merchants.`}
         </p>
@@ -865,7 +865,7 @@ export function MerchantsPage() {
           </div>
           <div className="p-4 bg-container-inset border border-secondary rounded-lg">
             <div className="flex items-start gap-2">
-              <Icon className="w-5 h-5 text-link mt-0.5 shrink-0" name="store" />
+              <Icon className="size-5 text-link mt-0.5 shrink-0" name="store" />
               <p className="text-xs/relaxed text-secondary">{MERCHANTS_TEXT.provider_info}</p>
             </div>
           </div>
@@ -960,7 +960,7 @@ export function MerchantsPage() {
             </div>
             <div className="p-4 bg-container-inset border border-secondary rounded-lg">
               <div className="flex items-start gap-2">
-                <Icon className="w-5 h-5 text-subdued mt-0.5 shrink-0" name="store" />
+                <Icon className="size-5 text-subdued mt-0.5 shrink-0" name="store" />
                 <p className="text-xs/relaxed text-secondary">{MERCHANTS_TEXT.unlinked_info}</p>
               </div>
             </div>

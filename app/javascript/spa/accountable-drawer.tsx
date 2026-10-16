@@ -788,7 +788,7 @@ export function AccountableTypePickerDrawer() {
               <Link
                 to="/accounts/new/$accountType"
                 params={{ accountType: t.value }}
-                className="group flex w-full items-center gap-4 rounded-lg border border-transparent px-2 py-2 text-center text-primary hover:bg-surface-hover focus:bg-surface-hover"
+                className="group flex w-full items-center gap-4 rounded-lg border border-transparent p-2 text-center text-primary hover:bg-surface-hover focus:bg-surface-hover"
               >
                 <span className="flex min-w-0 grow items-center gap-2 text-sm font-medium">
                   {t.label}
