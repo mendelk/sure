@@ -61,6 +61,9 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_nil created_entry.external_id
     assert_nil created_entry.source
     assert_enqueued_with(job: SyncJob)
+    event = WebNotificationTransactionEvent.find_by!(entry: created_entry)
+    assert_equal "create:manual", event.source
+    assert_not event.baseline?
   end
 
   test "JSON validation failure returns errors without creating records" do
@@ -173,7 +176,7 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     first_response = response.parsed_body
 
     assert_no_enqueued_jobs only: SyncJob do
-      assert_no_difference [ "Entry.count", "Transaction.count" ] do
+      assert_no_difference [ "Entry.count", "Transaction.count", "WebNotificationTransactionEvent.count" ] do
         post transactions_url, params: params, as: :json
       end
     end

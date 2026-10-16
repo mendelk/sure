@@ -142,16 +142,14 @@ class RedbarkItem::Importer
 
         stats["api_requests"] = stats.fetch("api_requests", 0) + 1
 
-        if transactions_data.any?
-          transactions_hashes = transactions_data.map { |t| sdk_object_to_hash(t) }
-          merged = merge_transactions(
-            redbark_account.raw_transactions_payload || [],
-            transactions_hashes,
-            window_start: start_date
-          )
-          redbark_account.upsert_redbark_transactions_snapshot!(merged)
-          stats["transactions_found"] = stats.fetch("transactions_found", 0) + transactions_data.size
-        end
+        transactions_hashes = transactions_data.map { |t| sdk_object_to_hash(t) }
+        merged = merge_transactions(
+          redbark_account.raw_transactions_payload || [],
+          transactions_hashes,
+          window_start: start_date
+        )
+        redbark_account.upsert_redbark_transactions_snapshot!(merged)
+        stats["transactions_found"] = stats.fetch("transactions_found", 0) + transactions_data.size
       rescue Provider::Redbark::AuthenticationError
         raise
       rescue => e

@@ -1,0 +1,41 @@
+<%# locals: (preferences:, subscriptions:) %>
+<%= settings_section title: t("web_notifications.browser.title"), subtitle: t("web_notifications.browser.subtitle") do %>
+  <%= tag.div data: web_notification_browser_data(preferences), class: "space-y-4" do %>
+    <% unless WebPushSubscription.configured? %>
+      <%= render DS::Alert.new(message: t("web_notifications.errors.unconfigured"), variant: :warning) %>
+    <% end %>
+    <% unless preferences.enabled? %>
+      <%= render DS::Alert.new(message: t("web_notifications.errors.disabled")) %>
+    <% end %>
+    <noscript><%= t("web_notifications.browser.javascript_required") %></noscript>
+    <p class="text-sm text-secondary" aria-live="polite" data-web-push-target="status"><%= t("web_notifications.browser.states.checking") %></p>
+    <div hidden data-web-push-target="guidance">
+      <%= render DS::Alert.new(message: t("web_notifications.browser.ios_guidance")) %>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <%= render DS::Button.new(text: t("web_notifications.browser.enable"), icon: "bell-plus", disabled: true, data: { web_push_target: "enable", action: "web-push#enable" }) %>
+      <%= render DS::Button.new(text: t("web_notifications.browser.disable"), variant: :outline, disabled: true, data: { web_push_target: "disable", action: "web-push#disable" }) %>
+      <%= render DS::Button.new(text: t("web_notifications.browser.test"), variant: :outline, disabled: true, data: { web_push_target: "test", action: "web-push#test" }) %>
+    </div>
+    <p class="text-xs text-secondary"><%= t("web_notifications.browser.test_hint") %></p>
+    <ul class="divide-y divide-primary" data-web-push-target="devices">
+      <% subscriptions.each do |subscription| %>
+        <li class="py-3 flex flex-wrap items-center justify-between gap-3" data-subscription-id="<%= subscription.id %>" data-endpoint-digest="<%= subscription.endpoint_digest %>" data-disabled="<%= subscription.disabled_at.present? %>" data-destroy-url="<%= web_push_subscription_path(subscription) %>" data-test-url="<%= test_web_push_subscription_path(subscription) %>">
+          <div class="min-w-0 space-y-1">
+            <p class="text-sm font-medium text-primary break-words"><%= web_push_device_label(subscription) %></p>
+            <p class="text-xs text-secondary" data-current-browser hidden><%= t("web_notifications.browser.current") %></p>
+            <p class="text-xs text-secondary"><%= t("web_notifications.browser.registered", date: l(subscription.created_at, format: :long)) %></p>
+            <% if subscription.last_seen_at %>
+              <p class="text-xs text-secondary"><%= t("web_notifications.browser.last_seen", date: l(subscription.last_seen_at, format: :long)) %></p>
+            <% end %>
+            <p class="text-xs text-secondary"><%= t("web_notifications.browser.device_status.#{subscription.disabled_at ? 'disabled' : subscription.last_status.presence || 'registered'}", default: t("web_notifications.browser.device_status.unknown")) %></p>
+          </div>
+          <%= render DS::Button.new(text: t("web_notifications.browser.revoke"), href: web_push_subscription_path(subscription), method: :delete, variant: :outline_destructive) %>
+        </li>
+      <% end %>
+    </ul>
+    <% if subscriptions.empty? %>
+      <p class="text-sm text-secondary"><%= t("web_notifications.browser.no_devices") %></p>
+    <% end %>
+  <% end %>
+<% end %>

@@ -43,12 +43,15 @@ class Account::ProviderImportAdapter
   # @param name_extra_keys [Hash{String=>Array<String>}] Keys, per namespace, that `name`
   #   was built from. When a protected entry keeps its name, these keep their stored values
   #   too, so the name and the data it came from cannot drift apart.
+  # @param notification_activity [Boolean] False for synthetic reconstruction of an already-observed cash movement
   # @return [Entry] The created or updated entry
-  def import_transaction(external_id:, amount:, currency:, date:, name:, source:, category_id: nil, kind: nil, merchant: nil, notes: nil, pending_transaction_id: nil, extra: nil, investment_activity_label: nil, allow_heuristic_matching: true, replace_extra_namespaces: [], name_extra_keys: {})
+  def import_transaction(external_id:, amount:, currency:, date:, name:, source:, category_id: nil, kind: nil, merchant: nil, notes: nil, pending_transaction_id: nil, extra: nil, investment_activity_label: nil, allow_heuristic_matching: true, replace_extra_namespaces: [], name_extra_keys: {}, notification_activity: true)
     raise ArgumentError, "external_id is required" if external_id.blank?
     raise ArgumentError, "source is required" if source.blank?
 
     Account.transaction do
+      Account.where(id: account.id).lock.pick(:id)
+      WebNotificationTransactionSource.prepare!(account: account, source: source)
       # Find or initialize by both external_id AND source
       # This allows multiple providers to sync same account with separate entries
       entry = account.entries.find_or_initialize_by(external_id: external_id, source: source) do |e|
@@ -118,6 +121,8 @@ class Account::ProviderImportAdapter
             apply_provider_extra(entry, owned, replace_extra_namespaces)
           end
 
+          WebNotificationTransactionEvent.observe!(entry: entry, source: source, external_id: external_id,
+            pending: incoming_pending, new_activity: false, aliases: [ pending_transaction_id ])
           record_skip(entry, skip_reason)
           return entry
         end
@@ -133,6 +138,8 @@ class Account::ProviderImportAdapter
           # Check if duplicate is protected - if so, link but don't modify
           if duplicate.protected_from_sync?
             duplicate.update!(external_id: external_id, source: source)
+            WebNotificationTransactionEvent.observe!(entry: duplicate, source: source, external_id: external_id,
+              pending: incoming_pending, new_activity: false)
             record_skip(duplicate, determine_skip_reason(duplicate) || "protected")
             return duplicate
           end
@@ -200,6 +207,7 @@ class Account::ProviderImportAdapter
 
       # Track if this is a new posted transaction (for fuzzy suggestion after save)
       is_new_posted = entry.new_record? && !incoming_pending
+      notification_new_activity = entry.new_record? && notification_activity
 
       # Preserve the original pending date across all syncs:
       # - First claim: pending_entry_date is captured from the pending match above
@@ -283,6 +291,9 @@ class Account::ProviderImportAdapter
 
       entry.save!
       entry.transaction.save! if entry.transaction.changed?
+      WebNotificationTransactionEvent.observe!(entry: entry, source: source, external_id: external_id,
+        pending: incoming_pending, new_activity: notification_new_activity,
+        aliases: [ pending_transaction_id, old_pending_external_id ])
 
       # Auto-resolve any open Goal pledges on this account whose tolerance
       # window matches the posted transaction. Idempotent via the partial-unique

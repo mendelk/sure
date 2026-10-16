@@ -77,7 +77,13 @@ class SnaptradeAccount::ActivitiesProcessor
 
   def process
     activities_data = @snaptrade_account.raw_activities_payload
-    return { trades: 0, transactions: 0 } if activities_data.blank?
+    if activities_data.blank?
+      if @snaptrade_account.last_activities_sync.present? && !@snaptrade_account.activities_fetch_pending?
+        WebNotificationTransactionSource.complete!(account: account, source: "snaptrade")
+      end
+      return { trades: 0, transactions: 0 }
+    end
+    @notification_ingestion_failed = false
 
     Rails.logger.info "SnaptradeAccount::ActivitiesProcessor - Processing #{activities_data.size} activities"
 
@@ -87,6 +93,7 @@ class SnaptradeAccount::ActivitiesProcessor
     activities_data.each do |activity_data|
       process_activity(activity_data.with_indifferent_access)
     rescue => e
+      @notification_ingestion_failed = true
       activity = activity_data.is_a?(Hash) ? activity_data.with_indifferent_access : {}
       capture_debug_log(
         category: "provider_sync_error",
@@ -101,6 +108,7 @@ class SnaptradeAccount::ActivitiesProcessor
       )
     end
 
+    WebNotificationTransactionSource.complete!(account: account, source: "snaptrade") unless @notification_ingestion_failed
     { trades: @trades_count, transactions: @transactions_count }
   end
 

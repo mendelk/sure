@@ -13,6 +13,7 @@ class SimplefinAccount::Transactions::Processor
 
     if transactions.empty?
       Rails.logger.info "SimplefinAccount::Transactions::Processor - No transactions in raw_transactions_payload for simplefin_account #{simplefin_account.id} (#{simplefin_account.name}) - #{acct_info}"
+      WebNotificationTransactionSource.complete!(account: acct, source: "simplefin") unless simplefin_account.raw_transactions_payload.nil?
       return
     end
 
@@ -48,6 +49,7 @@ class SimplefinAccount::Transactions::Processor
     @skipped_entries = adapter&.skipped_entries || []
 
     Rails.logger.info "SimplefinAccount::Transactions::Processor - Completed for simplefin_account #{simplefin_account.id}: #{processed_count} processed, #{error_count} errors, #{@skipped_entries.size} skipped (protected)"
+    WebNotificationTransactionSource.complete!(account: acct, source: "simplefin") if error_count.zero?
   end
 
   private

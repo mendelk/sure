@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_14_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_16_220200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -2883,6 +2883,103 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_000000) do
     t.integer "year"
   end
 
+  create_table "web_notification_deliveries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "accepted_at"
+    t.integer "attempts", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.string "digest_key"
+    t.string "error_code"
+    t.datetime "next_attempt_at", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "web_notification_id", null: false
+    t.uuid "web_push_subscription_id", null: false
+    t.index ["status", "next_attempt_at"], name: "index_web_deliveries_recovery"
+    t.index ["web_notification_id", "web_push_subscription_id"], name: "index_web_deliveries_unique_notification_subscription", unique: true
+    t.index ["web_notification_id"], name: "index_web_notification_deliveries_on_web_notification_id"
+    t.index ["web_push_subscription_id", "digest_key"], name: "index_web_deliveries_digest"
+    t.index ["web_push_subscription_id"], name: "index_web_notification_deliveries_on_web_push_subscription_id"
+    t.check_constraint "attempts >= 0 AND attempts <= 5", name: "web_deliveries_bounded_attempts"
+  end
+
+  create_table "web_notification_transaction_events", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "account_id", null: false
+    t.decimal "amount", precision: 19, scale: 4, null: false
+    t.boolean "baseline", default: false, null: false
+    t.datetime "created_at", null: false
+    t.string "currency", null: false
+    t.uuid "entry_id"
+    t.datetime "first_observed_at", null: false
+    t.string "identity_key", null: false
+    t.jsonb "identity_keys", default: [], null: false
+    t.datetime "posted_at"
+    t.string "source", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "first_observed_at"], name: "idx_web_notification_transaction_events_candidates", where: "(baseline = false)"
+    t.index ["account_id", "source", "identity_key"], name: "idx_web_notification_transaction_events_identity", unique: true
+    t.index ["account_id"], name: "index_web_notification_transaction_events_on_account_id"
+    t.index ["entry_id"], name: "index_web_notification_transaction_events_on_entry_id"
+    t.index ["identity_keys"], name: "idx_web_notification_transaction_events_aliases", using: :gin
+  end
+
+  create_table "web_notification_transaction_receipts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "event_id", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "user_id", null: false
+    t.uuid "web_notification_id", null: false
+    t.index ["user_id", "event_id"], name: "idx_web_notification_transaction_receipts_once", unique: true
+    t.index ["user_id"], name: "index_web_notification_transaction_receipts_on_user_id"
+    t.index ["web_notification_id"], name: "idx_on_web_notification_id_34555d81c5"
+  end
+
+  create_table "web_notification_transaction_sources", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "account_id", null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.string "source", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "source"], name: "idx_web_notification_transaction_sources_identity", unique: true
+    t.index ["account_id"], name: "index_web_notification_transaction_sources_on_account_id"
+  end
+
+  create_table "web_notifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "account_id"
+    t.datetime "created_at", null: false
+    t.jsonb "data", default: {}, null: false
+    t.string "dedup_key", null: false
+    t.string "event_type", null: false
+    t.datetime "push_after", null: false
+    t.datetime "read_at"
+    t.uuid "target_subscription_id"
+    t.datetime "updated_at", null: false
+    t.uuid "user_id", null: false
+    t.index ["account_id"], name: "index_web_notifications_on_account_id"
+    t.index ["target_subscription_id"], name: "index_web_notifications_on_target_subscription_id"
+    t.index ["user_id", "dedup_key"], name: "index_web_notifications_on_user_id_and_dedup_key", unique: true
+    t.index ["user_id", "push_after"], name: "index_web_notifications_on_user_id_and_push_after"
+    t.index ["user_id"], name: "index_web_notifications_on_user_id"
+  end
+
+  create_table "web_push_subscriptions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.text "auth", null: false
+    t.datetime "created_at", null: false
+    t.datetime "disabled_at"
+    t.text "endpoint", null: false
+    t.string "endpoint_digest", null: false
+    t.string "label"
+    t.datetime "last_seen_at", null: false
+    t.integer "last_status"
+    t.text "p256dh", null: false
+    t.uuid "session_id"
+    t.datetime "updated_at", null: false
+    t.string "user_agent"
+    t.uuid "user_id", null: false
+    t.index ["endpoint_digest"], name: "index_web_push_subscriptions_on_endpoint_digest", unique: true
+    t.index ["session_id"], name: "index_web_push_subscriptions_on_session_id"
+    t.index ["user_id"], name: "index_web_push_subscriptions_on_user_id"
+  end
+
   create_table "webauthn_credentials", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "credential_id", null: false
@@ -3116,6 +3213,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_000000) do
   add_foreign_key "users", "accounts", column: "default_account_id", on_delete: :nullify
   add_foreign_key "users", "chats", column: "last_viewed_chat_id"
   add_foreign_key "users", "families"
+  add_foreign_key "web_notification_deliveries", "web_notifications", on_delete: :cascade
+  add_foreign_key "web_notification_deliveries", "web_push_subscriptions", on_delete: :cascade
+  add_foreign_key "web_notification_transaction_events", "accounts", on_delete: :cascade
+  add_foreign_key "web_notification_transaction_events", "entries", on_delete: :nullify
+  add_foreign_key "web_notification_transaction_receipts", "users", on_delete: :cascade
+  add_foreign_key "web_notification_transaction_receipts", "web_notification_transaction_events", column: "event_id", on_delete: :cascade
+  add_foreign_key "web_notification_transaction_receipts", "web_notifications", on_delete: :cascade
+  add_foreign_key "web_notification_transaction_sources", "accounts", on_delete: :cascade
+  add_foreign_key "web_notifications", "accounts", on_delete: :cascade
+  add_foreign_key "web_notifications", "users", on_delete: :cascade
+  add_foreign_key "web_notifications", "web_push_subscriptions", column: "target_subscription_id", on_delete: :cascade
+  add_foreign_key "web_push_subscriptions", "sessions", on_delete: :cascade
+  add_foreign_key "web_push_subscriptions", "users", on_delete: :cascade
   add_foreign_key "webauthn_credentials", "users"
   add_foreign_key "wise_accounts", "wise_items", on_delete: :cascade
   add_foreign_key "wise_items", "families"

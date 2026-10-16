@@ -297,6 +297,7 @@ class Transaction < ApplicationRecord
     merge_succeeded = false
 
     ApplicationRecord.transaction(requires_new: true) do
+      Account.where(id: pending_entry.account_id).lock.pick(:id)
       # Row-level locks prevent concurrent merges on the same pair of entries.
       # If a concurrent request already destroyed the pending entry, lock! raises
       # RecordNotFound — treat that as an idempotent success.
@@ -370,6 +371,10 @@ class Transaction < ApplicationRecord
       posted_entry.mark_user_modified!
 
       Rails.logger.info("User merged pending entry #{pending_entry_id} (ext: #{external_id}) into posted entry #{posted_entry.id}")
+      if pending_entry.source.present? && pending_entry.source == posted_entry.source
+        WebNotificationTransactionEvent.reconcile!(entry: posted_entry, source: posted_entry.source,
+          external_ids: [ posted_entry.external_id, external_id ])
+      end
       pending_entry.destroy!
       merge_succeeded = true
     end

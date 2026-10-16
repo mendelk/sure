@@ -23,7 +23,8 @@ class QuestradeAccount::Processor
       QuestradeAccount::HoldingsProcessor.new(questrade_account).process
     end
 
-    if questrade_account.raw_activities_payload.present?
+    if questrade_account.raw_activities_payload.present? ||
+        (questrade_account.last_activities_sync.present? && !questrade_account.activities_fetch_pending?)
       QuestradeAccount::ActivitiesProcessor.new(questrade_account).process
     end
 

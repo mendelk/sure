@@ -10,9 +10,16 @@
     <%= render "layouts/privacy_mode_check" %>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="dark light">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="<%= product_name %>">
+    <link rel="manifest" href="<%= pwa_manifest_path %>">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <%= javascript_include_tag "spa", type: "module" %>
   </head>
   <body class="min-h-full bg-surface text-primary antialiased">
+    <%= render "layouts/shared/web_push_session" %>
     <%= yield %>
   </body>
 </html>

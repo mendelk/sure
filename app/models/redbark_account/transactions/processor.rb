@@ -14,6 +14,7 @@ class RedbarkAccount::Transactions::Processor
   def process
     unless redbark_account.raw_transactions_payload.present?
       Rails.logger.info "RedbarkAccount::Transactions::Processor - No transactions in raw_transactions_payload for redbark_account #{redbark_account.id}"
+      WebNotificationTransactionSource.complete!(account: redbark_account.current_account, source: "redbark") unless redbark_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, skipped: 0, failed: 0, errors: [] }
     end
 
@@ -82,6 +83,7 @@ class RedbarkAccount::Transactions::Processor
       Rails.logger.info "RedbarkAccount::Transactions::Processor - Successfully processed #{imported_count} transactions (#{skipped_count} skipped)"
     end
 
+    WebNotificationTransactionSource.complete!(account: redbark_account.current_account, source: "redbark") if failed_count.zero?
     result
   end
 

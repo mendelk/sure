@@ -8,6 +8,7 @@ class EnableBankingAccount::Transactions::Processor
   def process
     unless enable_banking_account.raw_transactions_payload.present?
       Rails.logger.info "EnableBankingAccount::Transactions::Processor - No transactions in raw_transactions_payload for enable_banking_account #{enable_banking_account.id}"
+      WebNotificationTransactionSource.complete!(account: enable_banking_account.current_account, source: "enable_banking") unless enable_banking_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, failed: 0, errors: [] }
     end
 
@@ -131,6 +132,7 @@ class EnableBankingAccount::Transactions::Processor
       Rails.logger.info "EnableBankingAccount::Transactions::Processor - Successfully processed #{imported_count} transactions"
     end
 
+    WebNotificationTransactionSource.complete!(account: enable_banking_account.current_account, source: "enable_banking") if failed_count.zero?
     result
   end
 end

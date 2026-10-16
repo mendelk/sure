@@ -537,6 +537,9 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
     response_data = JSON.parse(response.body)
     assert_equal "Test Transaction", response_data["name"]
     assert_equal @account.id, response_data["account"]["id"]
+    event = WebNotificationTransactionEvent.find_by!(entry_id: response_data["entry_id"])
+    assert_equal "create:api", event.source
+    assert_not event.baseline?
   end
 
   test "should create transaction with external idempotency key" do
@@ -695,7 +698,7 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :created
     created_data = JSON.parse(response.body)
 
-    assert_no_difference("@account.entries.count") do
+    assert_no_difference [ "@account.entries.count", "WebNotificationTransactionEvent.count" ] do
       post api_v1_transactions_url,
            params: transaction_params.deep_merge(transaction: { name: "Changed Name" }),
            headers: api_headers(@api_key)
@@ -705,6 +708,18 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
     response_data = JSON.parse(response.body)
     assert_equal created_data["id"], response_data["id"]
     assert_equal "Imported Transaction", response_data["name"]
+  end
+
+  test "create rolls back the ledger when its durable notification observation fails" do
+    WebNotificationTransactionEvent.expects(:observe!).raises(StandardError, "observation unavailable")
+
+    assert_no_difference [ "Entry.count", "Transaction.count", "WebNotificationTransactionEvent.count" ] do
+      post api_v1_transactions_url,
+        params: { transaction: { account_id: @account.id, name: "Atomic API create", amount: 25,
+          date: Date.current, currency: "USD", nature: "expense" } },
+        headers: api_headers(@api_key)
+    end
+    assert_response :internal_server_error
   end
 
   test "should scope external idempotency keys to account" do

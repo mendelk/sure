@@ -46,6 +46,7 @@ class BinanceAccount::Processor
     end
 
     fetch_and_process_trades
+    WebNotificationTransactionSource.complete!(account: binance_account.current_account, source: "binance")
   end
 
   private
@@ -430,10 +431,10 @@ class BinanceAccount::Processor
           fiat_fee = (crypto_fee * fiat_price).round(2)
 
           # 3. AI Fix: Wrap the double-entry in a transaction block to guarantee ledger integrity
-          account.transaction do
+          account.with_lock do
             if trade_type == "BUY"
               # BUY LOGIC: User sent Fiat from their bank, received Crypto
-              account.entries.create!(
+              WebNotificationTransactionEvent.create_provider!(account: account,
                 date:        date,
                 name:        "P2P Payment (#{fiat_currency})",
                 amount:      -fiat_amount, # Fiat leaving the system
@@ -478,7 +479,7 @@ class BinanceAccount::Processor
                 )
               )
 
-              account.entries.create!(
+              WebNotificationTransactionEvent.create_provider!(account: account,
                 date:        date,
                 name:        "P2P Receipt (#{fiat_currency})",
                 amount:      fiat_amount, # Fiat entering the system

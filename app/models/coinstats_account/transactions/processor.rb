@@ -16,6 +16,7 @@ class CoinstatsAccount::Transactions::Processor
   def process
     unless coinstats_account.raw_transactions_payload.present?
       Rails.logger.info "CoinstatsAccount::Transactions::Processor - No transactions in raw_transactions_payload for coinstats_account #{coinstats_account.id}"
+      WebNotificationTransactionSource.complete!(account: coinstats_account.current_account, source: "coinstats") unless coinstats_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, failed: 0, errors: [] }
     end
 
@@ -75,6 +76,7 @@ class CoinstatsAccount::Transactions::Processor
       Rails.logger.info "CoinstatsAccount::Transactions::Processor - Successfully processed #{imported_count} transactions"
     end
 
+    WebNotificationTransactionSource.complete!(account: coinstats_account.current_account, source: "coinstats") if failed_count.zero?
     result
   end
 

@@ -23,6 +23,7 @@ class TradeRepublicAccount::ActivitiesProcessor
 
   def process
     return { trades: 0, transactions: 0 } unless account.present?
+    @notification_ingestion_failed = false
 
     trade_count = 0
     transaction_count = 0
@@ -60,6 +61,9 @@ class TradeRepublicAccount::ActivitiesProcessor
     reconcile_non_importable_entries!
     reconcile_settlement_counterparts!
 
+    if !@notification_ingestion_failed && !@trade_republic_account.raw_timeline_payload.nil?
+      WebNotificationTransactionSource.complete!(account: account, source: "trade_republic")
+    end
     { trades: trade_count, transactions: transaction_count }
   end
 
@@ -202,6 +206,7 @@ class TradeRepublicAccount::ActivitiesProcessor
         import_labeled_cash_movement(event, detail, external_id, date, "dividend", sign: -1)
       end
     rescue => e
+      @notification_ingestion_failed = true
       DebugLogEntry.capture(
         category: "sync",
         level: "error",
@@ -460,6 +465,7 @@ class TradeRepublicAccount::ActivitiesProcessor
         kind: "funds_movement",
         investment_activity_label: "Transfer",
         allow_heuristic_matching: false,
+        notification_activity: false,
         extra: { trade_republic: { settlement_for: cash_entry.external_id } }
       )
       counterpart_transaction = counterpart&.entryable

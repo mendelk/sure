@@ -8,6 +8,7 @@ class MercuryAccount::Transactions::Processor
   def process
     unless mercury_account.raw_transactions_payload.present?
       Rails.logger.info "MercuryAccount::Transactions::Processor - No transactions in raw_transactions_payload for mercury_account #{mercury_account.id}"
+      WebNotificationTransactionSource.complete!(account: mercury_account.current_account, source: "mercury") unless mercury_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, failed: 0, errors: [] }
     end
 
@@ -66,6 +67,7 @@ class MercuryAccount::Transactions::Processor
       Rails.logger.info "MercuryAccount::Transactions::Processor - Successfully processed #{imported_count} transactions"
     end
 
+    WebNotificationTransactionSource.complete!(account: mercury_account.current_account, source: "mercury") if failed_count.zero?
     result
   end
 end

@@ -15,6 +15,7 @@ class FioAccount::Transactions::Processor
 
     if transactions.empty?
       Rails.logger.info "FioAccount::Transactions::Processor - No Fio movements available to process"
+      WebNotificationTransactionSource.complete!(account: fio_account.current_account, source: "fio") unless fio_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, skipped: 0, failed: 0, errors: [] }
     end
 
@@ -45,6 +46,7 @@ class FioAccount::Transactions::Processor
       Rails.logger.error "FioAccount::Transactions::Processor - Error processing movement #{transaction_id(transaction_data)}: #{e.class} - #{e.message}"
     end
 
+    WebNotificationTransactionSource.complete!(account: fio_account.current_account, source: "fio") if failed_count.zero?
     {
       success: failed_count.zero?,
       total: transactions.size,

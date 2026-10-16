@@ -33,6 +33,7 @@ class QuestradeAccount::ActivitiesProcessor
 
   def process
     return { trades: 0, transactions: 0 } unless account.present?
+    @notification_ingestion_failed = false
 
     @trades_count = 0
     @transactions_count = 0
@@ -40,10 +41,16 @@ class QuestradeAccount::ActivitiesProcessor
     activities.each do |raw|
       process_activity(raw.with_indifferent_access)
     rescue => e
+      @notification_ingestion_failed = true
       Rails.logger.error "QuestradeAccount::ActivitiesProcessor - Failed to process activity: #{e.message}"
       Rails.logger.error e.backtrace.first(5).join("\n") if e.backtrace
     end
 
+    history_fetched = @questrade_account.raw_activities_payload.present? ||
+      (@questrade_account.last_activities_sync.present? && !@questrade_account.activities_fetch_pending?)
+    if !@notification_ingestion_failed && history_fetched
+      WebNotificationTransactionSource.complete!(account: account, source: "questrade")
+    end
     { trades: @trades_count, transactions: @transactions_count }
   end
 

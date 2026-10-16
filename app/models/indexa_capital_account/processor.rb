@@ -33,7 +33,8 @@ class IndexaCapitalAccount::Processor
     activities_count = indexa_capital_account.raw_activities_payload&.size || 0
     Rails.logger.info "IndexaCapitalAccount::Processor - Activities payload has #{activities_count} items"
 
-    if indexa_capital_account.raw_activities_payload.present?
+    if indexa_capital_account.raw_activities_payload.present? ||
+        (indexa_capital_account.last_activities_sync.present? && !indexa_capital_account.activities_fetch_pending?)
       Rails.logger.info "IndexaCapitalAccount::Processor - Processing activities..."
       IndexaCapitalAccount::ActivitiesProcessor.new(indexa_capital_account).process
     else

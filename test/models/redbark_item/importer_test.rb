@@ -6,6 +6,32 @@ class RedbarkItem::ImporterTest < ActiveSupport::TestCase
     @importer = RedbarkItem::Importer.new(@redbark_item, redbark_provider: nil)
   end
 
+  test "successful empty banking history is persisted separately from an unfetched payload" do
+    account = redbark_accounts(:savings_account)
+    account.update!(raw_transactions_payload: nil)
+    provider = mock
+    provider.expects(:get_transactions).returns([])
+    importer = RedbarkItem::Importer.new(@redbark_item, redbark_provider: provider)
+    importer.stubs(:connections_by_id).returns({})
+
+    importer.send(:import_transactions, account)
+
+    assert_equal [], account.reload.raw_transactions_payload
+  end
+
+  test "failed banking history does not manufacture an empty successful response" do
+    account = redbark_accounts(:savings_account)
+    account.update!(raw_transactions_payload: nil)
+    provider = mock
+    provider.expects(:get_transactions).raises(StandardError, "upstream unavailable")
+    importer = RedbarkItem::Importer.new(@redbark_item, redbark_provider: provider)
+    importer.stubs(:connections_by_id).returns({})
+
+    importer.send(:import_transactions, account)
+
+    assert_nil account.reload.raw_transactions_payload
+  end
+
   test "merge_transactions keeps posted rows and refreshes by id" do
     existing = [ { "id" => "t1", "status" => "posted", "date" => "2026-07-01", "amount" => "-10.00" } ]
     fresh = [ { "id" => "t1", "status" => "posted", "date" => "2026-07-01", "amount" => "-12.00" } ]

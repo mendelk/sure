@@ -42,6 +42,7 @@ class QuestradeActivitiesFetchJob < ApplicationJob
         schedule_retry
         return
       end
+      return clear_pending_flag if activities.nil?
 
       if activities.any?
         merged = merge_activities(existing_activities, activities)
@@ -53,12 +54,15 @@ class QuestradeActivitiesFetchJob < ApplicationJob
       # accounts) so the importer's fresh-account check stops re-queueing this.
       @questrade_account.update!(last_activities_sync: Time.current)
       clear_pending_flag
+      if activities.empty?
+        WebNotificationTransactionSource.complete!(account: @questrade_account.current_account, source: "questrade")
+      end
       broadcast_updates
     end
 
     def fetch_activities
       provider = @questrade_account.questrade_item.questrade_provider
-      return [] unless provider
+      return unless provider
 
       response = provider.get_activities(
         account_id: @questrade_account.questrade_account_id,
@@ -72,7 +76,7 @@ class QuestradeActivitiesFetchJob < ApplicationJob
     rescue => e
       # Transient errors trigger retry via blank response
       Rails.logger.error("QuestradeActivitiesFetchJob - API error: #{e.message}")
-      []
+      nil
     end
 
     def existing_activities

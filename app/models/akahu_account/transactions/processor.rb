@@ -9,6 +9,7 @@ class AkahuAccount::Transactions::Processor
     unless akahu_account.raw_transactions_payload.present?
       Rails.logger.info "AkahuAccount::Transactions::Processor - No Akahu transactions available to process"
       pruned_count = prune_stale_pending_entries([])
+      WebNotificationTransactionSource.complete!(account: akahu_account.current_account, source: "akahu") unless akahu_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, failed: 0, pruned_pending: pruned_count, errors: [] }
     end
 
@@ -41,6 +42,7 @@ class AkahuAccount::Transactions::Processor
       Rails.logger.error e.backtrace.join("\n")
     end
     pruned_count = prune_stale_pending_entries(current_pending_external_ids)
+    WebNotificationTransactionSource.complete!(account: akahu_account.current_account, source: "akahu") if failed_count.zero?
 
     {
       success: failed_count.zero?,

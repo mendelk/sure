@@ -8,6 +8,7 @@ class LunchflowAccount::Transactions::Processor
   def process
     unless lunchflow_account.raw_transactions_payload.present?
       Rails.logger.info "LunchflowAccount::Transactions::Processor - No transactions in raw_transactions_payload for lunchflow_account #{lunchflow_account.id}"
+      WebNotificationTransactionSource.complete!(account: lunchflow_account.current_account, source: "lunchflow") unless lunchflow_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, failed: 0, errors: [] }
     end
 
@@ -66,6 +67,7 @@ class LunchflowAccount::Transactions::Processor
       Rails.logger.info "LunchflowAccount::Transactions::Processor - Successfully processed #{imported_count} transactions"
     end
 
+    WebNotificationTransactionSource.complete!(account: lunchflow_account.current_account, source: "lunchflow") if failed_count.zero?
     result
   end
 end

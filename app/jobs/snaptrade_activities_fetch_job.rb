@@ -76,7 +76,9 @@ class SnaptradeActivitiesFetchJob < ApplicationJob
 
       # Clear the pending flag even if no activities were found
       # Otherwise the account stays stuck in "syncing" state forever
+      snaptrade_account.upsert_activities_snapshot!(snaptrade_account.raw_activities_payload || [])
       snaptrade_account.update!(activities_fetch_pending: false)
+      WebNotificationTransactionSource.complete!(account: snaptrade_account.current_account, source: "snaptrade")
       snaptrade_account.snaptrade_item.broadcast_sync_complete
     end
   rescue Provider::Snaptrade::AuthenticationError => e

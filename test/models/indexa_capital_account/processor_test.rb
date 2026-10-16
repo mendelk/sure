@@ -35,6 +35,25 @@ class IndexaCapitalAccount::ProcessorTest < ActiveSupport::TestCase
     assert_nothing_raised { processor.process }
   end
 
+  test "explicit completed empty history is baselined but unfetched or pending history is not" do
+    @indexa_capital_account.update!(raw_activities_payload: [], raw_holdings_payload: [],
+      last_activities_sync: nil, activities_fetch_pending: false)
+    IndexaCapitalAccount::Processor.new(@indexa_capital_account).process
+    assert_not WebNotificationTransactionSource.exists?(account: @account, source: "indexa_capital")
+
+    @indexa_capital_account.upsert_activities_snapshot!([])
+    @indexa_capital_account.update!(activities_fetch_pending: true)
+    IndexaCapitalAccount::Processor.new(@indexa_capital_account).process
+    assert_not WebNotificationTransactionSource.exists?(account: @account, source: "indexa_capital")
+
+    @indexa_capital_account.update!(activities_fetch_pending: false)
+    IndexaCapitalAccount::Processor.new(@indexa_capital_account).process
+    assert WebNotificationTransactionSource.find_by!(account: @account, source: "indexa_capital").completed_at
+    entry = Account::ProviderImportAdapter.new(@account).import_transaction(external_id: "first-indexa-arrival",
+      source: "indexa_capital", name: "New activity", date: Date.current, amount: 19, currency: "EUR")
+    assert_not WebNotificationTransactionEvent.find_by!(entry: entry).baseline?
+  end
+
   test "processor trusts API current_balance over holdings sum when present" do
     @indexa_capital_account.update!(
       current_balance: 38905.21,

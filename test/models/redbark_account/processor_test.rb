@@ -31,6 +31,19 @@ class RedbarkAccount::ProcessorTest < ActiveSupport::TestCase
     assert_nothing_raised { processor.process }
   end
 
+  test "explicit empty history is baselined but an unfetched payload is not" do
+    @redbark_account.update!(raw_transactions_payload: nil)
+    RedbarkAccount::Processor.new(@redbark_account).process
+    assert_not WebNotificationTransactionSource.exists?(account: @account, source: "redbark")
+
+    @redbark_account.upsert_redbark_transactions_snapshot!([])
+    RedbarkAccount::Processor.new(@redbark_account).process
+    assert WebNotificationTransactionSource.find_by!(account: @account, source: "redbark").completed_at
+    entry = Account::ProviderImportAdapter.new(@account).import_transaction(external_id: "first-redbark-arrival",
+      source: "redbark", name: "New transaction", date: Date.current, amount: 31, currency: "AUD")
+    assert_not WebNotificationTransactionEvent.find_by!(entry: entry).baseline?
+  end
+
   test "processor updates account balance" do
     @redbark_account.update!(current_balance: 15000)
 

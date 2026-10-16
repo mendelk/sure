@@ -39,6 +39,23 @@ class QuestradeAccount::ProcessorTest < ActiveSupport::TestCase
     assert_nothing_raised { QuestradeAccount::Processor.new(@questrade_account).process }
   end
 
+  test "explicit completed empty history is baselined but unfetched or pending history is not" do
+    @questrade_account.update!(raw_activities_payload: [], last_activities_sync: nil, activities_fetch_pending: false)
+    QuestradeAccount::Processor.new(@questrade_account).process
+    assert_not WebNotificationTransactionSource.exists?(account: @account, source: "questrade")
+
+    @questrade_account.update!(last_activities_sync: Time.current, activities_fetch_pending: true)
+    QuestradeAccount::Processor.new(@questrade_account).process
+    assert_not WebNotificationTransactionSource.exists?(account: @account, source: "questrade")
+
+    @questrade_account.update!(activities_fetch_pending: false)
+    QuestradeAccount::Processor.new(@questrade_account).process
+    assert WebNotificationTransactionSource.find_by!(account: @account, source: "questrade").completed_at
+    entry = Account::ProviderImportAdapter.new(@account).import_transaction(external_id: "first-questrade-arrival",
+      source: "questrade", name: "New activity", date: Date.current, amount: 23, currency: "CAD")
+    assert_not WebNotificationTransactionEvent.find_by!(entry: entry).baseline?
+  end
+
   # ---- HoldingsProcessor --------------------------------------------------
 
   test "holdings processor imports positions as holdings" do

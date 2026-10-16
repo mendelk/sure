@@ -15,6 +15,7 @@
   </head>
 
   <body class="h-[var(--app-height,100dvh)] overflow-hidden antialiased"<% if sidebar_aware %> data-controller="notification-tray"<% end %>>
+    <%= render "layouts/shared/web_push_session" %>
     <% if Rails.env.development? %>
       <button hidden data-controller="hotkey" data-hotkey="t t /" data-action="theme#toggle"></button>
     <% end %>

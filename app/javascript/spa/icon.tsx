@@ -1,6 +1,7 @@
 import {
   Asterisk,
   ArrowLeftRight,
+  Bell,
   Box,
   ChartBar,
   Check,
@@ -62,6 +63,7 @@ import type { ComponentType, SVGProps } from "react";
 
 const ICONS = {
   "arrow-left-right": ArrowLeftRight,
+  bell: Bell,
   box: Box,
   "chart-bar": ChartBar,
   check: Check,

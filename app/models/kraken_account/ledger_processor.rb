@@ -33,6 +33,7 @@ class KrakenAccount::LedgerProcessor
 
   def process
     return unless account.present?
+    @notification_ingestion_failed = false
 
     # Idempotency: load existing Kraken *ledger* external IDs once and test
     # membership in memory, instead of an EXISTS query per ledger entry (a full
@@ -50,6 +51,7 @@ class KrakenAccount::LedgerProcessor
     raw_ledgers.each do |ledger_id, ledger|
       process_ledger_entry(ledger_id, ledger)
     rescue StandardError => e
+      @notification_ingestion_failed = true
       DebugLogEntry.capture(
         category: "provider_sync_error",
         level: "error",
@@ -59,6 +61,9 @@ class KrakenAccount::LedgerProcessor
         family: kraken_account.kraken_item&.family,
         metadata: { ledger_id: ledger_id, error_class: e.class.name }
       )
+    end
+    if !@notification_ingestion_failed && kraken_account.raw_transactions_payload&.key?("ledgers")
+      WebNotificationTransactionSource.complete!(account: account, source: "kraken")
     end
   end
 
@@ -129,7 +134,10 @@ class KrakenAccount::LedgerProcessor
       end
 
       entry_amount, price_missing = resolve_amount(abs_impact, symbol, date)
-      return if entry_amount.nil?
+      if entry_amount.nil?
+        @notification_ingestion_failed = true
+        return
+      end
 
       # Sure sign convention: inflow = negative, outflow = positive.
       signed_amount = inflow?(type) ? -entry_amount.abs : entry_amount.abs
@@ -139,7 +147,7 @@ class KrakenAccount::LedgerProcessor
       kind  = transaction_kind(type)
       extra = build_extra(ledger_id, ledger, raw_asset, price_missing)
 
-      account.entries.create!(
+      WebNotificationTransactionEvent.create_provider!(account: account,
         date: date,
         name: name,
         amount: signed_amount,
@@ -195,9 +203,13 @@ class KrakenAccount::LedgerProcessor
       return if @existing_external_ids.include?(fee_external_id)
 
       fee_amount, price_missing = resolve_amount(raw_fee.abs, symbol, date)
-      return if fee_amount.nil? || fee_amount.zero?
+      if fee_amount.nil?
+        @notification_ingestion_failed = true
+        return
+      end
+      return if fee_amount.zero?
 
-      account.entries.create!(
+      WebNotificationTransactionEvent.create_provider!(account: account,
         date: date,
         name: build_name("fee", raw_fee.abs, symbol),
         amount: fee_amount.abs,

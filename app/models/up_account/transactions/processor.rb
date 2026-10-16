@@ -12,6 +12,7 @@ class UpAccount::Transactions::Processor
     unless up_account.raw_transactions_payload.present?
       Rails.logger.info "UpAccount::Transactions::Processor - No Up transactions available to process"
       pruned_count = prune_stale_pending_entries([])
+      WebNotificationTransactionSource.complete!(account: up_account.current_account, source: "up") unless up_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, failed: 0, pruned_pending: pruned_count, errors: [] }
     end
 
@@ -45,6 +46,7 @@ class UpAccount::Transactions::Processor
       Rails.logger.error e.backtrace.join("\n")
     end
     pruned_count = prune_stale_pending_entries(current_pending_external_ids)
+    WebNotificationTransactionSource.complete!(account: up_account.current_account, source: "up") if failed_count.zero?
 
     {
       success: failed_count.zero?,

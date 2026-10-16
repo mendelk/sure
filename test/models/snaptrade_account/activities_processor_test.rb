@@ -22,6 +22,25 @@ class SnaptradeAccount::ActivitiesProcessorTest < ActiveSupport::TestCase
     @snaptrade_account.reload
   end
 
+  test "parent processor baselines completed empty history without trusting unfetched or pending defaults" do
+    @snaptrade_account.update!(raw_activities_payload: [], raw_holdings_payload: [], raw_balances_payload: [],
+      last_activities_sync: nil, activities_fetch_pending: false)
+    SnaptradeAccount::Processor.new(@snaptrade_account).process
+    assert_not WebNotificationTransactionSource.exists?(account: @account, source: "snaptrade")
+
+    @snaptrade_account.upsert_activities_snapshot!([])
+    @snaptrade_account.update!(activities_fetch_pending: true)
+    SnaptradeAccount::Processor.new(@snaptrade_account).process
+    assert_not WebNotificationTransactionSource.exists?(account: @account, source: "snaptrade")
+
+    @snaptrade_account.update!(activities_fetch_pending: false)
+    SnaptradeAccount::Processor.new(@snaptrade_account).process
+    assert WebNotificationTransactionSource.find_by!(account: @account, source: "snaptrade").completed_at
+    entry = Account::ProviderImportAdapter.new(@account).import_transaction(external_id: "first-snaptrade-arrival",
+      source: "snaptrade", name: "New activity", date: Date.current, amount: 29, currency: "USD")
+    assert_not WebNotificationTransactionEvent.find_by!(entry: entry).baseline?
+  end
+
   test "processes buy trade activity" do
     @snaptrade_account.update!(raw_activities_payload: [
       build_trade_activity(
