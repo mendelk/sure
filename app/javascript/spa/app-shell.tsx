@@ -471,6 +471,11 @@ function UserMenu({ rail = false }: { rail?: boolean }) {
           </div>
 
           <div className="border-t border-tertiary">
+            {bootstrap.notificationInbox && (
+              <MenuItem href={bootstrap.notificationInbox.href} icon="bell">
+                {bootstrap.notificationInbox.label}
+              </MenuItem>
+            )}
             <MenuItem href={bootstrap.railsPaths.settings} icon="user">
               Settings
             </MenuItem>

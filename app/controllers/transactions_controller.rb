@@ -35,7 +35,7 @@ class TransactionsController < ApplicationController
 
     @entry = account.entries.new(entry_params_with_idempotency_key(idempotency_key))
 
-    if @entry.save
+    if WebNotificationTransactionEvent.save_new(@entry, origin: "manual")
       @entry.sync_account_later
       @entry.lock_saved_attributes!
       @entry.mark_user_modified!

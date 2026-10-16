@@ -7,6 +7,7 @@ Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :openai_access_token,
   :client_id, :consumer_key, :snaptrade_user_id, :snaptrade_user_secret,
   :oauth_access_token, :oauth_refresh_token, :code_verifier, :code_challenge,
+  :endpoint, :p256dh, /\Aauth\z/i,
   /\Apin\z/i,
   # One-time codes that act as credentials: MFA TOTP/backup codes, OAuth and
   # bank authorization codes and the desktop SSO exchange all arrive as

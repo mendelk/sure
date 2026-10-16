@@ -98,6 +98,22 @@ class KrakenAccount::LedgerProcessorTest < ActiveSupport::TestCase
     assert_in_delta 501.0, principal.amount.to_f + fee.amount.to_f, 0.01
   end
 
+  test "ledger cash arrivals record atomic first-history baselines and later observations" do
+    set_ledgers("BASELINE" => ledger_entry(type: "deposit", asset: "ZUSD", amount: "100.00", fee: "1.00", time: 1_700_000_000))
+    process
+
+    assert WebNotificationTransactionSource.find_by!(account: @account, source: "kraken").completed_at
+    assert_equal 2, WebNotificationTransactionEvent.where(account: @account, baseline: true).count
+
+    set_ledgers("ARRIVAL" => ledger_entry(type: "deposit", asset: "ZUSD", amount: "200.00", fee: "0.00", time: 1_700_000_100))
+    process
+
+    event = WebNotificationTransactionEvent.find_by!(account: @account, baseline: false)
+    assert_equal "kraken_ledger_ARRIVAL", event.entry.external_id
+    process
+    assert_equal 1, WebNotificationTransactionEvent.where(account: @account, baseline: false).count
+  end
+
   # The fee is a cost whichever way the principal moved, so it is an outflow on
   # a deposit too.
   test "a deposit fee is charged as its own outflow" do

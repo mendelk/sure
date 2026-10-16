@@ -222,6 +222,9 @@ class BinanceAccount::ProcessorTest < ActiveSupport::TestCase
     assert_equal "Transaction", deposit.entryable_type
     assert_equal (-31500.00), deposit.amount.to_f # Negative = Fiat Cash INFLOW
     assert_equal "TZS", deposit.currency
+    event = WebNotificationTransactionEvent.find_by!(entry: deposit)
+    assert event.baseline?
+    assert WebNotificationTransactionSource.find_by!(account: @account, source: "binance").completed_at
 
     # Verify the Buy (Trade) - Should reflect the fiat cost basis
     trade = @account.entries.find_by(external_id: "binance_p2p_22883918231657005056")

@@ -1,0 +1,60 @@
+<% content_for :page_title, t("web_notifications.inbox.title") %>
+<div class="space-y-6 pb-6" data-controller="web-notification-inbox" data-action="web-notifications:received@window->web-notification-inbox#received">
+  <header class="flex flex-wrap items-start justify-between gap-3">
+    <div class="space-y-1">
+      <div class="flex flex-wrap items-center gap-2">
+        <h1 class="text-2xl font-semibold text-primary"><%= t("web_notifications.inbox.title") %></h1>
+        <%= render DS::Pill.new(label: t("shared.preview")) %>
+      </div>
+      <p class="text-sm text-secondary"><%= t("web_notifications.inbox.unread_count", count: @unread_count) %></p>
+    </div>
+    <%= render DS::Link.new(text: t("web_notifications.preferences.title"), href: settings_web_notifications_path, variant: :outline, icon: "settings") %>
+  </header>
+
+  <div class="hidden" data-web-notification-inbox-target="refresh">
+    <%= render DS::Link.new(text: t("web_notifications.inbox.refresh"), href: web_notifications_path(filter: @filter), icon: "refresh-cw", variant: :outline) %>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <nav class="flex flex-wrap gap-2" aria-label="<%= t("web_notifications.inbox.filters") %>">
+      <% %w[all unread read].each do |filter| %>
+        <%= render DS::Link.new(text: t("web_notifications.inbox.#{filter}"), href: web_notifications_path(filter: filter), variant: @filter == filter ? :primary : :outline, aria: { current: @filter == filter ? "page" : nil }) %>
+      <% end %>
+    </nav>
+    <% if @unread_count.positive? %>
+      <%= render DS::Button.new(text: t("web_notifications.inbox.mark_all_read"), href: mark_all_read_web_notifications_path(filter: @filter), method: :post, variant: :ghost) %>
+    <% end %>
+  </div>
+
+  <% if @notifications.empty? %>
+    <%= render DS::Alert.new(message: t("web_notifications.inbox.empty")) %>
+  <% else %>
+    <ul class="space-y-3" aria-label="<%= t("web_notifications.inbox.title") %>">
+      <% @notifications.each do |notification| %>
+        <% next unless notification.authorized? %>
+        <li class="bg-container rounded-xl border border-primary p-4 space-y-3">
+          <div class="flex items-start gap-3">
+            <%= icon("bell", class: "shrink-0 text-secondary mt-1") %>
+            <div class="min-w-0 grow space-y-1">
+              <h2 class="font-medium text-primary break-words"><%= notification.title %></h2>
+              <p class="text-sm text-secondary break-words privacy-sensitive"><%= notification.body %></p>
+              <p class="text-xs text-secondary"><time datetime="<%= notification.created_at.iso8601 %>"><%= l(notification.created_at, format: :long) %></time></p>
+            </div>
+            <% unless notification.read_at %>
+              <span class="text-xs text-link shrink-0"><%= t("web_notifications.inbox.unread") %></span>
+            <% end %>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs text-secondary"><%= web_notification_delivery_label(notification) %></p>
+            <div class="flex flex-wrap gap-2">
+              <%= render DS::Link.new(text: t("web_notifications.inbox.open"), href: notification.destination_path, variant: :outline) %>
+              <%= render DS::Button.new(text: t(notification.read_at ? "web_notifications.inbox.mark_unread" : "web_notifications.inbox.mark_read"), href: web_notification_path(notification, filter: @filter), method: :patch, params: { web_notification: { read: notification.read_at ? "0" : "1" } }, variant: :ghost) %>
+            </div>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+    <%= render "shared/pagination", pagy: @pagy %>
+  <% end %>
+  <p class="text-xs text-secondary"><%= t("web_notifications.inbox.accepted_explanation") %></p>
+</div>

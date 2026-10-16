@@ -22,7 +22,7 @@ class RedbarkAccount::Processor
     transactions_count = redbark_account.raw_transactions_payload&.size || 0
     Rails.logger.info "RedbarkAccount::Processor - Transactions payload has #{transactions_count} items"
 
-    if redbark_account.raw_transactions_payload.present?
+    unless redbark_account.raw_transactions_payload.nil?
       Rails.logger.info "RedbarkAccount::Processor - Processing transactions..."
       RedbarkAccount::Transactions::Processor.new(redbark_account).process
     else

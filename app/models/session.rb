@@ -7,12 +7,14 @@ class Session < ApplicationRecord
   end
 
   belongs_to :user, counter_cache: :sessions_count
+  has_many :web_push_subscriptions, dependent: :destroy
   belongs_to :active_impersonator_session,
     -> { where(status: :in_progress) },
     class_name: "ImpersonationSession",
     optional: true
 
   before_create :capture_session_info
+  before_destroy :lock_user_for_web_push_cleanup, prepend: true
 
   after_create :update_user_last_login
 
@@ -32,6 +34,12 @@ class Session < ApplicationRecord
   end
 
   private
+    # Dispatch takes the user lock before the subscription and session locks.
+    # Logout must take that same order before destroying subscribed browsers.
+    def lock_user_for_web_push_cleanup
+      User.where(id: user_id).lock.pick(:id)
+    end
+
 
     def capture_session_info
       self.user_agent = Current.user_agent

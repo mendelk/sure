@@ -10,6 +10,7 @@ class WiseAccount::Transactions::Processor
   def process
     unless wise_account.raw_transactions_payload.present?
       Rails.logger.info "WiseAccount::Transactions::Processor - No transactions for wise_account #{wise_account.id}"
+      WebNotificationTransactionSource.complete!(account: wise_account.current_account, source: "wise") unless wise_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, skipped: 0, failed: 0, errors: [] }
     end
 
@@ -52,6 +53,7 @@ class WiseAccount::Transactions::Processor
     end
 
     Rails.logger.info "WiseAccount::Transactions::Processor - Done: #{imported} imported, #{skipped} skipped, #{failed} failed"
+    WebNotificationTransactionSource.complete!(account: wise_account.current_account, source: "wise") if failed.zero?
 
     { success: failed == 0, total: total, imported: imported, skipped: skipped, failed: failed, errors: errors }
   end

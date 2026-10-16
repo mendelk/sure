@@ -1,0 +1,146 @@
+en:
+  web_notifications:
+    generic_title: Sure notification
+    generic_body: You have a new notification. Sign in to Sure to view it.
+    digest_title:
+      one: Your daily Sure notification
+      other: Your daily Sure notifications
+    digest_body:
+      one: You have one new notification. Sign in to Sure to view it.
+      other: You have %{count} new notifications. Sign in to Sure to view them.
+    events:
+      transactions_added:
+        label: New transactions
+        title:
+          one: New transaction
+          other: New transactions
+        body:
+          one: A new transaction was added to %{account_name}.
+          other: "%{count} new transactions were added to %{account_name}."
+      statement_ready:
+        label: Statements ready
+        title: Statement ready
+        body: A statement is ready for %{account_name}.
+      payment_due:
+        label: Upcoming bills
+        title: Payment due soon
+        body: A payment for %{account_name} is coming due. Open your reminders for details.
+      payment_overdue:
+        label: Overdue bills
+        title: Payment overdue
+        body: A payment for %{account_name} is overdue. Open your reminders for details.
+      bank_attention:
+        label: Bank connections needing attention
+        title: Bank connection needs attention
+        body: Reconnect or review the bank connection for %{account_name}.
+      budget_threshold:
+        label: Budget thresholds
+        title: Budget threshold reached
+        body: A budget category reached %{threshold_pct}% of its limit. Open your budget for details.
+      test:
+        label: Browser test
+        title: Browser notification test
+        body: Your browser notification test was queued. Push service acceptance does not guarantee display.
+    inbox:
+      title: Notifications
+      unread_count:
+        one: One unread notification
+        other: "%{count} unread notifications"
+      filters: Filter notifications
+      all: All
+      unread: Unread
+      read: Read
+      mark_all_read: Mark all as read
+      mark_read: Mark as read
+      mark_unread: Mark as unread
+      open: Open
+      empty: No notifications match this filter.
+      refresh: New notifications available — refresh inbox
+      accepted_explanation: Accepted means the browser push service accepted delivery, not that a notification was displayed. Browser, device, and operating system settings can prevent display.
+    delivery:
+      none: Inbox only — no browser delivery yet
+      pending: Browser delivery pending
+      accepted: Accepted by browser push service
+      failed: Browser delivery failed
+      suppressed: Browser delivery skipped or registration expired
+      unknown: Browser delivery status unavailable
+    preferences:
+      title: Notification settings
+      opt_in: Your notifications
+      baseline: When enabled, notification tracking starts from current activity. Existing history is not sent as a flood of alerts. Your inbox works without enrolling a browser.
+      enabled: Enable web notifications
+      enabled_hint: Opt in to the inbox and browser notifications for your user only. Browser delivery requires separate enrollment below.
+      events: Events
+      accounts: Accounts
+      accounts_hint: Select accounts to include. Leave all unchecked to include every accessible account, including future accounts. Private accounts belonging to other users are never included.
+      transactions: Transaction filters
+      include_pending: Include pending transactions
+      include_pending_hint: Notify while transactions are pending when supported. A pending transaction already notified will not be repeated when it posts.
+      minimum_amounts_hint: Minimum absolute transaction amount in each account currency. Zero includes any amount. No currency conversion is applied.
+      minimum_amount: "Minimum amount (%{currency})"
+      delivery: Browser delivery and privacy
+      timezone: "Times use your household time zone: %{timezone}."
+      frequency: Delivery frequency
+      immediate: Immediately
+      daily_digest: Daily digest
+      digest_at: Daily digest time
+      quiet_start: Quiet hours start
+      quiet_end: Quiet hours end
+      quiet_hint: Leave both quiet-hour fields empty to disable. Overnight windows are supported. Quiet hours and daily digests delay browser delivery, not the inbox. Test notifications bypass these delays.
+      show_details: Show financial details in browser notifications
+      show_details_hint: Off by default. When enabled, account names and event details may appear on lock screens or shared devices. Links always require sign-in.
+      reminders: Bills and budgets
+      bill_days_before: Days before a bill is due (0–30)
+      budget_threshold_pct: Budget threshold percentage (1–1000)
+      save: Save notification settings
+      saved: Notification settings saved.
+      invalid: Check your notification settings
+    errors:
+      disabled: Enable and save web notifications before enrolling this browser or sending a test.
+      unconfigured: Browser push is not configured on this server. The inbox is still available. Ask the operator to set WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY, and WEB_PUSH_SUBJECT.
+      invalid_subscription: The browser registration was invalid or could not be saved. No browser notification was enabled. Try enrolling this browser again.
+      test_confirmation: Use the current browser's test button to explicitly request a test notification.
+      test_rate_limit: A test was recently requested. Wait at least one minute before trying again.
+      current_browser_required: The test must include this browser's active subscription. Reload settings and use the current browser's test button.
+    browser:
+      title: Browsers and devices
+      subtitle: Permission is requested only when you choose Enable this browser. These controls affect web browsers, not native app notifications.
+      enable: Enable this browser
+      disable: Disable this browser
+      test: Send test to this browser
+      test_hint: Tests are sent only to this enrolled browser, at most once per minute. They bypass quiet hours and digest scheduling. Allow notifications in your browser and operating system settings.
+      test_queued: Test queued for this browser only. Check your device notification area; acceptance does not guarantee display. Refresh the inbox to see delivery results.
+      ios_guidance: On iPhone or iPad, open Sure in Safari, choose Share → Add to Home Screen, then launch Sure from that icon and enable this browser. A supported iOS version and notification permission are required.
+      javascript_required: JavaScript is required for browser enrollment. Inbox and preference controls still work without it.
+      no_devices: No browsers registered yet.
+      unnamed: Web browser
+      current: This browser
+      registered: "Registered %{date}"
+      last_seen: "Last enrollment or renewal %{date}"
+      revoke: Revoke browser
+      revoked: Browser registration revoked. That browser must be explicitly enrolled again to receive notifications.
+      device_status:
+        registered: Registered
+        accepted: Last delivery accepted by push service
+        failed: Last delivery failed
+        expired: Registration expired
+        disabled: Registration disabled
+        unknown: No delivery result recorded yet
+      states:
+        checking: Checking this browser…
+        insecure: Browser push requires HTTPS or a secure localhost context.
+        unsupported: This browser does not support Web Push. You can still use the notification inbox.
+        ios: Add Sure to your Home Screen and launch it there to enable iPhone or iPad notifications.
+        disabled: Web notifications are disabled. Enable and save your preferences above first.
+        unconfigured: Browser push is unavailable until the server operator configures VAPID keys and a subject.
+        denied: Notification permission is blocked. Change permission in your browser or device settings, then reload this page.
+        dismissed: Permission was not granted. Choose Enable this browser when you are ready to allow notifications.
+        enabled: This browser is enrolled. Display still depends on browser and operating system settings.
+        not_enabled: This browser is not enrolled. Choose Enable this browser to request permission and register it.
+        revoked: This browser has a local subscription but no active server registration. Choose Enable this browser to explicitly enroll again, or disable it to remove the local subscription.
+        working: Updating this browser…
+        request_failed: The server could not be reached or your session expired. Reload and sign in if needed, then try again.
+        enroll_failed: This browser could not be enrolled. Check browser permission and your connection, then try again.
+        unsubscribe_failed: The browser could not remove its local subscription. It has not been shown as disabled. Retry or remove notification permission in browser settings.
+        cleanup_failed: The server did not save this registration and the browser could not remove its local subscription. It is not enabled on this server. Choose Disable this browser or remove notification permission in browser settings before retrying.
+        revocation_failed: The local browser subscription was removed, but server revocation failed. Use Revoke browser below to remove the remaining registration, or reload and retry.

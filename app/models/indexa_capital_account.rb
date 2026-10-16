@@ -75,9 +75,9 @@ class IndexaCapitalAccount < ApplicationRecord
     )
   end
 
-  # Store activities snapshot - return early if empty to avoid setting timestamps incorrectly
+  # Preserve explicitly successful empty history separately from unfetched data.
   def upsert_activities_snapshot!(activities_data)
-    return if activities_data.blank?
+    return if activities_data.nil?
 
     update!(
       raw_activities_payload: activities_data,

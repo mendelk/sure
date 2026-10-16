@@ -9,6 +9,7 @@ class IbkrAccount::ActivitiesProcessor
 
   def process
     return { trades: 0, transactions: 0 } unless account.present?
+    @notification_ingestion_failed = false
 
     activities = (@ibkr_account.raw_activities_payload || {}).with_indifferent_access
     trades = Array(activities[:trades])
@@ -20,6 +21,9 @@ class IbkrAccount::ActivitiesProcessor
 
     cash_count = cash_transactions.sum { |t| process_cash_transaction(t.with_indifferent_access) ? 1 : 0 }
 
+    if !@notification_ingestion_failed && !@ibkr_account.raw_activities_payload.nil?
+      WebNotificationTransactionSource.complete!(account: account, source: "ibkr")
+    end
     { trades: trades_count, transactions: cash_count + fee_count }
   end
 
@@ -67,6 +71,7 @@ class IbkrAccount::ActivitiesProcessor
       fees = import_commission_transaction(row, security, date) ? 1 : 0
       { imported: true, fees: fees }
     rescue => e
+      @notification_ingestion_failed = true
       Rails.logger.error("IbkrAccount::ActivitiesProcessor - Failed to process trade #{row[:trade_id]}: #{e.message}")
       { imported: false, fees: 0 }
     end
@@ -107,6 +112,7 @@ class IbkrAccount::ActivitiesProcessor
 
       true
     rescue => e
+      @notification_ingestion_failed = true
       Rails.logger.error("IbkrAccount::ActivitiesProcessor - Failed to process cash transaction #{row[:transaction_id]}: #{e.message}")
       false
     end

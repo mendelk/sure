@@ -1,0 +1,8 @@
+<%# locals: (name:, checked:) %>
+<div class="flex items-start justify-between gap-4">
+  <div class="space-y-1">
+    <label for="web_notifications_<%= name %>" class="text-sm font-medium text-primary"><%= t("web_notifications.preferences.#{name}") %></label>
+    <p id="web_notifications_<%= name %>_hint" class="text-sm text-secondary"><%= t("web_notifications.preferences.#{name}_hint") %></p>
+  </div>
+  <%= render DS::Toggle.new(id: "web_notifications_#{name}", name: "web_notifications[#{name}]", checked: checked, aria: { describedby: "web_notifications_#{name}_hint" }) %>
+</div>

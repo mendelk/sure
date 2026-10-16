@@ -183,7 +183,7 @@ class Assistant::Function::CreateTransaction < Assistant::Function
     end
 
     entry = account.entries.new(entry_params)
-    unless entry.save
+    unless WebNotificationTransactionEvent.save_new(entry, origin: "mcp")
       return error("validation_failed", entry.errors.full_messages.join("; "))
     end
 

@@ -47,6 +47,9 @@ class CoinspotAccount::Processor
     failures.concat(process_fiat_deposits)
     failures.concat(process_fiat_withdrawals)
 
+    if failures.empty? && !coinspot_account.raw_transactions_payload.nil?
+      WebNotificationTransactionSource.complete!(account: account, source: "coinspot")
+    end
     { success: failures.empty?, failures: failures }
   end
 

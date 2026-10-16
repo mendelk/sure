@@ -55,6 +55,9 @@
         icon: "settings",
         href: intro_mode ? settings_profile_path : accounts_path(return_to: request.fullpath)
       ) %>
+      <% if preview_features_enabled? %>
+        <%= render DS::MenuItem.new(variant: "link", roving: false, text: t("web_notifications.inbox.title"), icon: "bell", href: web_notifications_path) %>
+      <% end %>
       <%= render DS::MenuItem.new(variant: "link", roving: false, text: t(".changelog"), icon: "box", href: changelog_path) %>
 
       <% if self_hosted? && !intro_mode %>

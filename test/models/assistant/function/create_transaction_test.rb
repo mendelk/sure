@@ -83,6 +83,7 @@ class Assistant::Function::CreateTransactionTest < ActiveSupport::TestCase
     # The transaction was actually persisted despite the sync failure.
     entry = Entry.find_by(name: "Sync Failure Case", account: @account, date: Date.new(2026, 9, 11))
     assert entry
+    assert_equal "create:mcp", WebNotificationTransactionEvent.find_by!(entry: entry).source
   end
 
   test "stores amount as-given when no type is provided" do
@@ -152,6 +153,8 @@ class Assistant::Function::CreateTransactionTest < ActiveSupport::TestCase
     assert_equal true, second[:success]
     assert_equal false, second[:created]
     assert_equal first[:transaction][:id], second[:transaction][:id]
+    entry = @account.entries.find_by!(source: "xmoney", external_id: "xmoney-001")
+    assert_equal 1, WebNotificationTransactionEvent.where(entry: entry).count
   end
 
   test "rejects an account the user cannot write to" do

@@ -19,6 +19,9 @@ class PlaidAccount::Transactions::Processor
         remove_plaid_transaction(transaction)
       end
     end
+    if plaid_account.raw_transactions_payload.present? && plaid_account.plaid_type != "investment"
+      WebNotificationTransactionSource.complete!(account: account, source: "plaid")
+    end
   end
 
   private

@@ -1,0 +1,10 @@
+<% if Current.user %>
+  <%= tag.div hidden: true, data: {
+    controller: "web-push-session",
+    web_push_session_user_id_value: Current.user.id,
+    web_push_session_session_id_value: Current.session.id,
+    web_push_session_enabled_value: preview_features_enabled? && WebNotification::Preferences.new(Current.user).enabled?,
+    web_push_session_configured_value: WebPushSubscription.configured?,
+    web_push_session_create_url_value: web_push_subscriptions_path
+  } %>
+<% end %>

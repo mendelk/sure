@@ -35,6 +35,7 @@ class SophtronAccount::Transactions::Processor
   def process
     unless sophtron_account.raw_transactions_payload.present?
       Rails.logger.info "SophtronAccount::Transactions::Processor - No transactions in raw_transactions_payload for sophtron_account #{sophtron_account.id}"
+      WebNotificationTransactionSource.complete!(account: sophtron_account.current_account, source: "sophtron") unless sophtron_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, failed: 0, errors: [] }
     end
 
@@ -93,6 +94,7 @@ class SophtronAccount::Transactions::Processor
       Rails.logger.info "SophtronAccount::Transactions::Processor - Successfully processed #{imported_count} transactions"
     end
 
+    WebNotificationTransactionSource.complete!(account: sophtron_account.current_account, source: "sophtron") if failed_count.zero?
     result
   end
 end

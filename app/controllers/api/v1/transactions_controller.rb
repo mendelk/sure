@@ -118,7 +118,7 @@ class Api::V1::TransactionsController < Api::V1::BaseController
 
     @entry = account.entries.new(entry_params_for_create)
 
-    if @entry.save
+    if WebNotificationTransactionEvent.save_new(@entry, origin: "api")
       @entry.lock_saved_attributes!
       @entry.transaction.lock_attr!(:tag_ids) if @entry.transaction.tags.any?
       @entry.mark_user_modified! if user_modified_requested?

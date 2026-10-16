@@ -34,7 +34,8 @@ class SnaptradeAccount::Processor
     activities_count = snaptrade_account.raw_activities_payload&.size || 0
     Rails.logger.info "SnaptradeAccount::Processor - Activities payload has #{activities_count} items"
 
-    if snaptrade_account.raw_activities_payload.present?
+    if snaptrade_account.raw_activities_payload.present? ||
+        (snaptrade_account.last_activities_sync.present? && !snaptrade_account.activities_fetch_pending?)
       Rails.logger.info "SnaptradeAccount::Processor - Processing activities..."
       SnaptradeAccount::ActivitiesProcessor.new(snaptrade_account).process
     else

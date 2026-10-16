@@ -104,6 +104,63 @@ class Financekit::MappingTest < ActiveSupport::TestCase
     assert_equal 1, @source.account.entries.count
   end
 
+  test "protected FinanceKit posting records one recoverable web notification" do
+    @user.update!(preferences: @user.preferences.merge("preview_features_enabled" => true))
+    WebNotification::Preferences.new(@user).update!(enabled: true)
+    WebNotificationTransactionSource.complete!(account: @source.account, source: "financekit")
+    events = financekit_events
+    events.last.fetch("transaction").merge!("status" => "pending", "posted_at" => nil)
+    events.last.fetch("transaction").delete("posted_at")
+    first = accept_and_apply(financekit_payload(events: events))
+    entry = @source.account.entries.sole
+    entry.update!(name: "Protected purchase", user_modified: true)
+    assert_empty WebNotification::Transactions.new(@user).call
+
+    second = accept_and_apply(financekit_payload(sequence: 2, predecessor_digest: first.payload_digest))
+
+    notification = WebNotification::Transactions.new(@user).call.sole
+    assert_equal [ entry.id ], notification.data["entry_ids"]
+    assert_equal 1, WebNotificationTransactionEvent.where(account: @source.account).count
+
+    accept_and_apply(financekit_payload(sequence: 3, predecessor_digest: second.payload_digest))
+    assert_empty WebNotification::Transactions.new(@user).call
+  end
+
+  test "FinanceKit balance-only captures cannot establish a transaction history baseline" do
+    accept_and_apply(financekit_payload(events: financekit_events.reject { |event| event["kind"] == "transaction_upsert" }))
+
+    assert_not WebNotificationTransactionSource.exists?(account: @source.account, source: "financekit")
+    assert_not WebNotificationTransactionEvent.exists?(account: @source.account)
+  end
+
+  test "snapshot completion applies across captures even when the final capture has no transaction events" do
+    @user.update!(preferences: @user.preferences.merge("preview_features_enabled" => true))
+    WebNotification::Preferences.new(@user).update!(enabled: true)
+    first = accept_and_apply(financekit_payload.merge("capture_mode" => "snapshot", "snapshot_complete" => false))
+    baseline = WebNotificationTransactionSource.find_by!(account: @source.account, source: "financekit")
+    assert_nil baseline.completed_at
+
+    final = accept_and_apply(financekit_payload(sequence: 2, predecessor_digest: first.payload_digest, events: [])
+      .merge("capture_mode" => "snapshot", "snapshot_complete" => true))
+    assert baseline.reload.completed_at
+    assert_empty WebNotification::Transactions.new(@user).call
+
+    arrival = financekit_events.last.deep_dup
+    arrival.fetch("transaction")["source_id"] = "44444444-4444-4444-8444-444444444444"
+    accept_and_apply(financekit_payload(sequence: 3, predecessor_digest: final.payload_digest, events: [ arrival ]))
+
+    event = WebNotificationTransactionEvent.find_by!(account: @source.account, baseline: false)
+    assert_equal [ event.entry_id ], WebNotification::Transactions.new(@user).call.sole.data["entry_ids"]
+  end
+
+  test "an explicitly complete empty snapshot readies a selected account with no transaction history" do
+    first = accept_and_apply(financekit_payload(events: []).merge("capture_mode" => "snapshot", "snapshot_complete" => true))
+    assert WebNotificationTransactionSource.find_by!(account: @source.account, source: "financekit").completed_at
+
+    accept_and_apply(financekit_payload(sequence: 2, predecessor_digest: first.payload_digest))
+    assert_not WebNotificationTransactionEvent.find_by!(account: @source.account).baseline?
+  end
+
   test "explicit tombstones retract only provider-owned entries and prevent resurrection" do
     first = accept_and_apply
     tombstone = {

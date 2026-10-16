@@ -12,6 +12,7 @@ class MonobankAccount::Transactions::Processor
     unless monobank_account.raw_transactions_payload.present?
       Rails.logger.info "MonobankAccount::Transactions::Processor - No Monobank transactions available to process"
       prune_stats = prune_stale_pending_entries([])
+      WebNotificationTransactionSource.complete!(account: monobank_account.current_account, source: "monobank") unless monobank_account.raw_transactions_payload.nil?
       return {
         success: true, total: 0, imported: 0, failed: 0,
         pruned_pending: prune_stats[:pruned], protected_pending: prune_stats[:protected], errors: []
@@ -48,6 +49,7 @@ class MonobankAccount::Transactions::Processor
       Rails.logger.error e.backtrace.join("\n")
     end
     prune_stats = prune_stale_pending_entries(current_pending_external_ids)
+    WebNotificationTransactionSource.complete!(account: monobank_account.current_account, source: "monobank") if failed_count.zero?
 
     {
       success: failed_count.zero?,

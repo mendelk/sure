@@ -21,6 +21,7 @@ const SpaBootstrapSchema = z.object({
   embedded: z.optional(z.nullable(z.boolean())),
   recurringTransactionsDisabled: z.optional(z.nullable(z.boolean())),
   uncategorizedCount: z.optional(z.nullable(z.number())),
+  notificationInbox: z.optional(z.nullable(z.object({ href: z.string(), label: z.string() }))),
   reportBuilderText: z.record(z.string(), z.string()),
   accountDetailText: z.record(z.string(), z.string()),
   bulkUpdateText: z.record(z.string(), z.string()),

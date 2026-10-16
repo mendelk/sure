@@ -32,6 +32,9 @@ class PlaidAccount::Investments::TransactionsProcessor
         find_or_create_trade_entry(transaction)
       end
     end
+    if plaid_account.raw_holdings_payload&.key?("transactions")
+      WebNotificationTransactionSource.complete!(account: account, source: "plaid")
+    end
   end
 
   private

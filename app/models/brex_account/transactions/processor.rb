@@ -8,6 +8,7 @@ class BrexAccount::Transactions::Processor
   def process
     unless brex_account.raw_transactions_payload.present?
       Rails.logger.info "BrexAccount::Transactions::Processor - No transactions in raw_transactions_payload for brex_account #{brex_account.id}"
+      WebNotificationTransactionSource.complete!(account: brex_account.current_account, source: "brex") unless brex_account.raw_transactions_payload.nil?
       return { success: true, total: 0, imported: 0, skipped: 0, failed: 0, errors: [], skipped_transactions: [] }
     end
 
@@ -72,6 +73,7 @@ class BrexAccount::Transactions::Processor
       Rails.logger.info "BrexAccount::Transactions::Processor - Successfully processed #{imported_count} transactions"
     end
 
+    WebNotificationTransactionSource.complete!(account: brex_account.current_account, source: "brex") if failed_count.zero?
     result
   end
 

@@ -4,10 +4,22 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { readSpaBootstrap } from "./bootstrap";
 import { createSpaRouter } from "./router";
+import { initializeWebPushSession } from "../utils/web_push_session.js";
 
 const rootElement = document.querySelector<HTMLElement>("#spa-root");
 
 if (!rootElement) throw new Error("SPA root element is missing");
+
+const pushSession = document.querySelector<HTMLElement>("[data-web-push-session-user-id-value]");
+if (pushSession) {
+  initializeWebPushSession({
+    userId: pushSession.dataset.webPushSessionUserIdValue ?? "",
+    sessionId: pushSession.dataset.webPushSessionSessionIdValue ?? "",
+    enabled: pushSession.dataset.webPushSessionEnabledValue === "true",
+    configured: pushSession.dataset.webPushSessionConfiguredValue === "true",
+    createUrl: pushSession.dataset.webPushSessionCreateUrlValue ?? "",
+  });
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {

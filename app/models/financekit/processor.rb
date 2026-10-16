@@ -25,6 +25,7 @@ class Financekit::Processor
       mappings = @item.selected_accounts.includes(financekit_account_lineage: :account)
         .index_by { |mapping| mapping.source_id.downcase }
       predecessor_digest = @item.predecessor_digest
+      @notification_history_accounts = {}
       capture.each do |part|
         batch = part
         Financekit.require!(part.predecessor_digest == predecessor_digest, "predecessor_conflict", 409)
@@ -33,6 +34,19 @@ class Financekit::Processor
         part.update!(status: "processing")
         data["events"].each { |event| apply_event!(event, mappings, part, counts) }
         predecessor_digest = part.payload_digest
+      end
+      # snapshot_complete closes the history of the entire selected account set,
+      # not just accounts with transactions in this final capture. A publisher
+      # may spread history over captures and finish with an empty marker.
+      history_accounts = if capture.any?(&:snapshot_complete?)
+        mappings.values.map(&:account)
+      elsif capture.first.capture_mode == "delta"
+        @notification_history_accounts.values
+      else
+        []
+      end
+      history_accounts.each do |account|
+        WebNotificationTransactionSource.complete!(account: account, source: "financekit")
       end
       applied_at = Time.current
       sync = @item.syncs.create!(status: "completed", completed_at: applied_at,
@@ -140,6 +154,7 @@ class Financekit::Processor
 
     def import_transaction!(mapping, record, batch, counts)
       identity = transaction_identity_for(mapping, record["source_id"])
+      @notification_history_accounts[mapping.account.id] = mapping.account
       existed = identity.persisted?
       identity.assign_attributes(financekit_account: mapping, generation: batch.generation,
         sequence: batch.sequence, status: record["status"], raw_payload: record)
@@ -212,6 +227,7 @@ class Financekit::Processor
 
     def retract!(mapping, record, batch, counts)
       identity = transaction_identity_for(mapping, record["source_id"])
+      @notification_history_accounts[mapping.account.id] = mapping.account
       identity.assign_attributes(financekit_account: mapping, generation: batch.generation, sequence: batch.sequence,
         status: "deleted", tombstoned_at: Time.current, raw_payload: nil)
       entry = identity.entry
@@ -305,6 +321,7 @@ class Financekit::Processor
       return unless entry && record["status"] == "booked"
 
       Entry.transaction do
+        Account.where(id: entry.account_id).lock.pick(:id)
         entry.lock!
         return unless entry.user_modified? && !entry.excluded? && !entry.import_locked?
 
@@ -312,6 +329,8 @@ class Financekit::Processor
         if transaction.extra&.dig("financekit", "pending")
           transaction.update!(extra: transaction.extra.deep_merge("financekit" => { "pending" => false }))
         end
+        WebNotificationTransactionEvent.observe!(entry: entry, source: "financekit", external_id: entry.external_id,
+          pending: false, new_activity: false)
       end
     end
 

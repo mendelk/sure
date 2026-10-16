@@ -73,6 +73,12 @@ generate_insights:
   queue: "scheduled"
   description: "Generates proactive financial insights for families with preview features enabled"
 
+web_notifications:
+  cron: "* * * * *"
+  class: "WebNotificationSweepJob"
+  queue: "scheduled"
+  description: "Generates opted-in web notifications and recovers pending push deliveries"
+
 sweep_expired_goal_pledges:
   cron: "*/15 * * * *" # every 15 minutes
   class: "SweepExpiredGoalPledgesJob"

@@ -894,6 +894,9 @@ class SimplefinItem::Importer
         #   Rails.logger.warn("SimpleFin: reconciliation failed for sfa=#{simplefin_account.id || account_id}: #{e.class} - #{e.message}")
         # end
       else
+        # An explicit empty transaction array is a successful history response,
+        # unlike an absent field or the separate balances-only ingestion path.
+        attrs[:raw_transactions_payload] = simplefin_account.raw_transactions_payload.to_a if transactions.is_a?(Array)
         Rails.logger.info "SimplefinItem::Importer#import_account - No transactions in API response for account_id=#{account_id} (transactions=#{transactions.inspect.first(100)})"
       end
 

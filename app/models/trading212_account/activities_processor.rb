@@ -13,6 +13,7 @@ class Trading212Account::ActivitiesProcessor
 
   def process
     return { trades: 0, dividends: 0, transactions: 0 } unless account.present?
+    @notification_ingestion_failed = false
 
     trade_count = Array(@trading212_account.raw_orders_payload).sum do |order|
       process_order(order.with_indifferent_access) ? 1 : 0
@@ -26,6 +27,9 @@ class Trading212Account::ActivitiesProcessor
       process_cash_transaction(transaction.with_indifferent_access) ? 1 : 0
     end
 
+    if !@notification_ingestion_failed && !@trading212_account.raw_transactions_payload.nil?
+      WebNotificationTransactionSource.complete!(account: account, source: "trading212")
+    end
     { trades: trade_count, dividends: dividend_count, transactions: transaction_count }
   end
 
@@ -94,6 +98,7 @@ class Trading212Account::ActivitiesProcessor
 
       true
     rescue => e
+      @notification_ingestion_failed = true
       DebugLogEntry.capture(
         category: "sync",
         level: "error",
@@ -141,6 +146,7 @@ class Trading212Account::ActivitiesProcessor
 
       true
     rescue => e
+      @notification_ingestion_failed = true
       DebugLogEntry.capture(
         category: "sync",
         level: "error",
@@ -185,6 +191,7 @@ class Trading212Account::ActivitiesProcessor
 
       true
     rescue => e
+      @notification_ingestion_failed = true
       DebugLogEntry.capture(
         category: "sync",
         level: "error",

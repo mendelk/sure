@@ -55,6 +55,10 @@
     initials: Current.user.initials,
     email: Current.user.email
   },
+  notificationInbox: preview_features_enabled? ? {
+    href: web_notifications_path,
+    label: t("web_notifications.inbox.title")
+  } : nil,
   apiPaths: {
     transactions: api_v1_transactions_path,
     recurringTransactions: api_v1_recurring_transactions_path,
