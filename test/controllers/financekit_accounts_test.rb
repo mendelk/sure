@@ -15,22 +15,33 @@ class FinancekitAccountsTest < ActionDispatch::IntegrationTest
     get accounts_url
 
     assert_response :success
-    assert_select "#financekit-accounts" do
-      assert_select "summary", text: /Apple Wallet/
-      assert_select "a[href=?][data-turbo-frame='_top']", account_path(@source.account), text: "Test Wallet"
-      assert_select "turbo-frame##{dom_id(@source.account)}"
-    end
-    assert_select "#manual-accounts a[href=?]", account_path(@source.account), count: 0
+    assert_select "#spa-root"
+
+    get accounts_url(format: :json)
+    assert_response :success
+    items = response.parsed_body.fetch("items")
+    financekit = items.select { |item| item["kind"] == "financekit" }
+    assert_equal 1, financekit.size
+    rows = financekit.flat_map { |item| item.fetch("group").flat_map { |group| group.fetch("accounts") } }
+    assert_includes rows.map { |row| row.fetch("id") }, @source.account.id
+    assert_includes rows.map { |row| row.fetch("href") }, account_path(@source.account)
+
+    manual_ids = response.parsed_body.fetch("groups").flat_map { |group| group.fetch("accounts").map { |row| row.fetch("id") } }
+    assert_not_includes manual_ids, @source.account.id
   end
 
   test "FinanceKit account detail renders imported transactions" do
     accept_and_apply
 
     get account_url(@source.account)
-
     assert_response :success
-    assert_select "header h2", text: "Test Wallet"
-    assert_includes response.body, "Synthetic shop"
+    assert_select "#spa-root"
+
+    get account_url(@source.account, format: :json)
+    assert_response :success
+    assert_equal "Test Wallet", response.parsed_body.fetch("name")
+    entries = response.parsed_body.dig("activity", "groups").flat_map { |group| group.fetch("entries") }
+    assert_includes entries.map { |entry| entry["name"] }, "Synthetic shop"
   end
 
   test "Wallet accounts can unlink and reconnect from a fresh client enrollment" do
@@ -42,9 +53,15 @@ class FinancekitAccountsTest < ActionDispatch::IntegrationTest
     queued, = accept_batch(financekit_payload(sequence: @item.next_sequence,
       predecessor_digest: @item.predecessor_digest))
 
-    get accounts_url
+    get accounts_url(format: :json)
     assert_response :success
-    assert_select "a[href=?]", confirm_unlink_account_path(account)
+    rows = response.parsed_body.fetch("items").flat_map do |item|
+      item.fetch("group").flat_map { |group| group.fetch("accounts") }
+    end
+    unlink = rows.find { |row| row.fetch("id") == account.id }
+      .fetch("actions")
+      .find { |action| action.fetch("key") == "unlink_provider" }
+    assert_equal confirm_unlink_account_path(account), unlink.fetch("href")
 
     get confirm_unlink_account_url(account)
     assert_response :success
@@ -64,12 +81,14 @@ class FinancekitAccountsTest < ActionDispatch::IntegrationTest
     error = assert_raises(Financekit::Error) { accept_batch }
     assert_equal "connection_revoked", error.code
 
-    get accounts_url
-    assert_select "#manual-accounts a[href=?]", account_path(account)
-    get account_url(account)
+    get accounts_url(format: :json)
     assert_response :success
-    assert_includes response.body, "Synthetic shop"
-
+    manual_ids = response.parsed_body.fetch("groups").flat_map { |group| group.fetch("accounts").map { |row| row.fetch("id") } }
+    assert_includes manual_ids, account.id
+    get account_url(account, format: :json)
+    assert_response :success
+    entries = response.parsed_body.dig("activity", "groups").flat_map { |group| group.fetch("entries") }
+    assert_includes entries.map { |entry| entry["name"] }, "Synthetic shop"
     # A reset Swift client knows only its stable Apple source IDs, not the old
     # connection, lineage, mapping version, stream or sequence.
     fresh = Financekit::Enrollment.create!(@user, @enrollment.merge("enrollment_id" => SecureRandom.uuid)).item
@@ -155,14 +174,17 @@ class FinancekitAccountsTest < ActionDispatch::IntegrationTest
 
   test "index shows disabled Wallet accounts but excludes pending deletion" do
     @source.account.update!(status: "disabled")
-    get accounts_url
+    get accounts_url(format: :json)
     assert_response :success
-    assert_select "#financekit-accounts a[href=?]", account_path(@source.account)
+    rows = response.parsed_body.fetch("items").flat_map do |item|
+      item.fetch("group").flat_map { |group| group.fetch("accounts") }
+    end
+    assert_includes rows.map { |row| row.fetch("id") }, @source.account.id
 
     @source.account.update!(status: "pending_deletion")
-    get accounts_url
+    get accounts_url(format: :json)
     assert_response :success
-    assert_select "#financekit-accounts", count: 0
+    assert_empty response.parsed_body.fetch("items").select { |item| item["kind"] == "financekit" }
   end
 
   test "index limits Wallet accounts to the viewer's owned and shared accounts" do
@@ -178,16 +200,19 @@ class FinancekitAccountsTest < ActionDispatch::IntegrationTest
     shared.account_shares.create!(user: viewer, permission: "read_only")
 
     sign_in viewer
-    get accounts_url
+    get accounts_url(format: :json)
 
     assert_response :success
-    assert_select "#financekit-accounts a[href=?]", account_path(shared)
-    assert_select "#financekit-accounts a[href=?]", account_path(private_mapping.account), count: 0
-    assert_not_includes response.body, "Private Wallet"
+    rows = response.parsed_body.fetch("items").flat_map do |item|
+      item.fetch("group").flat_map { |group| group.fetch("accounts") }
+    end
+    assert_includes rows.map { |row| row.fetch("id") }, shared.id
+    assert_not_includes rows.map { |row| row.fetch("id") }, private_mapping.account.id
+    assert_not_includes rows.map { |row| row.fetch("name") }, "Private Wallet"
 
     sign_in users(:family_admin)
-    get accounts_url
+    get accounts_url(format: :json)
     assert_response :success
-    assert_select "#financekit-accounts", count: 0
+    assert_empty response.parsed_body.fetch("items").select { |item| item["kind"] == "financekit" }
   end
 end

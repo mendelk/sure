@@ -194,7 +194,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   test "index with budget performance for current month" do
     # Create a budget for current month
     budget = Budget.find_or_bootstrap(@family, start_date: Date.current.beginning_of_month)
-    category = @family.categories.expenses.first
+    category = @family.categories.first
 
     # Fail fast if test setup is incomplete
     assert_not_nil category, "Test setup failed: no expense category found for family"

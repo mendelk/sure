@@ -170,11 +170,13 @@ class Account::SpaIndexData
         group: group_payload_for_accounts(spec[:accounts]),
         empty: empty_payload(spec),
         wallet: spec[:kind] == "wallet" ? wallet_payload(spec) : nil,
-        manage_href: item_manage_href(spec),
         setup_href: item_setup_href(spec),
+        manage_href: item_manage_href(spec),
+        manage_label: item_manage_label(spec),
         delete_href: item_delete_href(spec),
         confirm_delete: CustomConfirm.for_resource_deletion(item_name(spec), high_severity: true).to_data_attribute,
-        stats: sync_stats[spec[:item].id] || {}
+        stats: sync_stats.dig(spec[:key], spec[:item].id) || {},
+        replacement_prompts: replacement_prompts(spec),
       )
     end
 
@@ -193,9 +195,7 @@ class Account::SpaIndexData
       item = spec[:item]
       return "syncing" if item.syncing?
 
-      if spec[:key] == :plaid && item.status == "requires_update"
-        "requires_update"
-      elsif spec[:key] == :simplefin && item.setup_token_update_required?
+      if requires_reconnect?(spec)
         "requires_update"
       elsif item.sync_error.present?
         "error"
@@ -204,6 +204,14 @@ class Account::SpaIndexData
       else
         "ok"
       end
+    end
+
+    def requires_reconnect?(spec)
+      item = spec[:item]
+      return true if spec[:key] == :plaid && item.status == "requires_update"
+      return true if spec[:key] == :simplefin && item.setup_token_update_required?
+      return true if spec[:key] == :snaptrade && item.status == "requires_update"
+      false
     end
 
     def item_status_label(spec, status)
@@ -239,7 +247,20 @@ class Account::SpaIndexData
         end
       when :simplefin
         routes.edit_simplefin_item_path(item, only_path: true) if item.setup_token_update_required?
+      when :snaptrade
+        if item.status == "requires_update"
+          if Provider::Snaptrade.authorization_code_configured?
+            routes.oauth_authorize_snaptrade_items_path(item_id: item.id, only_path: true)
+          else
+            routes.oauth_device_authorize_snaptrade_items_path(item_id: item.id, only_path: true)
+          end
+        end
       end
+    end
+
+    def item_manage_label(spec)
+      return "Reconnect" if spec[:key] == :snaptrade && spec[:item].status == "requires_update"
+      nil
     end
     def item_setup_href(spec)
       item = spec[:item]
@@ -252,6 +273,42 @@ class Account::SpaIndexData
       end
     rescue StandardError
       nil
+    end
+
+    # Eligible card-replacement prompts for a SimpleFIN item, mirroring
+    # simplefin_items/_replacement_prompt eligibility: both SFAs and the
+    # Sure account exist, the relink hasn't landed, and the pair isn't
+    # dismissed. Computed server-side so the SPA renders strings verbatim.
+    def replacement_prompts(spec)
+      return [] unless spec[:key] == :simplefin
+
+      item = spec[:item]
+      stats = sync_stats.dig(:simplefin, item.id) || {}
+      suggestions = stats["replacement_suggestions"]
+      return [] unless suggestions.is_a?(Array) && suggestions.any?
+
+      dismissed = Array(stats["dismissed_replacement_suggestions"])
+      suggestions.filter_map do |suggestion|
+        old_sfa = item.simplefin_accounts.find_by(id: suggestion["dormant_sfa_id"])
+        new_sfa = item.simplefin_accounts.find_by(id: suggestion["active_sfa_id"])
+        sure_account = family.accounts.find_by(id: suggestion["sure_account_id"])
+        next unless old_sfa && new_sfa && sure_account
+        next if new_sfa.current_account&.id == sure_account.id
+        next if dismissed.include?("#{old_sfa.id}:#{new_sfa.id}")
+
+        {
+          title: I18n.t("simplefin_items.replacement_prompt.title",
+            institution: suggestion["institution_name"].presence || item.name),
+          description: I18n.t("simplefin_items.replacement_prompt.description",
+            account_name: sure_account.name, old_name: old_sfa.name, new_name: new_sfa.name),
+          relink_label: I18n.t("simplefin_items.replacement_prompt.relink"),
+          relink_href: routes.link_existing_account_simplefin_items_path(
+            account_id: sure_account.id, simplefin_account_id: new_sfa.id, only_path: true),
+          dismiss_href: routes.dismiss_replacement_suggestion_simplefin_item_path(item, only_path: true),
+          dormant_sfa_id: old_sfa.id,
+          active_sfa_id: new_sfa.id
+        }
+      end
     end
 
 

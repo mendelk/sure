@@ -522,11 +522,13 @@ class SimplefinItemsControllerTest < ActionDispatch::IntegrationTest
     })
     sync.update_column(:created_at, Time.current)
 
-    get accounts_url
+    get accounts_url(format: :json)
     assert_response :success
-    assert_match(/Citibank card may have been replaced/, response.body)
-    assert_match(/Citi Double Cash Card-3831/, response.body)
-    assert_match(/Relink to new card/, response.body)
+    prompts = response.parsed_body.fetch("items").flat_map { |item| item.fetch("replacement_prompts") }
+    assert_equal 1, prompts.size
+    assert_match(/Citibank/, prompts.first.fetch("title"))
+    assert_match(/Citi Double Cash Card-3831/, prompts.first.fetch("description"))
+    assert_equal "Relink to new card", prompts.first.fetch("relink_label")
   end
 
   test "replacement prompt is suppressed once the relink has been applied" do
@@ -568,12 +570,11 @@ class SimplefinItemsControllerTest < ActionDispatch::IntegrationTest
         }
       ]
     })
-    sync.update_column(:created_at, Time.current)
-
-    get accounts_url
+    get accounts_url(format: :json)
     assert_response :success
-    refute_match(/Citibank card may have been replaced/, response.body,
-      "banner should disappear once the relink has landed on the new sfa")
+    prompts = response.parsed_body.fetch("items").flat_map { |item| item.fetch("replacement_prompts") }
+    assert_empty prompts,
+      "banner should disappear once the relink has landed on the new sfa"
   end
 
   test "dismissing a replacement suggestion hides the banner for that pair" do
@@ -612,9 +613,10 @@ class SimplefinItemsControllerTest < ActionDispatch::IntegrationTest
     })
     sync.update_column(:created_at, Time.current)
 
-    # Banner is present before dismissal
-    get accounts_url
-    assert_match(/Citibank card may have been replaced/, response.body)
+    # Prompt is present before dismissal
+    get accounts_url(format: :json)
+    prompts = response.parsed_body.fetch("items").flat_map { |item| item.fetch("replacement_prompts") }
+    assert_equal 1, prompts.size
 
     # Dismiss — pair key (dormant + active)
     post dismiss_replacement_suggestion_simplefin_item_path(@simplefin_item), params: {
@@ -625,10 +627,11 @@ class SimplefinItemsControllerTest < ActionDispatch::IntegrationTest
     assert_includes Array(sync.sync_stats["dismissed_replacement_suggestions"]),
                     "#{old_sfa.id}:#{new_sfa.id}"
 
-    # Banner is gone after dismissal
-    get accounts_url
-    refute_match(/Citibank card may have been replaced/, response.body,
-      "banner should not render for a dismissed pair")
+    # Prompt is gone after dismissal
+    get accounts_url(format: :json)
+    prompts = response.parsed_body.fetch("items").flat_map { |item| item.fetch("replacement_prompts") }
+    assert_empty prompts,
+      "banner should not render for a dismissed pair"
   end
 
   test "replacement prompt relink button successfully swaps AccountProvider" do

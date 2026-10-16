@@ -129,6 +129,92 @@ function StatusLine({ item }: { item: ProviderItem }) {
   return <p className="text-secondary">{item.status_label}</p>;
 }
 
+function ReplacementPrompts({ item }: { item: ProviderItem }) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  if (item.replacement_prompts.length === 0) return null;
+
+  async function postAction(href: string, params: Record<string, string>) {
+    setPending(true);
+    setError(null);
+    try {
+      const url = new URL(href, window.location.origin);
+      const body = new URLSearchParams();
+      for (const [name, value] of url.searchParams) body.set(name, value);
+      for (const [name, value] of Object.entries(params)) body.set(name, value);
+      const response = await fetch(url.pathname, {
+        body,
+        credentials: "same-origin",
+        headers: { Accept: "application/json, text/html", "X-CSRF-Token": readCsrfToken() },
+        method: "POST",
+        redirect: "manual",
+      });
+      if (!response.ok && response.type !== "opaqueredirect")
+        throw new Error(`Action failed with status ${response.status}`);
+      await invalidateAccountQueries(queryClient);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Action failed");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {item.replacement_prompts.map((prompt) => (
+        <div
+          className="rounded-lg border border-warning/20 bg-warning/10 p-4"
+          key={`${prompt.dormant_sfa_id}:${prompt.active_sfa_id}`}
+        >
+          <div className="flex items-start gap-3">
+            <Icon className="mt-0.5 shrink-0 text-warning" name="credit-card" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-medium text-primary">{prompt.title}</p>
+                <button
+                  aria-label="Dismiss"
+                  className="-mr-1 -mt-1 shrink-0 rounded-sm p-1 text-secondary hover:bg-warning/20"
+                  disabled={pending}
+                  onClick={() => {
+                    void postAction(prompt.dismiss_href, {
+                      active_sfa_id: prompt.active_sfa_id,
+                      dormant_sfa_id: prompt.dormant_sfa_id,
+                    });
+                  }}
+                  type="button"
+                >
+                  <Icon name="x" size="sm" />
+                </button>
+              </div>
+              <p className="text-xs text-secondary">{prompt.description}</p>
+              <div className="pt-1">
+                <Button
+                  disabled={pending}
+                  onClick={() => {
+                    void postAction(prompt.relink_href, {
+                      simplefin_account_id: prompt.active_sfa_id,
+                    });
+                  }}
+                  size="sm"
+                  variant="primary"
+                >
+                  {prompt.relink_label}
+                </Button>
+              </div>
+            </div>
+          </div>
+          {error !== null ? (
+            <p className="text-xs text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ConfirmationDialog({
   state,
   onCancel,
@@ -631,7 +717,7 @@ function ProviderCard({
   if (item.manage_href !== undefined && item.manage_href !== null && item.manage_href !== "") {
     actions.push({
       key: "manage",
-      label: "Manage connection",
+      label: item.manage_label ?? "Manage connection",
       href: item.manage_href,
       method: "get",
     });
@@ -702,6 +788,7 @@ function ProviderCard({
         ) : null}
       </div>
       <div className="mt-4 space-y-4">
+        <ReplacementPrompts item={item} />
         {item.wallet !== undefined && item.wallet !== null && item.wallet.accounts !== undefined ? (
           <GroupTable
             group={{
