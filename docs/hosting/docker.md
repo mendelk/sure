@@ -357,6 +357,24 @@ docker compose up --no-deps -d web worker # This restarts the app using the newe
 
 ## Troubleshooting
 
+### SPA build fails during a source deployment
+
+The `frontend` stage must copy all of `app/javascript`, not just
+`app/javascript/spa`: the SPA also imports shared browser utilities from
+`app/javascript/utils`. A build in a complete development checkout can succeed
+even when the isolated Docker stage is missing those imports.
+
+From the repository root, verify this stage without starting Rails or running
+database migrations:
+
+```bash
+docker build --target frontend -t sure-frontend-check .
+```
+
+If a deployment fails at `RUN npm run spa:build`, inspect the first bundler
+diagnostic above the stack trace and ensure the Dockerfile includes the imported
+source directories.
+
 ### ActiveRecord::DatabaseConnectionError
 
 If you are trying to get Sure started for the **first time** and run into database connection issues, it is likely because Docker has already initialized the Postgres database with a _different_ default role (usually from a previous attempt to start the app).
