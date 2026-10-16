@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY vite.config.ts tsconfig.json ./
-COPY app/javascript/spa ./app/javascript/spa
+COPY app/javascript ./app/javascript
 RUN npm run spa:build
 
 FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim AS base
