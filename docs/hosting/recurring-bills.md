@@ -65,9 +65,11 @@ bank-confirmed deadline**; enter the bank's actual day when known.
 Statement close currently defaults to **25 days before payment**, using
 `CreditCard::PaymentSchedule::STATEMENT_GAP_DAYS`. This is an assumption,
 not a bank-specific or statement-confirmed date. An occurrence is generated
-only after its estimated closing date has passed; future amounts are not
-projected from past payments. The first run starts at the latest closed
-cycle rather than inventing missed historical bills. Changing the due day
+on its estimated closing date, using posted activity available so far, and
+continues refreshing as posted activity arrives. Future-cycle amounts are
+not projected from past payments. The first run starts at the latest cycle
+whose estimated closing date is today or earlier, rather than inventing
+missed historical bills. Changing the due day
 applies to newly generated cycles; existing cycles keep their dates and
 statement boundaries.
 

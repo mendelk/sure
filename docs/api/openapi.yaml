@@ -2299,7 +2299,8 @@ components:
           type: object
           nullable: true
           readOnly: true
-          description: Credit-card estimate available only after statement close.
+          description: Credit-card estimate available from its estimated statement
+            closing date.
           properties:
             id:
               type: string

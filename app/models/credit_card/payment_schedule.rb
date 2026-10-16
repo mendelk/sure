@@ -99,7 +99,7 @@ class CreditCard
 
       def latest_closed_due
         due = date_in_month(Date.current + STATEMENT_GAP_DAYS, due_day)
-        due - STATEMENT_GAP_DAYS >= Date.current ? date_in_month(due.prev_month, due_day) : due
+        due - STATEMENT_GAP_DAYS > Date.current ? date_in_month(due.prev_month, due_day) : due
       end
 
       def ensure_series!
@@ -133,7 +133,7 @@ class CreditCard
         while month && month.beginning_of_month <= latest_closed_due.beginning_of_month
           due = date_in_month(month, due_day)
           ending = due - STATEMENT_GAP_DAYS
-          break if ending >= Date.current
+          break if ending > Date.current
 
           starting = last_end ? last_end + 1 : date_in_month(due.prev_month, due_day) - STATEMENT_GAP_DAYS + 1
           occurrence = series.recurring_occurrences.find_or_initialize_by(original_due_on: due)
