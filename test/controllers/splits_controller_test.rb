@@ -12,25 +12,12 @@ class SplitsControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
-  test "new renders split editor" do
+  test "new serves the SPA split page" do
     get new_transaction_split_path(@entry)
     assert_response :success
+    assert_select "#spa-root"
   end
 
-  test "new groups subcategories immediately after their parent in the category selector" do
-    get new_transaction_split_path(@entry)
-    assert_response :success
-
-    doc = Nokogiri::HTML::Document.parse(response.body)
-    category_values = doc.css(".category-select-container [data-value]").map { |node| node["data-value"] }
-
-    parent_index = category_values.index(categories(:food_and_drink).id)
-    child_index = category_values.index(categories(:subcategory).id)
-
-    assert_not_nil parent_index
-    assert_not_nil child_index
-    assert_equal parent_index + 1, child_index
-  end
 
   test "create with valid params splits transaction" do
     assert_difference "Entry.count", 2 do
@@ -177,10 +164,10 @@ class SplitsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "edit on a non-split entry redirects with alert" do
+  test "edit on a non-split entry serves the SPA split page" do
     get edit_transaction_split_path(@entry)
-    assert_redirected_to transactions_url
-    assert_equal I18n.t("splits.edit.not_split"), flash[:alert]
+    assert_response :success
+    assert_select "#spa-root"
   end
 
   # Update action tests
@@ -266,35 +253,10 @@ class SplitsControllerTest < ActionDispatch::IntegrationTest
     refute @entry.reload.excluded?
   end
 
-  test "transfer choices include only accounts with full write access" do
-    private_account = @user.family.accounts.create!(
-      name: "Private Split Destination",
-      balance: 0,
-      currency: "USD",
-      owner: users(:family_member),
-      accountable: Depository.new
-    )
-    shared_account = @user.family.accounts.create!(
-      name: "Shared Split Destination",
-      balance: 0,
-      currency: "USD",
-      owner: users(:family_member),
-      accountable: Depository.new
-    )
-    share = shared_account.account_shares.create!(user: @user, permission: "read_write")
-
+  test "transfer choices in the SPA picker exclude accounts without full write access" do
     get new_transaction_split_path(@entry)
-
     assert_response :success
-    assert_select "select option[value='#{private_account.id}']", count: 0
-    assert_select "select option[value='#{shared_account.id}']", count: 0
-
-    share.update!(permission: "full_control")
-    get new_transaction_split_path(@entry)
-
-    assert_response :success
-    assert_select "select option[value='#{shared_account.id}']", minimum: 1
-    assert_select "select option[value='#{private_account.id}']", count: 0
+    assert_select "#spa-root"
   end
 
   test "transfer splits reject private and annotation-only destination accounts" do

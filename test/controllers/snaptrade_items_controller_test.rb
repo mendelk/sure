@@ -480,10 +480,13 @@ class SnaptradeItemsControllerTest < ActionDispatch::IntegrationTest
     @snaptrade_item.update!(status: :requires_update)
 
     with_oauth_app do
-      get accounts_url
+      get accounts_url(format: :json)
 
-      assert_select "a[href='#{oauth_authorize_snaptrade_items_path(item_id: @snaptrade_item.id)}'][data-turbo-frame='_top']", text: /Reconnect/
-      assert_select "a[href='#{connect_snaptrade_item_path(@snaptrade_item)}']", text: /Reconnect/, count: 0
+      assert_response :success
+      item = response.parsed_body.fetch("items").find { |row| row.fetch("provider_key") == "snaptrade" && row.fetch("id") == @snaptrade_item.id }
+      assert_equal "requires_update", item.fetch("status")
+      assert_equal oauth_authorize_snaptrade_items_path(item_id: @snaptrade_item.id), item.fetch("manage_href")
+      assert_equal "Reconnect", item.fetch("manage_label")
     end
   end
 
@@ -491,9 +494,13 @@ class SnaptradeItemsControllerTest < ActionDispatch::IntegrationTest
     @snaptrade_item.update!(status: :requires_update)
 
     with_device_flow_only do
-      get accounts_url
+      get accounts_url(format: :json)
 
-      assert_select "a[href='#{oauth_device_authorize_snaptrade_items_path(item_id: @snaptrade_item.id)}'][data-turbo-frame='drawer']", text: /Reconnect/
+      assert_response :success
+      item = response.parsed_body.fetch("items").find { |row| row.fetch("provider_key") == "snaptrade" && row.fetch("id") == @snaptrade_item.id }
+      assert_equal "requires_update", item.fetch("status")
+      assert_equal oauth_device_authorize_snaptrade_items_path(item_id: @snaptrade_item.id), item.fetch("manage_href")
+      assert_equal "Reconnect", item.fetch("manage_label")
     end
   end
 

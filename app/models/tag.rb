@@ -30,7 +30,7 @@ class Tag < ApplicationRecord
 
   class << self
     def untagged
-      new(name: I18n.t(UNTAGGED_NAME_KEY), color: UNCATEGORIZED_COLOR)
+      new(name: I18n.t(UNTAGGED_NAME_KEY), color: Category::UNCATEGORIZED_COLOR)
     end
 
     # Helper to get the localized name for "Untagged"

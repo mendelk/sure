@@ -102,10 +102,21 @@ export const ProviderItemSchema = z.object({
   empty: z.nullable(EmptyStateSchema),
   wallet: z.optional(z.nullable(WalletCardSchema)),
   manage_href: z.optional(z.nullable(z.string())),
+  manage_label: z.optional(z.nullable(z.string())),
   delete_href: z.optional(z.nullable(z.string())),
   setup_href: z.optional(z.nullable(z.string())),
   confirm_delete: z.optional(ConfirmSchema),
-  stats: z.record(z.string(), z.unknown()),
+  replacement_prompts: z.array(
+    z.object({
+      title: z.string(),
+      description: z.string(),
+      relink_label: z.string(),
+      relink_href: z.string(),
+      dismiss_href: z.string(),
+      dormant_sfa_id: z.string(),
+      active_sfa_id: z.string(),
+    }),
+  ),
 });
 
 export const AccountsIndexSchema = z.object({

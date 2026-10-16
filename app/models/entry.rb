@@ -545,8 +545,13 @@ class Entry < ApplicationRecord
   end
 
   class << self
-    def search(params, family: nil)
-      EntrySearch.new(params, family: family).build_query(all)
+    # Accepts filters as a positional hash or bare keywords so relation
+    # calls like `account.entries.search(uncategorized: true)` keep working:
+    # scope delegation drops keyword separation, and without `**filters`
+    # the required positional `params` appears missing.
+    def search(params = {}, family: nil, **filters)
+      params = params.to_h.merge(filters) if filters.any?
+      EntrySearch.new(params, family: family).build_query(current_scope || all)
     end
 
     # arbitrary cutoff date to avoid expensive sync operations
