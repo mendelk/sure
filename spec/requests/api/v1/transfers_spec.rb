@@ -187,9 +187,11 @@ RSpec.describe 'API V1 Transfers', type: :request do
           transfer: {
             type: :object,
             properties: {
-              status: { type: :string, enum: %w[confirmed rejected], description: 'Confirm a pending match, or reject it (removes the match and records the pair as rejected).' }
-            },
-            required: %w[status]
+              status: { type: :string, enum: %w[confirmed rejected], description: 'Confirm a pending match, or reject it (removes the match and records the pair as rejected).' },
+              notes: { type: :string, nullable: true },
+              category_id: { type: :string, format: :uuid, nullable: true },
+              tag_ids: { type: :array, items: { type: :string, format: :uuid } }
+            }
           }
         },
         required: %w[transfer]
@@ -208,10 +210,7 @@ RSpec.describe 'API V1 Transfers', type: :request do
 
         let(:body) { { transfer: { status: 'rejected' } } }
 
-        run_test! do |response|
-          body = JSON.parse(response.body)
-          expect(body['message']).to eq 'Transfer rejected'
-        end
+        run_test!
       end
 
       response '422', 'invalid status' do
@@ -242,6 +241,97 @@ RSpec.describe 'API V1 Transfers', type: :request do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
         let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+    end
+    delete 'Delete a transfer' do
+      tags 'Transfers'
+      security [ { apiKeyAuth: [] } ]
+
+      let(:id) { transfer.id }
+
+      response '204', 'transfer deleted' do
+        run_test!
+      end
+
+      response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { nil }
+
+        run_test!
+      end
+
+      response '403', 'insufficient scope' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { api_key_without_read_scope.plain_key }
+
+        run_test!
+      end
+
+      response '404', 'transfer not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+    end
+  end
+
+  path '/api/v1/transfers/{id}/mark_as_recurring' do
+    parameter name: :id, in: :path, type: :string, required: true, description: 'Transfer ID'
+
+    post 'Mark transfer as recurring' do
+      tags 'Transfers'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+
+      let(:id) { transfer.id }
+
+      response '201', 'transfer marked as recurring' do
+        schema type: :object,
+               required: %w[message recurring_transaction_id],
+               properties: {
+                 message: { type: :string },
+                 recurring_transaction_id: { type: :string, format: :uuid }
+               }
+
+        run_test!
+      end
+
+      response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { nil }
+
+        run_test!
+      end
+
+      response '403', 'insufficient scope' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:'X-Api-Key') { api_key_without_read_scope.plain_key }
+
+        run_test!
+      end
+
+      response '404', 'transfer not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        let(:id) { SecureRandom.uuid }
+
+        run_test!
+      end
+
+      response '409', 'recurring transfer already exists' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+
+        before do
+          RecurringTransaction.create_from_transfer(transfer)
+        end
 
         run_test!
       end

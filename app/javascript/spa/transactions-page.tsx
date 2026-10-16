@@ -493,26 +493,31 @@ export function TransactionsPage() {
               <div aria-live="polite" className="divide-y divide-tertiary">
                 {groupedTransactions.map(([date, transactions]) => (
                   <div key={date}>
-                    <div className="sticky top-0 z-10 flex items-center gap-3 bg-container-inset px-4 py-2.5 md:top-10">
-                      <input
-                        aria-label={`Select all for ${formatTransactionDate(date)}`}
-                        checked={
-                          transactions.length > 0 && transactions.every((t) => selected.has(t.id))
-                        }
-                        className="checkbox checkbox--light"
-                        disabled={transactions.length === 0}
-                        onChange={(event) => {
-                          select(
-                            transactions.map((t) => t.id),
-                            event.currentTarget.checked,
-                          );
-                        }}
-                        type="checkbox"
-                      />
-                      <h2 className="text-xs font-medium uppercase tracking-wide text-secondary">
-                        {formatTransactionDate(date)} <span className="mx-1">&middot;</span>{" "}
-                        {transactions.length}
-                      </h2>
+                    <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-container-inset px-4 py-2.5 md:top-10">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <input
+                          aria-label={`Select all for ${formatTransactionDate(date)}`}
+                          checked={
+                            transactions.length > 0 && transactions.every((t) => selected.has(t.id))
+                          }
+                          className="checkbox checkbox--light shrink-0"
+                          disabled={transactions.length === 0}
+                          onChange={(event) => {
+                            select(
+                              transactions.map((t) => t.id),
+                              event.currentTarget.checked,
+                            );
+                          }}
+                          type="checkbox"
+                        />
+                        <h2 className="truncate text-xs font-medium uppercase tracking-wide text-secondary">
+                          {formatTransactionDate(date)} <span className="mx-1">&middot;</span>{" "}
+                          {transactions.length}
+                        </h2>
+                      </div>
+                      <span className="privacy-sensitive text-xs font-medium tabular-nums text-secondary">
+                        {formatDailyTotal(transactions)}
+                      </span>
                     </div>
                     <ul className="divide-y divide-tertiary">
                       {clusterSplitGroups(transactions, splitParentsByEntryId).map((row) =>
@@ -1134,6 +1139,23 @@ function formatTransactionDate(date: string): string {
     month: "long",
     year: parsedDate.getFullYear() === today.getFullYear() ? undefined : "numeric",
   }).format(parsedDate);
+}
+function formatDailyTotal(transactions: SpaTransaction[]): string {
+  if (transactions.length === 0) return "";
+  const currency = transactions[0]?.currency ?? "USD";
+  const nonTransferTransactions = transactions.filter(
+    (t) =>
+      !(
+        t.transfer?.status === "confirmed" ||
+        t.kind === "funds_movement" ||
+        t.kind === "cc_payment"
+      ),
+  );
+  const totalCents = nonTransferTransactions.reduce((sum, t) => sum + t.signed_amount_cents, 0);
+  return new Intl.NumberFormat(document.documentElement.lang || undefined, {
+    style: "currency",
+    currency,
+  }).format(totalCents / 100);
 }
 
 function stringValue(value: unknown): string | undefined {
