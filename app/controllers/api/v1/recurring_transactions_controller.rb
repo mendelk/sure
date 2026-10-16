@@ -192,9 +192,11 @@ class Api::V1::RecurringTransactionsController < Api::V1::BaseController
         days = (params[:upcoming_days] || 10).to_i.clamp(1, 365)
         through = days.days.from_now.to_date
         ordinary = query.where(system_managed_kind: nil).where(next_expected_date: Date.current..through)
+        # Keep closed statements visible throughout their payment window.
+        card_days = (params[:upcoming_days] || CreditCard::PaymentSchedule::STATEMENT_GAP_DAYS).to_i.clamp(1, 365)
         due_card_series = current_resource_owner.family.recurring_occurrences.open_status
                                                .group(:recurring_transaction_id)
-                                               .having("MIN(due_on) BETWEEN ? AND ?", Date.current, through)
+                                               .having("MIN(due_on) BETWEEN ? AND ?", Date.current, Date.current + card_days)
                                                .select(:recurring_transaction_id)
         cards = query.where(system_managed_kind: "credit_card_payment", id: due_card_series,
                             account_id: Account.visible.select(:id))
