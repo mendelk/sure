@@ -434,6 +434,7 @@ export type ReferenceOption<TId extends string> = {
   icon?: string;
   logoUrl?: string;
   parentName?: string;
+  accountType?: string;
 };
 
 export function recentCategoriesQueryOptions(categoriesPath: string) {
@@ -577,6 +578,7 @@ function parseReferenceList<TId extends string>(
               ? item.logoUrl
               : undefined,
         parentName,
+        accountType: typeof item.account_type === "string" ? item.account_type : undefined,
       };
     })
     .filter((item) => item.id.length > 0 && item.name.length > 0);

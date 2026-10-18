@@ -308,6 +308,7 @@ export function CategorySelect({
   disabled,
   initialCategory,
   label = "Category",
+  notApplicableLabel,
   onSelect,
   placeholder = "Select a Category",
   portal = true,
@@ -318,6 +319,7 @@ export function CategorySelect({
   disabled?: boolean;
   initialCategory?: { id: CategoryId; name: string; color: string; icon: string } | null;
   label?: string;
+  notApplicableLabel?: string;
   onSelect: (categoryId: CategoryId | "") => void;
   placeholder?: string;
   portal?: boolean;
@@ -327,9 +329,12 @@ export function CategorySelect({
   const [query, setQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>();
-  const selected =
-    categories.find((category) => category.id === selectedCategoryId) ??
-    (initialCategory?.id === selectedCategoryId ? initialCategory : undefined);
+  const notApplicable = notApplicableLabel !== undefined;
+  const unavailable = disabled === true || notApplicable;
+  const selected = notApplicable
+    ? undefined
+    : (categories.find((category) => category.id === selectedCategoryId) ??
+      (initialCategory?.id === selectedCategoryId ? initialCategory : undefined));
   const trimmedQuery = query.trim();
   const lowerQuery = trimmedQuery.toLowerCase();
   const options: PickerOption[] = [
@@ -349,7 +354,7 @@ export function CategorySelect({
     options.push({ value: "__create", label: `Create "${trimmedQuery}"` });
 
   async function handleCreate() {
-    if (isCreating || disabled === true) return false;
+    if (isCreating || unavailable) return false;
     setIsCreating(true);
     setCreateError(undefined);
     try {
@@ -386,7 +391,7 @@ export function CategorySelect({
 
   return (
     <SearchablePicker
-      disabled={disabled === true || isCreating}
+      disabled={unavailable || isCreating}
       error={createError}
       label={label}
       portal={portal}
@@ -395,6 +400,7 @@ export function CategorySelect({
         setCreateError(undefined);
       }}
       onSelect={(value) => {
+        if (unavailable) return false;
         if (value === "__create") return handleCreate();
         if (value === "") {
           onSelect("");
@@ -408,12 +414,12 @@ export function CategorySelect({
       options={options}
       query={query}
       searchLabel="Search categories"
-      selectedValues={[selectedCategoryId]}
+      selectedValues={[notApplicable ? "" : selectedCategoryId]}
       trigger={
         selected ? (
           <CategoryPill color={selected.color} icon={selected.icon} name={selected.name} />
         ) : (
-          <span className="text-sm text-secondary">{placeholder}</span>
+          <span className="text-sm text-secondary">{notApplicableLabel ?? placeholder}</span>
         )
       }
     />
@@ -555,7 +561,7 @@ function TransactionEditableForm({
   bootstrap,
   transaction,
 }: {
-  bootstrap: Bootstrap;
+  bootstrap: Bootstrap & Pick<SpaBootstrap, "accountDetailText">;
   transaction: SpaTransactionDetail;
 }) {
   const queryClient = useQueryClient();
@@ -703,6 +709,11 @@ function TransactionEditableForm({
               categories={categories}
               disabled={save.isPending}
               initialCategory={transaction.category}
+              notApplicableLabel={
+                transaction.kind === "funds_movement"
+                  ? bootstrap.accountDetailText.category_not_applicable
+                  : undefined
+              }
               onSelect={(categoryId) => {
                 field.handleChange(categoryId);
                 saveField(
