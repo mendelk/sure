@@ -34,7 +34,7 @@ All transaction endpoints require an OAuth2 access token or API key that grants 
 | `DELETE /api/v1/transactions/{id}` | `write` | Permanently delete a transaction. |
 | `GET /api/v1/transactions/{id}/transfer_match_candidates` | `read` | List candidate entries this transaction could be matched against, ordered by date proximity. |
 | `POST /api/v1/transactions/{id}/transfer_match` | `write` | Create a transfer match: link an existing transaction (`matched_entry_id`) or create a counterpart on `target_account_id`. |
-| `PATCH /api/v1/transfers/{id}` | `write` | Confirm or reject a pending transfer match (`status`: `confirmed` or `rejected`). |
+| `PATCH /api/v1/transfers/{id}` | `write` | Confirm/reject a transfer match, update notes/tags, or set/clear the category of an eligible loan payment. |
 
 Refer to the generated [`openapi.yaml`](openapi.yaml) for request/response schemas, reusable components (pagination, errors, accounts, categories, merchants, tags), and security definitions.
 
@@ -160,6 +160,18 @@ Both actions use `PATCH /api/v1/transfers/{id}` and refresh the transaction list
 and cached transaction details, including the counterpart. Controls are disabled
 while the action is in progress; failures remain visible beside the match controls.
 Confirmed matches display a link icon instead of the pill and action buttons.
+
+Loan payments expose a **Category** picker under **Details** in the SPA transfer
+drawer when the API returns `categorizable: true`. The picker supports searching,
+creating a category, and clearing it with **(uncategorized)**. Saving updates the
+outflow transaction's category and refreshes the filtered ledger and cached
+account/budget summaries. Failed saves leave the previous category intact and
+display an error.
+
+Ordinary account-to-account transfers and credit-card payments remain
+non-categorizable and do not show this control. Uncategorized loan payments remain
+eligible for the Uncategorized filter because they are budget-tracked outflows;
+this editor does not change that policy.
 
 ## Error responses
 
