@@ -7,6 +7,7 @@ const FIELD_ID_SCHEMAS: Readonly<Record<string, string>> = {
   account_ids: "AccountIdSchema",
   excluded_account_ids: "AccountIdSchema",
   target_account_id: "AccountIdSchema",
+  transfer_account_id: "AccountIdSchema",
   category_id: "CategoryIdSchema",
   category_ids: "CategoryIdSchema",
   merchant_id: "MerchantIdSchema",

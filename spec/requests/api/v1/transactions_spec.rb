@@ -345,6 +345,7 @@ RSpec.describe 'API V1 Transactions', type: :request do
 
     get 'Retrieve a transaction' do
       tags 'Transactions'
+      description 'Split parents include split_children with transfer_account_id identifying each linked counterpart account, or null for non-transfer children. Use it to preserve transfers when editing a split.'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
 

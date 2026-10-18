@@ -1274,6 +1274,46 @@ end
       assert_nil body["split_parent"]
     end
 
+    test "split detail preserves transfer accounts when editing outflows and inflows" do
+      counterpart = @family.accounts.create!(
+        name: "Escrow", balance: 0, currency: "USD", owner: @user, accountable: Depository.new
+      )
+
+      [ 1, -1 ].each do |direction|
+        parent_entry = create_transaction(amount: direction * 56, name: "Mortgage", account: @account)
+        parent_entry.split!([
+          { name: "Mortgage payment", amount: direction * 10 },
+          { name: "Mortgage escrow contribution", amount: direction * 46, transfer_account: counterpart }
+        ])
+
+        get api_v1_transaction_url(parent_entry.entryable), headers: api_headers(@read_only_api_key)
+        assert_response :success
+        children = JSON.parse(response.body)["split_children"]
+        escrow = children.find { |child| child["name"] == "Mortgage escrow contribution" }
+        payment = children.find { |child| child["name"] == "Mortgage payment" }
+        assert_equal counterpart.id, escrow["transfer_account_id"]
+        assert_nil payment["transfer_account_id"]
+
+        patch api_v1_transaction_split_url(parent_entry.entryable),
+          params: { split: { splits: children.map { |child|
+            {
+              name: child["name"],
+              amount: direction * (child["name"] == escrow["name"] ? -46 : -10),
+              transfer_account_id: child["transfer_account_id"]
+            }
+          } } },
+          headers: api_headers(@api_key)
+        assert_response :success
+
+        updated_escrow = parent_entry.reload.child_entries.find_by!(name: escrow["name"])
+        transfer = updated_escrow.transaction.transfer
+        assert_not_nil transfer
+        other_entry = direction.positive? ? transfer.inflow_transaction.entry : transfer.outflow_transaction.entry
+        assert_equal counterpart.id, other_entry.account_id
+        assert_equal direction * -46, other_entry.amount
+      end
+    end
+
     test "show includes split_parent for split child" do
       parent_entry = create_transaction(amount: 56, name: "Delta Airlines", account: @account)
       children = parent_entry.split!([

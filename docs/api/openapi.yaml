@@ -2706,6 +2706,12 @@ components:
         category_name:
           type: string
           nullable: true
+        transfer_account_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Counterpart account for a linked transfer, in either direction;
+            null for non-transfer splits. Preserve this value when editing a split.
     SplitParentDetail:
       type: object
       required:
@@ -12354,6 +12360,9 @@ paths:
       summary: Retrieve a transaction
       tags:
       - Transactions
+      description: Split parents include split_children with transfer_account_id identifying
+        each linked counterpart account, or null for non-transfer children. Use it
+        to preserve transfers when editing a split.
       security:
       - apiKeyAuth: []
       responses:

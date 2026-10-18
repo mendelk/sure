@@ -1465,7 +1465,11 @@ RSpec.configure do |config|
               name: { type: :string },
               amount: { type: :string },
               category_id: { type: :string, format: :uuid, nullable: true },
-              category_name: { type: :string, nullable: true }
+              category_name: { type: :string, nullable: true },
+              transfer_account_id: {
+                type: :string, format: :uuid, nullable: true,
+                description: 'Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'
+              }
             }
           },
           SplitParentDetail: {
