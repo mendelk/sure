@@ -277,7 +277,7 @@ function CategoryFormDialog({
   onSaved: () => void;
   state: FormDialogState;
 }) {
-  const [name, setName] = useState(initial.category.name);
+  const [name, setName] = useState(initial.category.name ?? "");
   const [color, setColor] = useState(initial.category.color);
   const [customColor, setCustomColor] = useState(
     initial.colors.includes(initial.category.color) ? "" : initial.category.color,

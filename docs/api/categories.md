@@ -138,3 +138,16 @@ Errors conform to the shared `ErrorResponse` schema in the OpenAPI document:
 ```
 
 Common error codes include `bad_request`, `unauthorized`, `forbidden`, `not_found`, `unprocessable_entity`, and `internal_server_error`.
+
+## Web category form contract
+
+The signed-in web UI uses session-authenticated `/categories` routes, separate
+from the external `/api/v1/categories` endpoints above.
+`GET /categories/new.json` returns an unsaved category: `id`, `name`,
+`display_name`, and `display_name_with_parent` are `null`, while color and icon
+defaults are populated. The SPA form schema accepts these nulls and renders the
+name as an empty input. Persisted category rows and create responses still require
+string IDs and names.
+
+`test/system/categories_test.rb` exercises opening the blank form, creating a
+category, and displaying its persisted row.
