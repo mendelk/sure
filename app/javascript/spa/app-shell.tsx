@@ -677,9 +677,17 @@ function BreadcrumbBar({
             ? bootstrap.accountDetailText.accounts
             : pathname.startsWith("/account_statements") || pathname.startsWith("/statements")
               ? "Statements"
-              : pathname.startsWith("/accounts")
-                ? "Account"
-                : "Home";
+              : pathname.startsWith("/rules")
+                ? "Rules"
+                : pathname.startsWith("/categories")
+                  ? "Categories"
+                  : pathname.startsWith("/family_merchants")
+                    ? "Merchants"
+                    : pathname.startsWith("/tags")
+                      ? "Tags"
+                      : pathname.startsWith("/accounts")
+                        ? "Account"
+                        : "Home";
 
   return (
     <div className="hidden lg:flex items-center justify-between gap-2 mb-6 sticky top-0 z-10 -mx-3 lg:-mx-10 px-3 lg:px-10 py-4 bg-surface border-b border-tertiary">

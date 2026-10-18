@@ -49,6 +49,8 @@ type Bootstrap = Pick<SpaBootstrap, "apiPaths" | "railsPaths">;
 const RULES_TEXT = {
   title: "Rules",
   rules_heading: "Rules",
+  rules_description:
+    "Rules run from top to bottom. Once a rule sets a field on a transaction, rules further down don't change that field. Tags are added by every matching rule. Drag rules to change the order.",
   sort_by: "Sort by:",
   sort_name: "Name",
   sort_updated_at: "Updated At",
@@ -96,6 +98,10 @@ const RULES_TEXT = {
   status: "Status",
   rule_name: "Rule Name",
   counts: "Queued / Processed / Modified / Blocked",
+  queued: "QUEUED",
+  processed: "PROCESSED",
+  modified: "MODIFIED",
+  blocked: "BLOCKED",
   no_runs: "No rule runs yet.",
   rule_name_label: "Rule name (optional)",
   rule_name_placeholder: "Enter a name for this rule",
@@ -376,37 +382,53 @@ function RuleRowView({
       className={`flex items-center justify-between gap-4 p-4 ${rule.active ? "text-primary" : "text-secondary"}`}
       id={`rule_${rule.id}`}
     >
-      <div className="space-y-1.5 text-sm">
-        {rule.name === null || rule.name === "" ? null : (
-          <h3 className="text-base font-medium">{rule.name}</h3>
-        )}
-        <div className="mt-1 flex items-center gap-2">
-          <div className="w-16 shrink-0 text-secondary">
-            <span className="font-mono text-xs">IF</span>
-          </div>
-          <p className="m-0 flex flex-wrap items-center gap-1.5">
-            <span className="rounded-sm border border-secondary px-2 py-1">
-              {summary.condition}
-            </span>
-            {conditionsMore === null ? null : <span>{conditionsMore}</span>}
-          </p>
+      <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center text-secondary">
+          <Icon
+            className="size-4 shrink-0 cursor-grab text-secondary hover:text-primary"
+            name="grip-vertical"
+          />
         </div>
-        <div className="mt-1 flex items-center gap-2">
-          <div className="w-16 shrink-0 text-secondary">
-            <span className="font-mono text-xs">{RULES_TEXT.then_label}</span>
+        <div className="space-y-1.5 text-sm">
+          {rule.name === null || rule.name === "" ? null : (
+            <h3 className="text-base font-medium text-primary">{rule.name}</h3>
+          )}
+          <div className="mt-1 flex items-center gap-2">
+            <div className="w-16 shrink-0 text-secondary">
+              <span className="font-mono text-xs">IF</span>
+            </div>
+            <p className="m-0 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full border border-secondary px-3 py-1 text-xs">
+                {summary.condition}
+              </span>
+              {conditionsMore === null ? null : (
+                <span className="text-xs text-secondary">{conditionsMore}</span>
+              )}
+            </p>
           </div>
-          <p className="m-0 flex flex-wrap items-center gap-1.5">
-            <span className="rounded-sm border border-secondary px-2 py-1">{summary.action}</span>
-            {actionsMore === null ? null : <span>{actionsMore}</span>}
-          </p>
-        </div>
-        <div className="mt-1 flex items-center gap-2">
-          <div className="w-16 shrink-0 text-secondary">
-            <span className="font-mono text-xs">FOR</span>
+          <div className="mt-1 flex items-center gap-2">
+            <div className="w-16 shrink-0 text-secondary">
+              <span className="font-mono text-xs">{RULES_TEXT.then_label}</span>
+            </div>
+            <p className="m-0 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full border border-secondary px-3 py-1 text-xs">
+                {summary.action}
+              </span>
+              {actionsMore === null ? null : (
+                <span className="text-xs text-secondary">{actionsMore}</span>
+              )}
+            </p>
           </div>
-          <p className="m-0 flex flex-wrap items-center gap-1.5">
-            <span className="rounded-sm border border-secondary px-2 py-1">{summary.scope}</span>
-          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <div className="w-16 shrink-0 text-secondary">
+              <span className="font-mono text-xs">FOR</span>
+            </div>
+            <p className="m-0 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full border border-secondary px-3 py-1 text-xs">
+                {summary.scope}
+              </span>
+            </p>
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-4">
@@ -432,18 +454,38 @@ function RecentRunsTable({ runs }: { runs: RuleRunItem[] }) {
   return (
     <div className="overflow-x-auto">
       <table aria-label={RULES_TEXT.recent_runs_title} className="w-full">
-        <thead className="bg-surface text-xs font-medium uppercase text-secondary">
-          <tr className="border-b border-primary">
-            <th className="px-4 py-3 text-left">{RULES_TEXT.date_time}</th>
-            <th className="px-4 py-3 text-center">{RULES_TEXT.execution_type}</th>
-            <th className="px-4 py-3 text-center">{RULES_TEXT.status}</th>
-            <th className="px-4 py-3 text-left">{RULES_TEXT.rule_name}</th>
-            <th className="px-4 py-3 text-center">{RULES_TEXT.counts}</th>
+        <thead className="border-b border-primary bg-surface text-xs font-medium uppercase tracking-wider text-secondary">
+          <tr>
+            <th className="px-4 py-3 text-left" scope="col">
+              {RULES_TEXT.date_time}
+            </th>
+            <th className="px-4 py-3 text-center" scope="col">
+              {RULES_TEXT.execution_type}
+            </th>
+            <th className="px-4 py-3 text-center" scope="col">
+              {RULES_TEXT.status}
+            </th>
+            <th className="px-4 py-3 text-left" scope="col">
+              {RULES_TEXT.rule_name}
+            </th>
+            <th aria-label={RULES_TEXT.counts} className="px-4 py-3 text-center" scope="col">
+              <div className="flex flex-col leading-tight">
+                <div>{RULES_TEXT.queued}</div>
+                <div>{RULES_TEXT.processed}</div>
+                <div>{RULES_TEXT.modified}</div>
+                <div>{RULES_TEXT.blocked}</div>
+              </div>
+            </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-subdued bg-container">
+        <tbody className="divide-y divide-alpha-black-200 theme-dark:divide-alpha-white-200">
           {runs.map((run) => (
-            <tr className={run.status === "failed" ? "bg-red-50" : undefined} key={run.id}>
+            <tr
+              className={
+                run.status === "failed" ? "bg-red-tint-5 theme-dark:bg-red-tint-10" : undefined
+              }
+              key={run.id}
+            >
               <td className="whitespace-nowrap px-4 py-3 text-sm text-primary">
                 {formatRunDate(run.executed_at)}
               </td>
@@ -451,8 +493,8 @@ function RecentRunsTable({ runs }: { runs: RuleRunItem[] }) {
                 <span
                   className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
                     run.execution_type === "manual"
-                      ? "bg-blue-50 text-blue-700"
-                      : "bg-purple-50 text-purple-700"
+                      ? "bg-blue-50 text-blue-700 theme-dark:bg-blue-950/30 theme-dark:text-blue-400"
+                      : "bg-purple-50 text-purple-700 theme-dark:bg-purple-950/30 theme-dark:text-purple-400"
                   }`}
                 >
                   {executionLabel(run.execution_type)}
@@ -461,12 +503,12 @@ function RecentRunsTable({ runs }: { runs: RuleRunItem[] }) {
               <td className="px-4 py-3 text-center text-sm">
                 <span className="inline-flex items-center justify-center gap-2">
                   <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       run.status === "pending"
-                        ? "bg-yellow-50 text-yellow-700"
+                        ? "bg-yellow-50 text-yellow-700 theme-dark:bg-yellow-950/30 theme-dark:text-yellow-400"
                         : run.status === "success"
-                          ? "bg-green-50 text-green-700"
-                          : "bg-red-50 text-red-700"
+                          ? "bg-green-50 text-green-700 theme-dark:bg-green-950/30 theme-dark:text-green-400"
+                          : "bg-red-50 text-red-700 theme-dark:bg-red-950/30 theme-dark:text-red-400"
                     }`}
                   >
                     {statusLabel(run.status)}
@@ -502,8 +544,8 @@ export function RulesIndexPage({
   rulesPath: string;
 }) {
   const queryClient = useQueryClient();
-  const [sortBy, setSortBy] = useState("name");
-  const [direction, setDirection] = useState("asc");
+  const sortBy = "name";
+  const direction = "asc";
   const [runsPage, setRunsPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [error, setError] = useState<string | null>(null);
@@ -600,6 +642,7 @@ export function RulesIndexPage({
                 ) : null}
               </div>
               <Button
+                iconProps={{ name: "play", size: "sm" }}
                 onClick={() => {
                   setError(null);
                   fetchConfirmAll(`${rulesPath}/confirm_all.json`)
@@ -617,7 +660,7 @@ export function RulesIndexPage({
             </>
           )}
           <a
-            className="focus-ring inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-container px-3 text-xs font-medium text-primary shadow-border-xs hover:bg-surface-hover"
+            className="focus-ring inline-flex h-9 items-center justify-center gap-1.5 rounded-lg button-bg-primary px-3 text-xs font-medium text-inverse transition-colors hover:button-bg-primary-hover"
             href={newHref}
           >
             <Icon name="plus" size="sm" />
@@ -633,9 +676,10 @@ export function RulesIndexPage({
       )}
 
       {data?.self_hosted === true ? (
-        <Alert variant="warning">
-          <p className="text-sm">{RULES_TEXT.ai_cost_warning}</p>
-        </Alert>
+        <div className="mb-2 flex items-center gap-2 py-4">
+          <Icon className="shrink-0 text-secondary" name="circle-alert" size="sm" />
+          <p className="text-sm text-secondary">{RULES_TEXT.ai_cost_warning}</p>
+        </div>
       ) : null}
 
       {data === undefined ? (
@@ -647,9 +691,10 @@ export function RulesIndexPage({
               <p className="mb-1 text-sm font-medium text-primary">{RULES_TEXT.no_rules_title}</p>
               <p className="mb-4 text-sm text-secondary">{RULES_TEXT.no_rules_description}</p>
               <a
-                className="focus-ring inline-flex h-10 items-center rounded-lg bg-container px-4 text-sm font-medium text-primary shadow-border-xs hover:bg-surface-hover"
+                className="focus-ring inline-flex h-10 items-center gap-1.5 rounded-lg button-bg-primary px-4 text-sm font-medium text-inverse transition-colors hover:button-bg-primary-hover"
                 href={newHref}
               >
+                <Icon name="plus" size="sm" />
                 {RULES_TEXT.new_rule}
               </a>
             </div>
@@ -658,39 +703,16 @@ export function RulesIndexPage({
       ) : (
         <div className="rounded-xl bg-container p-4 shadow-border-xs">
           <div className="rounded-xl bg-container-inset">
-            <div className="flex justify-between px-4 py-2 text-xs uppercase">
-              <div className="flex items-center gap-1.5 font-medium text-secondary">
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-secondary">
                 <p>{RULES_TEXT.rules_heading}</p>
                 <span className="text-subdued">&middot;</span>
                 <p>{data.count}</p>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-secondary">{RULES_TEXT.sort_by}</span>
-                <select
-                  aria-label={RULES_TEXT.sort_by}
-                  className="w-auto min-w-[120px] cursor-pointer rounded-sm border-none bg-transparent text-xs uppercase text-primary"
-                  onChange={(event) => {
-                    setSortBy(event.target.value);
-                    setRunsPage(1);
-                  }}
-                  value={sortBy}
-                >
-                  <option value="name">{RULES_TEXT.sort_name}</option>
-                  <option value="updated_at">{RULES_TEXT.sort_updated_at}</option>
-                </select>
-                <IconButton
-                  icon={direction === "asc" ? "chevron-up" : "chevron-down"}
-                  label={RULES_TEXT.toggle_sort_direction}
-                  onClick={() => {
-                    setDirection((value) => (value === "asc" ? "desc" : "asc"));
-                    setRunsPage(1);
-                  }}
-                  size="sm"
-                />
-              </div>
+              <p className="mt-1.5 text-sm text-secondary">{RULES_TEXT.rules_description}</p>
             </div>
             <div className="p-1">
-              <div className="flex flex-col rounded-lg bg-container shadow-border-xs">
+              <div className="flex flex-col divide-y divide-tertiary rounded-lg bg-container shadow-border-xs">
                 {data.rules.map((rule) => (
                   <RuleRowView
                     key={rule.id}
@@ -938,12 +960,32 @@ function blankGroupCondition(): BuilderGroupCondition {
   };
 }
 
-function blankBuilderAction(executors: RegistryExecutor[]): BuilderAction {
+function blankBuilderAction(
+  executors: RegistryExecutor[],
+  reference?: {
+    categories?: Array<{ id: CategoryId; name: string }>;
+    merchants?: Array<{ id: MerchantId; name: string }>;
+  },
+): BuilderAction {
+  const hasExecutors = executors.length > 0;
+  const first = hasExecutors ? executors[0] : undefined;
+  let defaultValue = "";
+  if (first !== undefined) {
+    const cats = reference?.categories ?? [];
+    const merchants = reference?.merchants ?? [];
+    if (first.key === "set_transaction_category" && cats.length > 0) defaultValue = cats[0].id;
+    else if (first.key === "set_transaction_merchant" && merchants.length > 0)
+      defaultValue = merchants[0].id;
+    else if (first.type === "select") {
+      const opts = optionPairs(first.options);
+      defaultValue = opts[0]?.value ?? "";
+    }
+  }
   return {
     key: nextBuilderKey(),
     id: undefined,
-    action_type: executors.length > 0 ? executors[0].key : "",
-    value: "",
+    action_type: first === undefined ? "" : first.key,
+    value: defaultValue,
     destroy: false,
   };
 }
@@ -1486,7 +1528,18 @@ function BuilderActionRow({
           aria-label="Action type"
           id={`action-${action.key}-type`}
           onChange={(event) => {
-            onChange({ ...action, action_type: event.target.value, value: "" });
+            const nextType = event.target.value;
+            const nextExec = executors.find((candidate) => candidate.key === nextType);
+            let nextVal = "";
+            if (nextType === "set_transaction_category" && reference.categories.length > 0)
+              nextVal = reference.categories[0].id;
+            else if (nextType === "set_transaction_merchant" && reference.merchants.length > 0)
+              nextVal = reference.merchants[0].id;
+            else if (nextExec?.type === "select") {
+              const opts = optionPairs(nextExec.options);
+              nextVal = opts[0]?.value ?? "";
+            }
+            onChange({ ...action, action_type: nextType, value: nextVal });
           }}
           value={action.action_type}
         >
@@ -1600,25 +1653,12 @@ function RuleFormEditor({
     ),
   );
   const [name, setName] = useState(initial.name ?? "");
-  const [conditions, setConditions] = useState<BuilderCondition[]>(() => {
-    const seeded = initial.conditions.map((condition) => conditionFromRecord(condition, filters));
-    if (seeded.length === 0) seeded.push(blankSingleCondition(filters));
-    return seeded;
-  });
-  const [actions, setActions] = useState<BuilderAction[]>(() => {
-    const seeded = initial.actions.map((action) => actionFromRecord(action, executors));
-    if (seeded.length === 0 && executors.length > 0) {
-      const first = executors[0];
-      seeded.push({
-        key: nextBuilderKey(),
-        id: undefined,
-        action_type: first.key,
-        value: "",
-        destroy: false,
-      });
-    }
-    return seeded;
-  });
+  const [conditions, setConditions] = useState<BuilderCondition[]>(() =>
+    initial.conditions.map((condition) => conditionFromRecord(condition, filters)),
+  );
+  const [actions, setActions] = useState<BuilderAction[]>(() =>
+    initial.actions.map((action) => actionFromRecord(action, executors)),
+  );
   const [scopeAll, setScopeAll] = useState(initial.effective_date === null);
   const [effectiveDate, setEffectiveDate] = useState(initial.effective_date ?? "");
   const [saving, setSaving] = useState(false);
@@ -1943,7 +1983,7 @@ function RuleFormEditor({
           </ul>
           <Button
             onClick={() => {
-              setActions((current) => [...current, blankBuilderAction(executors)]);
+              setActions((current) => [...current, blankBuilderAction(executors, reference)]);
             }}
             variant="ghost"
           >
