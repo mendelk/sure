@@ -96,6 +96,12 @@ fields does not remove an existing transfer. Non-transfer children return `null`
 The detail drawer's Split Entries section uses the same value to identify transfers
 instead of labeling them uncategorized, while retaining any assigned category.
 
+Funds movements keep a visible, disabled Category control labeled “Not applicable”
+in transaction details and split forms. Split forms recompute this state when the
+counterpart account changes and omit any previously selected category on save.
+Incoming split transfer legs and investment-to-investment movements are funds
+movements; outgoing loan payments and investment contributions remain categorizable.
+
 ## Ingestion and background work
 
 Provider connections such as [PlaidItem](../../app/models/plaid_item.rb) hold

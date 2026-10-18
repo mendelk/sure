@@ -182,6 +182,22 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
         }))
       : [newRow(0, detail?.name ?? "", ""), newRow(1, "", "")]);
 
+  function isFundsMovement(row: SplitRow): boolean {
+    if (row.transferAccountId === "") return false;
+    // Incoming split legs are always funds movements, regardless of the source account.
+    if (isInflow) return true;
+
+    const targetType = accounts.find(
+      (account) => account.id === row.transferAccountId,
+    )?.accountType;
+    if (targetType === undefined) return false;
+    if (["loan", "credit_card", "other_liability"].includes(targetType)) return false;
+    const sourceType = detail?.account.account_type;
+    const sourceIsInvestment = sourceType === "investment" || sourceType === "crypto";
+    const targetIsInvestment = targetType === "investment" || targetType === "crypto";
+    return !targetIsInvestment || sourceIsInvestment;
+  }
+
   function updateRow(key: number, patch: Partial<SplitRow>) {
     const next = activeRows.map((row) => (row.key === key ? { ...row, ...patch } : row));
     setRows(next);
@@ -223,7 +239,10 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
         mode,
         activeRows.map((row, index) => ({
           amount: parsed[index] ?? 0,
-          category_id: row.categoryId === "" ? null : CategoryIdSchema.parse(row.categoryId),
+          category_id:
+            isFundsMovement(row) || row.categoryId === ""
+              ? null
+              : CategoryIdSchema.parse(row.categoryId),
           name: row.name.trim(),
           transfer_account_id:
             row.transferAccountId === "" ? null : AccountIdSchema.parse(row.transferAccountId),
@@ -318,7 +337,13 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
                   <CategorySelect
                     bootstrap={bootstrap}
                     categories={categories}
+                    disabled={referenceQuery.isPending}
                     initialCategory={null}
+                    notApplicableLabel={
+                      isFundsMovement(row)
+                        ? bootstrap.accountDetailText.category_not_applicable
+                        : undefined
+                    }
                     onSelect={(categoryId) => {
                       updateRow(row.key, { categoryId });
                     }}

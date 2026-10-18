@@ -36,6 +36,7 @@ en:
       amount: Amount
       category: Category
       category_label: Category
+      category_not_applicable: Not applicable
       category_prompt: Select a Category
       category_search_placeholder: Search categories
       create_category: 'Create "%{name}"'
