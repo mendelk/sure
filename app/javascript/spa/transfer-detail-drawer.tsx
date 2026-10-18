@@ -10,6 +10,7 @@ import {
   type SpaTransfer,
   type TransferUpdatePayload,
 } from "./api/transfers";
+import { referenceDataQueryOptions } from "./api/transactions";
 import type { SpaBootstrap } from "./bootstrap";
 import { BrandLogo } from "./components/brand-logo";
 import { Button } from "./components/button";
@@ -18,6 +19,7 @@ import { TagSelect } from "./components/tag-select";
 import { Icon } from "./icon";
 import { AccountIdSchema, TagIdSchema, TransferIdSchema, type TagId, type TransferId } from "./ids";
 import { Modal } from "./modal";
+import { CategorySelect } from "./transaction-detail-page";
 
 function formatLongDate(dateStr: string): string {
   const parts = dateStr.split("-").map(Number);
@@ -416,24 +418,34 @@ function TransferDetailsSection({
   const [selectedTagIds, setSelectedTagIds] = useState<TagId[]>(
     transfer.tags.map((t) => TagIdSchema.parse(t.id)),
   );
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "error">("idle");
+  const referenceQuery = useQuery({
+    ...referenceDataQueryOptions(
+      bootstrap.apiPaths.categories,
+      bootstrap.apiPaths.merchants,
+      bootstrap.apiPaths.tags,
+    ),
+    enabled: transfer.categorizable === true,
+  });
 
   const updateMutation = useMutation({
-    mutationFn: async (payload: TransferUpdatePayload) => {
-      await updateTransfer(bootstrap.apiPaths.transfers, transferId, payload);
-    },
-    onSuccess: async () => {
-      setSaveStatus("idle");
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["spa", "transfer", bootstrap.apiPaths.transfers, transferId],
-        }),
+    mutationFn: (payload: TransferUpdatePayload) =>
+      updateTransfer(bootstrap.apiPaths.transfers, transferId, payload),
+    onSuccess: async (updatedTransfer, payload) => {
+      queryClient.setQueryData(
+        ["spa", "transfer", bootstrap.apiPaths.transfers, transferId],
+        updatedTransfer,
+      );
+      const refreshes = [
         queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] }),
         queryClient.invalidateQueries({ queryKey: ["spa", "transaction"] }),
-      ]);
-    },
-    onError: () => {
-      setSaveStatus("error");
+      ];
+      if ("category_id" in payload) {
+        refreshes.push(
+          queryClient.invalidateQueries({ queryKey: ["spa", "account"] }),
+          queryClient.invalidateQueries({ queryKey: ["spa", "summary"] }),
+        );
+      }
+      await Promise.all(refreshes);
     },
   });
 
@@ -447,6 +459,37 @@ function TransferDetailsSection({
         />
       </summary>
       <div className="space-y-4 px-3 pt-2 pb-4">
+        {updateMutation.isPending ? (
+          <output className="text-xs text-secondary" aria-live="polite">
+            Saving…
+          </output>
+        ) : updateMutation.isError ? (
+          <p className="text-xs text-destructive" role="alert">
+            {updateMutation.error.message}
+          </p>
+        ) : null}
+        {transfer.categorizable === true ? (
+          <div className="space-y-1">
+            <CategorySelect
+              bootstrap={bootstrap}
+              categories={referenceQuery.data?.categories ?? []}
+              disabled={
+                updateMutation.isPending || referenceQuery.isPending || referenceQuery.isError
+              }
+              initialCategory={transfer.category}
+              onSelect={(categoryId) => {
+                if (categoryId === (transfer.category?.id ?? "")) return;
+                updateMutation.mutate({ category_id: categoryId === "" ? null : categoryId });
+              }}
+              selectedCategoryId={transfer.category?.id ?? ""}
+            />
+            {referenceQuery.isError ? (
+              <p className="text-xs text-destructive" role="alert">
+                {referenceQuery.error.message}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {/* Tags */}
         <div className="space-y-1">
           <span className="text-xs font-medium uppercase tracking-wide text-secondary">Tags</span>
@@ -471,20 +514,12 @@ function TransferDetailsSection({
             >
               Notes
             </label>
-            {saveStatus === "saving" ? (
-              <span className="text-xs text-secondary">Saving…</span>
-            ) : saveStatus === "error" ? (
-              <span className="text-xs text-destructive">Failed to save</span>
-            ) : null}
           </div>
           <textarea
             className="w-full resize-none rounded-xl border border-secondary bg-container px-3 py-2 text-sm text-primary placeholder:text-secondary focus-ring"
             id="transfer-notes"
             onBlur={() => {
-              if (notes !== (transfer.notes ?? "")) {
-                setSaveStatus("saving");
-                updateMutation.mutate({ notes: notes.trim() });
-              }
+              if (notes !== (transfer.notes ?? "")) updateMutation.mutate({ notes: notes.trim() });
             }}
             onChange={(e) => {
               setNotes(e.target.value);
