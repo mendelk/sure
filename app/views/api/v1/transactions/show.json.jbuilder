@@ -3,14 +3,21 @@
 json.partial! "api/v1/transactions/transaction", transaction: @transaction
 
 # Split context for the drawer (mirrors the legacy transactions/show
-# SPLIT ENTRIES / split-child sections). Children carry their category
-# name and formatted amount; the parent is a name/date/amount summary.
+# SPLIT ENTRIES / split-child sections). Children carry their category,
+# transfer account and formatted amount; the parent is a name/date/amount summary.
 json.split_children @split_children do |child|
   json.entry_id child.id
   json.name child.name
   json.amount child.amount_money.format
   json.category_id child.entryable.try(:category_id)
   json.category_name child.entryable.try(:category)&.name
+  transfer = child.entryable.transfer
+  other_transaction = if transfer&.inflow_transaction_id == child.entryable_id
+    transfer.outflow_transaction
+  else
+    transfer&.inflow_transaction
+  end
+  json.transfer_account_id other_transaction&.entry&.account_id
 end
 
 if @split_parent

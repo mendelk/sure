@@ -294,7 +294,15 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       # Split context for the drawer: children when this is a split parent,
       # parent summary when this is a split child. Mirrors the legacy
       # transactions/show sections.
-      @split_children = @entry.split_parent? ? @entry.child_entries.includes(entryable: :category).order(:created_at) : []
+      @split_children = if @entry.split_parent?
+        @entry.child_entries.includes(entryable: [
+          :category,
+          { transfer_as_inflow: { outflow_transaction: :entry },
+            transfer_as_outflow: { inflow_transaction: :entry } }
+        ]).order(:created_at)
+      else
+        []
+      end
       @split_parent = @entry.split_child? ? @entry.parent_entry : nil
       # Recurring state for the drawer's Mark as Recurring row.
       @recurring_exists = @transaction.existing_manual_recurring_transaction.present?

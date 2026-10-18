@@ -119,7 +119,8 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
-  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
 }))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
   "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
@@ -277,7 +278,8 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
-  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
 }))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
   "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
@@ -380,7 +382,8 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
-  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
 }))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
   "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
@@ -427,6 +430,7 @@ export const PostApiV1Transactions422Response = /*#__PURE__*/ zod.strictObject({
 
 
 /**
+ * Split parents include split_children with transfer_account_id identifying each linked counterpart account, or null for non-transfer children. Use it to preserve transfers when editing a split.
  * @summary Retrieve a transaction
  */
 export const GetApiV1TransactionsIdParams = /*#__PURE__*/ zod.object({
@@ -500,7 +504,8 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
-  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
 }))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
   "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
@@ -639,7 +644,8 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
-  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
 }))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
   "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
@@ -908,7 +914,7 @@ export const PostApiV1TransactionsTransactionIdSplitBody = /*#__PURE__*/ zod.obj
   "amount": /*#__PURE__*/ zod.number().check(/*#__PURE__*/ zod.describe('User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
   "excluded": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
-  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.'))
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.'))
 })).check(/*#__PURE__*/ zod.minLength(1))
 })
 }).brand("PostApiV1TransactionsTransactionIdSplitBody")
@@ -982,7 +988,8 @@ export const PostApiV1TransactionsTransactionIdSplit201Response = /*#__PURE__*/ 
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
-  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
 }))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
   "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
@@ -1073,7 +1080,7 @@ export const PatchApiV1TransactionsTransactionIdSplitBody = /*#__PURE__*/ zod.ob
   "amount": /*#__PURE__*/ zod.number().check(/*#__PURE__*/ zod.describe('User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
   "excluded": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
-  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.'))
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.'))
 })).check(/*#__PURE__*/ zod.minLength(1))
 })
 }).brand("PatchApiV1TransactionsTransactionIdSplitBody")
@@ -1147,7 +1154,8 @@ export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
-  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+  "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
 }))).check(/*#__PURE__*/ zod.describe('Split child entries (present in detail responses when the entry is a split parent).')),
   "split_parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),

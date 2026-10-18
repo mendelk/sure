@@ -89,6 +89,13 @@ payments are excluded, while loan payments and investment contributions count as
 expenses. Preserve these distinctions rather than treating every transfer as
 excluded from income/expense reporting.
 
+Split transaction detail responses expose each child's `transfer_account_id` as
+the linked counterpart account, whether the child is the inflow or outflow.
+The split editor must prefill and resubmit this value so editing unrelated split
+fields does not remove an existing transfer. Non-transfer children return `null`.
+The detail drawer's Split Entries section uses the same value to identify transfers
+instead of labeling them uncategorized, while retaining any assigned category.
+
 ## Ingestion and background work
 
 Provider connections such as [PlaidItem](../../app/models/plaid_item.rb) hold

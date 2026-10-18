@@ -1048,7 +1048,19 @@ function TransactionSplitParentSection({
         >
           <div>
             <p className="text-sm font-medium text-primary">{child.name}</p>
-            <p className="text-xs text-secondary">{child.category_name ?? "(uncategorized)"}</p>
+            <p className="flex items-center gap-1 text-xs text-secondary">
+              {child.transfer_account_id ? (
+                <>
+                  <Icon name="arrow-left-right" size="sm" />
+                  <span>
+                    Transfer
+                    {typeof child.category_name === "string" ? ` · ${child.category_name}` : ""}
+                  </span>
+                </>
+              ) : (
+                (child.category_name ?? "(uncategorized)")
+              )}
+            </p>
           </div>
           <p className="privacy-sensitive text-sm font-medium text-primary">{child.amount}</p>
         </div>

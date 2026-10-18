@@ -178,7 +178,7 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
           categoryId: child.category_id ?? "",
           key: index,
           name: child.name,
-          transferAccountId: "",
+          transferAccountId: child.transfer_account_id ?? "",
         }))
       : [newRow(0, detail?.name ?? "", ""), newRow(1, "", "")]);
 
