@@ -64,6 +64,7 @@ const SpaBootstrapSchema = z.object({
     tags: z.string(),
     transfers: z.string(),
     sureqlRun: z.string(),
+    chats: z.optional(z.string()),
   }),
   railsPaths: z.object({
     home: z.string(),
@@ -91,6 +92,8 @@ const SpaBootstrapSchema = z.object({
     categories: z.optional(z.string()),
     tags: z.optional(z.string()),
     transactionsCategorize: z.optional(z.string()),
+    chats: z.optional(z.string()),
+    newChat: z.optional(z.string()),
   }),
   railsUrlTemplates: z.object({
     newTransactionSplit: z.string(),

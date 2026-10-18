@@ -11,6 +11,15 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to chat_path(@chat, thinking: true)
   end
+  test "can create a message as json" do
+    assert_difference -> { @chat.messages.where(type: "UserMessage").count } => 1 do
+      post chat_messages_url(@chat, format: :json), params: { message: { content: "JSON Hello", ai_model: "gpt-4.1" } }
+    end
+    assert_response :created
+    data = JSON.parse(response.body)
+    assert_equal "JSON Hello", data["content"]
+  end
+
 
   test "redirects to chats when message save races with chat deletion" do
     UserMessage.any_instance.stubs(:save).raises(ActiveRecord::InvalidForeignKey)

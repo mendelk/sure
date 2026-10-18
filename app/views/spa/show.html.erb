@@ -16,6 +16,8 @@
      t("merchants.index.title")
    elsif request.path.start_with?("/rules")
      t("rules.index.page_title")
+   elsif request.path.start_with?("/chats")
+     t("chats.index.chats")
    elsif request.path.end_with?("/edit")
      t("accounts.show.spa.accountable_title_edit")
    elsif request.path.start_with?("/accounts")
@@ -71,7 +73,8 @@
     merchants: api_v1_merchants_path,
     tags: api_v1_tags_path,
     transfers: api_v1_transfers_path,
-    sureqlRun: dashboard_monarch_run_path
+    sureqlRun: dashboard_monarch_run_path,
+    chats: api_v1_chats_path
   },
   recurringTransactionsDisabled: Current.family.recurring_transactions_disabled?,
   uncategorizedCount: @uncategorized_count,
@@ -121,7 +124,9 @@
     rules: rules_path,
     categories: categories_path,
     tags: tags_path,
-    transactionsCategorize: transactions_categorize_path
+    transactionsCategorize: transactions_categorize_path,
+    chats: chats_path,
+    newChat: new_chat_path
   },
   railsUrlTemplates: {
     newTransactionSplit: "#{transactions_path}/:transaction_id/split/new",

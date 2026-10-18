@@ -11,12 +11,21 @@ class MessagesController < ApplicationController
     )
 
     if @message.save
-      redirect_to chat_path(@chat, thinking: true)
+      respond_to do |format|
+        format.html { redirect_to chat_path(@chat, thinking: true) }
+        format.json { render json: message_json(@message), status: :created }
+      end
     else
-      redirect_to chat_path(@chat), alert: @message.errors.full_messages.to_sentence
+      respond_to do |format|
+        format.html { redirect_to chat_path(@chat), alert: @message.errors.full_messages.to_sentence }
+        format.json { render json: { errors: @message.errors.full_messages }, status: :unprocessable_entity }
+      end
     end
   rescue ActiveRecord::InvalidForeignKey
-    redirect_to chats_path, alert: t(".chat_not_found")
+    respond_to do |format|
+      format.html { redirect_to chats_path, alert: t(".chat_not_found") }
+      format.json { render json: { errors: [ t(".chat_not_found") ] }, status: :not_found }
+    end
   end
 
   # Called by the chat watchdog when an assistant "Thinking…" bubble has waited
@@ -45,5 +54,19 @@ class MessagesController < ApplicationController
 
     def message_params
       params.require(:message).permit(:content, :ai_model)
+    end
+
+    def message_json(message)
+      {
+        id: message.id,
+        type: message.type.underscore,
+        role: message.role,
+        content: message.content,
+        pending: false,
+        reasoning: false,
+        ai_model: message.ai_model,
+        created_at: message.created_at.iso8601,
+        tool_calls: []
+      }
     end
 end

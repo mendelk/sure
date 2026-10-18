@@ -62,7 +62,14 @@ import {
   type RuleConfirm,
 } from "./api/rules";
 import { merchantFormQueryOptions, merchantsIndexQueryOptions } from "./api/merchants";
-import { AccountIdSchema, CategoryIdSchema, MerchantIdSchema, TagIdSchema } from "./ids";
+import { chatDetailQueryOptions } from "./api/chats";
+import {
+  ChatDetailPage,
+  ChatNewPage,
+  ChatsIndexPage,
+  ChatTitleEditDialog,
+} from "./chats-page";
+import { AccountIdSchema, CategoryIdSchema, ChatIdSchema, MerchantIdSchema, TagIdSchema, type ChatId } from "./ids";
 import { Button } from "./components/button";
 import { Modal } from "./modal";
 import { useDialogClose } from "./return-to";
@@ -933,6 +940,79 @@ const ruleConfirmAllRoute = createRoute({
   component: RuleConfirmAllRouteComponent,
 });
 
+const chatsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/chats",
+  component: Outlet,
+});
+
+const chatsIndexRoute = createRoute({
+  getParentRoute: () => chatsRoute,
+  path: "/",
+  component: ChatsIndexPage,
+});
+
+const chatNewRoute = createRoute({
+  getParentRoute: () => chatsRoute,
+  path: "new",
+  component: ChatNewPage,
+});
+
+function ChatDetailRouteComponent() {
+  const params = useParams({ strict: false });
+  const parsed = ChatIdSchema.safeParse(typeof params.chatId === "string" ? params.chatId : "");
+  if (!parsed.success) return <ChatsIndexPage />;
+  return <ChatDetailPage chatId={parsed.data} />;
+}
+
+const chatDetailRoute = createRoute({
+  getParentRoute: () => chatsRoute,
+  path: "$chatId",
+  component: ChatDetailRouteComponent,
+});
+
+function ChatTitleEditRouteModal({
+  chatId,
+  onClose,
+}: {
+  chatId: ChatId;
+  onClose: () => void;
+}) {
+  const query = useQuery(chatDetailQueryOptions(chatId));
+  if (!query.data) return null;
+  return (
+    <ChatTitleEditDialog
+      chat={{ id: chatId, title: query.data.title }}
+      onClose={onClose}
+      onSaved={onClose}
+    />
+  );
+}
+
+function ChatEditRouteComponent() {
+  const navigate = useNavigate();
+  const params = useParams({ strict: false });
+  const parsed = ChatIdSchema.safeParse(typeof params.chatId === "string" ? params.chatId : "");
+  const close = () => {
+    if (parsed.success) void navigate({ to: "/chats/$chatId", params: { chatId: parsed.data } });
+    else void navigate({ to: "/chats" });
+  };
+
+  if (!parsed.success) return <ChatsIndexPage />;
+  return (
+    <>
+      <ChatDetailPage chatId={parsed.data} />
+      <ChatTitleEditRouteModal chatId={parsed.data} onClose={close} />
+    </>
+  );
+}
+
+const chatEditRoute = createRoute({
+  getParentRoute: () => chatsRoute,
+  path: "$chatId/edit",
+  component: ChatEditRouteComponent,
+});
+
 const routeTree = rootRoute.addChildren([
   accountDetailRoute.addChildren([
     accountTransactionRoute,
@@ -966,6 +1046,12 @@ const routeTree = rootRoute.addChildren([
     ruleEditRoute,
     ruleConfirmRoute,
     ruleConfirmAllRoute,
+  ]),
+  chatsRoute.addChildren([
+    chatsIndexRoute,
+    chatNewRoute,
+    chatDetailRoute,
+    chatEditRoute,
   ]),
   accountableEditRoute,
   accountableNewTypeRoute.addChildren([accountableNewRoute]),
