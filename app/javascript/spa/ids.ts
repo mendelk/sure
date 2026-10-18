@@ -22,6 +22,8 @@ export const TransferIdSchema = z.string().brand("TransferId");
 export const StatementIdSchema = z.uuid().brand("StatementId");
 export const RecurringTransactionIdSchema = z.string().brand("RecurringTransactionId");
 export const ExternalIdSchema = z.string().brand("ExternalId");
+export const ChatIdSchema = z.string().brand("ChatId");
+export const MessageIdSchema = z.string().brand("MessageId");
 
 export type SourceId = z.infer<typeof SourceIdSchema>;
 export type DashboardId = z.infer<typeof DashboardIdSchema>;
@@ -41,3 +43,5 @@ export type TransferId = z.infer<typeof TransferIdSchema>;
 export type StatementId = z.infer<typeof StatementIdSchema>;
 export type RecurringTransactionId = z.infer<typeof RecurringTransactionIdSchema>;
 export type ExternalId = z.infer<typeof ExternalIdSchema>;
+export type ChatId = z.infer<typeof ChatIdSchema>;
+export type MessageId = z.infer<typeof MessageIdSchema>;
