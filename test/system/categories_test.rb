@@ -10,7 +10,9 @@ class CategoriesTest < ApplicationSystemTestCase
     click_on "New category"
     fill_in "Name", with: "My Shiny New Category"
     click_button "Create"
-    assert_text "My Shiny New Category"
+    assert_no_selector "#category-name"
+    category = @user.family.categories.find_by!(name: "My Shiny New Category")
+    assert_selector "#category_#{category.id}", text: category.name
   end
 
   test "trying to create a duplicate category fails" do
@@ -38,16 +40,17 @@ class CategoriesTest < ApplicationSystemTestCase
     assert_equal "pizza", @user.family.categories.find_by!(name: "Takeout").lucide_icon
   end
 
-  test "picking a color updates the avatar preview" do
+  test "can save a selected category color" do
     visit categories_url
     click_on "New category"
 
     fill_in "Name", with: "Color Check"
     color = Category::COLORS.first
-    find("input[type='radio'][value='#{color}']", visible: :all).click
+    choose color, allow_label_click: true
 
     click_button "Create"
     assert_text "Color Check"
+    assert_equal color, @user.family.categories.find_by!(name: "Color Check").color
   end
 
   test "long category names truncate before the actions menu on mobile" do

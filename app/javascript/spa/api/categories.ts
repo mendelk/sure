@@ -48,10 +48,10 @@ const ParentOptionSchema = z.object({
 export type ParentOption = z.infer<typeof ParentOptionSchema>;
 
 const CategoryFormCategorySchema = z.object({
-  id: z.pipe(z.string(), CategoryIdSchema),
-  name: z.string(),
-  display_name: z.string(),
-  display_name_with_parent: z.string(),
+  id: z.nullable(z.pipe(z.string(), CategoryIdSchema)),
+  name: z.nullable(z.string()),
+  display_name: z.nullable(z.string()),
+  display_name_with_parent: z.nullable(z.string()),
   color: z.string(),
   lucide_icon: z.string(),
   parent_id: z.nullable(z.string()),
