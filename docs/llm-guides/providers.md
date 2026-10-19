@@ -46,10 +46,13 @@ On the first preview, the drawer preselects only unambiguous one-to-one duplicat
 the signed amount, currency, and date must match, names must have Dice word
 similarity of at least 0.8 after ignoring case, punctuation, and repeated words,
 and the transactions must have compatible metadata and pending states.
-Ambiguity in either direction prevents preselection. Unique same-amount/currency
-matches within four days remain available as weaker suggestions requiring a
-manual choice. Refreshing preserves manual decisions, including keep-separate.
-Preselection never writes to the ledger or bypasses final review and apply.
+Ambiguity in either direction prevents preselection. Each incoming entry uses
+one editable Duplicate decision dropdown: probable matches are already selected,
+and users can choose another transaction or keep the entry separate without a
+separate suggestion panel or action button. Weaker nearby-date matches require
+a manual dropdown choice. Refreshing preserves manual decisions, including
+keep-separate. Preselection never writes to the ledger or bypasses final review
+and apply.
 
 Entering final review or selecting Refresh preview sends the current explicit
 `matches` to the preview endpoint. The review displays current, expected,
