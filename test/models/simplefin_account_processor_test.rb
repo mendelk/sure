@@ -23,7 +23,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:credit_card)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("123.45"), acct.reload.balance
   end
@@ -43,7 +43,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:credit_card)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("-25"), acct.reload.balance
   end
@@ -63,7 +63,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:credit_card)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("25"), acct.reload.balance
   end
@@ -81,7 +81,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:depository)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("1000.00"), acct.reload.balance
   end
@@ -99,7 +99,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:loan)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("50000"), acct.reload.balance
   end
@@ -125,7 +125,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:loan)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("50000"), acct.reload.balance
   end
@@ -143,7 +143,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:credit_card)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("-75.00"), acct.reload.balance
   end
@@ -162,7 +162,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:credit_card)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("1200"), acct.reload.balance
   end
@@ -181,7 +181,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:credit_card)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("-75"), acct.reload.balance
   end
@@ -200,7 +200,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:credit_card)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("-50"), acct.reload.balance
   end
@@ -219,7 +219,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:credit_card)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     assert_equal BigDecimal("-25"), acct.reload.balance
   end
@@ -238,7 +238,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:depository)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     # Manual selection as depository; final should be the same
     assert_equal BigDecimal("100.00"), acct.reload.balance
@@ -258,7 +258,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:credit_card)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     # Liability has flipped sign; final should be negative
     assert_equal BigDecimal("-100.00"), acct.reload.balance
@@ -278,7 +278,7 @@ class SimplefinAccountProcessorTest < ActiveSupport::TestCase
     acct = accounts(:credit_card)
     acct.update!(simplefin_account: sfin_acct)
 
-    SimplefinAccount::Processor.new(sfin_acct).send(:process_account!)
+    SimplefinAccount::Processor.new(sfin_acct).process
 
     # Should use explicit zero balance, not negative available_balance
     assert_equal BigDecimal("0"), acct.reload.balance

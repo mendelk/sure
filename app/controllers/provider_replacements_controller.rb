@@ -1,0 +1,3 @@
+class ProviderReplacementsController < ApplicationController
+  include ProviderReplacementActions
+end

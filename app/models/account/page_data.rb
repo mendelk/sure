@@ -153,6 +153,13 @@ class Account::PageData
           trade = account.supports_trades?
           result << action(:import, t("#{prefix}.#{trade ? 'import_trades' : 'import_transactions'}"), view.imports_path(import: { type: trade ? "TradeImport" : "TransactionImport", account_id: account.id }), "download")
         end
+        if !account.linked? && %w[Depository CreditCard Investment Crypto].include?(account.accountable_type)
+          result << action(:link_simplefin_account, t("simplefin_items.provider_replacement.link_simplefin"),
+            view.account_provider_replacement_path(account), "link")
+        elsif account.linked_to?("SimplefinAccount")
+          result << action(:change_simplefin_account, t("accounts.account.change_simplefin_account"),
+            view.account_provider_replacement_path(account), "arrow-left-right")
+        end
       end
       if account.owned_by?(Current.user) && !account.linked?
         result << action(:delete, t("#{prefix}.delete_account"), view.account_path(account), "trash-2", method: "delete", confirm: t("accounts.show.spa.delete_account_confirm", name: account.name))

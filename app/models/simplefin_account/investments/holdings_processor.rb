@@ -4,6 +4,10 @@ class SimplefinAccount::Investments::HoldingsProcessor
   end
 
   def process
+    simplefin_account.with_ingestion_lock { process_locked }
+  end
+
+  def process_locked
     return if holdings_data.empty?
     return unless [ "Investment", "Crypto" ].include?(account&.accountable_type)
 
@@ -161,6 +165,8 @@ class SimplefinAccount::Investments::HoldingsProcessor
       Rails.logger.error "Error importing SimpleFin position #{position[:security]&.ticker}: #{e.message}"
     end
   end
+
+  private :process_locked
 
   private
     attr_reader :simplefin_account

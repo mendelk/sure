@@ -726,6 +726,10 @@ Rails.application.routes.draw do
     end
 
     resource :sharing, only: [ :show, :update ], controller: "account_sharings"
+    resource :provider_replacement, only: :show, controller: "provider_replacements" do
+      post :preview
+      post :apply
+    end
   end
 
   resources :account_statements, only: %i[index show create update destroy] do
@@ -800,7 +804,12 @@ Rails.application.routes.draw do
         post :avm_lookup, on: :collection
         post :avm_confirm, on: :collection
       end
-      resources :accounts, only: [ :index, :show, :create, :update ]
+      resources :accounts, only: [ :index, :show, :create, :update ] do
+        resource :provider_replacement, only: :show, controller: "provider_replacements" do
+          post :preview
+          post :apply
+        end
+      end
       get :search, to: "search#index"
       resources :balances, only: [ :index, :show ]
       resources :budgets, only: [ :index, :show ]
@@ -904,11 +913,6 @@ Rails.application.routes.draw do
   end
 
   resources :simplefin_items, only: %i[index new create show edit update destroy] do
-    collection do
-      get :select_existing_account
-      post :link_existing_account
-    end
-
     member do
       post :sync
       post :balances

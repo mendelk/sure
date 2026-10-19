@@ -77,6 +77,31 @@ following a redirect. HTML form submissions use `303 See Other` so navigation
 continues as a GET rather than replaying the PATCH. Only an account owner can
 change who it is shared with; members can change only their own finance inclusion.
 
+**SimpleFIN account replacement.** Use **Change SimpleFIN account** from an
+existing account's menu, or accept a replacement suggestion on the Accounts
+page. The React drawer also supports linking a manual account and selecting
+provider accounts that are already linked to another writable account.
+Choose the replacement, explicitly match duplicate transactions or keep them
+separate, review the resulting balance, then apply. Suggestions are never
+approved automatically.
+
+The original account remains the continuous ledger: its ID, history, ownership,
+and sharing stay intact. Unique incoming activity and compatible transfer,
+split, and annotation data are preserved. There is no artificial carryover
+purchase or opening-balance transaction. A populated duplicate account is
+disabled and excluded from reports after consolidation rather than silently
+deleted. Unsafe metadata/observation conflicts and missing exchange rates
+must be resolved before applying; a numeric balance discrepancy requires a
+separate acknowledgement.
+
+Retired SimpleFIN feeds no longer write to the ledger. Newly observed activity
+appears as **Review late activity** on the Accounts page and must be reviewed
+before it is added. Scripts and LLM clients can use the same operation through
+`GET /api/v1/accounts/:account_id/provider_replacement`, followed by `POST` to
+its `/preview` and `/apply` children. Apply requires the preview fingerprint,
+explicit duplicate pairs, and a stable idempotency key; see the
+[OpenAPI reference](api/openapi.yaml).
+
 Transaction controls follow the viewer's **account permission**, not their family
 role. A member can split transactions when they own the account or have full
 control.

@@ -35,6 +35,53 @@ so operators can inspect it in the super-admin `/settings/debug` UI.
 - Reserve raw Rails logging for low-value local noise; incidents operators need
   to investigate belong in the debug log.
 
+## SimpleFIN replacement review
+
+The SPA replacement drawer is available from account index and detail actions.
+Detail actions retain the current detail search and use `return_to` to restore
+the opener when the drawer closes. The picker never approves suggested matches.
+
+Entering final review or selecting Refresh preview sends the current explicit
+`matches` to the preview endpoint. The review displays current, expected,
+replacement and discrepancy balances; changing decisions invalidates the reviewed
+balance. A nonzero discrepancy requires a separate, initially unchecked
+acknowledgement before apply sends `accept_balance_difference: true`.
+Refreshing the preview or changing decisions clears that acknowledgement.
+
+`Account::ProviderReplacement` owns preview and atomic apply for both browser and
+external clients. Session routes are
+`GET /accounts/:account_id/provider_replacement` and `POST` to its `/preview`
+and `/apply` children; the same paths under `/api/v1/accounts/` accept API keys
+or OAuth. Browser writes retain CSRF protection. Replacement requires an
+administrator with write access to the canonical, displaced, and affected
+transfer-counterpart accounts. External preview/apply require `read_write`.
+
+Keep the canonical account ID, ownership, sharing, and original opening anchor.
+Every duplicate pair is explicitly selected; other incoming transactions move
+without fuzzy deduplication. Source-generated anchors are archived in the
+operation's before-images rather than imported as spending or additional
+opening balances. Real conflicting observations, incompatible split/transfer
+structures, conflicting metadata, and missing dated FX block apply.
+Investment positions are not silently consolidated; manual linking and
+mapping-only moves from accounts retaining another provider remain available.
+
+Apply requires the reviewed fingerprint and an idempotency key. Reusing a key
+with the same request returns the recorded result; a changed request conflicts.
+The actor, decisions, balance acknowledgement, and before-images are retained in
+`ProviderReplacementOperation`, with audit encryption when configured.
+Provider-scoped `SimplefinTransactionIdentity` aliases preserve duplicate
+decisions across cached-payload replay; a missing entry is a tombstone.
+
+Former feeds are retired, not deleted. Their newly observed transactions remain
+outside the ledger until reviewed through the same drawer, surfaced by a
+non-dismissible account-index alert. Reviewed aliases clear that alert.
+Guarded automatic reconnection recovery remains for absent upstream IDs and
+unambiguous matches; changed-ID overlaps defer to explicit review.
+
+Deploy migrations `20261019130000_create_provider_replacement_safety` and
+`20261019140000_adjust_provider_replacement_deletion_safety` before using the
+new flow. The latter preserves existing account/connection deletion behavior.
+
 ## Pending transactions and FX metadata
 
 Store provider metadata on `Transaction#extra` under the provider namespace.

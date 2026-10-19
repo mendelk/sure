@@ -9,6 +9,31 @@ class SimplefinAccount < ApplicationRecord
   end
 
   belongs_to :simplefin_item
+  belongs_to :retired_account, class_name: "Account", optional: true
+
+  default_scope { where(retired_at: nil) }
+
+  # SimpleFIN writers and replacement take this lock before account/entry locks.
+  # The family row also serializes two connections replacing the same account.
+  def with_ingestion_lock
+    self.class.transaction do
+      simplefin_item.family.class.where(id: simplefin_item.family_id).lock.pick(:id)
+      reload if persisted?
+      yield unless retired_at?
+    end
+  end
+
+  def unreviewed_retired_transactions
+    return [] unless retired_at? && retired_account
+    known = SimplefinTransactionIdentity.where(simplefin_account: self).pluck(:external_id)
+    known.concat(retired_account.entries.where(source: "simplefin").where.not(external_id: nil).pluck(:external_id))
+    known = known.to_set
+    raw_transactions_payload.to_a.select do |raw|
+      raw.is_a?(Hash) && raw.with_indifferent_access[:id].present? &&
+        !known.include?("simplefin_#{raw.with_indifferent_access[:id]}") &&
+        SimplefinEntry::Processor.new(raw, simplefin_account: self).import_enabled?
+    end
+  end
 
   # Legacy association via foreign key (will be removed after migration)
   has_one :account, dependent: :nullify, foreign_key: :simplefin_account_id
@@ -37,6 +62,10 @@ class SimplefinAccount < ApplicationRecord
   # Ensure there is an AccountProvider link for this SimpleFin account and its current Account.
   # Safe and idempotent; returns the AccountProvider or nil if no account is associated yet.
   def ensure_account_provider!
+    with_ingestion_lock { ensure_account_provider_locked! }
+  end
+
+  def ensure_account_provider_locked!
     acct = current_account
     return nil unless acct
 
@@ -57,6 +86,10 @@ class SimplefinAccount < ApplicationRecord
   end
 
   def upsert_simplefin_snapshot!(account_snapshot)
+    with_ingestion_lock { upsert_simplefin_snapshot_locked!(account_snapshot) }
+  end
+
+  def upsert_simplefin_snapshot_locked!(account_snapshot)
     # Convert to symbol keys or handle both string and symbol keys
     snapshot = account_snapshot.with_indifferent_access
 
@@ -77,12 +110,10 @@ class SimplefinAccount < ApplicationRecord
   end
 
   def upsert_simplefin_transactions_snapshot!(transactions_snapshot)
-    assign_attributes(
-      raw_transactions_payload: transactions_snapshot
-    )
-
-    save!
+    with_ingestion_lock { update!(raw_transactions_payload: transactions_snapshot) }
   end
+
+  private :ensure_account_provider_locked!, :upsert_simplefin_snapshot_locked!
 
   private
 

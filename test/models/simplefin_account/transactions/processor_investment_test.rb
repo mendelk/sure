@@ -166,61 +166,6 @@ class SimplefinAccount::Transactions::ProcessorInvestmentTest < ActiveSupport::T
     assert_equal 0, @account.entries.count
   end
 
-  test "repairs stale linkage when user re-adds institution in SimpleFIN" do
-    # Simulate user re-adding institution: old SimplefinAccount is linked but has no transactions,
-    # new SimplefinAccount is unlinked but has transactions
-
-    # Make the original account "stale" (no transactions)
-    @simplefin_account.update!(raw_transactions_payload: [])
-
-    # Create a "new" SimplefinAccount with the same name but different account_id
-    # This simulates what happens when SimpleFIN generates new IDs after re-adding
-    new_simplefin_account = SimplefinAccount.create!(
-      simplefin_item: @simplefin_item,
-      name: "Roth IRA",  # Same name as original
-      account_id: "ACT-investment-456-NEW",  # New ID
-      currency: "USD",
-      account_type: "investment",
-      current_balance: 12199.06,
-      raw_transactions_payload: [
-        {
-          "id" => "TRN-new-transaction-001",
-          "posted" => 1766417520,
-          "amount" => "5.00",
-          "description" => "New Dividend",
-          "payee" => "Dividend",
-          "memo" => "New Dividend Payment"
-        }
-      ]
-    )
-    # New account is NOT linked (this is the problem we're fixing)
-    assert_nil new_simplefin_account.account
-
-    # Before repair: @simplefin_account is linked (but stale), new_simplefin_account is unlinked
-    assert_equal @simplefin_account.id, @account.reload.simplefin_account_id
-
-    # Simulate what SimplefinItem::Importer sets during discovery: the old account_id is
-    # genuinely absent upstream, so the repair is allowed to proceed.
-    @simplefin_item.upstream_account_ids = [ new_simplefin_account.account_id ]
-
-    # Process accounts - should repair the stale linkage
-    @simplefin_item.process_accounts
-
-    # After repair: new_simplefin_account should be linked
-    @account.reload
-    assert_equal new_simplefin_account.id, @account.simplefin_account_id, "Expected linkage to transfer to new_simplefin_account (#{new_simplefin_account.id}) but got #{@account.simplefin_account_id}"
-
-    # Old SimplefinAccount should still exist but be cleared of data
-    @simplefin_account.reload
-    assert_equal [], @simplefin_account.raw_transactions_payload
-
-    # Transaction from new SimplefinAccount should be created
-    assert_equal 1, @account.entries.count
-    entry = @account.entries.first
-    assert_equal "simplefin_TRN-new-transaction-001", entry.external_id
-    assert_equal BigDecimal("-5.00"), entry.amount
-  end
-
   test "does not repair linkage when names dont match" do
     # Make original stale
     @simplefin_account.update!(raw_transactions_payload: [])
@@ -248,38 +193,29 @@ class SimplefinAccount::Transactions::ProcessorInvestmentTest < ActiveSupport::T
     assert_equal 0, @account.entries.count
   end
 
-  test "repairs linkage and merges transactions when both old and new have data" do
-    # Both accounts have transactions - repair should still happen and merge them
-    assert @simplefin_account.raw_transactions_payload.any?
-
-    # Create new with same name
-    new_simplefin_account = SimplefinAccount.create!(
-      simplefin_item: @simplefin_item,
-      name: "Roth IRA",
-      account_id: "ACT-investment-456-NEW",
-      currency: "USD",
-      account_type: "investment",
-      current_balance: 12199.06,
-      raw_transactions_payload: [
-        { "id" => "TRN-new", "posted" => 1766417520, "amount" => "5.00", "description" => "New" }
-      ]
-    )
-
-    # Simulate what SimplefinItem::Importer sets during discovery: the old account_id is
-    # genuinely absent upstream, so the repair is allowed to proceed.
-    @simplefin_item.upstream_account_ids = [ new_simplefin_account.account_id ]
-
+  test "repairs stale linkage when user re-adds institution in SimpleFIN" do
+    @simplefin_account.update!(raw_transactions_payload: [])
+    fresh = @simplefin_item.simplefin_accounts.create!(name: @simplefin_account.name, account_id: "new-investment",
+      currency: "USD", account_type: "investment", current_balance: 12199.06,
+      raw_transactions_payload: [ { "id" => "TRN-new", "posted" => 1766417520, "amount" => "5.00", "description" => "New Dividend" } ])
+    @simplefin_item.upstream_account_ids = [ fresh.account_id ]
     @simplefin_item.process_accounts
-
-    # Should transfer linkage to new account (repair by name match)
-    @account.reload
-    assert_equal new_simplefin_account.id, @account.simplefin_account_id
-
-    # Transactions should be merged: 3 from old + 1 from new = 4 total
-    assert_equal 4, @account.entries.count
-
-    # Old account should be cleared
-    @simplefin_account.reload
-    assert_equal [], @simplefin_account.raw_transactions_payload
+    assert_equal fresh.id, @account.reload.simplefin_account_id
+    assert_equal [ "simplefin_TRN-new" ], @account.entries.pluck(:external_id)
+    assert_equal BigDecimal("-5.00"), @account.entries.sole.amount
+    assert_empty @simplefin_account.reload.raw_transactions_payload
   end
+
+  test "repairs linkage and merges transactions when both old and new have data" do
+    fresh = @simplefin_item.simplefin_accounts.create!(name: @simplefin_account.name, account_id: "new-investment",
+      currency: "USD", account_type: "investment", current_balance: 12199.06,
+      raw_transactions_payload: [ { "id" => "TRN-new", "posted" => 1766417520, "amount" => "5.00", "description" => "New Dividend" } ])
+    @simplefin_item.upstream_account_ids = [ fresh.account_id ]
+    old_ids = @simplefin_account.raw_transactions_payload.map { |row| "simplefin_#{row["id"]}" }
+    @simplefin_item.process_accounts
+    assert_equal fresh.id, @account.reload.simplefin_account_id
+    assert_equal (old_ids + [ "simplefin_TRN-new" ]).sort, @account.entries.pluck(:external_id).sort
+    assert_empty @simplefin_account.reload.raw_transactions_payload
+  end
+
 end

@@ -9,6 +9,7 @@ import { readCsrfToken } from "../api/transactions";
 import { CategoryIcon, Icon } from "../icon";
 import type { AccountId } from "../ids";
 import { Modal } from "../modal";
+import { currentReturnTo, parseReturnTo } from "../return-to";
 import { Button } from "./button";
 
 export function CsrfFields({ method = "post" }: { method?: string }) {
@@ -154,6 +155,17 @@ export function AccountActionControl({
         to: "/accounts/$accountId/sharing",
         params: { accountId },
         search: { ...search },
+        resetScroll: false,
+      });
+    } else if (url.pathname === `/accounts/${accountId}/provider_replacement`) {
+      void navigate({
+        to: "/accounts/$accountId/provider_replacement",
+        params: { accountId },
+        search: {
+          ...search,
+          simplefin_account_id: url.searchParams.get("simplefin_account_id") ?? undefined,
+          return_to: parseReturnTo(url.searchParams.get("return_to"), currentReturnTo()),
+        },
         resetScroll: false,
       });
     } else if (url.pathname === "/account_statements") {
