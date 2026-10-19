@@ -52,6 +52,12 @@ status indicators. Selecting a tag pill or icon opens an inline, searchable
 multi-select dropdown; adding, removing, or creating a tag saves without opening
 the transaction drawer.
 
+In transaction and account activity searches, a quoted number such as `"13.41"`
+matches an exact stored amount of either `13.41` or `-13.41`, not nearby amounts
+or amounts containing those digits. An optional sign inside the quotes does not
+restrict the direction; use the Income or Expenses type filter for that. Ordinary
+text searches continue to match names and notes.
+
 Transaction metadata dropdowns use the shared `SearchablePicker` component,
 built with Headless UI Combobox. Category, tag, and merchant fields in the edit,
 new-transaction, and bulk-edit forms use the same keyboard behavior as the row

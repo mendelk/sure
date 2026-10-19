@@ -13,6 +13,49 @@ class Transaction::SearchTest < ActiveSupport::TestCase
     @family.accounts.each { |account| account.entries.delete_all }
   end
 
+  test "quoted numeric search matches exact amounts in either direction" do
+    expense = create_transaction(account: @checking_account, amount: "13.41")
+    income = create_transaction(account: @checking_account, amount: "-13.41")
+    %w[13.40 13.42 -13.40 -13.42 113.41 13.4101].each do |amount|
+      create_transaction(account: @checking_account, amount: amount)
+    end
+
+    [ '"13.41"', '"-13.41"', '"+13.41"', ' "13.41" ' ].each do |term|
+      results = Transaction::Search.new(@family, filters: { search: term }).transactions_scope
+
+      assert_equal [ expense.entryable_id, income.entryable_id ].sort, results.pluck(:id).sort, term
+    end
+  end
+
+  test "quoted amount search respects account access and transaction type filters" do
+    expense = create_transaction(account: @checking_account, amount: "13.41")
+    create_transaction(account: @checking_account, amount: "-13.41")
+    create_transaction(account: @credit_card_account, amount: "13.41")
+
+    results = Transaction::Search.new(
+      @family,
+      filters: { search: '"13.41"', types: [ "expense" ] },
+      accessible_account_ids: [ @checking_account.id ]
+    ).transactions_scope
+
+    assert_equal [ expense.entryable_id ], results.pluck(:id)
+  end
+
+  test "non numeric searches still match names and notes literally" do
+    named = create_transaction(account: @checking_account, name: 'Invoice "13.41x"')
+    noted = create_transaction(account: @checking_account, notes: 'Reference "13.41x"')
+    unquoted = create_transaction(account: @checking_account, name: "Invoice 13.41x", amount: "13.41")
+
+    {
+      '"13.41x"' => [ named.entryable_id, noted.entryable_id ],
+      "13.41x" => [ named.entryable_id, noted.entryable_id, unquoted.entryable_id ]
+    }.each do |term, expected|
+      results = Transaction::Search.new(@family, filters: { search: term }).transactions_scope
+
+      assert_equal expected.sort, results.pluck(:id).sort
+    end
+  end
+
   test "search filters by transaction types using kind enum" do
     # Create different types of transactions using the helper method
     standard_entry = create_transaction(
