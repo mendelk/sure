@@ -52,11 +52,12 @@ status indicators. Selecting a tag pill or icon opens an inline, searchable
 multi-select dropdown; adding, removing, or creating a tag saves without opening
 the transaction drawer.
 
-In transaction and account activity searches, a quoted number such as `"13.41"`
-matches an exact stored amount of either `13.41` or `-13.41`, not nearby amounts
-or amounts containing those digits. An optional sign inside the quotes does not
-restrict the direction; use the Income or Expenses type filter for that. Ordinary
-text searches continue to match names and notes.
+In transaction and account activity searches, a number such as `13.41` matches
+names and notes containing that text, as well as an exact stored amount of either
+`13.41` or `-13.41`. Quote the number (`"13.41"`) for amount-only matching, without
+text matches or nearby amounts. An optional sign does not restrict the amount's
+direction; use the Income or Expenses type filter for that. Non-numeric searches
+continue to match names and notes literally.
 Free-text search terms remain literal in URLs, including quotes and numeric-only
 text. A direct link such as `/transactions?page=1&search=%2214.03%22` therefore
 keeps exact amount matching when opened, refreshed, or shared; other filters

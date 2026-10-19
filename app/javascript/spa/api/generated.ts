@@ -25,7 +25,7 @@ export const GetApiV1TransactionsQueryParams = /*#__PURE__*/ zod.object({
   "min_amount": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.number()).check(/*#__PURE__*/ zod.describe('Legacy alias for amount with greater operator')),
   "max_amount": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.number()).check(/*#__PURE__*/ zod.describe('Legacy alias for amount with less operator')),
   "type": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['income', 'expense'])).check(/*#__PURE__*/ zod.describe('Filter by transaction type')),
-  "search": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Search by name, notes, or merchant name')),
+  "search": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Search names and notes. Numeric terms also match exact amounts of either sign; quoted numeric terms match amounts only.')),
   "account_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.string(), AccountIdSchema))).check(/*#__PURE__*/ zod.describe('Filter by multiple account IDs')),
   "category_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.string(), CategoryIdSchema))).check(/*#__PURE__*/ zod.describe('Filter by multiple category IDs')),
   "merchant_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.string(), MerchantIdSchema))).check(/*#__PURE__*/ zod.describe('Filter by multiple merchant IDs')),

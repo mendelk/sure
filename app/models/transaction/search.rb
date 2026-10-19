@@ -70,8 +70,8 @@ class Transaction::Search
   # Compute totals for the specific search, excluding tax-advantaged accounts
   def totals
     @totals ||= begin
-      # v4: quoted numeric searches now match amounts, so discard cached text-only totals.
-      Rails.cache.fetch("transaction_search_totals/v4/#{cache_key_base}") do
+      # v5: unquoted numeric searches include amount matches as well as text.
+      Rails.cache.fetch("transaction_search_totals/v5/#{cache_key_base}") do
         scope = transactions_scope
 
         # Exclude tax-advantaged accounts from totals calculation

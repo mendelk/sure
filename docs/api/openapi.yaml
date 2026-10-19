@@ -11871,7 +11871,8 @@ paths:
       - name: search
         in: query
         required: false
-        description: Search by name, notes, or merchant name
+        description: Search names and notes. Numeric terms also match exact amounts
+          of either sign; quoted numeric terms match amounts only.
         schema:
           type: string
       - name: account_ids

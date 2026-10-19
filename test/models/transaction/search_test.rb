@@ -13,32 +13,50 @@ class Transaction::SearchTest < ActiveSupport::TestCase
     @family.accounts.each { |account| account.entries.delete_all }
   end
 
-  test "quoted numeric search matches exact amounts in either direction" do
+  test "numeric search matches exact amounts in either direction with or without quotes" do
     expense = create_transaction(account: @checking_account, amount: "13.41")
     income = create_transaction(account: @checking_account, amount: "-13.41")
     %w[13.40 13.42 -13.40 -13.42 113.41 13.4101].each do |amount|
       create_transaction(account: @checking_account, amount: amount)
     end
 
-    [ '"13.41"', '"-13.41"', '"+13.41"', ' "13.41" ' ].each do |term|
+    [ '"13.41"', '"-13.41"', '"+13.41"', ' "13.41" ', "13.41", "-13.41", "+13.41", " 13.41 " ].each do |term|
       results = Transaction::Search.new(@family, filters: { search: term }).transactions_scope
 
       assert_equal [ expense.entryable_id, income.entryable_id ].sort, results.pluck(:id).sort, term
     end
   end
 
-  test "quoted amount search respects account access and transaction type filters" do
+  test "numeric search respects account access and transaction type filters" do
     expense = create_transaction(account: @checking_account, amount: "13.41")
     create_transaction(account: @checking_account, amount: "-13.41")
     create_transaction(account: @credit_card_account, amount: "13.41")
+    create_transaction(account: @credit_card_account, amount: 10, name: "Invoice 13.41")
+    create_transaction(account: @checking_account, amount: -10, notes: "Reference 13.41")
 
-    results = Transaction::Search.new(
-      @family,
-      filters: { search: '"13.41"', types: [ "expense" ] },
-      accessible_account_ids: [ @checking_account.id ]
-    ).transactions_scope
+    [ '"13.41"', "13.41" ].each do |term|
+      results = Transaction::Search.new(
+        @family,
+        filters: { search: term, types: [ "expense" ] },
+        accessible_account_ids: [ @checking_account.id ]
+      ).transactions_scope
 
-    assert_equal [ expense.entryable_id ], results.pluck(:id)
+      assert_equal [ expense.entryable_id ], results.pluck(:id), term
+    end
+  end
+
+  test "unquoted numeric search retains text matches while quotes search amounts only" do
+    amount_match = create_transaction(account: @checking_account, amount: "140.75")
+    name_match = create_transaction(account: @checking_account, amount: 10, name: "Invoice 140.75")
+    notes_match = create_transaction(account: @checking_account, amount: 20, notes: "Reference 140.75")
+    create_transaction(account: @checking_account, amount: "140.74")
+    create_transaction(account: @checking_account, amount: "140.76")
+
+    unquoted = Transaction::Search.new(@family, filters: { search: "140.75" }).transactions_scope
+    quoted = Transaction::Search.new(@family, filters: { search: '"140.75"' }).transactions_scope
+
+    assert_equal [ amount_match, name_match, notes_match ].map(&:entryable_id).sort, unquoted.pluck(:id).sort
+    assert_equal [ amount_match.entryable_id ], quoted.pluck(:id)
   end
 
   test "non numeric searches still match names and notes literally" do

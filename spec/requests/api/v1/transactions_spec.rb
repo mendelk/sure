@@ -124,7 +124,7 @@ RSpec.describe 'API V1 Transactions', type: :request do
                 description: 'Filter by transaction type',
                 schema: { type: :string, enum: %w[income expense] }
       parameter name: :search, in: :query, type: :string, required: false,
-                description: 'Search by name, notes, or merchant name'
+                description: 'Search names and notes. Numeric terms also match exact amounts of either sign; quoted numeric terms match amounts only.'
       parameter name: :account_ids, in: :query, required: false,
                 description: 'Filter by multiple account IDs',
                 schema: { type: :array, items: { type: :string } }
