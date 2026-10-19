@@ -677,6 +677,7 @@ function CategoryMenu({
             <Link
               className="focus-ring flex items-center gap-2 rounded-lg p-2 text-sm text-secondary hover:bg-container-inset-hover"
               params={{ transactionId: transaction.id }}
+              search={true}
               to="/transactions/$transactionId/split/new"
             >
               <Icon name="split" size="sm" />

@@ -867,6 +867,7 @@ function TransactionDetailTransfer({
             <Link
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               params={{ transferId: transfer.id }}
+              search={true}
               to="/transactions/transfers/$transferId"
             >
               View transfer
@@ -999,6 +1000,7 @@ function SplitActions({
         <Link
           className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           params={{ transactionId: editTransactionId }}
+          search={true}
           to="/transactions/$transactionId/split/edit"
         >
           <Icon name="pencil" size="sm" />
@@ -1749,6 +1751,7 @@ function TransactionDetailSettings({
           <Link
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
             params={{ transactionId: transaction.id }}
+            search={true}
             to="/transactions/$transactionId/split/new"
           >
             <Icon name="split" size="sm" />
@@ -1767,6 +1770,7 @@ function TransactionDetailSettings({
           <Link
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
             params={{ transactionId: transaction.id }}
+            search={true}
             to="/transactions/$transactionId/transfer_match/new"
           >
             <Icon name="arrow-left-right" size="sm" />

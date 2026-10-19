@@ -100,6 +100,12 @@ the current side first, then a counterpart picker with **Match existing** and
 the Rails modal. With no candidates it defaults to creating a counterpart in a
 chosen account.
 
+Transaction-list filters and pagination stay in the URL when opening the matcher,
+creating or editing a split, and navigating between a transaction and its transfer.
+Closing those views retains that context, including when returning to account
+activity. Merchant links that start a new merchant search still replace the list
+filters intentionally.
+
 The React navigation rail follows the Rails sidebar's icon-above-label layout,
 including the active indicator and preview dots. Navigation uses the
 server-provided, localized item list; Bills and Plan remain subject to the

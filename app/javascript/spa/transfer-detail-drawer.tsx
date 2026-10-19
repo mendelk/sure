@@ -107,11 +107,13 @@ export function TransferDetailDrawer({
       void navigate({
         to: "/accounts/$accountId",
         params: { accountId },
+        search: true,
         resetScroll: false,
       });
     } else {
       void navigate({
         to: "/transactions",
+        search: true,
         resetScroll: false,
       });
     }
@@ -234,6 +236,7 @@ export function TransferDetailDrawer({
                             : { transactionId: transfer.outflow_transaction.id }
                         }
                         title="View transaction"
+                        search={true}
                         to={
                           accountId
                             ? "/accounts/$accountId/transactions/$transactionId"
@@ -301,6 +304,7 @@ export function TransferDetailDrawer({
                             : { transactionId: transfer.inflow_transaction.id }
                         }
                         title="View transaction"
+                        search={true}
                         to={
                           accountId
                             ? "/accounts/$accountId/transactions/$transactionId"
