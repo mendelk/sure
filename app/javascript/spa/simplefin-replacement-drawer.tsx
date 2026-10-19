@@ -183,22 +183,25 @@ function ReplacementForm({
         selected,
         refresh ? matches : undefined,
       );
-      const nextDecisions = refresh
-        ? Object.fromEntries(
-            result.incoming_entries.flatMap((entry) => {
-              const decision = decisions[entry.id];
-              return decision &&
-                (decision === KEEP_SEPARATE ||
-                  result.canonical_entries.some((canonical) => canonical.id === decision))
-                ? [[entry.id, decision]]
-                : [];
-            }),
-          )
-        : Object.fromEntries(
-            result.suggested_matches
-              .filter((suggestion) => suggestion.preselect === true)
-              .map((suggestion) => [suggestion.incoming_id, suggestion.survivor_id]),
-          );
+      const nextDecisions = Object.fromEntries(
+        result.incoming_entries.map((entry) => {
+          const decision = refresh ? decisions[entry.id] : KEEP_SEPARATE;
+          return [
+            entry.id,
+            decision &&
+            (decision === KEEP_SEPARATE ||
+              result.canonical_entries.some((canonical) => canonical.id === decision))
+              ? decision
+              : KEEP_SEPARATE,
+          ];
+        }),
+      );
+      if (!refresh) {
+        for (const suggestion of result.suggested_matches) {
+          if (suggestion.preselect === true)
+            nextDecisions[suggestion.incoming_id] = suggestion.survivor_id;
+        }
+      }
       setPreview(result);
       setDecisions(nextDecisions);
       if (refresh) setReviewedMatches(matchesSignature);

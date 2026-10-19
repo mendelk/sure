@@ -185,7 +185,7 @@ en:
       conflicts: Conflicts requiring review
       conflicts_help: Duplicate decisions may resolve these conflicts. Apply validates your choices and will refuse unsafe changes.
       duplicate_choices: Review incoming entries
-      suggestions_unapproved: Probable duplicates are preselected when the date, amount, and currency match and the names are similar, with no ambiguous matches. Check each selection, change it, or keep the incoming entry separate. Nothing is merged until you review and apply.
+      suggestions_unapproved: Unambiguous probable duplicates are preselected. All other entries default to being kept separate. Change any selection before reviewing and applying.
       no_incoming_entries: There are no incoming entries to consolidate. You can still review and update the provider link.
       keep_remaining_separate: Keep all undecided entries separate
       match_to: Duplicate decision
