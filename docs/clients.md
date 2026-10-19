@@ -93,6 +93,17 @@ selected account; mixed annotation/full-control selections cannot rename,
 redate, or delete transactions. Server authorization still rejects forbidden
 writes, including mixed-field requests, without partially saving them.
 
+Bulk edit's **Transfer counterpart account** field creates one new opposite entry
+in the chosen account for each selected transaction and confirms each transfer.
+It does not match existing imported entries, so choosing an account that already
+contains the counterparts can create duplicates. The picker excludes all selected
+source accounts and requires owner/full-control permission on the target and
+every source. Existing transfer matches, split entries, non-transaction entries,
+and a target that is also a source are rejected. Metadata edits and all new
+counterparts save atomically; a failed validation leaves the entire batch unchanged.
+JSON submissions return `200 OK` with `updated_count`, or an error that stays in
+the drawer; HTML submissions retain their redirect behavior.
+
 The transfer editor requires full control of its outflow account for edits or
 removal. Marking a transfer as recurring requires full control of **both**
 accounts. Split and transfer-matching destination pickers offer only writable

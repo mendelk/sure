@@ -443,7 +443,13 @@ export function bulkUpdatePermissionsQueryOptions(path: string, entryIds: string
       if (!response.ok)
         throw new TransactionApiError("Could not load transaction permissions", response.status);
       const payload: unknown = await response.json();
-      return z.object({ permissions: AccountPermissionsSchema }).parse(payload).permissions;
+      const data = z
+        .object({
+          permissions: AccountPermissionsSchema,
+          source_account_ids: z.array(AccountIdSchema),
+        })
+        .parse(payload);
+      return { ...data.permissions, source_account_ids: data.source_account_ids };
     },
   });
 }
