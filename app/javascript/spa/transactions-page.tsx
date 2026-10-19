@@ -961,6 +961,7 @@ function SplitParentHeader({ parent }: { parent: SplitParent | null }) {
       <Link
         className="focus-ring flex items-center gap-3 px-4 py-3"
         params={{ transactionId: parent.transaction_id }}
+        search={true}
         to="/transactions/$transactionId/split/edit"
       >
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-secondary">
