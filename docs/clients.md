@@ -57,6 +57,10 @@ matches an exact stored amount of either `13.41` or `-13.41`, not nearby amounts
 or amounts containing those digits. An optional sign inside the quotes does not
 restrict the direction; use the Income or Expenses type filter for that. Ordinary
 text searches continue to match names and notes.
+Free-text search terms remain literal in URLs, including quotes and numeric-only
+text. A direct link such as `/transactions?page=1&search=%2214.03%22` therefore
+keeps exact amount matching when opened, refreshed, or shared; other filters
+retain their structured URL values.
 
 Transaction metadata dropdowns use the shared `SearchablePicker` component,
 built with Headless UI Combobox. Category, tag, and merchant fields in the edit,

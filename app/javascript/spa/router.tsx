@@ -13,6 +13,7 @@ import {
   type Router,
 } from "@tanstack/react-router";
 import type { SpaBootstrap } from "./bootstrap";
+import { parseSpaSearch, stringifySpaSearch } from "./search-params";
 import { AppShell } from "./app-shell";
 import { AccountDetailPage, validateAccountSearch } from "./account-detail-page";
 import { DashboardsPage } from "./dashboards-page";
@@ -1067,6 +1068,8 @@ export function createSpaRouter(bootstrap: SpaBootstrap): SpaRouter {
   return createRouter({
     context: { bootstrap },
     defaultPreload: "intent",
+    parseSearch: parseSpaSearch,
+    stringifySearch: stringifySpaSearch,
     routeTree,
     scrollRestoration: true,
   });
