@@ -84,10 +84,10 @@ provider accounts that are already linked to another writable account.
 Incoming transactions and existing-entry choices are sorted newest first.
 Probable duplicates are preselected only for unique one-to-one matches with
 the same signed amount, currency, and date, similar names, and compatible data.
-Ambiguous matches and weaker nearby-date suggestions require a manual choice.
-Check or change the selections, keep any other entries separate, review the
-recalculated balance, then apply. Refreshing preserves your choices, including
-keep-separate; nothing is merged until you apply.
+All other entries default to being kept separate, including ambiguous matches
+and weaker nearby-date candidates. Check or change any selection, review the
+recalculated balance, then apply. Refreshing preserves your choices and defaults
+newly discovered entries to keep-separate; nothing is merged until you apply.
 
 The original account remains the continuous ledger: its ID, history, ownership,
 and sharing stay intact. Unique incoming activity and compatible transfer,
