@@ -30,6 +30,11 @@ class EntrySearch
     def apply_search_filter(scope, search)
       return scope if search.blank?
 
+      if (match = /\A"([+-]?\d+(?:\.\d+)?)"\z/.match(search.strip))
+        amount = BigDecimal(match[1]).abs
+        return scope.where(entries: { amount: [ amount, -amount ] })
+      end
+
       query = scope
       query = query.where("entries.name ILIKE :search OR entries.notes ILIKE :search",
         search: "%#{ActiveRecord::Base.sanitize_sql_like(search)}%"
