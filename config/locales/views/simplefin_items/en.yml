@@ -191,8 +191,6 @@ en:
       match_to: Duplicate decision
       choose_decision: Choose a decision
       keep_separate: Keep as a separate entry
-      suggested_match: Suggested match
-      choose_suggestion: Use this match
       final_review: Confirm your decisions
       match_count: "Entries to merge into existing history: %{count}"
       separate_count: "Entries to keep separate: %{count}"

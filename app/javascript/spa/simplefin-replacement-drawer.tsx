@@ -483,34 +483,6 @@ function ReplacementForm({
                           </option>
                         ))}
                     </FormField>
-                    {preview.suggested_matches
-                      .filter((suggestion) => suggestion.incoming_id === entry.id)
-                      .map((suggestion) => {
-                        const survivor = preview.canonical_entries.find(
-                          (canonical) => canonical.id === suggestion.survivor_id,
-                        );
-                        return survivor === undefined ? null : (
-                          <div
-                            key={suggestion.survivor_id}
-                            className="space-y-1 text-xs text-secondary"
-                          >
-                            <p>
-                              {text.suggested_match}: {entryLabel(survivor, text)}
-                            </p>
-                            <p>{suggestion.reason}</p>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              disabled={pending || stale}
-                              onClick={() => {
-                                updateDecisions({ ...decisions, [entry.id]: survivor.id });
-                              }}
-                            >
-                              {text.choose_suggestion}
-                            </Button>
-                          </div>
-                        );
-                      })}
                   </div>
                 ))}
               </section>
