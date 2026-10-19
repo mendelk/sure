@@ -10,7 +10,11 @@ import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Modal } from "./modal";
 import { AccountIdSchema, type CategoryId, type MerchantId, type TagId } from "./ids";
-import { readCsrfToken, referenceDataQueryOptions } from "./api/transactions";
+import {
+  bulkUpdatePermissionsQueryOptions,
+  readCsrfToken,
+  referenceDataQueryOptions,
+} from "./api/transactions";
 import { CategorySelect, MerchantSelect } from "./transaction-detail-page";
 import { TagSelect } from "./components/tag-select";
 
@@ -89,6 +93,11 @@ export function BulkUpdateDrawer({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const entryIds = propEntryIds ?? search.entry_ids;
+  const permissionQuery = useQuery(
+    bulkUpdatePermissionsQueryOptions(bootstrap.railsPaths.bulkUpdate, entryIds),
+  );
+  const canEdit = permissionQuery.data?.can_edit === true;
+  const canAnnotate = permissionQuery.data?.can_annotate === true;
 
   function close() {
     if (propOnClose) {
@@ -114,7 +123,7 @@ export function BulkUpdateDrawer({
 
   async function handleSubmit(event: SyntheticEvent) {
     event.preventDefault();
-    if (entryIds.length === 0 || isSubmitting) return;
+    if (entryIds.length === 0 || isSubmitting || !canAnnotate) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -125,8 +134,8 @@ export function BulkUpdateDrawer({
 
       for (const id of entryIds) formData.append("bulk_update[entry_ids][]", id);
 
-      if (date.trim().length > 0) formData.set("bulk_update[date]", date.trim());
-      if (name.trim().length > 0) formData.set("bulk_update[name]", name.trim());
+      if (canEdit && date.trim().length > 0) formData.set("bulk_update[date]", date.trim());
+      if (canEdit && name.trim().length > 0) formData.set("bulk_update[name]", name.trim());
       if (categoryId !== "") formData.set("bulk_update[category_id]", categoryId);
       if (merchantId !== "") formData.set("bulk_update[merchant_id]", merchantId);
       if (notes.trim().length > 0) formData.set("bulk_update[notes]", notes.trim());
@@ -195,112 +204,132 @@ export function BulkUpdateDrawer({
           </Alert>
         ) : null}
 
-        <form
-          className="flex grow flex-col justify-between gap-6"
-          onSubmit={(event) => {
-            void handleSubmit(event);
-          }}
-        >
-          <div className="space-y-4">
-            <FormField
-              id="bulk-update-date"
-              label={text.date_label}
-              onChange={(e) => {
-                setDate(e.target.value);
-              }}
-              type="date"
-              value={date}
-            />
+        {permissionQuery.isFetching && permissionQuery.data === undefined ? (
+          <output className="text-sm text-secondary" aria-live="polite">
+            Loading permissions…
+          </output>
+        ) : permissionQuery.isError ? (
+          <Alert live="alert" variant="error">
+            {permissionQuery.error.message}
+          </Alert>
+        ) : permissionQuery.data?.can_annotate === false ? (
+          <Alert live="alert" variant="warning">
+            You don&apos;t have permission to edit all selected transactions.
+          </Alert>
+        ) : null}
 
-            <FormField
-              id="bulk-update-name"
-              label={text.name_label}
-              onChange={(e) => {
-                setName(e.target.value);
-              }}
-              placeholder={text.name_placeholder}
-              type="text"
-              value={name}
-            />
+        {canAnnotate ? (
+          <form
+            className="flex grow flex-col justify-between gap-6"
+            onSubmit={(event) => {
+              void handleSubmit(event);
+            }}
+          >
+            <div className="space-y-4">
+              {canEdit ? (
+                <>
+                  <FormField
+                    id="bulk-update-date"
+                    label={text.date_label}
+                    onChange={(e) => {
+                      setDate(e.target.value);
+                    }}
+                    type="date"
+                    value={date}
+                  />
 
-            <div className="space-y-1">
-              <label
-                className="block text-xs font-medium text-secondary"
-                htmlFor="bulk-update-category"
-              >
-                {text.category_label}
-              </label>
-              <CategorySelect
-                bootstrap={bootstrap}
-                categories={categories}
-                onSelect={(id) => {
-                  setCategoryId(id);
+                  <FormField
+                    id="bulk-update-name"
+                    label={text.name_label}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                    }}
+                    placeholder={text.name_placeholder}
+                    type="text"
+                    value={name}
+                  />
+                </>
+              ) : null}
+
+              <div className="space-y-1">
+                <label
+                  className="block text-xs font-medium text-secondary"
+                  htmlFor="bulk-update-category"
+                >
+                  {text.category_label}
+                </label>
+                <CategorySelect
+                  bootstrap={bootstrap}
+                  categories={categories}
+                  onSelect={(id) => {
+                    setCategoryId(id);
+                  }}
+                  selectedCategoryId={categoryId}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label
+                  className="block text-xs font-medium text-secondary"
+                  htmlFor="bulk-update-merchant"
+                >
+                  {text.merchant_label}
+                </label>
+                <MerchantSelect
+                  bootstrap={bootstrap}
+                  merchants={merchants}
+                  onSelect={(id) => {
+                    setMerchantId(id);
+                  }}
+                  selectedMerchantId={merchantId}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label
+                  className="block text-xs font-medium text-secondary"
+                  htmlFor="bulk-update-tags"
+                >
+                  {text.tags_label}
+                </label>
+                <TagSelect
+                  bootstrap={bootstrap}
+                  onSelect={(ids) => {
+                    setTagIds(ids);
+                    setTagsTouched(true);
+                  }}
+                  selectedTagIds={tagIds}
+                  tags={tags}
+                />
+              </div>
+
+              <FormField
+                as="textarea"
+                id="bulk-update-notes"
+                label={text.notes_label}
+                onChange={(e) => {
+                  setNotes(e.target.value);
                 }}
-                selectedCategoryId={categoryId}
+                placeholder={text.notes_placeholder}
+                rows={5}
+                value={notes}
               />
             </div>
 
-            <div className="space-y-1">
-              <label
-                className="block text-xs font-medium text-secondary"
-                htmlFor="bulk-update-merchant"
+            <div className="mt-auto flex justify-end gap-2 pt-4">
+              <Button onClick={close} type="button" variant="ghost">
+                {text.cancel}
+              </Button>
+              <Button
+                disabled={isSubmitting || entryIds.length === 0}
+                type="submit"
+                variant="primary"
               >
-                {text.merchant_label}
-              </label>
-              <MerchantSelect
-                bootstrap={bootstrap}
-                merchants={merchants}
-                onSelect={(id) => {
-                  setMerchantId(id);
-                }}
-                selectedMerchantId={merchantId}
-              />
+                {isSubmitting ? "Saving..." : text.save}
+              </Button>
             </div>
-
-            <div className="space-y-1">
-              <label
-                className="block text-xs font-medium text-secondary"
-                htmlFor="bulk-update-tags"
-              >
-                {text.tags_label}
-              </label>
-              <TagSelect
-                bootstrap={bootstrap}
-                onSelect={(ids) => {
-                  setTagIds(ids);
-                  setTagsTouched(true);
-                }}
-                selectedTagIds={tagIds}
-                tags={tags}
-              />
-            </div>
-
-            <FormField
-              as="textarea"
-              id="bulk-update-notes"
-              label={text.notes_label}
-              onChange={(e) => {
-                setNotes(e.target.value);
-              }}
-              placeholder={text.notes_placeholder}
-              rows={5}
-              value={notes}
-            />
-          </div>
-
-          <div className="mt-auto flex justify-end gap-2 pt-4">
-            <Button onClick={close} type="button" variant="ghost">
-              {text.cancel}
-            </Button>
-            <Button
-              disabled={isSubmitting || entryIds.length === 0}
-              type="submit"
-              variant="primary"
-            >
-              {isSubmitting ? "Saving..." : text.save}
-            </Button>
-          </div>
-        </form>
+          </form>
+        ) : null}
       </div>
     </Modal>
   );

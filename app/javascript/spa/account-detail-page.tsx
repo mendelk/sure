@@ -589,19 +589,21 @@ function AccountActivityView({
               amount: text.amount,
             }}
             selection={
-              <input
-                type="checkbox"
-                className="checkbox checkbox--light"
-                checked={allSelected}
-                disabled={selectable.length === 0}
-                aria-label={text.select_all}
-                onChange={(event) => {
-                  select(
-                    selectable.map((entry) => entry.id),
-                    event.target.checked,
-                  );
-                }}
-              />
+              selectable.length > 0 ? (
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox--light"
+                  checked={allSelected}
+                  disabled={selectable.length === 0}
+                  aria-label={text.select_all}
+                  onChange={(event) => {
+                    select(
+                      selectable.map((entry) => entry.id),
+                      event.target.checked,
+                    );
+                  }}
+                />
+              ) : undefined
             }
           />
         </div>
@@ -617,16 +619,18 @@ function AccountActivityView({
                 <div key={group.date}>
                   <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-container-inset px-4 py-2.5 md:top-10">
                     <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox--light"
-                        aria-label={`${text.select_all}: ${group.label}`}
-                        checked={groupIds.length > 0 && groupIds.every((id) => selected.has(id))}
-                        disabled={groupIds.length === 0}
-                        onChange={(event) => {
-                          select(groupIds, event.target.checked);
-                        }}
-                      />
+                      {groupIds.length > 0 ? (
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox--light"
+                          aria-label={`${text.select_all}: ${group.label}`}
+                          checked={groupIds.length > 0 && groupIds.every((id) => selected.has(id))}
+                          disabled={groupIds.length === 0}
+                          onChange={(event) => {
+                            select(groupIds, event.target.checked);
+                          }}
+                        />
+                      ) : null}
                       <h2 className="text-xs font-medium uppercase tracking-wide text-secondary">
                         {group.label} <span className="mx-1">&middot;</span> {group.entries.length}
                       </h2>
@@ -716,17 +720,21 @@ function AccountActivityView({
               {text.duplicate_selected}
             </Link>
           ) : null}
-          <Button
-            disabled={bulkDeleteMutation.isPending}
-            onClick={() => {
-              setConfirmDelete(true);
-            }}
-            size="sm"
-            type="button"
-            variant="destructive-outline"
-          >
-            {text.delete_selected}
-          </Button>
+          {selectedEntries.every(
+            (entry) => (entry.transaction?.parent_entry_id ?? null) === null,
+          ) ? (
+            <Button
+              disabled={bulkDeleteMutation.isPending}
+              onClick={() => {
+                setConfirmDelete(true);
+              }}
+              size="sm"
+              type="button"
+              variant="destructive-outline"
+            >
+              {text.delete_selected}
+            </Button>
+          ) : null}
         </BulkActionsBar>
       ) : null}
       {deleteError !== null ? (

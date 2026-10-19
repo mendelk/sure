@@ -7,6 +7,7 @@ class Api::V1::TransactionsController < Api::V1::BaseController
   before_action :ensure_read_scope, only: [ :index, :show ]
   before_action :ensure_write_scope, only: [ :create, :update, :destroy, :mark_as_recurring, :unlock, :merge_duplicate, :dismiss_duplicate ]
   before_action :set_transaction, only: [ :show, :update, :destroy, :mark_as_recurring, :unlock, :merge_duplicate, :dismiss_duplicate ]
+  before_action :authorize_account_change, only: [ :update, :destroy, :mark_as_recurring, :unlock, :merge_duplicate, :dismiss_duplicate ]
 
   def index
     family = current_resource_owner.family
@@ -281,6 +282,14 @@ class Api::V1::TransactionsController < Api::V1::BaseController
   end
 
   private
+
+    def authorize_account_change
+      annotation_only = action_name == "update" && (transaction_params.keys - %w[category_id merchant_id tag_ids notes]).empty?
+      capability = annotation_only ? :can_annotate : :can_edit
+      return if account_permissions(@entry.account)[capability]
+
+      render json: { error: "forbidden", message: "Not authorized to change this account's transactions" }, status: :forbidden
+    end
 
     def set_transaction
       raise ActiveRecord::RecordNotFound unless valid_uuid?(params[:id])

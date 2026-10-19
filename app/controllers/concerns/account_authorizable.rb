@@ -3,9 +3,26 @@ module AccountAuthorizable
 
   included do
     include StreamExtensions
+    helper_method :account_permissions
   end
 
   private
+
+    def account_permissions(account)
+      @viewer_account_permissions ||= {}
+      @viewer_account_permissions[account.id] ||= begin
+        permission = if account.owned_by?(Current.user)
+          "owner"
+        else
+          @viewer_share_permissions ||= AccountShare.where(user: Current.user).pluck(:account_id, :permission).to_h
+          @viewer_share_permissions[account.id]
+        end
+        {
+          can_edit: permission.in?(%w[owner full_control]),
+          can_annotate: permission == "owner" || permission.in?(AccountShare::ANNOTATE_PERMISSIONS)
+        }
+      end
+    end
 
     def require_account_permission!(account, level = :write, redirect_path: nil)
       permission = account.permission_for(Current.user)

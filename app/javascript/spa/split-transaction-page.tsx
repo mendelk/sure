@@ -50,7 +50,9 @@ function TransferAccountSelect({
   selectedAccountId: AccountId | "";
 }) {
   const [query, setQuery] = useState("");
-  const selectable = accounts.filter((account) => account.id !== excludeAccountId);
+  const selectable = accounts.filter(
+    (account) => account.id !== excludeAccountId && account.permissions?.can_edit === true,
+  );
   const selected = selectable.find((account) => account.id === selectedAccountId);
   const lowerQuery = query.trim().toLowerCase();
   const options: PickerOption[] = [
@@ -261,6 +263,34 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
     },
   });
 
+  if (detail?.permissions.can_edit !== true) {
+    return (
+      <Modal
+        onClose={close}
+        open
+        panelClassName="w-full max-w-xl rounded-xl bg-container p-4 shadow-lg"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <DialogTitle className="text-lg font-medium text-primary">Split unavailable</DialogTitle>
+          <IconButton icon="x" label="Close" onClick={close} />
+        </div>
+        {detail ? (
+          <Alert live="alert" variant="warning">
+            You need full control of this account to split its transactions.
+          </Alert>
+        ) : detailQuery.isError ? (
+          <Alert live="alert" variant="error">
+            Could not load the transaction.
+          </Alert>
+        ) : (
+          <output className="text-sm text-secondary" aria-live="polite">
+            Loading transaction…
+          </output>
+        )}
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       onClose={close}
@@ -273,16 +303,14 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
             <DialogTitle className="text-lg font-medium text-primary">
               {mode === "create" ? "Split Transaction" : "Edit Split"}
             </DialogTitle>
-            {detail ? (
-              <p className="mt-0.5 text-sm text-secondary">
-                {detail.name} · {detail.account.name}
-              </p>
-            ) : null}
+            <p className="mt-0.5 text-sm text-secondary">
+              {detail.name} · {detail.account.name}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium uppercase text-secondary">Total</span>
             <span className="privacy-sensitive text-lg font-medium tabular-nums text-primary">
-              {detail?.amount ?? ""}
+              {detail.amount}
             </span>
             <IconButton icon="x" label="Close" onClick={close} />
           </div>
@@ -353,7 +381,7 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
                 <div className="min-w-0 flex-1 basis-48">
                   <TransferAccountSelect
                     accounts={accounts}
-                    excludeAccountId={detail?.account.id}
+                    excludeAccountId={detail.account.id}
                     onSelect={(accountId) => {
                       updateRow(row.key, { transferAccountId: accountId });
                     }}
@@ -409,7 +437,7 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
             Cancel
           </Button>
           <Button
-            disabled={!allValid || mutation.isPending || detail === undefined}
+            disabled={!allValid || mutation.isPending}
             onClick={() => {
               mutation.mutate();
             }}

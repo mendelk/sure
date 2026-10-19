@@ -186,7 +186,7 @@ export function TagSelect({
   );
 }
 
-function TagPill({ name, color }: { name: string; color?: string }) {
+export function TagPill({ name, color }: { name: string; color?: string }) {
   const customColor =
     typeof color === "string" && color.startsWith("#") ? color : "var(--utility-text-secondary)";
   return (

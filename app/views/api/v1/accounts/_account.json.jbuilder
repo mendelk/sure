@@ -14,6 +14,7 @@ json.classification account.classification
 json.account_type account.accountable_type&.underscore
 json.subtype account.subtype
 json.status account.status
+json.permissions account_permissions(account)
 json.institution_name account.institution_name
 json.institution_domain account.institution_domain
 json.notes account.notes

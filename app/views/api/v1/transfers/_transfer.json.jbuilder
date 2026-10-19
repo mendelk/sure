@@ -11,6 +11,7 @@ json.notes transfer.notes
 json.name transfer.name
 json.payment transfer.payment?
 json.categorizable transfer.categorizable?
+json.permissions account_permissions(transfer.outflow_transaction.entry.account).slice(:can_edit)
 json.source_fee_amount transfer.derived_source_fee_amount.to_s("F")
 json.source_fee_currency transfer.from_account&.currency
 json.destination_fee_amount transfer.derived_destination_fee_amount.to_s("F")
@@ -32,16 +33,11 @@ json.tags(transfer.outflow_transaction&.tags || []) do |tag|
   json.color tag.color
 end
 
-endpoint_ids = [ transfer.from_account&.id, transfer.to_account&.id ].compact
-writable_count = if defined?(current_resource_owner) && current_resource_owner
-  Account.writable_by(current_resource_owner).where(id: endpoint_ids).distinct.count
-else
-  2
-end
+endpoint_accounts = [ transfer.from_account, transfer.to_account ].compact
 json.can_mark_as_recurring(
   !transfer.from_account&.family&.recurring_transactions_disabled? &&
-  endpoint_ids.size == 2 &&
-  writable_count == 2
+  endpoint_accounts.size == 2 &&
+  endpoint_accounts.all? { |account| account_permissions(account)[:can_edit] }
 )
 
 source_account = transfer.from_account

@@ -424,6 +424,28 @@ components:
         message_id:
           type: string
           format: uuid
+    AccountPermissions:
+      type: object
+      required:
+      - can_edit
+      - can_annotate
+      properties:
+        can_edit:
+          type: boolean
+          description: Whether the viewer owns the account or has full control.
+        can_annotate:
+          type: boolean
+          description: Whether the viewer can change category, merchant, tags, and
+            notes.
+    TransferPermissions:
+      type: object
+      required:
+      - can_edit
+      properties:
+        can_edit:
+          type: boolean
+          description: Whether the viewer can change the transfer through its outflow
+            account.
     Account:
       type: object
       required:
@@ -458,6 +480,7 @@ components:
       - classification
       - account_type
       - status
+      - permissions
       - created_at
       - updated_at
       properties:
@@ -493,6 +516,8 @@ components:
           - draft
           - disabled
           - pending_deletion
+        permissions:
+          "$ref": "#/components/schemas/AccountPermissions"
         institution_name:
           type: string
           nullable: true
@@ -2138,6 +2163,7 @@ components:
       - amount
       - currency
       - status
+      - permissions
       properties:
         id:
           type: string
@@ -2152,6 +2178,8 @@ components:
           - pending
           - confirmed
           description: Match status. pending transfers can be confirmed or rejected.
+        permissions:
+          "$ref": "#/components/schemas/TransferPermissions"
         other_account:
           "$ref": "#/components/schemas/Account"
           nullable: true
@@ -2496,6 +2524,7 @@ components:
       - pending
       - excluded
       - account
+      - permissions
       - tags
       - created_at
       - updated_at
@@ -2571,6 +2600,8 @@ components:
             pattern (present in detail responses).
         account:
           "$ref": "#/components/schemas/Account"
+        permissions:
+          "$ref": "#/components/schemas/AccountPermissions"
         category:
           "$ref": "#/components/schemas/Category"
           nullable: true
@@ -2882,6 +2913,7 @@ components:
       - amount_cents
       - currency
       - transfer_type
+      - permissions
       - inflow_transaction
       - outflow_transaction
       - created_at
@@ -2923,6 +2955,8 @@ components:
         categorizable:
           type: boolean
           nullable: true
+        permissions:
+          "$ref": "#/components/schemas/TransferPermissions"
         category:
           "$ref": "#/components/schemas/Category"
           nullable: true
@@ -2933,6 +2967,8 @@ components:
         can_mark_as_recurring:
           type: boolean
           nullable: true
+          description: Requires ownership or full_control of both endpoint accounts
+            and enabled recurring features.
         recurring_exists:
           type: boolean
           nullable: true
@@ -5666,258 +5702,6 @@ components:
         error:
           type: string
 paths:
-  "/api/v1/transfers":
-    get:
-      summary: List transfers
-      tags:
-      - Transfers
-      security:
-      - apiKeyAuth: []
-      parameters:
-      - name: page
-        in: query
-        required: false
-        description: 'Page number (default: 1)'
-        schema:
-          type: integer
-      - name: per_page
-        in: query
-        required: false
-        description: 'Items per page (default: 25, max: 100)'
-        schema:
-          type: integer
-      - name: status
-        in: query
-        required: false
-        schema:
-          type: string
-          enum:
-          - pending
-          - confirmed
-        description: Filter by transfer status
-      - name: account_id
-        in: query
-        required: false
-        schema:
-          type: string
-          format: uuid
-        description: Filter transfers involving this account
-      - name: start_date
-        in: query
-        required: false
-        schema:
-          type: string
-          format: date
-        description: Filter transfers from this date
-      - name: end_date
-        in: query
-        required: false
-        schema:
-          type: string
-          format: date
-        description: Filter transfers until this date
-      responses:
-        '200':
-          description: transfers listed
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/TransferDecisionCollection"
-        '401':
-          description: unauthorized
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        '403':
-          description: insufficient scope
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        '422':
-          description: invalid filter
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-  "/api/v1/transfers/{id}":
-    parameters:
-    - name: id
-      in: path
-      required: true
-      description: Transfer ID
-      schema:
-        type: string
-    get:
-      summary: Retrieve a transfer
-      tags:
-      - Transfers
-      security:
-      - apiKeyAuth: []
-      responses:
-        '200':
-          description: transfer retrieved
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/TransferDecision"
-        '401':
-          description: unauthorized
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        '403':
-          description: insufficient scope
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        '404':
-          description: transfer not found
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-    patch:
-      summary: Update a transfer
-      tags:
-      - Transactions
-      security:
-      - apiKeyAuth: []
-      parameters: []
-      responses:
-        '200':
-          description: transfer rejected
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/DeleteResponse"
-        '422':
-          description: invalid status
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        '401':
-          description: unauthorized
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        '403':
-          description: insufficient scope
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        '404':
-          description: transfer not found
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                transfer:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      enum:
-                      - confirmed
-                      - rejected
-                      description: Confirm a pending match, or reject it (removes
-                        the match and records the pair as rejected).
-                    notes:
-                      type: string
-                      nullable: true
-                    category_id:
-                      type: string
-                      format: uuid
-                      nullable: true
-                    tag_ids:
-                      type: array
-                      items:
-                        type: string
-                        format: uuid
-              required:
-              - transfer
-        required: true
-    delete:
-      summary: Delete a transfer
-      tags:
-      - Transfers
-      security:
-      - apiKeyAuth: []
-      responses:
-        '204':
-          description: transfer deleted
-        '401':
-          description: unauthorized
-        '403':
-          description: insufficient scope
-        '404':
-          description: transfer not found
-  "/api/v1/transfers/{id}/mark_as_recurring":
-    parameters:
-    - name: id
-      in: path
-      required: true
-      description: Transfer ID
-      schema:
-        type: string
-    post:
-      summary: Mark transfer as recurring
-      tags:
-      - Transfers
-      security:
-      - apiKeyAuth: []
-      responses:
-        '201':
-          description: transfer marked as recurring
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - message
-                - recurring_transaction_id
-                properties:
-                  message:
-                    type: string
-                  recurring_transaction_id:
-                    type: string
-                    format: uuid
-        '401':
-          description: unauthorized
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        '403':
-          description: insufficient scope
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        '404':
-          description: transfer not found
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        '409':
-          description: recurring transfer already exists
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
   "/api/v1/account_form_options":
     get:
       summary: Retrieve account form options
@@ -11858,6 +11642,8 @@ paths:
       summary: List transfer match candidates
       tags:
       - Transactions
+      description: Only candidates whose source and counterpart accounts the viewer
+        owns or has full_control over are returned.
       security:
       - apiKeyAuth: []
       responses:
@@ -11892,6 +11678,8 @@ paths:
       summary: Create a transfer match
       tags:
       - Transactions
+      description: Requires a write-scoped credential and ownership or full_control
+        of both the source account and the matched transaction or target account.
       security:
       - apiKeyAuth: []
       parameters: []
@@ -11904,6 +11692,12 @@ paths:
                 "$ref": "#/components/schemas/TransferDecision"
         '422':
           description: matched entry not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: write scope and source account full control required
           content:
             application/json:
               schema:
@@ -12360,7 +12154,8 @@ paths:
       summary: Retrieve a transaction
       tags:
       - Transactions
-      description: Split parents include split_children with transfer_account_id identifying
+      description: Includes viewer-specific account permissions.can_edit and permissions.can_annotate.
+        Split parents include split_children with transfer_account_id identifying
         each linked counterpart account, or null for non-transfer children. Use it
         to preserve transfers when editing a split.
       security:
@@ -12382,6 +12177,10 @@ paths:
       summary: Update a transaction
       tags:
       - Transactions
+      description: Requires a write-scoped credential and account annotation access.
+        Annotation-only members can change category_id, merchant_id, tag_ids, and
+        notes; all other fields require ownership or full_control. Requests mixing
+        permitted annotations with forbidden fields are rejected without partial updates.
       security:
       - apiKeyAuth: []
       parameters: []
@@ -12392,6 +12191,12 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Transaction"
+        '403':
+          description: write scope or account permission required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
         '404':
           description: transaction not found
           content:
@@ -12478,6 +12283,12 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/DeleteResponse"
+        '403':
+          description: write scope and account full control required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
         '404':
           description: transaction not found
           content:
@@ -12515,6 +12326,12 @@ paths:
                     format: uuid
                   message:
                     type: string
+        '403':
+          description: write scope and account full control required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
         '404':
           description: transaction not found
           content:
@@ -12548,6 +12365,12 @@ paths:
                 properties:
                   message:
                     type: string
+        '403':
+          description: write scope and account full control required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
         '404':
           description: transaction not found
           content:
@@ -12581,6 +12404,12 @@ paths:
                 properties:
                   message:
                     type: string
+        '403':
+          description: write scope and account full control required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
         '404':
           description: transaction not found
           content:
@@ -12614,8 +12443,266 @@ paths:
                 properties:
                   message:
                     type: string
+        '403':
+          description: write scope and account full control required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
         '404':
           description: transaction not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/transfers":
+    get:
+      summary: List transfers
+      tags:
+      - Transfers
+      security:
+      - apiKeyAuth: []
+      parameters:
+      - name: page
+        in: query
+        required: false
+        description: 'Page number (default: 1)'
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        required: false
+        description: 'Items per page (default: 25, max: 100)'
+        schema:
+          type: integer
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - pending
+          - confirmed
+        description: Filter by transfer status
+      - name: account_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Filter transfers involving this account
+      - name: start_date
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: Filter transfers from this date
+      - name: end_date
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: Filter transfers until this date
+      responses:
+        '200':
+          description: transfers listed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TransferDecisionCollection"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: invalid filter
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/transfers/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      description: Transfer ID
+      schema:
+        type: string
+    get:
+      summary: Retrieve a transfer
+      tags:
+      - Transfers
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: transfer retrieved
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TransferDecision"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: transfer not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+    patch:
+      summary: Update a transfer
+      tags:
+      - Transactions
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: transfer rejected
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DeleteResponse"
+        '422':
+          description: invalid status
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: transfer not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transfer:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      enum:
+                      - confirmed
+                      - rejected
+                      description: Confirm a pending match, or reject it (removes
+                        the match and records the pair as rejected).
+                    notes:
+                      type: string
+                      nullable: true
+                    category_id:
+                      type: string
+                      format: uuid
+                      nullable: true
+                    tag_ids:
+                      type: array
+                      items:
+                        type: string
+                        format: uuid
+              required:
+              - transfer
+        required: true
+    delete:
+      summary: Delete a transfer
+      tags:
+      - Transfers
+      security:
+      - apiKeyAuth: []
+      responses:
+        '204':
+          description: transfer deleted
+        '401':
+          description: unauthorized
+        '403':
+          description: insufficient scope
+        '404':
+          description: transfer not found
+  "/api/v1/transfers/{id}/mark_as_recurring":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      description: Transfer ID
+      schema:
+        type: string
+    post:
+      summary: Mark transfer as recurring
+      tags:
+      - Transfers
+      security:
+      - apiKeyAuth: []
+      responses:
+        '201':
+          description: transfer marked as recurring
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                - recurring_transaction_id
+                properties:
+                  message:
+                    type: string
+                  recurring_transaction_id:
+                    type: string
+                    format: uuid
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: transfer not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '409':
+          description: recurring transfer already exists
           content:
             application/json:
               schema:

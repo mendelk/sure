@@ -19,7 +19,7 @@ import type { AccountId, CategoryId, MerchantId, TransactionId } from "../ids";
 import { useDismiss } from "../use-dismiss";
 import { currentReturnTo } from "../return-to";
 import { IconButton } from "./icon-button";
-import { TagSelect } from "./tag-select";
+import { TagPill, TagSelect } from "./tag-select";
 import { SearchablePicker, type PickerOption } from "./searchable-picker";
 import { BrandLogo } from "./brand-logo";
 const transactionGridClass =
@@ -132,12 +132,11 @@ export function TransactionRow({
       <div
         className={`flex min-w-0 items-center gap-3 ${columns.tags ? "md:col-span-5" : "md:col-span-7"} ${indent ? "pl-4" : ""}`}
       >
-        {selection ? (
+        {selection && !selection.disabled && transaction.permissions.can_annotate ? (
           <input
             aria-label={selection.label}
             checked={selection.selected}
             className="checkbox checkbox--light shrink-0"
-            disabled={selection.disabled}
             onChange={(event) => {
               selection.onChange(event.currentTarget.checked);
             }}
@@ -243,14 +242,19 @@ export function TransactionRow({
           ) : (
             <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-secondary">
               {transaction.merchant && columns.merchant ? (
-                <MerchantMenu
-                  categoryId={transaction.category?.id}
-                  categoryName={transaction.category?.name}
-                  merchantId={transaction.merchant.id}
-                  merchantName={transaction.merchant.name}
-                  onAddFilter={onAddMerchantFilter}
-                  transactionId={transaction.id}
-                />
+                transaction.permissions.can_annotate &&
+                (transaction.parent_entry_id ?? null) === null ? (
+                  <MerchantMenu
+                    categoryId={transaction.category?.id}
+                    categoryName={transaction.category?.name}
+                    merchantId={transaction.merchant.id}
+                    merchantName={transaction.merchant.name}
+                    onAddFilter={onAddMerchantFilter}
+                    transactionId={transaction.id}
+                  />
+                ) : (
+                  <span className="truncate">{transaction.merchant.name}</span>
+                )
               ) : null}
               <Link
                 className="truncate hover:underline"
@@ -268,7 +272,9 @@ export function TransactionRow({
         {category ??
           (showVirtualBadge ? (
             <CategoryBadge category={virtualTransferCategory} />
-          ) : categories !== undefined ? (
+          ) : categories !== undefined &&
+            transaction.permissions.can_annotate &&
+            (transaction.parent_entry_id ?? null) === null ? (
             <CategoryMenu bootstrap={bootstrap} categories={categories} transaction={transaction} />
           ) : (
             <CategoryBadge category={transaction.category ?? { name: categoryName }} />
@@ -335,6 +341,17 @@ function TransactionTags({
   );
   const visibleTags = tags.slice(0, 2);
   const hiddenTags = tags.slice(2);
+  if (!transaction.permissions.can_annotate || (transaction.parent_entry_id ?? null) !== null) {
+    return (
+      <span className="flex max-w-full min-w-0 flex-wrap gap-1" title={tagNames || "No tags"}>
+        {tags.length > 0 ? (
+          tags.map((tag) => <TagPill color={tag.color} key={tag.id} name={tag.name} />)
+        ) : (
+          <span className="text-xs text-secondary">—</span>
+        )}
+      </span>
+    );
+  }
   return (
     <TagSelect
       bootstrap={bootstrap}
@@ -585,7 +602,7 @@ function CategoryMenu({
     }
     if (transaction.category)
       options.push({ value: "__clear", label: "Clear category", group: "Actions" });
-    if (!transaction.transfer) {
+    if (!transaction.transfer && transaction.permissions.can_edit) {
       options.push({
         value: "__match",
         label: "Match transfer/payment",
@@ -655,29 +672,31 @@ function CategoryMenu({
         />
       }
       footer={
-        <div className="mt-2 border-t border-tertiary pt-2">
-          <Link
-            className="focus-ring flex items-center gap-2 rounded-lg p-2 text-sm text-secondary hover:bg-container-inset-hover"
-            params={{ transactionId: transaction.id }}
-            to="/transactions/$transactionId/split/new"
-          >
-            <Icon name="split" size="sm" />
-            Split
-          </Link>
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg p-2 text-sm text-secondary hover:bg-container-inset-hover">
-            <input
-              checked={transaction.excluded}
-              className="checkbox checkbox--light"
-              disabled={categorySave.isPending}
-              onChange={() => {
-                categorySave.mutate({ excluded: !transaction.excluded });
-              }}
-              type="checkbox"
-            />
-            {transaction.signed_amount_cents > 0 ? "One-time income" : "One-time expense"}
-            <Icon className="ml-auto text-warning" name="asterisk" size="sm" />
-          </label>
-        </div>
+        transaction.permissions.can_edit ? (
+          <div className="mt-2 border-t border-tertiary pt-2">
+            <Link
+              className="focus-ring flex items-center gap-2 rounded-lg p-2 text-sm text-secondary hover:bg-container-inset-hover"
+              params={{ transactionId: transaction.id }}
+              to="/transactions/$transactionId/split/new"
+            >
+              <Icon name="split" size="sm" />
+              Split
+            </Link>
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg p-2 text-sm text-secondary hover:bg-container-inset-hover">
+              <input
+                checked={transaction.excluded}
+                className="checkbox checkbox--light"
+                disabled={categorySave.isPending}
+                onChange={() => {
+                  categorySave.mutate({ excluded: !transaction.excluded });
+                }}
+                type="checkbox"
+              />
+              {transaction.signed_amount_cents > 0 ? "One-time income" : "One-time expense"}
+              <Icon className="ml-auto text-warning" name="asterisk" size="sm" />
+            </label>
+          </div>
+        ) : undefined
       }
     />
   );
@@ -743,24 +762,28 @@ function TransactionTransferMatch({
           {text.auto_matched_short}
         </span>
       </span>
-      <IconButton
-        disabled={decide.isPending}
-        icon="check"
-        label={text.confirm_match}
-        onClick={() => {
-          decide.mutate("confirmed");
-        }}
-        size="sm"
-      />
-      <IconButton
-        disabled={decide.isPending}
-        icon="x"
-        label={text.reject_match}
-        onClick={() => {
-          decide.mutate("rejected");
-        }}
-        size="sm"
-      />
+      {transfer.permissions.can_edit ? (
+        <>
+          <IconButton
+            disabled={decide.isPending}
+            icon="check"
+            label={text.confirm_match}
+            onClick={() => {
+              decide.mutate("confirmed");
+            }}
+            size="sm"
+          />
+          <IconButton
+            disabled={decide.isPending}
+            icon="x"
+            label={text.reject_match}
+            onClick={() => {
+              decide.mutate("rejected");
+            }}
+            size="sm"
+          />
+        </>
+      ) : null}
       {decide.error ? (
         <span className="basis-full text-xs text-destructive" role="alert">
           {decide.error.message}

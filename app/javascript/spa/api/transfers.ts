@@ -38,6 +38,7 @@ const SpaTransferSchema = z.object({
   amount_cents: z.number(),
   currency: z.string(),
   transfer_type: z.enum(["transfer", "liability_payment", "loan_payment"]),
+  permissions: z.object({ can_edit: z.boolean() }),
   name: z.optional(z.nullable(z.string())),
   payment: z.optional(z.nullable(z.boolean())),
   categorizable: z.optional(z.nullable(z.boolean())),

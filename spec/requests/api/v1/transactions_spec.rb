@@ -31,6 +31,10 @@ RSpec.describe 'API V1 Transactions', type: :request do
     )
   end
 
+  let(:read_only_api_key) do
+    ApiKey.create!(user: user, name: 'API Docs Read Key', key: ApiKey.generate_secure_key, scopes: %w[read], source: 'web')
+  end
+
   let(:'X-Api-Key') { api_key.plain_key }
 
   let(:account) do
@@ -345,7 +349,7 @@ RSpec.describe 'API V1 Transactions', type: :request do
 
     get 'Retrieve a transaction' do
       tags 'Transactions'
-      description 'Split parents include split_children with transfer_account_id identifying each linked counterpart account, or null for non-transfer children. Use it to preserve transfers when editing a split.'
+      description 'Includes viewer-specific account permissions.can_edit and permissions.can_annotate. Split parents include split_children with transfer_account_id identifying each linked counterpart account, or null for non-transfer children. Use it to preserve transfers when editing a split.'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
 
@@ -368,6 +372,7 @@ RSpec.describe 'API V1 Transactions', type: :request do
 
     patch 'Update a transaction' do
       tags 'Transactions'
+      description 'Requires a write-scoped credential and account annotation access. Annotation-only members can change category_id, merchant_id, tag_ids, and notes; all other fields require ownership or full_control. Requests mixing permitted annotations with forbidden fields are rejected without partial updates.'
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'
       produces 'application/json'
@@ -427,6 +432,12 @@ RSpec.describe 'API V1 Transactions', type: :request do
         run_test!
       end
 
+      response '403', 'write scope or account permission required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:api_key) { read_only_api_key }
+        run_test!
+      end
+
       response '404', 'transaction not found' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
@@ -446,6 +457,12 @@ RSpec.describe 'API V1 Transactions', type: :request do
       response '200', 'transaction deleted' do
         schema '$ref' => '#/components/schemas/DeleteResponse'
 
+        run_test!
+      end
+
+      response '403', 'write scope and account full control required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:api_key) { read_only_api_key }
         run_test!
       end
 
@@ -480,6 +497,12 @@ RSpec.describe 'API V1 Transactions', type: :request do
         run_test!
       end
 
+      response '403', 'write scope and account full control required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:api_key) { read_only_api_key }
+        run_test!
+      end
+
       response '404', 'transaction not found' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
@@ -507,6 +530,12 @@ RSpec.describe 'API V1 Transactions', type: :request do
             message: { type: :string }
           }
 
+        run_test!
+      end
+
+      response '403', 'write scope and account full control required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:api_key) { read_only_api_key }
         run_test!
       end
 
@@ -540,6 +569,12 @@ RSpec.describe 'API V1 Transactions', type: :request do
         run_test!
       end
 
+      response '403', 'write scope and account full control required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:api_key) { read_only_api_key }
+        run_test!
+      end
+
       response '404', 'transaction not found' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
@@ -567,6 +602,12 @@ RSpec.describe 'API V1 Transactions', type: :request do
             message: { type: :string }
           }
 
+        run_test!
+      end
+
+      response '403', 'write scope and account full control required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:api_key) { read_only_api_key }
         run_test!
       end
 

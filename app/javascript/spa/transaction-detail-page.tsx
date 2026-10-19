@@ -141,12 +141,17 @@ export function TransactionDetailDrawer() {
           ) : (
             <>
               <TransactionDetailHeader transaction={transaction} onClose={close} />
-              <TransactionDuplicateAlert bootstrap={bootstrap} transaction={transaction} />
+              {transaction.permissions.can_edit ? (
+                <TransactionDuplicateAlert bootstrap={bootstrap} transaction={transaction} />
+              ) : null}
               <TransactionProtectionBanner bootstrap={bootstrap} transaction={transaction} />
               {transaction.transfer ? (
                 <TransactionDetailTransfer bootstrap={bootstrap} transaction={transaction} />
               ) : null}
-              <TransactionEditableForm bootstrap={bootstrap} transaction={transaction} />
+              {transaction.permissions.can_annotate &&
+              (transaction.parent_entry_id ?? null) === null ? (
+                <TransactionEditableForm bootstrap={bootstrap} transaction={transaction} />
+              ) : null}
               <TransactionDetailBody transaction={transaction} />
               <TransactionAttachmentsSection bootstrap={bootstrap} transaction={transaction} />
               {(transaction.split_children?.length ?? 0) > 0 ? (
@@ -156,13 +161,20 @@ export function TransactionDetailDrawer() {
                 />
               ) : null}
               {transaction.split_parent ? (
-                <TransactionSplitChildSection parent={transaction.split_parent} />
+                <TransactionSplitChildSection
+                  parent={transaction.split_parent}
+                  canEdit={transaction.permissions.can_edit}
+                />
               ) : null}
-              <TransactionDetailSettings
-                bootstrap={bootstrap}
-                onDeleted={close}
-                transaction={transaction}
-              />
+              {transaction.permissions.can_edit ? (
+                <TransactionDetailSettings
+                  bootstrap={bootstrap}
+                  onDeleted={close}
+                  transaction={transaction}
+                />
+              ) : (
+                <TransactionBillAllocations transaction={transaction} />
+              )}
               <TransactionDetailMeta transaction={transaction} />
             </>
           )}
@@ -631,57 +643,61 @@ function TransactionEditableForm({
   return (
     <Section title="Overview">
       <div className="space-y-2">
-        <form.Field name="name">
-          {(field) => (
-            <div className="form-field">
-              <div className="form-field__body">
-                <label className="form-field__label" htmlFor="txn-name">
-                  Name
-                </label>
-                <input
-                  autoComplete="off"
-                  className="form-field__input"
-                  disabled={save.isPending}
-                  id="txn-name"
-                  onBlur={() => {
-                    saveField("name", field.state.value, transaction.name);
-                  }}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  placeholder="Transaction name"
-                  type="text"
-                  value={field.state.value}
-                />
-              </div>
-            </div>
-          )}
-        </form.Field>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <form.Field name="date">
+        {transaction.permissions.can_edit ? (
+          <form.Field name="name">
             {(field) => (
               <div className="form-field">
                 <div className="form-field__body">
-                  <label className="form-field__label" htmlFor="txn-date">
-                    Date
+                  <label className="form-field__label" htmlFor="txn-name">
+                    Name
                   </label>
                   <input
+                    autoComplete="off"
                     className="form-field__input"
                     disabled={save.isPending}
-                    id="txn-date"
+                    id="txn-name"
                     onBlur={() => {
-                      saveField("date", field.state.value, transaction.date);
+                      saveField("name", field.state.value, transaction.name);
                     }}
                     onChange={(event) => {
                       field.handleChange(event.target.value);
                     }}
-                    type="date"
+                    placeholder="Transaction name"
+                    type="text"
                     value={field.state.value}
                   />
                 </div>
               </div>
             )}
           </form.Field>
+        ) : null}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {transaction.permissions.can_edit ? (
+            <form.Field name="date">
+              {(field) => (
+                <div className="form-field">
+                  <div className="form-field__body">
+                    <label className="form-field__label" htmlFor="txn-date">
+                      Date
+                    </label>
+                    <input
+                      className="form-field__input"
+                      disabled={save.isPending}
+                      id="txn-date"
+                      onBlur={() => {
+                        saveField("date", field.state.value, transaction.date);
+                      }}
+                      onChange={(event) => {
+                        field.handleChange(event.target.value);
+                      }}
+                      type="date"
+                      value={field.state.value}
+                    />
+                  </div>
+                </div>
+              )}
+            </form.Field>
+          ) : null}
           <form.Field name="merchant_id">
             {(field) => (
               <MerchantSelect
@@ -770,31 +786,33 @@ function TransactionEditableForm({
             </div>
           )}
         </form.Field>
-        <form.Field name="excluded">
-          {(field) => (
-            <div className="form-field">
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-0.5">
-                  <label className="form-field__label cursor-pointer" htmlFor="txn-excluded">
-                    Exclude from reports
-                  </label>
-                  <p className="text-xs text-secondary">
-                    Hidden from budgets, cash flow, and reports
-                  </p>
+        {transaction.permissions.can_edit ? (
+          <form.Field name="excluded">
+            {(field) => (
+              <div className="form-field">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <label className="form-field__label cursor-pointer" htmlFor="txn-excluded">
+                      Exclude from reports
+                    </label>
+                    <p className="text-xs text-secondary">
+                      Hidden from budgets, cash flow, and reports
+                    </p>
+                  </div>
+                  <Toggle
+                    checked={field.state.value}
+                    disabled={save.isPending}
+                    id="txn-excluded"
+                    onChange={(next) => {
+                      field.handleChange(next);
+                      saveField("excluded", next, transaction.excluded);
+                    }}
+                  />
                 </div>
-                <Toggle
-                  checked={field.state.value}
-                  disabled={save.isPending}
-                  id="txn-excluded"
-                  onChange={(next) => {
-                    field.handleChange(next);
-                    saveField("excluded", next, transaction.excluded);
-                  }}
-                />
               </div>
-            </div>
-          )}
-        </form.Field>
+            )}
+          </form.Field>
+        ) : null}
         <div className="flex justify-end pt-1">
           <SaveIndicator state={saveState} />
         </div>
@@ -855,7 +873,7 @@ function TransactionDetailTransfer({
               <Icon name="chevron-right" size="sm" />
             </Link>
           ) : null}
-          {transfer.status === "pending" ? (
+          {transfer.status === "pending" && transfer.permissions.can_edit ? (
             <span className="flex gap-1.5">
               <Button
                 disabled={decide.isPending}
@@ -889,6 +907,9 @@ function TransactionDetailBody({ transaction }: { transaction: SpaTransactionDet
     <Section title="Details">
       <dl className="space-y-3">
         <Field label="Account" value={transaction.account.name} />
+        {!transaction.permissions.can_annotate || (transaction.parent_entry_id ?? null) !== null ? (
+          <Field label="Category" value={transaction.category?.name ?? "Uncategorized"} />
+        ) : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <dt className="text-xs font-medium uppercase tracking-wide text-secondary">Merchant</dt>
@@ -1076,12 +1097,20 @@ function TransactionSplitParentSection({
           <p className="privacy-sensitive text-sm font-medium text-primary">{child.amount}</p>
         </div>
       ))}
-      <SplitActions editTransactionId={transaction.id} transactionId={transaction.id} />
+      {transaction.permissions.can_edit ? (
+        <SplitActions editTransactionId={transaction.id} transactionId={transaction.id} />
+      ) : null}
     </Section>
   );
 }
 
-function TransactionSplitChildSection({ parent }: { parent: SplitParentSummary }) {
+function TransactionSplitChildSection({
+  parent,
+  canEdit,
+}: {
+  parent: SplitParentSummary;
+  canEdit: boolean;
+}) {
   return (
     <Section defaultOpen title="Part of Split">
       <div className="space-y-3 rounded-lg border border-secondary p-3">
@@ -1093,10 +1122,12 @@ function TransactionSplitChildSection({ parent }: { parent: SplitParentSummary }
           <p className="privacy-sensitive text-sm font-medium text-primary">{parent.amount}</p>
         </div>
       </div>
-      <SplitActions
-        editTransactionId={parent.transaction_id}
-        transactionId={parent.transaction_id}
-      />
+      {canEdit ? (
+        <SplitActions
+          editTransactionId={parent.transaction_id}
+          transactionId={parent.transaction_id}
+        />
+      ) : null}
     </Section>
   );
 }
@@ -1122,25 +1153,29 @@ function MerchantLinks({ transaction }: { transaction: SpaTransactionDetail }) {
       >
         {merchant.name}
       </Link>
-      <Link
-        className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary hover:underline"
-        params={{ merchantId: merchant.id }}
-        search={{ return_to: currentReturnTo() }}
-        to="/family_merchants/$merchantId/edit"
-      >
-        <Icon name="pencil" size="sm" />
-        Edit merchant
-      </Link>
-      <Link
-        className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary hover:underline"
-        search={{ ...ruleSearch, return_to: currentReturnTo() }}
-        to="/rules/new"
-      >
-        <Icon name="plus" size="sm" />
-        {transaction.category?.name !== undefined
-          ? `Always categorize as ${transaction.category.name}`
-          : "Always categorize"}
-      </Link>
+      {transaction.permissions.can_annotate ? (
+        <>
+          <Link
+            className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary hover:underline"
+            params={{ merchantId: merchant.id }}
+            search={{ return_to: currentReturnTo() }}
+            to="/family_merchants/$merchantId/edit"
+          >
+            <Icon name="pencil" size="sm" />
+            Edit merchant
+          </Link>
+          <Link
+            className="inline-flex items-center gap-1 text-xs text-secondary hover:text-primary hover:underline"
+            search={{ ...ruleSearch, return_to: currentReturnTo() }}
+            to="/rules/new"
+          >
+            <Icon name="plus" size="sm" />
+            {transaction.category?.name !== undefined
+              ? `Always categorize as ${transaction.category.name}`
+              : "Always categorize"}
+          </Link>
+        </>
+      ) : null}
     </span>
   );
 }
@@ -1225,24 +1260,26 @@ function TransactionAttachmentsSection({
 
   return (
     <Section title="Attachments">
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-secondary bg-container px-4 py-8 text-center transition-colors hover:bg-container-inset-hover">
-        <Icon className="text-secondary" name="plus" />
-        <span className="text-sm font-medium text-primary">Browse to add files</span>
-        <span className="text-xs text-secondary">
-          {attachments.length} of 10 used · up to 10 MB each
-        </span>
-        <input
-          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
-          className="hidden"
-          disabled={uploading}
-          multiple
-          onChange={(event) => {
-            void upload(event.target.files);
-            event.target.value = "";
-          }}
-          type="file"
-        />
-      </label>
+      {transaction.permissions.can_annotate ? (
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-secondary bg-container px-4 py-8 text-center transition-colors hover:bg-container-inset-hover">
+          <Icon className="text-secondary" name="plus" />
+          <span className="text-sm font-medium text-primary">Browse to add files</span>
+          <span className="text-xs text-secondary">
+            {attachments.length} of 10 used · up to 10 MB each
+          </span>
+          <input
+            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
+            className="hidden"
+            disabled={uploading}
+            multiple
+            onChange={(event) => {
+              void upload(event.target.files);
+              event.target.value = "";
+            }}
+            type="file"
+          />
+        </label>
+      ) : null}
       {uploading ? <p className="text-xs text-secondary">Uploading…</p> : null}
       {error !== null ? (
         <p className="text-xs text-destructive" role="alert">
@@ -1290,14 +1327,16 @@ function TransactionAttachmentsSection({
                 >
                   <Icon name="download" size="sm" />
                 </a>
-                <IconButton
-                  icon="trash-2"
-                  label={`Delete ${attachment.filename}`}
-                  onClick={() => {
-                    void removeAttachment(attachment.id);
-                  }}
-                  size="sm"
-                />
+                {transaction.permissions.can_edit ? (
+                  <IconButton
+                    icon="trash-2"
+                    label={`Delete ${attachment.filename}`}
+                    onClick={() => {
+                      void removeAttachment(attachment.id);
+                    }}
+                    size="sm"
+                  />
+                ) : null}
               </div>
             </div>
           ))}
@@ -1457,15 +1496,17 @@ function TransactionProtectionBanner({
           <Icon name="lock" size="sm" />
           Protected from sync
         </p>
-        <Button
-          className="text-xs font-medium"
-          disabled={unlocking}
-          onClick={() => void unlock()}
-          size="sm"
-          variant="link"
-        >
-          Unlock
-        </Button>
+        {transaction.permissions.can_edit ? (
+          <Button
+            className="text-xs font-medium"
+            disabled={unlocking}
+            onClick={() => void unlock()}
+            size="sm"
+            variant="link"
+          >
+            Unlock
+          </Button>
+        ) : null}
       </div>
       <p className="mt-1">Manual changes are preserved when the provider syncs.</p>
       {error !== null ? (

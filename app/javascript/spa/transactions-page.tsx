@@ -278,9 +278,15 @@ export function TransactionsPage() {
   });
 
   const transactionsList = data?.transactions ?? [];
-  const selectedTransactions = transactionsList.filter((t) => selected.has(t.id));
+  const selectableTransactions = transactionsList.filter(
+    (transaction) => transaction.permissions.can_annotate,
+  );
+  const selectedTransactions = selectableTransactions.filter((transaction) =>
+    selected.has(transaction.id),
+  );
   const allSelected =
-    transactionsList.length > 0 && selectedTransactions.length === transactionsList.length;
+    selectableTransactions.length > 0 &&
+    selectedTransactions.length === selectableTransactions.length;
 
   const select = (ids: TransactionId[], checked: boolean) => {
     setSelected((previous) => {
@@ -356,23 +362,27 @@ export function TransactionsPage() {
             Import
           </a>
 
-          <Link
-            className="focus-ring hidden md:inline-flex items-center gap-1.5 rounded-lg button-bg-primary px-4 py-2 text-sm font-medium text-inverse transition-colors hover:button-bg-primary-hover"
-            search={{ account_id: undefined, nature: undefined }}
-            to="/transactions/new"
-          >
-            <Icon className="text-inverse" name="plus" size="sm" />
-            New transaction
-          </Link>
+          {reference.accounts.some((account) => account.permissions?.can_edit === true) ? (
+            <>
+              <Link
+                className="focus-ring hidden md:inline-flex items-center gap-1.5 rounded-lg button-bg-primary px-4 py-2 text-sm font-medium text-inverse transition-colors hover:button-bg-primary-hover"
+                search={{ account_id: undefined, nature: undefined }}
+                to="/transactions/new"
+              >
+                <Icon className="text-inverse" name="plus" size="sm" />
+                New transaction
+              </Link>
 
-          <Link
-            aria-label="New transaction"
-            className="focus-ring inline-flex md:hidden size-9 items-center justify-center rounded-full button-bg-primary text-inverse transition-colors hover:button-bg-primary-hover"
-            search={{ account_id: undefined, nature: undefined }}
-            to="/transactions/new"
-          >
-            <Icon className="text-inverse" name="plus" size="sm" />
-          </Link>
+              <Link
+                aria-label="New transaction"
+                className="focus-ring inline-flex md:hidden size-9 items-center justify-center rounded-full button-bg-primary text-inverse transition-colors hover:button-bg-primary-hover"
+                search={{ account_id: undefined, nature: undefined }}
+                to="/transactions/new"
+              >
+                <Icon className="text-inverse" name="plus" size="sm" />
+              </Link>
+            </>
+          ) : null}
         </div>
       </header>
 
@@ -448,19 +458,21 @@ export function TransactionsPage() {
             <div className="sticky top-0 z-20 hidden bg-container md:block">
               <TransactionRowHeader
                 selection={
-                  <input
-                    aria-label="Select all"
-                    checked={allSelected}
-                    className="checkbox checkbox--light"
-                    disabled={transactionsList.length === 0}
-                    onChange={(event) => {
-                      select(
-                        transactionsList.map((t) => t.id),
-                        event.currentTarget.checked,
-                      );
-                    }}
-                    type="checkbox"
-                  />
+                  selectableTransactions.length > 0 ? (
+                    <input
+                      aria-label="Select all"
+                      checked={allSelected}
+                      className="checkbox checkbox--light"
+                      disabled={selectableTransactions.length === 0}
+                      onChange={(event) => {
+                        select(
+                          selectableTransactions.map((transaction) => transaction.id),
+                          event.currentTarget.checked,
+                        );
+                      }}
+                      type="checkbox"
+                    />
+                  ) : undefined
                 }
                 showTags={columns.tags}
               />
@@ -491,79 +503,86 @@ export function TransactionsPage() {
               </div>
             ) : (
               <div aria-live="polite" className="divide-y divide-tertiary">
-                {groupedTransactions.map(([date, transactions]) => (
-                  <div key={date}>
-                    <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-container-inset px-4 py-2.5 md:top-10">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <input
-                          aria-label={`Select all for ${formatTransactionDate(date)}`}
-                          checked={
-                            transactions.length > 0 && transactions.every((t) => selected.has(t.id))
-                          }
-                          className="checkbox checkbox--light shrink-0"
-                          disabled={transactions.length === 0}
-                          onChange={(event) => {
-                            select(
-                              transactions.map((t) => t.id),
-                              event.currentTarget.checked,
-                            );
-                          }}
-                          type="checkbox"
-                        />
-                        <h2 className="truncate text-xs font-medium uppercase tracking-wide text-secondary">
-                          {formatTransactionDate(date)} <span className="mx-1">&middot;</span>{" "}
-                          {transactions.length}
-                        </h2>
+                {groupedTransactions.map(([date, transactions]) => {
+                  const groupSelectable = transactions.filter(
+                    (transaction) => transaction.permissions.can_annotate,
+                  );
+                  return (
+                    <div key={date}>
+                      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-container-inset px-4 py-2.5 md:top-10">
+                        <div className="flex min-w-0 items-center gap-3">
+                          {groupSelectable.length > 0 ? (
+                            <input
+                              aria-label={`Select all for ${formatTransactionDate(date)}`}
+                              checked={groupSelectable.every((transaction) =>
+                                selected.has(transaction.id),
+                              )}
+                              className="checkbox checkbox--light shrink-0"
+                              disabled={groupSelectable.length === 0}
+                              onChange={(event) => {
+                                select(
+                                  groupSelectable.map((transaction) => transaction.id),
+                                  event.currentTarget.checked,
+                                );
+                              }}
+                              type="checkbox"
+                            />
+                          ) : null}
+                          <h2 className="truncate text-xs font-medium uppercase tracking-wide text-secondary">
+                            {formatTransactionDate(date)} <span className="mx-1">&middot;</span>{" "}
+                            {transactions.length}
+                          </h2>
+                        </div>
+                        <span className="privacy-sensitive text-xs font-medium tabular-nums text-secondary">
+                          {formatDailyTotal(transactions)}
+                        </span>
                       </div>
-                      <span className="privacy-sensitive text-xs font-medium tabular-nums text-secondary">
-                        {formatDailyTotal(transactions)}
-                      </span>
+                      <ul className="divide-y divide-tertiary">
+                        {clusterSplitGroups(transactions, splitParentsByEntryId).map((row) =>
+                          row.kind === "single" ? (
+                            <TransactionRow
+                              categories={reference.categories}
+                              columns={columns}
+                              key={row.transaction.id}
+                              onAddMerchantFilter={addMerchantFilter}
+                              selection={{
+                                selected: selected.has(row.transaction.id),
+                                disabled: false,
+                                onChange: (checked) => {
+                                  select([row.transaction.id], checked);
+                                },
+                                label: `Select ${row.transaction.name}`,
+                              }}
+                              transaction={row.transaction}
+                            />
+                          ) : (
+                            <Fragment key={`split-${row.children[0]?.id ?? row.parent?.entry_id}`}>
+                              <SplitParentHeader parent={row.parent} />
+                              {row.children.map((child) => (
+                                <TransactionRow
+                                  categories={reference.categories}
+                                  columns={columns}
+                                  indent
+                                  key={child.id}
+                                  onAddMerchantFilter={addMerchantFilter}
+                                  selection={{
+                                    selected: selected.has(child.id),
+                                    disabled: false,
+                                    onChange: (checked) => {
+                                      select([child.id], checked);
+                                    },
+                                    label: `Select ${child.name}`,
+                                  }}
+                                  transaction={child}
+                                />
+                              ))}
+                            </Fragment>
+                          ),
+                        )}
+                      </ul>
                     </div>
-                    <ul className="divide-y divide-tertiary">
-                      {clusterSplitGroups(transactions, splitParentsByEntryId).map((row) =>
-                        row.kind === "single" ? (
-                          <TransactionRow
-                            categories={reference.categories}
-                            columns={columns}
-                            key={row.transaction.id}
-                            onAddMerchantFilter={addMerchantFilter}
-                            selection={{
-                              selected: selected.has(row.transaction.id),
-                              disabled: false,
-                              onChange: (checked) => {
-                                select([row.transaction.id], checked);
-                              },
-                              label: `Select ${row.transaction.name}`,
-                            }}
-                            transaction={row.transaction}
-                          />
-                        ) : (
-                          <Fragment key={`split-${row.children[0]?.id ?? row.parent?.entry_id}`}>
-                            <SplitParentHeader parent={row.parent} />
-                            {row.children.map((child) => (
-                              <TransactionRow
-                                categories={reference.categories}
-                                columns={columns}
-                                indent
-                                key={child.id}
-                                onAddMerchantFilter={addMerchantFilter}
-                                selection={{
-                                  selected: selected.has(child.id),
-                                  disabled: false,
-                                  onChange: (checked) => {
-                                    select([child.id], checked);
-                                  },
-                                  label: `Select ${child.name}`,
-                                }}
-                                transaction={child}
-                              />
-                            ))}
-                          </Fragment>
-                        ),
-                      )}
-                    </ul>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -616,17 +635,23 @@ export function TransactionsPage() {
                   Duplicate selected
                 </Link>
               ) : null}
-              <Button
-                disabled={bulkDeleteMutation.isPending}
-                onClick={() => {
-                  setConfirmDelete(true);
-                }}
-                size="sm"
-                type="button"
-                variant="destructive-outline"
-              >
-                Delete selected
-              </Button>
+              {selectedTransactions.every(
+                (transaction) =>
+                  transaction.permissions.can_edit &&
+                  (transaction.parent_entry_id ?? null) === null,
+              ) ? (
+                <Button
+                  disabled={bulkDeleteMutation.isPending}
+                  onClick={() => {
+                    setConfirmDelete(true);
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="destructive-outline"
+                >
+                  Delete selected
+                </Button>
+              ) : null}
             </BulkActionsBar>
           ) : null}
           {deleteError !== null ? (

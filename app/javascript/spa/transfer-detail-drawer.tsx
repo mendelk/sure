@@ -15,7 +15,7 @@ import type { SpaBootstrap } from "./bootstrap";
 import { BrandLogo } from "./components/brand-logo";
 import { Button } from "./components/button";
 import { IconButton } from "./components/icon-button";
-import { TagSelect } from "./components/tag-select";
+import { TagPill, TagSelect } from "./components/tag-select";
 import { Icon } from "./icon";
 import { AccountIdSchema, TagIdSchema, TransferIdSchema, type TagId, type TransferId } from "./ids";
 import { Modal } from "./modal";
@@ -340,14 +340,16 @@ export function TransferDetailDrawer({
               />
 
               {/* Settings Section */}
-              <TransferSettingsSection
-                bootstrap={bootstrap}
-                onDeleteRequest={() => {
-                  setShowDeleteConfirm(true);
-                }}
-                transfer={transfer}
-                transferId={transferId}
-              />
+              {transfer.permissions.can_edit || transfer.recurring_exists === true ? (
+                <TransferSettingsSection
+                  bootstrap={bootstrap}
+                  onDeleteRequest={() => {
+                    setShowDeleteConfirm(true);
+                  }}
+                  transfer={transfer}
+                  transferId={transferId}
+                />
+              ) : null}
             </>
           )}
         </div>
@@ -424,7 +426,7 @@ function TransferDetailsSection({
       bootstrap.apiPaths.merchants,
       bootstrap.apiPaths.tags,
     ),
-    enabled: transfer.categorizable === true,
+    enabled: transfer.categorizable === true && transfer.permissions.can_edit,
   });
 
   const updateMutation = useMutation({
@@ -468,7 +470,7 @@ function TransferDetailsSection({
             {updateMutation.error.message}
           </p>
         ) : null}
-        {transfer.categorizable === true ? (
+        {transfer.categorizable === true && transfer.permissions.can_edit ? (
           <div className="space-y-1">
             <CategorySelect
               bootstrap={bootstrap}
@@ -489,20 +491,35 @@ function TransferDetailsSection({
               </p>
             ) : null}
           </div>
+        ) : transfer.categorizable === true ? (
+          <div className="space-y-1 text-sm text-primary">
+            <p className="text-xs font-medium uppercase tracking-wide text-secondary">Category</p>
+            <p>{transfer.category?.name ?? "Uncategorized"}</p>
+          </div>
         ) : null}
         {/* Tags */}
         <div className="space-y-1">
           <span className="text-xs font-medium uppercase tracking-wide text-secondary">Tags</span>
-          <TagSelect
-            bootstrap={bootstrap}
-            initialTags={transfer.tags}
-            onSelect={async (newTagIds) => {
-              setSelectedTagIds(newTagIds);
-              await updateMutation.mutateAsync({ tag_ids: newTagIds });
-            }}
-            placeholder="(none)"
-            selectedTagIds={selectedTagIds}
-          />
+          {transfer.permissions.can_edit ? (
+            <TagSelect
+              bootstrap={bootstrap}
+              initialTags={transfer.tags}
+              onSelect={async (newTagIds) => {
+                setSelectedTagIds(newTagIds);
+                await updateMutation.mutateAsync({ tag_ids: newTagIds });
+              }}
+              placeholder="(none)"
+              selectedTagIds={selectedTagIds}
+            />
+          ) : (
+            <span className="flex flex-wrap gap-1">
+              {transfer.tags.length > 0
+                ? transfer.tags.map((tag) => (
+                    <TagPill color={tag.color} key={tag.id} name={tag.name} />
+                  ))
+                : "None"}
+            </span>
+          )}
         </div>
 
         {/* Notes */}
@@ -515,19 +532,26 @@ function TransferDetailsSection({
               Notes
             </label>
           </div>
-          <textarea
-            className="w-full resize-none rounded-xl border border-secondary bg-container px-3 py-2 text-sm text-primary placeholder:text-secondary focus-ring"
-            id="transfer-notes"
-            onBlur={() => {
-              if (notes !== (transfer.notes ?? "")) updateMutation.mutate({ notes: notes.trim() });
-            }}
-            onChange={(e) => {
-              setNotes(e.target.value);
-            }}
-            placeholder="Add a note to this transfer"
-            rows={5}
-            value={notes}
-          />
+          {transfer.permissions.can_edit ? (
+            <textarea
+              className="w-full resize-none rounded-xl border border-secondary bg-container px-3 py-2 text-sm text-primary placeholder:text-secondary focus-ring"
+              id="transfer-notes"
+              onBlur={() => {
+                if (notes !== (transfer.notes ?? ""))
+                  updateMutation.mutate({ notes: notes.trim() });
+              }}
+              onChange={(e) => {
+                setNotes(e.target.value);
+              }}
+              placeholder="Add a note to this transfer"
+              rows={5}
+              value={notes}
+            />
+          ) : (
+            <p className="text-sm text-primary">
+              {transfer.notes !== null && transfer.notes.length > 0 ? transfer.notes : "—"}
+            </p>
+          )}
         </div>
       </div>
     </details>
@@ -569,7 +593,7 @@ function TransferSettingsSection({
   });
 
   const canMarkAsRecurring =
-    transfer.can_mark_as_recurring !== false &&
+    transfer.can_mark_as_recurring === true &&
     transfer.recurring_exists !== true &&
     !recurringSuccess;
 
@@ -618,22 +642,24 @@ function TransferSettingsSection({
         ) : null}
 
         {/* Remove Transfer */}
-        <div className="flex flex-col gap-3 rounded-xl border border-secondary p-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1 text-sm">
-            <h4 className="font-medium text-primary">Remove transfer?</h4>
-            <p className="text-xs text-secondary">
-              This removes the transfer. It will not delete the underlying transactions.
-            </p>
+        {transfer.permissions.can_edit ? (
+          <div className="flex flex-col gap-3 rounded-xl border border-secondary p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1 text-sm">
+              <h4 className="font-medium text-primary">Remove transfer?</h4>
+              <p className="text-xs text-secondary">
+                This removes the transfer. It will not delete the underlying transactions.
+              </p>
+            </div>
+            <Button
+              className="shrink-0"
+              onClick={onDeleteRequest}
+              size="sm"
+              variant="destructive-outline"
+            >
+              Remove transfer
+            </Button>
           </div>
-          <Button
-            className="shrink-0"
-            onClick={onDeleteRequest}
-            size="sm"
-            variant="destructive-outline"
-          >
-            Remove transfer
-          </Button>
-        </div>
+        ) : null}
       </div>
     </details>
   );

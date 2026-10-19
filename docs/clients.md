@@ -59,6 +59,34 @@ pickers. Enter or Space opens a picker, arrow keys navigate options, Enter selec
 an option, and Escape closes only the picker and restores trigger focus. Tags
 support multiple selections; category and merchant selections are single-valued.
 
+The **Account Sharing** dialog saves owner-managed permissions and each member's
+own finance-inclusion preference through JSON requests. Successful saves return
+`204 No Content`, close the dialog, and leave the saved settings in place without
+following a redirect. HTML form submissions use `303 See Other` so navigation
+continues as a GET rather than replaying the PATCH. Only an account owner can
+change who it is shared with; members can change only their own finance inclusion.
+
+Transaction controls follow the viewer's **account permission**, not their family
+role. A member can split transactions when they own the account or have full
+control.
+
+| Account permission | Transaction controls |
+| --- | --- |
+| View only (`read_only`) | View metadata and download attachments; no mutation controls. |
+| Can annotate (`read_write`) | Edit category, merchant, tags, and notes; upload attachments. |
+| Owner or full control (`full_control`) | Also manage financial/settings fields, splits, deletion, and sync protection. |
+
+Rows, drawers, and direct split/matcher routes hide unavailable controls rather
+than relying on a failed save. Bulk edit uses the permissions shared by every
+selected account; mixed annotation/full-control selections cannot rename,
+redate, or delete transactions. Server authorization still rejects forbidden
+writes, including mixed-field requests, without partially saving them.
+
+The transfer editor requires full control of its outflow account for edits or
+removal. Marking a transfer as recurring requires full control of **both**
+accounts. Split and transfer-matching destination pickers offer only writable
+accounts.
+
 The transaction drawer's Settings section includes an **Open matcher** row that
 opens a native `/transactions/$transactionId/transfer_match/new` page. It shows
 the current side first, then a counterpart picker with **Match existing** and

@@ -25,6 +25,10 @@ export type AccountSearch = {
   per_page?: number;
   statement_year?: number;
 };
+export const AccountPermissionsSchema = z.object({
+  can_edit: z.boolean(),
+  can_annotate: z.boolean(),
+});
 const ToneSchema = z.enum(["primary", "success", "destructive", "warning"]);
 const NullableStringSchema = z.nullable(z.string());
 export const AccountActionSchema = z.object({
