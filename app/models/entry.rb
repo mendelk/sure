@@ -571,7 +571,8 @@ class Entry < ApplicationRecord
     #
     # @param bulk_update_params [Hash] The parameters to update
     # @param update_tags [Boolean] Whether to update tags (default: false)
-    def bulk_update!(bulk_update_params, update_tags: false)
+    # @param transfer_account [Account, nil] Create a confirmed counterpart for each selected transaction
+    def bulk_update!(bulk_update_params, update_tags: false, transfer_account: nil)
       bulk_attributes = {
         date: bulk_update_params[:date],
         notes: bulk_update_params[:notes],
@@ -583,12 +584,40 @@ class Entry < ApplicationRecord
       }.compact_blank
 
       tag_ids = Array.wrap(bulk_update_params[:tag_ids]).reject(&:blank?)
-      has_updates = bulk_attributes.present? || update_tags
+      has_updates = bulk_attributes.present? || update_tags || transfer_account.present?
 
       return 0 unless has_updates
 
+      entries = all
+      transfers = []
       transaction do
-        all.each do |entry|
+        if transfer_account
+          # Keep the authorized selection in a subquery: PostgreSQL cannot lock DISTINCT rows.
+          entries = Entry.unscoped.where(id: entries.reselect(:id)).order(:id).lock.preload(:entryable, :child_entries)
+          if (invalid = entries.find { |entry| !entry.transaction? })
+            invalid.errors.add(:base, I18n.t("transactions.bulk_updates.errors.transactions_only"))
+            raise ActiveRecord::RecordInvalid.new(invalid)
+          end
+          ActiveRecord::Associations::Preloader.new(
+            records: entries.map(&:transaction),
+            associations: [ :transfer_as_inflow, :transfer_as_outflow ]
+          ).call
+        end
+
+        entries.each do |entry|
+          if transfer_account
+            error_key = if entry.split_child? || entry.child_entries.any?
+              "split_entries"
+            elsif entry.transaction.transfer.present?
+              "already_matched"
+            elsif entry.account_id == transfer_account.id
+              "same_account"
+            end
+            if error_key
+              entry.errors.add(:base, I18n.t("transactions.bulk_updates.errors.#{error_key}"))
+              raise ActiveRecord::RecordInvalid.new(entry)
+            end
+          end
           changed = false
 
           # Update standard attributes
@@ -614,6 +643,22 @@ class Entry < ApplicationRecord
             changed = true
           end
 
+          if transfer_account
+            result = Transfer::Matcher.match(
+              transaction: entry.transaction,
+              method: "new",
+              target_account_id: transfer_account.id,
+              accessible_accounts: Account.where(id: transfer_account.id),
+              accessible_entries: none
+            )
+            if result.error
+              entry.errors.add(:base, result.error)
+              raise ActiveRecord::RecordInvalid.new(entry)
+            end
+            transfers << result.transfer
+            changed = true
+          end
+
           if changed
             entry.lock_saved_attributes!
             entry.mark_user_modified!
@@ -621,7 +666,8 @@ class Entry < ApplicationRecord
         end
       end
 
-      all.size
+      transfers.each(&:sync_account_later)
+      entries.size
     end
   end
 

@@ -23,7 +23,17 @@ en:
         overview: Overview
         save: Save
         tags_label: Tags
+        transfer_label: Transfer counterpart account
+        transfer_unchanged: No change
+        transfer_description: Creates a new opposite transaction in this account for every selected transaction. Existing imported transactions are not matched.
+        update_error: Failed to update transactions.
         transactions_section: Transactions
+      errors:
+        target_not_writable: Choose a counterpart account you fully control.
+        transactions_only: Only transactions can be converted to transfers.
+        split_entries: Use the split editor to change transfers on split transactions.
+        already_matched: Remove the existing transfer match before creating a new counterpart.
+        same_account: The counterpart account must differ from every selected transaction's account.
     unknown_name: Unknown transaction
     selection_bar:
       duplicate: Duplicate

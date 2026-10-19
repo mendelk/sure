@@ -1,6 +1,8 @@
 require "test_helper"
 
 class Transactions::BulkUpdatesControllerTest < ActionDispatch::IntegrationTest
+  include EntriesTestHelper
+
   setup do
     sign_in @user = users(:family_admin)
   end
@@ -110,8 +112,6 @@ class Transactions::BulkUpdatesControllerTest < ActionDispatch::IntegrationTest
          },
          as: :json
 
-    assert_redirected_to transactions_url
-
     transaction_entry.reload
     assert_equal Category.second, transaction_entry.transaction.category
     assert_empty transaction_entry.transaction.tags
@@ -146,7 +146,6 @@ class Transactions::BulkUpdatesControllerTest < ActionDispatch::IntegrationTest
     assert_equal({ "can_edit" => false, "can_annotate" => true }, response.parsed_body.fetch("permissions"))
 
     post transactions_bulk_update_url, params: { bulk_update: { entry_ids: [ entry.id ], notes: "Allowed annotation" } }, as: :json
-    assert_response :redirect
     assert_equal "Allowed annotation", entry.reload.notes
 
     post transactions_bulk_update_url, params: {
@@ -186,6 +185,151 @@ class Transactions::BulkUpdatesControllerTest < ActionDispatch::IntegrationTest
     assert_response :redirect
     assert_equal "Member edit", entry.reload.name
     assert_equal Date.yesterday, entry.date
+  end
+
+  test "bulk transfer creates confirmed opposite entries for both source directions" do
+    expense = create_transaction(account: accounts(:depository), amount: 100)
+    income = create_transaction(account: accounts(:depository), amount: -50, kind: "cc_payment")
+    target = accounts(:credit_card)
+
+    assert_difference [ "Entry.count", "Transaction.count", "Transfer.count" ], 2 do
+      post transactions_bulk_update_url, params: {
+        bulk_update: {
+          entry_ids: [ expense.id, income.id ],
+          transfer_account_id: target.id,
+          notes: "Bulk transfer"
+        }
+      }, as: :json
+    end
+
+    assert_response :success
+    assert_equal 2, response.parsed_body.fetch("updated_count")
+    [ expense, income ].each do |entry|
+      transaction = entry.reload.transaction
+      transfer = transaction.transfer
+      assert transfer.confirmed?
+      counterpart = transfer.inflow_transaction_id == transaction.id ? transfer.outflow_transaction : transfer.inflow_transaction
+      assert_equal target.id, counterpart.entry.account_id
+      assert_equal(-entry.amount, counterpart.entry.amount)
+      assert_equal entry.currency, counterpart.entry.currency
+      assert_equal entry.date, counterpart.entry.date
+      assert_equal "Bulk transfer", entry.notes
+    end
+    assert_equal "cc_payment", expense.transaction.kind
+    assert_equal "funds_movement", income.transaction.kind
+  end
+
+  test "bulk transfer rejects an existing match without partially updating the batch" do
+    entry = create_transaction(account: accounts(:depository), amount: 20)
+    matched = entries(:transfer_out)
+    original_match = matched.transaction.transfer.id
+
+    assert_no_difference [ "Entry.count", "Transfer.count" ] do
+      post transactions_bulk_update_url, params: {
+        bulk_update: {
+          entry_ids: [ entry.id, matched.id ],
+          transfer_account_id: accounts(:loan).id,
+          notes: "Must not save"
+        }
+      }, as: :json
+    end
+
+    assert_response :unprocessable_entity
+    assert_nil entry.reload.notes
+    assert_equal original_match, matched.reload.transaction.transfer.id
+  end
+
+  test "bulk transfer rolls back all changes if a counterpart fails validation" do
+    valid = create_transaction(account: accounts(:depository), amount: 25)
+    invalid = create_transaction(account: accounts(:depository), amount: 0)
+
+    assert_no_difference [ "Entry.count", "Transfer.count" ] do
+      post transactions_bulk_update_url, params: {
+        bulk_update: {
+          entry_ids: [ valid.id, invalid.id ],
+          transfer_account_id: accounts(:loan).id,
+          name: "Must not save"
+        }
+      }, as: :json
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal "Transaction", valid.reload.name
+    assert_nil valid.transaction.transfer
+  end
+
+  test "bulk transfer rejects a target that is also a selected source" do
+    entries = [
+      create_transaction(account: accounts(:depository), amount: 25),
+      create_transaction(account: accounts(:credit_card), amount: -25)
+    ]
+
+    assert_no_difference [ "Entry.count", "Transfer.count" ] do
+      post transactions_bulk_update_url, params: {
+        bulk_update: { entry_ids: entries.map(&:id), transfer_account_id: accounts(:credit_card).id }
+      }, as: :json
+    end
+
+    assert_response :unprocessable_entity
+  end
+
+  test "bulk transfer rejects split entries and non transactions instead of silently skipping them" do
+    parent = create_transaction(account: accounts(:depository), amount: 100)
+    child = parent.split!([
+      { name: "First half", amount: 50 },
+      { name: "Second half", amount: 50 }
+    ]).first
+
+    [ parent, child, entries(:valuation) ].each do |entry|
+      assert_no_difference [ "Entry.count", "Transfer.count" ] do
+        post transactions_bulk_update_url, params: {
+          bulk_update: { entry_ids: [ entry.id ], transfer_account_id: accounts(:loan).id }
+        }, as: :json
+      end
+      assert_response :unprocessable_entity
+    end
+  end
+
+  test "bulk transfer requires full control of every source account" do
+    entry = shared_entry("read_write")
+    sign_in users(:family_member)
+
+    assert_no_difference [ "Entry.count", "Transfer.count" ] do
+      post transactions_bulk_update_url, params: {
+        bulk_update: {
+          entry_ids: [ entry.id ],
+          transfer_account_id: accounts(:loan).id,
+          notes: "Must not save"
+        }
+      }, as: :json
+    end
+
+    assert_response :forbidden
+    assert_nil entry.reload.notes
+  end
+
+  test "bulk transfer rejects restricted inaccessible and foreign target accounts" do
+    source = shared_entry("full_control")
+    target = shared_entry("read_only").account
+    foreign = families(:empty).accounts.create!(
+      name: "Other family account", owner: users(:empty), balance: 0, currency: "USD", accountable: Depository.new
+    )
+    accounts(:depository).account_shares.where(user: users(:family_member)).destroy_all
+    sign_in users(:family_member)
+
+    [ target.id, accounts(:depository).id, foreign.id, SecureRandom.uuid ].each do |target_id|
+      assert_no_difference [ "Entry.count", "Transfer.count" ] do
+        post transactions_bulk_update_url, params: {
+          bulk_update: {
+            entry_ids: [ source.id ],
+            transfer_account_id: target_id,
+            notes: "Must not save"
+          }
+        }, as: :json
+      end
+      assert_response :forbidden
+      assert_nil source.reload.notes
+    end
   end
 
   private

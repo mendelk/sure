@@ -9,7 +9,13 @@ import { Button } from "./components/button";
 import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Modal } from "./modal";
-import { AccountIdSchema, type CategoryId, type MerchantId, type TagId } from "./ids";
+import {
+  AccountIdSchema,
+  type AccountId,
+  type CategoryId,
+  type MerchantId,
+  type TagId,
+} from "./ids";
 import {
   bulkUpdatePermissionsQueryOptions,
   readCsrfToken,
@@ -89,6 +95,7 @@ export function BulkUpdateDrawer({
   const [tagIds, setTagIds] = useState<TagId[]>([]);
   const [tagsTouched, setTagsTouched] = useState(false);
   const [notes, setNotes] = useState("");
+  const [transferAccountId, setTransferAccountId] = useState<AccountId | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -136,6 +143,8 @@ export function BulkUpdateDrawer({
 
       if (canEdit && date.trim().length > 0) formData.set("bulk_update[date]", date.trim());
       if (canEdit && name.trim().length > 0) formData.set("bulk_update[name]", name.trim());
+      if (canEdit && transferAccountId !== "")
+        formData.set("bulk_update[transfer_account_id]", transferAccountId);
       if (categoryId !== "") formData.set("bulk_update[category_id]", categoryId);
       if (merchantId !== "") formData.set("bulk_update[merchant_id]", merchantId);
       if (notes.trim().length > 0) formData.set("bulk_update[notes]", notes.trim());
@@ -147,12 +156,25 @@ export function BulkUpdateDrawer({
       const response = await fetch(bootstrap.railsPaths.bulkUpdate, {
         method: "POST",
         body: formData,
+        headers: { Accept: "application/json" },
         credentials: "same-origin",
         redirect: "manual",
       });
 
-      if (!response.ok && response.type !== "opaqueredirect")
-        throw new Error(`Failed to update transactions (${response.status})`);
+      if (!response.ok) {
+        let message = text.update_error;
+        if (response.headers.get("content-type")?.includes("application/json") === true) {
+          const body: unknown = await response.json();
+          if (
+            body !== null &&
+            typeof body === "object" &&
+            "error" in body &&
+            typeof body.error === "string"
+          )
+            message = body.error;
+        }
+        throw new Error(message);
+      }
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] }),
@@ -162,7 +184,7 @@ export function BulkUpdateDrawer({
 
       close();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to update transactions");
+      setSubmitError(err instanceof Error ? err.message : text.update_error);
     } finally {
       setIsSubmitting(false);
     }
@@ -171,6 +193,10 @@ export function BulkUpdateDrawer({
   const categories = referenceQuery.data !== undefined ? referenceQuery.data.categories : [];
   const merchants = referenceQuery.data !== undefined ? referenceQuery.data.merchants : [];
   const tags = referenceQuery.data !== undefined ? referenceQuery.data.tags : [];
+  const sourceAccountIds = permissionQuery.data?.source_account_ids ?? [];
+  const transferAccounts = (referenceQuery.data?.accounts ?? []).filter(
+    (account) => account.permissions?.can_edit === true && !sourceAccountIds.includes(account.id),
+  );
 
   return (
     <Modal
@@ -193,7 +219,7 @@ export function BulkUpdateDrawer({
         </div>
 
         {submitError !== null ? (
-          <Alert live="alert" title={submitError} variant="error">
+          <Alert live="alert" variant="error">
             <p>{submitError}</p>
           </Alert>
         ) : null}
@@ -248,6 +274,26 @@ export function BulkUpdateDrawer({
                     type="text"
                     value={name}
                   />
+                  <FormField
+                    as="select"
+                    description={text.transfer_description}
+                    disabled={isSubmitting || referenceQuery.isPending}
+                    id="bulk-update-transfer-account"
+                    label={text.transfer_label}
+                    onChange={(event) => {
+                      setTransferAccountId(
+                        event.target.value === "" ? "" : AccountIdSchema.parse(event.target.value),
+                      );
+                    }}
+                    value={transferAccountId}
+                  >
+                    <option value="">{text.transfer_unchanged}</option>
+                    {transferAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.name}
+                      </option>
+                    ))}
+                  </FormField>
                 </>
               ) : null}
 
