@@ -24,6 +24,12 @@ import { SearchablePicker, type PickerOption } from "./searchable-picker";
 import { BrandLogo } from "./brand-logo";
 const transactionGridClass =
   "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:grid-cols-12";
+const transferKinds: Partial<Record<string, true>> = {
+  funds_movement: true,
+  cc_payment: true,
+  loan_payment: true,
+  investment_contribution: true,
+};
 const defaultColumnLabels = {
   transaction: "Transaction",
   category: "Category",
@@ -100,28 +106,14 @@ export function TransactionRow({
     (transaction.classification === "income" ? "Income" : "Uncategorized");
 
   const isConfirmedTransfer = transaction.transfer?.status === "confirmed";
-  const isTransferKind = [
-    "funds_movement",
-    "cc_payment",
-    "loan_payment",
-    "investment_contribution",
-  ].includes(transaction.kind ?? "");
-  const isTransfer = Boolean(transaction.transfer) || isTransferKind;
+  const isTransferKind = transferKinds[transaction.kind ?? ""] === true;
+  const isTransfer = isTransferKind;
 
-  const isPayment =
-    transaction.kind === "cc_payment" ||
-    transaction.transfer?.other_account?.account_type === "credit_card" ||
-    transaction.transfer?.other_account?.account_type === "liability";
-
+  const displayCategory = transaction.display_category;
   const isLoanPayment = transaction.kind === "loan_payment";
   const transferPrefix = isLoanPayment ? "Loan payment" : "Transfer";
-  const isGlobalTransfer = !accountId && (isConfirmedTransfer || isTransferKind);
+  const isGlobalTransfer = !accountId && isTransferKind;
 
-  const virtualTransferCategory = isPayment
-    ? { name: "Payment", color: "#db5a54", icon: "arrow-right" }
-    : { name: "Transfer", color: "#444CE7", icon: "arrow-left-right" };
-
-  const showVirtualBadge = isConfirmedTransfer && !isLoanPayment;
   return (
     <li
       className={`group ${transactionGridClass} px-4 py-3 transition-colors hover:bg-container-hover ${
@@ -143,7 +135,7 @@ export function TransactionRow({
             type="checkbox"
           />
         ) : null}
-        {isConfirmedTransfer ? (
+        {isTransferKind ? (
           <div
             aria-hidden="true"
             className="flex size-10 shrink-0 items-center justify-center rounded-full"
@@ -270,14 +262,16 @@ export function TransactionRow({
 
       <div className="hidden min-w-0 items-center gap-2 md:col-span-3 md:flex">
         {category ??
-          (showVirtualBadge ? (
-            <CategoryBadge category={virtualTransferCategory} />
+          (!transaction.category_editable ? (
+            <CategoryBadge category={displayCategory ?? { name: categoryName }} />
           ) : categories !== undefined &&
             transaction.permissions.can_annotate &&
             (transaction.parent_entry_id ?? null) === null ? (
             <CategoryMenu bootstrap={bootstrap} categories={categories} transaction={transaction} />
           ) : (
-            <CategoryBadge category={transaction.category ?? { name: categoryName }} />
+            <CategoryBadge
+              category={displayCategory ?? transaction.category ?? { name: categoryName }}
+            />
           ))}
       </div>
 

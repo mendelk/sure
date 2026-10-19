@@ -97,6 +97,15 @@ removal. Marking a transfer as recurring requires full control of **both**
 accounts. Split and transfer-matching destination pickers offer only writable
 accounts.
 
+Transaction categories follow the upstream ERB ownership rules. Unmatched
+provider-imported payments and funds movements remain categorizable. For matched
+loan payments and investment contributions, the outgoing leg owns the editable
+category; the incoming leg displays it read-only, with an explanation. A category
+from an inaccessible outgoing account is never shown. Matched credit-card
+payments and ordinary transfers use read-only Payment or Transfer badges.
+Transfer-type rows and drawer headers retain the transfer icon even without a
+matched counterpart; that label alone does not confirm a match.
+
 The transaction drawer's Settings section includes an **Open matcher** row that
 opens a native `/transactions/$transactionId/transfer_match/new` page. It shows
 the current side first, then a counterpart picker with **Match existing** and

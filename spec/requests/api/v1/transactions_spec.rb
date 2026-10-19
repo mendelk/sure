@@ -349,7 +349,7 @@ RSpec.describe 'API V1 Transactions', type: :request do
 
     get 'Retrieve a transaction' do
       tags 'Transactions'
-      description 'Includes viewer-specific account permissions.can_edit and permissions.can_annotate. Split parents include split_children with transfer_account_id identifying each linked counterpart account, or null for non-transfer children. Use it to preserve transfers when editing a split.'
+      description 'Includes viewer-specific account permissions.can_edit and permissions.can_annotate. category_editable identifies legs that own their category; category_set_on_transfer_outflow identifies read-only incoming legs. display_category includes the visible outgoing category or a virtual Payment/Transfer badge without exposing inaccessible accounts. Split parents include split_children with transfer_account_id identifying each linked counterpart account, or null for non-transfer children.'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
 

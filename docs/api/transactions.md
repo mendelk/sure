@@ -119,6 +119,13 @@ A transaction response includes:
     "color": "#4CAF50",
     "icon": "shopping-cart"
   },
+  "category_editable": true,
+  "category_set_on_transfer_outflow": false,
+  "display_category": {
+    "name": "Groceries",
+    "color": "#4CAF50",
+    "icon": "shopping-cart"
+  },
   "merchant": {
     "id": "uuid",
     "name": "Whole Foods"
@@ -135,6 +142,17 @@ A transaction response includes:
   "updated_at": "2024-01-15T10:30:00Z"
 }
 ```
+
+`category` is the transaction's own stored category. `display_category` is a
+read-only presentation object (`name`, `color`, `icon`) or `null`: it may contain
+the matched outgoing leg's category or a virtual Payment/Transfer badge.
+Outgoing categories from accounts the viewer cannot access are not exposed.
+
+Clients should offer a category picker only when both `category_editable` and
+`permissions.can_annotate` are true. Unmatched payment/transfer kinds remain
+editable. `category_set_on_transfer_outflow` identifies incoming legs whose
+category is owned by the outgoing transaction; these display that category
+read-only rather than inviting an edit that would not affect the outgoing budget.
 
 ## Creating transactions
 

@@ -81,6 +81,7 @@ en:
       account_label: Account
       amount: Amount
       category_label: Category
+      category_set_on_outflow: Category is set on the outgoing transaction.
       date_label: Date
       delete: Delete
       delete_subtitle: This permanently deletes the transaction, affects your historical

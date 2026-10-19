@@ -51,6 +51,19 @@ else
   json.category nil
 end
 
+json.category_editable transaction.category_editable?
+json.category_set_on_transfer_outflow transaction.category_set_on_transfer_outflow?
+display_category = transaction.category_editable? ? transaction.category : read_only_category(transaction)
+if display_category
+  json.display_category do
+    json.name display_category.name
+    json.color display_category.color
+    json.icon display_category.lucide_icon
+  end
+else
+  json.display_category nil
+end
+
 # Merchant information
 if transaction.merchant.present?
   json.merchant do

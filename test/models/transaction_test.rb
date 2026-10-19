@@ -3,6 +3,50 @@ require "test_helper"
 class TransactionTest < ActiveSupport::TestCase
   include EntriesTestHelper
 
+  test "unmatched transfer kinds remain categorizable" do
+    Transaction::TRANSFER_KINDS.each do |kind|
+      transaction = Transaction.new(kind: kind)
+
+      assert transaction.category_editable?, kind
+      assert_not transaction.category_set_on_transfer_outflow?, kind
+    end
+  end
+
+  test "loan transfer category belongs to the outflow even with stale leg kinds" do
+    transfer = create_transfer(from_account: accounts(:depository), to_account: accounts(:loan), amount: 100).reload
+    transfer.outflow_transaction.update!(kind: "cc_payment")
+    transfer.inflow_transaction.update!(kind: "standard")
+
+    assert transfer.categorizable?
+    assert transfer.outflow_transaction.category_editable?
+    assert_not transfer.inflow_transaction.category_editable?
+    assert transfer.inflow_transaction.category_set_on_transfer_outflow?
+  end
+
+  test "investment contributions but not investment to investment transfers are categorizable" do
+    contribution = create_transfer(from_account: accounts(:depository), to_account: accounts(:investment), amount: 100).reload
+    movement = create_transfer(from_account: accounts(:investment), to_account: accounts(:crypto), amount: 100).reload
+
+    assert contribution.categorizable?
+    assert contribution.outflow_transaction.category_editable?
+    assert_not contribution.inflow_transaction.category_editable?
+    assert_not movement.categorizable?
+    movement.outflow_transaction.update!(kind: "funds_movement")
+    assert_not movement.outflow_transaction.category_editable?
+  end
+
+  test "matched transfer payment badge follows the destination not a stale kind" do
+    payment = create_transfer(from_account: accounts(:depository), to_account: accounts(:credit_card), amount: 100).reload
+    payment.outflow_transaction.update!(kind: "funds_movement")
+    movement = create_transfer(from_account: accounts(:investment), to_account: accounts(:depository), amount: 100).reload
+    movement.outflow_transaction.update!(kind: "cc_payment")
+
+    assert payment.outflow_transaction.payment?
+    assert_not payment.outflow_transaction.category_editable?
+    assert_not movement.outflow_transaction.payment?
+    assert Transaction.new(kind: "cc_payment").payment?
+  end
+
   test "existing_manual_recurring_transaction finds a match by merchant" do
     family = families(:empty)
     account = family.accounts.create! name: "Test", balance: 0, currency: "USD", accountable: Depository.new

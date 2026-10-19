@@ -94,6 +94,13 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
+  "category_editable": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether this leg owns an editable category. Unmatched transactions remain editable; account annotation permission is also required.')),
+  "category_set_on_transfer_outflow": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the category belongs to the outgoing leg of this matched transfer.')),
+  "display_category": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.strictObject({
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string(),
+  "icon": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Category badge to display, including Payment/Transfer virtual badges or the accessible outgoing leg category. Does not expose categories from inaccessible accounts.')),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -260,6 +267,13 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
+  "category_editable": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether this leg owns an editable category. Unmatched transactions remain editable; account annotation permission is also required.')),
+  "category_set_on_transfer_outflow": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the category belongs to the outgoing leg of this matched transfer.')),
+  "display_category": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.strictObject({
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string(),
+  "icon": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Category badge to display, including Payment/Transfer virtual badges or the accessible outgoing leg category. Does not expose categories from inaccessible accounts.')),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -371,6 +385,13 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
+  "category_editable": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether this leg owns an editable category. Unmatched transactions remain editable; account annotation permission is also required.')),
+  "category_set_on_transfer_outflow": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the category belongs to the outgoing leg of this matched transfer.')),
+  "display_category": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.strictObject({
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string(),
+  "icon": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Category badge to display, including Payment/Transfer virtual badges or the accessible outgoing leg category. Does not expose categories from inaccessible accounts.')),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -451,7 +472,7 @@ export const PostApiV1Transactions422Response = /*#__PURE__*/ zod.strictObject({
 
 
 /**
- * Includes viewer-specific account permissions.can_edit and permissions.can_annotate. Split parents include split_children with transfer_account_id identifying each linked counterpart account, or null for non-transfer children. Use it to preserve transfers when editing a split.
+ * Includes viewer-specific account permissions.can_edit and permissions.can_annotate. category_editable identifies legs that own their category; category_set_on_transfer_outflow identifies read-only incoming legs. display_category includes the visible outgoing category or a virtual Payment/Transfer badge without exposing inaccessible accounts. Split parents include split_children with transfer_account_id identifying each linked counterpart account, or null for non-transfer children.
  * @summary Retrieve a transaction
  */
 export const GetApiV1TransactionsIdParams = /*#__PURE__*/ zod.object({
@@ -500,6 +521,13 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
+  "category_editable": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether this leg owns an editable category. Unmatched transactions remain editable; account annotation permission is also required.')),
+  "category_set_on_transfer_outflow": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the category belongs to the outgoing leg of this matched transfer.')),
+  "display_category": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.strictObject({
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string(),
+  "icon": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Category badge to display, including Payment/Transfer virtual badges or the accessible outgoing leg category. Does not expose categories from inaccessible accounts.')),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -648,6 +676,13 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
+  "category_editable": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether this leg owns an editable category. Unmatched transactions remain editable; account annotation permission is also required.')),
+  "category_set_on_transfer_outflow": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the category belongs to the outgoing leg of this matched transfer.')),
+  "display_category": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.strictObject({
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string(),
+  "icon": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Category badge to display, including Payment/Transfer virtual badges or the accessible outgoing leg category. Does not expose categories from inaccessible accounts.')),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -1041,6 +1076,13 @@ export const PostApiV1TransactionsTransactionIdSplit201Response = /*#__PURE__*/ 
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
+  "category_editable": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether this leg owns an editable category. Unmatched transactions remain editable; account annotation permission is also required.')),
+  "category_set_on_transfer_outflow": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the category belongs to the outgoing leg of this matched transfer.')),
+  "display_category": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.strictObject({
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string(),
+  "icon": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Category badge to display, including Payment/Transfer virtual badges or the accessible outgoing leg category. Does not expose categories from inaccessible accounts.')),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -1214,6 +1256,13 @@ export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/
   "color": /*#__PURE__*/ zod.string(),
   "icon": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
+  "category_editable": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether this leg owns an editable category. Unmatched transactions remain editable; account annotation permission is also required.')),
+  "category_set_on_transfer_outflow": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the category belongs to the outgoing leg of this matched transfer.')),
+  "display_category": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.strictObject({
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string(),
+  "icon": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Category badge to display, including Payment/Transfer virtual badges or the accessible outgoing leg category. Does not expose categories from inaccessible accounts.')),
   "merchant": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
   "name": /*#__PURE__*/ zod.string(),
