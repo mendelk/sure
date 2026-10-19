@@ -98,10 +98,18 @@ class SimplefinItem::Importer
 
     # Minimal upsert and balance update for balances-only mode
     def import_account_minimal_and_balance(account_data)
+      SimplefinItem.transaction do
+        Family.where(id: simplefin_item.family_id).lock.pick(:id)
+        import_account_minimal_and_balance_locked(account_data)
+      end
+    end
+
+    def import_account_minimal_and_balance_locked(account_data)
       account_id = account_data[:id].to_s
       return if account_id.blank?
 
-      sfa = simplefin_item.simplefin_accounts.find_or_initialize_by(account_id: account_id)
+      sfa = SimplefinAccount.unscoped.find_or_initialize_by(simplefin_item_id: simplefin_item.id, account_id: account_id)
+      return if sfa.retired_at?
       sfa.assign_attributes(
         name: account_data[:name],
         account_type: (account_data["type"].presence || account_data[:type].presence || sfa.account_type.presence || "unknown"),
@@ -576,11 +584,7 @@ class SimplefinItem::Importer
     #
     # Returns nothing; side-effects are snapshot + account upserts.
     def perform_account_discovery
-      # Clear any upstream_account_ids left over from a prior discovery on this same
-      # SimplefinItem instance (e.g. reused across import runs). If this discovery finds
-      # zero accounts, we must not let repair_stale_linkages act on stale IDs from before.
       simplefin_item.upstream_account_ids = nil
-
       Rails.logger.info "SimplefinItem::Importer - perform_account_discovery START (no date params - transactions may be empty)"
       discovery_data = fetch_accounts_data(start_date: nil)
       discovered_count = discovery_data&.dig(:accounts)&.size.to_i
@@ -619,10 +623,6 @@ class SimplefinItem::Importer
         # SimplefinAccount records would appear in the setup UI as duplicates.
         upstream_account_ids = discovery_data[:accounts].map { |a| a[:id].to_s }.compact
         prune_orphaned_simplefin_accounts(upstream_account_ids)
-
-        # Expose to SimplefinItem#repair_stale_linkages, which runs later in the same sync
-        # (via SimplefinItem::Syncer -> #process_accounts) and needs to know which linked
-        # accounts are actually absent upstream before treating them as stale. See GH #2852.
         simplefin_item.upstream_account_ids = upstream_account_ids
       end
     end
@@ -631,6 +631,13 @@ class SimplefinItem::Importer
     # This prevents duplicate accounts from appearing in the setup UI after a user re-adds an
     # institution in SimpleFIN (which generates new account IDs).
     def prune_orphaned_simplefin_accounts(upstream_account_ids)
+      SimplefinItem.transaction do
+        Family.where(id: simplefin_item.family_id).lock.pick(:id)
+        prune_orphaned_simplefin_accounts_locked(upstream_account_ids)
+      end
+    end
+
+    def prune_orphaned_simplefin_accounts_locked(upstream_account_ids)
       return if upstream_account_ids.blank?
 
       # Find SimplefinAccount records with account_ids NOT in the upstream set
@@ -765,14 +772,34 @@ class SimplefinItem::Importer
     end
 
     def import_account(account_data)
+      SimplefinItem.transaction do
+        Family.where(id: simplefin_item.family_id).lock.pick(:id)
+        import_account_locked(account_data)
+      end
+    end
+
+    def import_account_locked(account_data)
       account_id = account_data[:id].to_s
 
       # Validate required account_id to prevent duplicate creation
       return if account_id.blank?
 
-      simplefin_account = simplefin_item.simplefin_accounts.find_or_initialize_by(
-        account_id: account_id
+      simplefin_account = SimplefinAccount.unscoped.find_or_initialize_by(
+        simplefin_item_id: simplefin_item.id, account_id: account_id
       )
+      if simplefin_account.retired_at?
+        transactions = account_data[:transactions]
+        if transactions.is_a?(Array)
+          simplefin_account.update!(raw_transactions_payload: simplefin_item.merge_transactions(simplefin_account.raw_transactions_payload.to_a, transactions))
+          pending = simplefin_account.unreviewed_retired_transactions
+          if pending.any?
+            review = { "account_id" => simplefin_account.retired_account_id, "simplefin_account_id" => simplefin_account.id, "count" => pending.size }
+            stats["retired_activity"] = (Array(stats["retired_activity"]).reject { |row| row["simplefin_account_id"] == simplefin_account.id } + [ review ])
+            persist_stats!
+          end
+        end
+        return
+      end
 
       # Store transactions and holdings separately from account data to avoid overwriting
       transactions = account_data[:transactions]

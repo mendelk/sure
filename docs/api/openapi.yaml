@@ -37,6 +37,225 @@ components:
       in: cookie
       description: Authenticated Sure browser session.
   schemas:
+    ProviderReplacementAccount:
+      type: object
+      required:
+      - id
+      - name
+      - currency
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        currency:
+          type: string
+    ProviderReplacementEntry:
+      type: object
+      required:
+      - id
+      - name
+      - date
+      - amount
+      - currency
+      - pending
+      - split
+      - transfer
+      properties:
+        id:
+          type: string
+          description: Ledger entry UUID or raw provider identity reference
+        name:
+          type: string
+        date:
+          type: string
+          format: date
+        amount:
+          type: string
+        currency:
+          type: string
+        pending:
+          type: boolean
+        split:
+          type: boolean
+        transfer:
+          type: boolean
+    ProviderReplacementMatch:
+      type: object
+      required:
+      - incoming_id
+      - survivor_id
+      properties:
+        incoming_id:
+          type: string
+        survivor_id:
+          type: string
+          format: uuid
+    ProviderReplacementCandidates:
+      type: object
+      required:
+      - account
+      - candidates
+      properties:
+        account:
+          "$ref": "#/components/schemas/ProviderReplacementAccount"
+        candidates:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - name
+            - currency
+            - account_type
+            - linked_account
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              currency:
+                type: string
+              balance:
+                type: string
+                nullable: true
+              account_type:
+                type: string
+              linked_account:
+                type: object
+                nullable: true
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+        text:
+          type: object
+          additionalProperties:
+            type: string
+    ProviderReplacementPreview:
+      type: object
+      required:
+      - fingerprint
+      - account
+      - replacement
+      - canonical_entries
+      - incoming_entries
+      - suggested_matches
+      - blockers
+      - warnings
+      - balance
+      - summary
+      properties:
+        fingerprint:
+          type: string
+          description: Snapshot token; apply rejects reviews made stale by changes
+        account:
+          "$ref": "#/components/schemas/ProviderReplacementAccount"
+        replacement:
+          "$ref": "#/components/schemas/ProviderReplacementAccount"
+        source_account:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        canonical_entries:
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProviderReplacementEntry"
+        incoming_entries:
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProviderReplacementEntry"
+        suggested_matches:
+          type: array
+          description: 'Suggestions only: no pair is approved automatically'
+          items:
+            allOf:
+            - "$ref": "#/components/schemas/ProviderReplacementMatch"
+            - type: object
+              properties:
+                reason:
+                  type: string
+        blockers:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        balance:
+          type: object
+          properties:
+            current:
+              type: string
+            expected:
+              type: string
+              nullable: true
+            replacement:
+              type: string
+            currency:
+              type: string
+            discrepancy:
+              type: string
+              nullable: true
+        summary:
+          type: object
+          properties:
+            incoming_count:
+              type: integer
+            candidate_count:
+              type: integer
+    ProviderReplacementRequest:
+      type: object
+      required:
+      - simplefin_account_id
+      properties:
+        simplefin_account_id:
+          type: string
+          format: uuid
+        matches:
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProviderReplacementMatch"
+    ProviderReplacementApplyRequest:
+      allOf:
+      - "$ref": "#/components/schemas/ProviderReplacementRequest"
+      - type: object
+        required:
+        - fingerprint
+        - idempotency_key
+        properties:
+          fingerprint:
+            type: string
+          idempotency_key:
+            type: string
+            maxLength: 255
+          accept_balance_difference:
+            type: boolean
+            default: false
+            description: Explicitly acknowledge the displayed provider-versus-ledger
+              balance difference
+    ProviderReplacementResult:
+      type: object
+      required:
+      - account_id
+      - operation_id
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        operation_id:
+          type: string
+          format: uuid
     Pagination:
       type: object
       required:
@@ -9981,6 +10200,151 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/accounts/{account_id}/provider_replacement":
+    parameters:
+    - name: account_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: List SimpleFIN replacement choices for an existing ledger
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: choices include unlinked and writable already-linked provider
+            accounts
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProviderReplacementCandidates"
+        '401':
+          description: authentication required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: administrator and account write permission required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: account not accessible
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/accounts/{account_id}/provider_replacement/preview":
+    parameters:
+    - name: account_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Preview replacement without changing financial records
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: review transaction identities, conflicts and balance discrepancy
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProviderReplacementPreview"
+        '401':
+          description: authentication required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: read only keys cannot preview a write operation
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: provider not accessible
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProviderReplacementRequest"
+  "/api/v1/accounts/{account_id}/provider_replacement/apply":
+    parameters:
+    - name: account_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Apply an explicitly reviewed replacement idempotently
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: canonical ledger retained and source mapping switched
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProviderReplacementResult"
+        '401':
+          description: authentication required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: write scope required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: provider not accessible
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '409':
+          description: review is stale; refresh and review again
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: missing review, incompatible replacement or unresolved conflict
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProviderReplacementApplyRequest"
   "/api/v1/push_subscriptions":
     post:
       summary: Register an APNs device token

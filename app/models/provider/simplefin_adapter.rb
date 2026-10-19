@@ -25,9 +25,7 @@ class Provider::SimplefinAdapter < Provider::Base
         )
       },
       existing_account_path: ->(account_id) {
-        Rails.application.routes.url_helpers.select_existing_account_simplefin_items_path(
-          account_id: account_id
-        )
+        Rails.application.routes.url_helpers.account_provider_replacement_path(account_id)
       }
     } ]
   end

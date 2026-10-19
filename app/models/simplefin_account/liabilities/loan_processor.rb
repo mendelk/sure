@@ -22,7 +22,7 @@ class SimplefinAccount::Liabilities::LoanProcessor
       # I don't know if SimpleFin typically provide detailed loan metadata
       # like interest rates, terms, etc. but we can update what's available
 
-      # Balance normalization is handled by SimplefinAccount::Processor.process_account!
+      # Balance normalization is handled by SimplefinAccount::Processor#balance_snapshot.
       # Any other loan-specific attribute updates would go here
     end
 end

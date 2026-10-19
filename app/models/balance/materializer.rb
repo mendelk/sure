@@ -15,6 +15,11 @@ class Balance::Materializer
 
   def materialize_balances
     Balance.transaction do
+      # Provider replacement and imports serialize on this same account row.
+      # A previously queued materialization must read the post-cutover ledger,
+      # not overwrite its balances using an account snapshot loaded beforehand.
+      Account.where(id: account.id).lock.pick(:id)
+      account.reload
       materialize_holdings
       calculate_balances
 

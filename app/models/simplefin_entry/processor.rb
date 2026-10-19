@@ -4,10 +4,11 @@ class SimplefinEntry::Processor
   include CurrencyNormalizable
   # simplefin_transaction is the raw hash fetched from SimpleFin API and converted to JSONB
   # @param import_adapter [Account::ProviderImportAdapter, nil] Optional shared adapter for accumulating skipped entries
-  def initialize(simplefin_transaction, simplefin_account:, import_adapter: nil)
+  def initialize(simplefin_transaction, simplefin_account:, import_adapter: nil, normalization_account: nil)
     @simplefin_transaction = simplefin_transaction
     @simplefin_account = simplefin_account
     @shared_import_adapter = import_adapter
+    @normalization_account = normalization_account
   end
 
   # Pending detection: explicit flag OR inferred from posted=0 (epoch) + transacted_at.
@@ -27,23 +28,43 @@ class SimplefinEntry::Processor
   end
 
   def process
-    # Skip pending transactions when pending inclusion is disabled. Without this guard
-    # the SIMPLEFIN_INCLUDE_PENDING/syncs_include_pending setting only affects the API
-    # request, while pending rows already stored in raw_transactions_payload would still
-    # be (re)created here on every sync - including ones the user manually deleted.
-    return if pending? && !pending_enabled?
+    simplefin_account.with_ingestion_lock do
+      return unless account
+      return unless import_enabled?
 
-    import_adapter.import_transaction(
-      external_id: external_id,
-      amount: amount,
-      currency: currency,
-      date: date,
-      name: name,
-      source: "simplefin",
-      merchant: merchant,
-      notes: notes,
-      extra: extra_metadata
-    )
+      identity = SimplefinTransactionIdentity.find_by(simplefin_account: simplefin_account, external_id: external_id)
+      return identity.entry if identity && (identity.duplicate? || identity.entry.nil?)
+      return identity.entry if identity&.entry&.transaction? && pending? && !identity.entry.transaction.pending?
+      import_id = identity&.entry&.external_id || external_id
+      reused_identity = identity.nil? && account.entries.exists?(source: "simplefin", external_id: import_id) &&
+        ProviderReplacementOperation.exists?(account: account, simplefin_account: simplefin_account)
+      import_id = "#{external_id}_#{simplefin_account.id}" if reused_identity
+
+      entry = import_adapter.import_transaction(
+        **import_attributes,
+        external_id: import_id,
+        source: "simplefin",
+        merchant: merchant,
+        notes: notes,
+        allow_heuristic_matching: identity.nil? && !reused_identity
+      )
+      SimplefinTransactionIdentity.find_or_create_by!(simplefin_account: simplefin_account, external_id: external_id) do |record|
+        record.entry = entry
+      end
+      unless pending?
+        SimplefinTransactionIdentity.where(entry: entry).where.not(external_id: external_id).update_all(duplicate: true)
+      end
+      entry
+    end
+  end
+
+  # Pure normalization shared by replacement preview and normal ingestion.
+  def import_attributes
+    { amount: amount, currency: currency, date: date, name: name, extra: extra_metadata }
+  end
+
+  def import_enabled?
+    !pending? || pending_enabled?
   end
 
   private
@@ -100,11 +121,15 @@ class SimplefinEntry::Processor
 
     def import_adapter
       # Use shared adapter if provided, otherwise create new one
-      @import_adapter ||= @shared_import_adapter || Account::ProviderImportAdapter.new(account)
+      @import_adapter ||= if @shared_import_adapter&.account&.id == account.id
+        @shared_import_adapter
+      else
+        Account::ProviderImportAdapter.new(account)
+      end
     end
 
     def account
-      simplefin_account.current_account
+      @normalization_account || simplefin_account.current_account
     end
 
     def data

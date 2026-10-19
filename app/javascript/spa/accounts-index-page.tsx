@@ -1,7 +1,7 @@
 // eslint-disable import/max-dependencies -- Accounts index composes provider cards, group tables, the sync toolbar, action menus, the sharing dialog, and the new-account handoff.
 import { DialogTitle, Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   accountsIndexQueryOptions,
@@ -131,6 +131,7 @@ function StatusLine({ item }: { item: ProviderItem }) {
 
 function ReplacementPrompts({ item }: { item: ProviderItem }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   if (item.replacement_prompts.length === 0) return null;
@@ -172,28 +173,37 @@ function ReplacementPrompts({ item }: { item: ProviderItem }) {
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-medium text-primary">{prompt.title}</p>
-                <button
-                  aria-label="Dismiss"
-                  className="-mr-1 -mt-1 shrink-0 rounded-sm p-1 text-secondary hover:bg-warning/20"
-                  disabled={pending}
-                  onClick={() => {
-                    void postAction(prompt.dismiss_href, {
-                      active_sfa_id: prompt.active_sfa_id,
-                      dormant_sfa_id: prompt.dormant_sfa_id,
-                    });
-                  }}
-                  type="button"
-                >
-                  <Icon name="x" size="sm" />
-                </button>
+                {prompt.dismiss_href === null ? null : (
+                  <button
+                    aria-label={prompt.dismiss_label}
+                    className="-mr-1 -mt-1 shrink-0 rounded-sm p-1 text-secondary hover:bg-warning/20"
+                    disabled={pending}
+                    onClick={() => {
+                      if (prompt.dismiss_href !== null) {
+                        void postAction(prompt.dismiss_href, {
+                          active_sfa_id: prompt.active_sfa_id,
+                          dormant_sfa_id: prompt.dormant_sfa_id,
+                        });
+                      }
+                    }}
+                    type="button"
+                  >
+                    <Icon name="x" size="sm" />
+                  </button>
+                )}
               </div>
               <p className="text-xs text-secondary">{prompt.description}</p>
               <div className="pt-1">
                 <Button
                   disabled={pending}
                   onClick={() => {
-                    void postAction(prompt.relink_href, {
-                      simplefin_account_id: prompt.active_sfa_id,
+                    void navigate({
+                      to: "/accounts/$accountId/provider_replacement",
+                      params: { accountId: prompt.account_id },
+                      search: {
+                        simplefin_account_id: prompt.active_sfa_id,
+                        return_to: "/accounts",
+                      },
                     });
                   }}
                   size="sm"
@@ -295,7 +305,18 @@ function AccountRowMenu({
         portal
       >
         {editable.map((action) =>
-          action.method === "get" ? (
+          action.key === "change_simplefin_account" || action.key === "link_simplefin_account" ? (
+            <MenuItem key={action.key}>
+              <Link
+                className="block w-full px-4 py-2 text-left text-sm text-primary data-focus:bg-container-hover"
+                params={{ accountId: row.id }}
+                search={{ return_to: "/accounts" }}
+                to="/accounts/$accountId/provider_replacement"
+              >
+                {action.label}
+              </Link>
+            </MenuItem>
+          ) : action.method === "get" ? (
             <MenuItem key={action.key}>
               <a
                 className="block w-full px-4 py-2 text-left text-sm text-primary data-focus:bg-container-hover"

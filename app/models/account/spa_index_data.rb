@@ -275,24 +275,22 @@ class Account::SpaIndexData
       nil
     end
 
-    # Eligible card-replacement prompts for a SimpleFIN item, mirroring
-    # simplefin_items/_replacement_prompt eligibility: both SFAs and the
-    # Sure account exist, the relink hasn't landed, and the pair isn't
-    # dismissed. Computed server-side so the SPA renders strings verbatim.
+    # Suggestions remain read-only until the SPA preview is reviewed and applied.
+    # Dismissals keep the existing per-sync, per-provider-pair semantics.
     def replacement_prompts(spec)
-      return [] unless spec[:key] == :simplefin
+      return [] unless spec[:key] == :simplefin && user.admin?
 
       item = spec[:item]
       stats = sync_stats.dig(:simplefin, item.id) || {}
-      suggestions = stats["replacement_suggestions"]
-      return [] unless suggestions.is_a?(Array) && suggestions.any?
+      suggestions = Array(stats["replacement_suggestions"])
 
       dismissed = Array(stats["dismissed_replacement_suggestions"])
-      suggestions.filter_map do |suggestion|
+      prompts = suggestions.filter_map do |suggestion|
         old_sfa = item.simplefin_accounts.find_by(id: suggestion["dormant_sfa_id"])
         new_sfa = item.simplefin_accounts.find_by(id: suggestion["active_sfa_id"])
         sure_account = family.accounts.find_by(id: suggestion["sure_account_id"])
         next unless old_sfa && new_sfa && sure_account
+        next unless sure_account.permission_for(user).in?([ :owner, :full_control ])
         next if new_sfa.current_account&.id == sure_account.id
         next if dismissed.include?("#{old_sfa.id}:#{new_sfa.id}")
 
@@ -302,11 +300,38 @@ class Account::SpaIndexData
           description: I18n.t("simplefin_items.replacement_prompt.description",
             account_name: sure_account.name, old_name: old_sfa.name, new_name: new_sfa.name),
           relink_label: I18n.t("simplefin_items.replacement_prompt.relink"),
-          relink_href: routes.link_existing_account_simplefin_items_path(
-            account_id: sure_account.id, simplefin_account_id: new_sfa.id, only_path: true),
+          account_id: sure_account.id,
+          relink_href: routes.account_provider_replacement_path(
+            sure_account, simplefin_account_id: new_sfa.id, return_to: routes.accounts_path, only_path: true),
+          dismiss_label: I18n.t("simplefin_items.replacement_prompt.dismiss_aria"),
           dismiss_href: routes.dismiss_replacement_suggestion_simplefin_item_path(item, only_path: true),
           dormant_sfa_id: old_sfa.id,
           active_sfa_id: new_sfa.id
+        }
+      end
+      prompts + retired_activity_prompts(item)
+    end
+
+    def retired_activity_prompts(item)
+      SimplefinAccount.unscoped.where(simplefin_item_id: item.id).where.not(retired_at: nil).filter_map do |provider|
+        count = provider.unreviewed_retired_transactions.size
+        next if count.zero?
+        account = family.accounts.writable_by(user).find_by(id: provider.retired_account_id)
+        next unless account
+        active_id = account.account_providers.find_by(provider_type: "SimplefinAccount")&.provider_id || account.simplefin_account_id
+
+        {
+          title: I18n.t("simplefin_items.provider_replacement.late_activity_title"),
+          description: I18n.t("simplefin_items.provider_replacement.late_activity_description",
+            count: count, provider_name: provider.name, account_name: account.name),
+          relink_label: I18n.t("simplefin_items.provider_replacement.review_late_activity"),
+          account_id: account.id,
+          relink_href: routes.account_provider_replacement_path(
+            account, simplefin_account_id: active_id, return_to: routes.accounts_path, only_path: true),
+          dismiss_label: "",
+          dismiss_href: nil,
+          dormant_sfa_id: provider.id,
+          active_sfa_id: active_id.to_s
         }
       end
     end
@@ -414,8 +439,9 @@ class Account::SpaIndexData
       if user.admin?
         if !account.linked? && %w[Depository CreditCard Investment Crypto].include?(account.accountable_type)
           actions << { key: "link_provider", label: I18n.t("accounts.account.link_provider"), href: routes.select_provider_account_path(account, only_path: true), method: "get" }
+          actions << { key: "link_simplefin_account", label: I18n.t("simplefin_items.provider_replacement.link_simplefin"), href: routes.account_provider_replacement_path(account, return_to: routes.accounts_path, only_path: true), method: "get" } if permission.in?([ :owner, :full_control ])
         elsif account.linked? && account.linked_to?("SimplefinAccount")
-          actions << { key: "change_simplefin_account", label: I18n.t("accounts.account.change_simplefin_account"), href: routes.select_existing_account_simplefin_items_path(account_id: account.id, only_path: true), method: "get" }
+          actions << { key: "change_simplefin_account", label: I18n.t("accounts.account.change_simplefin_account"), href: routes.account_provider_replacement_path(account, return_to: routes.accounts_path, only_path: true), method: "get" } if permission.in?([ :owner, :full_control ])
         end
         actions << { key: "unlink_provider", label: I18n.t("accounts.account.unlink_provider"), href: routes.confirm_unlink_account_path(account, only_path: true), method: "get" } if account.linked?
       end

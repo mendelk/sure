@@ -7,6 +7,9 @@ class AccountProvider < ApplicationRecord
   validates :account_id, uniqueness: { scope: :provider_type }
   validates :provider_id, uniqueness: { scope: :provider_type }
 
+  before_validation :lock_simplefin_family, if: -> { provider_type == "SimplefinAccount" }
+  before_destroy :lock_simplefin_family, if: -> { provider_type == "SimplefinAccount" }
+
   validate :financekit_has_exclusive_writer, if: -> { new_record? || will_save_change_to_account_id? || will_save_change_to_provider_id? || will_save_change_to_provider_type? }
 
   # When unlinking a CoinStats account, also destroy the CoinstatsAccount record
@@ -34,6 +37,10 @@ class AccountProvider < ApplicationRecord
   end
 
   private
+
+    def lock_simplefin_family
+      Family.where(id: provider.simplefin_item.family_id).lock.pick(:id) if provider
+    end
 
     def financekit_has_exclusive_writer
       # belongs_to :account already reports a missing account; bail out rather

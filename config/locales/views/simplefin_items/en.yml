@@ -153,6 +153,66 @@ en:
       all_accounts_already_linked: All SimpleFIN accounts appear to be linked already.
       currently_linked_to: "Currently linked to: %{account_name}"
 
+    provider_replacement:
+      late_activity_title: New activity on a retired SimpleFIN account
+      late_activity_description: "Review %{provider_name} activity before adding it to %{account_name}. Unreviewed entries: %{count}."
+      review_late_activity: Review late activity
+      title: Link or replace SimpleFIN account
+      link_simplefin: Link to SimpleFIN
+      select_description: Choose a SimpleFIN account. Review its history before making any changes.
+      select_account: SimpleFIN accounts
+      match_description: Decide which incoming entries are duplicates. Nothing changes until you review and apply.
+      review_description: Review the balances and every duplicate decision before updating this account.
+      no_candidates: No eligible SimpleFIN accounts are available.
+      no_candidates_help: Wait for an active sync to finish, or check your SimpleFIN connection under Settings → Providers.
+      selection_unavailable: The suggested account is no longer available. Choose another account or refresh after syncing.
+      currently_linked_to: "Currently linked to: %{account_name}"
+      unlinked: Not currently linked
+      balance_unavailable: Balance unavailable
+      summary: Replacement summary
+      canonical_account: Account to keep
+      replacement_account: New SimpleFIN feed
+      source_account: Previously linked account
+      incoming_count: Incoming entries
+      candidate_count: Possible duplicate pairs
+      current_balance: Current account balance
+      expected_balance: Expected balance after selected decisions
+      replacement_balance: New feed balance
+      discrepancy: Balance difference
+      not_comparable: Not comparable
+      warnings: Warnings
+      conflicts: Conflicts requiring review
+      conflicts_help: Duplicate decisions may resolve these conflicts. Apply validates your choices and will refuse unsafe changes.
+      duplicate_choices: Review incoming entries
+      suggestions_unapproved: Suggestions are not approved automatically. Choose an existing entry to merge into, or explicitly keep the incoming entry separate.
+      no_incoming_entries: There are no incoming entries to consolidate. You can still review and update the provider link.
+      keep_remaining_separate: Keep all undecided entries separate
+      match_to: Duplicate decision
+      choose_decision: Choose a decision
+      keep_separate: Keep as a separate entry
+      suggested_match: Suggested match
+      choose_suggestion: Use this match
+      final_review: Confirm your decisions
+      match_count: "Entries to merge into existing history: %{count}"
+      separate_count: "Entries to keep separate: %{count}"
+      merge_into: Merge into
+      apply_confirmation: Your existing account remains the account of record. Only explicitly selected duplicate pairs will be consolidated; other incoming entries remain separate. The provider link will move to the selected SimpleFIN feed.
+      accept_balance_difference: I acknowledge the balance difference and accept the new feed balance. No adjustment entry will be created to hide the difference.
+      pending: Pending
+      posted: Posted
+      split: Split
+      transfer: Transfer
+      request_failed: The request could not be completed. Try again; an unchanged apply request can be retried safely.
+      stale_preview: The account changed since this preview. Refresh it and review your decisions again before applying.
+      refresh_preview: Refresh preview
+      cancel: Cancel
+      back: Back
+      preview: Preview changes
+      loading_preview: Loading preview…
+      review: Review changes
+      apply: Apply replacement
+      applying: Applying…
+
     link_existing_account:
       success: Account successfully linked to SimpleFIN
       errors:

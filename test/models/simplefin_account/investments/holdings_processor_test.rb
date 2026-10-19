@@ -210,11 +210,9 @@ class SimplefinAccount::Investments::HoldingsProcessorTest < ActiveSupport::Test
     processor.stubs(:resolve_security).returns(security)
     processor.stubs(:institution_reports_total_basis?).returns(false)
 
-    # The processor logs simplefin_account.id per lot, so the stub has to
-    # answer it as well as account_provider.
-    processor.stubs(:simplefin_account).returns(
-      stub(id: "sfa-test", name: "Test Investment Account", account_provider: nil)
-    )
+    provider = stub(id: "sfa-test", name: "Test Investment Account", account_provider: nil)
+    provider.stubs(:with_ingestion_lock).yields
+    processor.stubs(:simplefin_account).returns(provider)
 
     # A plain recorder rather than a mocha argument matcher, so the assertions
     # read against the real keyword arguments.
@@ -262,9 +260,9 @@ class SimplefinAccount::Investments::HoldingsProcessorTest < ActiveSupport::Test
     processor.stubs(:account).returns(accounts(:investment))
     processor.stubs(:resolve_security).returns(security)
     processor.stubs(:institution_reports_total_basis?).returns(false)
-    processor.stubs(:simplefin_account).returns(
-      stub(id: "sfa-test", name: "Test Investment Account", account_provider: nil)
-    )
+    provider = stub(id: "sfa-test", name: "Test Investment Account", account_provider: nil)
+    provider.stubs(:with_ingestion_lock).yields
+    processor.stubs(:simplefin_account).returns(provider)
 
     recorder = Class.new do
       attr_reader :calls

@@ -64,13 +64,15 @@ import {
 } from "./api/rules";
 import { merchantFormQueryOptions, merchantsIndexQueryOptions } from "./api/merchants";
 import { chatDetailQueryOptions } from "./api/chats";
+import { ChatDetailPage, ChatNewPage, ChatsIndexPage, ChatTitleEditDialog } from "./chats-page";
 import {
-  ChatDetailPage,
-  ChatNewPage,
-  ChatsIndexPage,
-  ChatTitleEditDialog,
-} from "./chats-page";
-import { AccountIdSchema, CategoryIdSchema, ChatIdSchema, MerchantIdSchema, TagIdSchema, type ChatId } from "./ids";
+  AccountIdSchema,
+  CategoryIdSchema,
+  ChatIdSchema,
+  MerchantIdSchema,
+  TagIdSchema,
+  type ChatId,
+} from "./ids";
 import { Button } from "./components/button";
 import { Modal } from "./modal";
 import { useDialogClose } from "./return-to";
@@ -89,6 +91,10 @@ import {
   PropertyNewDrawer,
   validatePropertyAvmSearch,
 } from "./property-wizard-drawer";
+import {
+  SimplefinReplacementDrawer,
+  validateReplacementSearch,
+} from "./simplefin-replacement-drawer";
 type RouterContext = {
   bootstrap: SpaBootstrap;
 };
@@ -148,6 +154,13 @@ const accountSharingRoute = createRoute({
   path: "sharing",
   validateSearch: validateAccountSearch,
   component: AccountSharingRouteComponent,
+});
+
+const providerReplacementRoute = createRoute({
+  getParentRoute: () => accountDetailRoute,
+  path: "provider_replacement",
+  validateSearch: validateReplacementSearch,
+  component: SimplefinReplacementDrawer,
 });
 
 const transactionsRoute = createRoute({
@@ -972,13 +985,7 @@ const chatDetailRoute = createRoute({
   component: ChatDetailRouteComponent,
 });
 
-function ChatTitleEditRouteModal({
-  chatId,
-  onClose,
-}: {
-  chatId: ChatId;
-  onClose: () => void;
-}) {
+function ChatTitleEditRouteModal({ chatId, onClose }: { chatId: ChatId; onClose: () => void }) {
   const query = useQuery(chatDetailQueryOptions(chatId));
   if (!query.data) return null;
   return (
@@ -1020,6 +1027,7 @@ const routeTree = rootRoute.addChildren([
     accountTransferRoute,
     newAccountTransactionRoute,
     accountSharingRoute,
+    providerReplacementRoute,
   ]),
   transactionsRoute.addChildren([
     transactionDetailRoute.addChildren([splitNewRoute, splitEditRoute, transferMatchRoute]),
@@ -1048,12 +1056,7 @@ const routeTree = rootRoute.addChildren([
     ruleConfirmRoute,
     ruleConfirmAllRoute,
   ]),
-  chatsRoute.addChildren([
-    chatsIndexRoute,
-    chatNewRoute,
-    chatDetailRoute,
-    chatEditRoute,
-  ]),
+  chatsRoute.addChildren([chatsIndexRoute, chatNewRoute, chatDetailRoute, chatEditRoute]),
   accountableEditRoute,
   accountableNewTypeRoute.addChildren([accountableNewRoute]),
   propertyNewRoute.addChildren([propertyManualNewRoute, propertyAvmRoute]),

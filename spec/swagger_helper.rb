@@ -59,6 +59,128 @@ RSpec.configure do |config|
           }
         },
         schemas: {
+          ProviderReplacementAccount: {
+            type: :object, required: %w[id name currency],
+            properties: {
+              id: { type: :string, format: :uuid },
+              name: { type: :string },
+              currency: { type: :string }
+            }
+          },
+          ProviderReplacementEntry: {
+            type: :object, required: %w[id name date amount currency pending split transfer],
+            properties: {
+              id: { type: :string, description: 'Ledger entry UUID or raw provider identity reference' },
+              name: { type: :string },
+              date: { type: :string, format: :date },
+              amount: { type: :string },
+              currency: { type: :string },
+              pending: { type: :boolean },
+              split: { type: :boolean },
+              transfer: { type: :boolean }
+            }
+          },
+          ProviderReplacementMatch: {
+            type: :object, required: %w[incoming_id survivor_id],
+            properties: {
+              incoming_id: { type: :string },
+              survivor_id: { type: :string, format: :uuid }
+            }
+          },
+          ProviderReplacementCandidates: {
+            type: :object, required: %w[account candidates],
+            properties: {
+              account: { '$ref' => '#/components/schemas/ProviderReplacementAccount' },
+              candidates: {
+                type: :array,
+                items: {
+                  type: :object, required: %w[id name currency account_type linked_account],
+                  properties: {
+                    id: { type: :string, format: :uuid },
+                    name: { type: :string },
+                    currency: { type: :string },
+                    balance: { type: :string, nullable: true },
+                    account_type: { type: :string },
+                    linked_account: {
+                      type: :object, nullable: true,
+                      properties: { id: { type: :string, format: :uuid }, name: { type: :string } }
+                    }
+                  }
+                }
+              },
+              text: { type: :object, additionalProperties: { type: :string } }
+            }
+          },
+          ProviderReplacementPreview: {
+            type: :object,
+            required: %w[fingerprint account replacement canonical_entries incoming_entries suggested_matches blockers warnings balance summary],
+            properties: {
+              fingerprint: { type: :string, description: 'Snapshot token; apply rejects reviews made stale by changes' },
+              account: { '$ref' => '#/components/schemas/ProviderReplacementAccount' },
+              replacement: { '$ref' => '#/components/schemas/ProviderReplacementAccount' },
+              source_account: {
+                type: :object, nullable: true,
+                properties: { id: { type: :string, format: :uuid }, name: { type: :string } }
+              },
+              canonical_entries: { type: :array, items: { '$ref' => '#/components/schemas/ProviderReplacementEntry' } },
+              incoming_entries: { type: :array, items: { '$ref' => '#/components/schemas/ProviderReplacementEntry' } },
+              suggested_matches: {
+                type: :array, description: 'Suggestions only: no pair is approved automatically',
+                items: {
+                  allOf: [
+                    { '$ref' => '#/components/schemas/ProviderReplacementMatch' },
+                    { type: :object, properties: { reason: { type: :string } } }
+                  ]
+                }
+              },
+              blockers: { type: :array, items: { type: :string } },
+              warnings: { type: :array, items: { type: :string } },
+              balance: {
+                type: :object,
+                properties: {
+                  current: { type: :string },
+                  expected: { type: :string, nullable: true },
+                  replacement: { type: :string },
+                  currency: { type: :string },
+                  discrepancy: { type: :string, nullable: true }
+                }
+              },
+              summary: {
+                type: :object,
+                properties: { incoming_count: { type: :integer }, candidate_count: { type: :integer } }
+              }
+            }
+          },
+          ProviderReplacementRequest: {
+            type: :object, required: %w[simplefin_account_id],
+            properties: {
+              simplefin_account_id: { type: :string, format: :uuid },
+              matches: { type: :array, items: { '$ref' => '#/components/schemas/ProviderReplacementMatch' } }
+            }
+          },
+          ProviderReplacementApplyRequest: {
+            allOf: [
+              { '$ref' => '#/components/schemas/ProviderReplacementRequest' },
+              {
+                type: :object, required: %w[fingerprint idempotency_key],
+                properties: {
+                  fingerprint: { type: :string },
+                  idempotency_key: { type: :string, maxLength: 255 },
+                  accept_balance_difference: {
+                    type: :boolean, default: false,
+                    description: 'Explicitly acknowledge the displayed provider-versus-ledger balance difference'
+                  }
+                }
+              }
+            ]
+          },
+          ProviderReplacementResult: {
+            type: :object, required: %w[account_id operation_id],
+            properties: {
+              account_id: { type: :string, format: :uuid },
+              operation_id: { type: :string, format: :uuid }
+            }
+          },
           Pagination: {
             type: :object,
             required: %w[page per_page total_count total_pages],

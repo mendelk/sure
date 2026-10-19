@@ -11,13 +11,17 @@ class SimplefinAccount::Processor
   # Processing the account is the first step and if it fails, we halt
   # Each subsequent step can fail independently, but we continue processing
   def process
+    simplefin_account.with_ingestion_lock { process_locked }
+  end
+
+  def process_locked
     # If the account is missing (e.g., user deleted the connection and re‑linked later),
     # do not auto‑link. Relinking is now a manual, user‑confirmed flow via the Relink modal.
     unless simplefin_account.current_account.present?
       return
     end
 
-    process_account!
+    simplefin_account.current_account.update!(balance_snapshot)
     # Ensure provider link exists after processing the account/balance
     begin
       simplefin_account.ensure_account_provider!
@@ -29,170 +33,105 @@ class SimplefinAccount::Processor
     process_liabilities
   end
 
-  private
+  private :process_locked
 
-    def process_account!
-      # This should not happen in normal flow since accounts are created manually
-      # during setup, but keeping as safety check
-      if simplefin_account.current_account.blank?
-        Rails.logger.error("SimpleFin account #{simplefin_account.id} has no associated Account - this should not happen after manual setup")
-        return
-      end
+  # Calculate without mutating balances; replacement previews use exactly the
+  # same liability normalization and explicit sign override as provider sync.
+  def balance_snapshot(account: simplefin_account.current_account)
+    return unless account
 
-      # Update account balance and cash balance from latest SimpleFin data
-      account = simplefin_account.current_account
+    # Extract raw values from SimpleFIN snapshot
+    bal   = to_decimal(simplefin_account.current_balance)
+    avail = to_decimal(simplefin_account.available_balance)
 
-      # Extract raw values from SimpleFIN snapshot
-      bal   = to_decimal(simplefin_account.current_balance)
-      avail = to_decimal(simplefin_account.available_balance)
+    # Explicit zero is a balance, not a missing observation.
+    observed = simplefin_account.current_balance.nil? ? avail : bal
+    is_linked_liability = [ "CreditCard", "Loan" ].include?(account.accountable_type)
+    raw = (simplefin_account.raw_payload || {}).with_indifferent_access
+    org = (simplefin_account.org_data || {}).with_indifferent_access
+    inferred = Simplefin::AccountTypeMapper.infer(
+      name: simplefin_account.name,
+      holdings: raw[:holdings],
+      extra: simplefin_account.extra,
+      balance: bal,
+      available_balance: avail,
+      institution: org[:name]
+    ) rescue nil
+    is_mapper_liability = inferred && [ "CreditCard", "Loan" ].include?(inferred.accountable_type)
+    is_liability = account.accountable_type.present? ? is_linked_liability : is_mapper_liability
 
-      # Choose an observed value prioritizing posted balance first
-      # Use available_balance only when current_balance is truly missing (nil),
-      # not when it's explicitly zero (e.g., dormant credit card with no debt)
-      observed = simplefin_account.current_balance.nil? ? avail : bal
-
-      # Determine if this should be treated as a liability for normalization
-      is_linked_liability = [ "CreditCard", "Loan" ].include?(account.accountable_type)
-      raw = (simplefin_account.raw_payload || {}).with_indifferent_access
-      org = (simplefin_account.org_data || {}).with_indifferent_access
-      inferred = Simplefin::AccountTypeMapper.infer(
-        name: simplefin_account.name,
-        holdings: raw[:holdings],
-        extra: simplefin_account.extra,
-        balance: bal,
-        available_balance: avail,
-        institution: org[:name]
-      ) rescue nil
-      is_mapper_liability = inferred && [ "CreditCard", "Loan" ].include?(inferred.accountable_type)
-      is_liability =
-        if account.accountable_type.present?
-          is_linked_liability
-        else
-          is_mapper_liability
-        end
-
-      if is_mapper_liability && !is_linked_liability
-        Rails.logger.warn(
-          "SimpleFIN account type mismatch: linked account #{account.id} type=#{account.accountable_type} " \
-          "differs from mapper inference (#{inferred.accountable_type}). Using linked account type."
-        )
-      end
-
-      balance = observed
-      if is_liability
-        # Loans report principal outstanding as a positive balance from the
-        # bank's perspective. The OverpaymentAnalyzer is designed for credit-
-        # like liabilities (where charges/payments distinguish debt vs.
-        # credit) and returns :unknown for loans with no transaction
-        # history, which then falls through to a fallback that negates the
-        # observed value — inverting the meaning so the loan ends up
-        # _adding_ to net worth instead of subtracting from it. Trust the
-        # bank's sign for Loans and skip the heuristic.
-        if account.accountable_type == "Loan"
-          balance = observed.abs
-          Rails.logger.info(
-            "SimpleFIN liability sign: classification=loan sfa=#{simplefin_account.id}"
-          )
-          Rails.logger.debug(
-            "SimpleFIN liability sign (loan) amounts: sfa=#{simplefin_account.id} " \
-            "observed=#{observed.to_s('F')} stored=#{balance.to_s('F')}"
-          )
-          Sentry.add_breadcrumb(Sentry::Breadcrumb.new(
-            category: "simplefin",
-            message: "liability_sign=loan",
-            data: { sfa_id: simplefin_account.id }
-          )) rescue nil
-        else
-          # A user override is authoritative because some SimpleFIN feeds use
-          # the same sign for both debt and genuine credit balances.
-          case simplefin_account.balance_sign_override
-          when "credit"
-            balance = -observed.abs
-            Rails.logger.info("SimpleFIN liability sign: classification=credit_override sfa=#{simplefin_account.id}")
-          when "debt"
-            balance = observed.abs
-            Rails.logger.info("SimpleFIN liability sign: classification=debt_override sfa=#{simplefin_account.id}")
-          else
-            # Try transaction-history heuristic when enabled
-            begin
-              result = SimplefinAccount::Liabilities::OverpaymentAnalyzer
-                .new(simplefin_account, observed_balance: observed)
-                .call
-
-              case result.classification
-              when :credit
-                balance = -observed.abs
-                Rails.logger.info(
-                  "SimpleFIN overpayment heuristic: classified as credit for sfa=#{simplefin_account.id} " \
-                  "tx_count=#{result.metrics[:tx_count]}"
-                )
-                Rails.logger.debug(
-                  "SimpleFIN overpayment heuristic (credit) amounts: sfa=#{simplefin_account.id} " \
-                  "observed=#{observed.to_s('F')} metrics=#{result.metrics.slice(:charges_total, :payments_total, :tx_count).inspect}"
-                )
-                Sentry.add_breadcrumb(Sentry::Breadcrumb.new(
-                  category: "simplefin",
-                  message: "liability_sign=credit",
-                  data: { sfa_id: simplefin_account.id }
-                )) rescue nil
-              when :debt
-                balance = observed.abs
-                Rails.logger.info(
-                  "SimpleFIN overpayment heuristic: classified as debt for sfa=#{simplefin_account.id} " \
-                  "tx_count=#{result.metrics[:tx_count]}"
-                )
-                Rails.logger.debug(
-                  "SimpleFIN overpayment heuristic (debt) amounts: sfa=#{simplefin_account.id} " \
-                  "observed=#{observed.to_s('F')} metrics=#{result.metrics.slice(:charges_total, :payments_total, :tx_count).inspect}"
-                )
-                Sentry.add_breadcrumb(Sentry::Breadcrumb.new(
-                  category: "simplefin",
-                  message: "liability_sign=debt",
-                  data: { sfa_id: simplefin_account.id }
-                )) rescue nil
-              else
-                # Fall back to existing sign-only logic (log unknown for observability)
-                begin
-                  Rails.logger.info(
-                    "SimpleFIN overpayment heuristic: unknown for sfa=#{simplefin_account.id} " \
-                    "reason=#{result.reason} tx_count=#{result.metrics[:tx_count]}; falling back"
-                  )
-                  Rails.logger.debug(
-                    "SimpleFIN overpayment heuristic (unknown) amounts: sfa=#{simplefin_account.id} " \
-                    "observed=#{observed.to_s('F')} " \
-                    "charges_total=#{result.metrics[:charges_total]} payments_total=#{result.metrics[:payments_total]}"
-                  )
-                rescue
-                  # no-op
-                end
-                balance = normalize_liability_balance(observed, bal, avail)
-              end
-            rescue NameError
-              # Analyzer not loaded; keep legacy behavior
-              balance = normalize_liability_balance(observed, bal, avail)
-            rescue => e
-              Rails.logger.warn("SimpleFIN overpayment heuristic error for sfa=#{simplefin_account.id}: #{e.class} - #{e.message}")
-              balance = normalize_liability_balance(observed, bal, avail)
-            end
-          end
-        end
-      end
-
-      # Calculate cash balance correctly for investment accounts
-      cash_balance = if account.accountable_type == "Investment"
-        calculator = SimplefinAccount::Investments::BalanceCalculator.new(simplefin_account)
-        calculator.cash_balance
-      else
-        balance
-      end
-
-      account.update!(
-        balance: balance,
-        cash_balance: cash_balance,
-        currency: simplefin_account.currency
+    if is_mapper_liability && !is_linked_liability
+      Rails.logger.warn(
+        "SimpleFIN account type mismatch: linked account #{account.id} type=#{account.accountable_type} " \
+        "differs from mapper inference (#{inferred.accountable_type}). Using linked account type."
       )
     end
 
+    balance = observed
+    if is_liability
+      # Loan principal is positive debt; the credit-card heuristic is not
+      # applicable to loans with no revolving-charge history.
+      if account.accountable_type == "Loan"
+        balance = observed.abs
+        Rails.logger.info("SimpleFIN liability sign: classification=loan sfa=#{simplefin_account.id}")
+        Rails.logger.debug(
+          "SimpleFIN liability sign (loan) amounts: sfa=#{simplefin_account.id} " \
+          "observed=#{observed.to_s('F')} stored=#{balance.to_s('F')}"
+        )
+        Sentry.add_breadcrumb(Sentry::Breadcrumb.new(
+          category: "simplefin", message: "liability_sign=loan", data: { sfa_id: simplefin_account.id }
+        )) rescue nil
+      else
+        case simplefin_account.balance_sign_override
+        when "credit"
+          balance = -observed.abs
+          Rails.logger.info("SimpleFIN liability sign: classification=credit_override sfa=#{simplefin_account.id}")
+        when "debt"
+          balance = observed.abs
+          Rails.logger.info("SimpleFIN liability sign: classification=debt_override sfa=#{simplefin_account.id}")
+        else
+          begin
+            result = SimplefinAccount::Liabilities::OverpaymentAnalyzer.new(simplefin_account, observed_balance: observed).call
+            case result.classification
+            when :credit
+              balance = -observed.abs
+            when :debt
+              balance = observed.abs
+            else
+              balance = normalize_liability_balance(observed, bal, avail)
+            end
+            Rails.logger.info(
+              "SimpleFIN liability sign: classification=#{result.classification} sfa=#{simplefin_account.id} " \
+              "tx_count=#{result.metrics[:tx_count]}"
+            )
+            Rails.logger.debug(
+              "SimpleFIN overpayment heuristic: sfa=#{simplefin_account.id} observed=#{observed.to_s('F')} " \
+              "reason=#{result.reason} metrics=#{result.metrics.slice(:charges_total, :payments_total, :tx_count).inspect}"
+            )
+            if %i[credit debt].include?(result.classification)
+              Sentry.add_breadcrumb(Sentry::Breadcrumb.new(
+                category: "simplefin", message: "liability_sign=#{result.classification}", data: { sfa_id: simplefin_account.id }
+              )) rescue nil
+            end
+          rescue NameError
+            balance = normalize_liability_balance(observed, bal, avail)
+          rescue => error
+            Rails.logger.warn("SimpleFIN overpayment heuristic error for sfa=#{simplefin_account.id}: #{error.class} - #{error.message}")
+            balance = normalize_liability_balance(observed, bal, avail)
+          end
+        end
+      end
+    end
+
+    cash_balance = if account.accountable_type == "Investment"
+      SimplefinAccount::Investments::BalanceCalculator.new(simplefin_account).cash_balance
+    else
+      balance
+    end
+    { balance: balance, cash_balance: cash_balance, currency: simplefin_account.currency }
+  end
+
+  private
     def process_transactions
       processor = SimplefinAccount::Transactions::Processor.new(simplefin_account)
       processor.process
