@@ -89,7 +89,7 @@ The `GET /api/v1/transactions` endpoint supports the following query parameters 
 | `categories[]` | string[] | Filter by category names |
 | `merchants[]` | string[] | Filter by merchant names |
 | `tags[]` | string[] | Filter by tag names |
-| `search` | string | Search by name, notes, or merchant name |
+| `search` | string | Search names and notes. Numeric terms also match exact amounts of either sign; quoted numeric terms match amounts only. |
 
 ## Transaction object
 
