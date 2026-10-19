@@ -17,6 +17,11 @@ Provider availability can differ between installations.
   critical paths and shared surfaces: avoid N+1 queries and loading large payloads
   in global layouts; use indexes, eager loading, background jobs and caching where
   they address a real cost.
+- Preserve the composite `entries(entryable_type, entryable_id)` lookup index.
+  Transaction filters can make PostgreSQL start from `transactions` and look up
+  each delegated entry; the account/date indexes cannot satisfy that reverse
+  lookup efficiently. The index is added concurrently by
+  `20261019120000_add_entryable_lookup_index_to_entries`.
 - Put simple constraints such as null checks and uniqueness in the database.
   ActiveRecord may mirror them for form error handling; prefer client-side form
   validation where possible. Keep complex validation and business logic in Ruby.
