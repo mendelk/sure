@@ -194,7 +194,11 @@ function ReplacementForm({
                 : [];
             }),
           )
-        : {};
+        : Object.fromEntries(
+            result.suggested_matches
+              .filter((suggestion) => suggestion.preselect === true)
+              .map((suggestion) => [suggestion.incoming_id, suggestion.survivor_id]),
+          );
       setPreview(result);
       setDecisions(nextDecisions);
       if (refresh) setReviewedMatches(matchesSignature);
@@ -376,9 +380,11 @@ function ReplacementForm({
                 </dd>
                 <dt className="text-secondary">{text.expected_balance}</dt>
                 <dd className="privacy-sensitive text-primary">
-                  {preview.balance.expected === null
-                    ? text.not_comparable
-                    : `${preview.balance.currency} ${preview.balance.expected}`}
+                  {!reviewCurrent
+                    ? text.balance_needs_refresh
+                    : preview.balance.expected === null
+                      ? text.not_comparable
+                      : `${preview.balance.currency} ${preview.balance.expected}`}
                 </dd>
                 <dt className="text-secondary">{text.replacement_balance}</dt>
                 <dd className="privacy-sensitive text-primary">
@@ -386,9 +392,11 @@ function ReplacementForm({
                 </dd>
                 <dt className="text-secondary">{text.discrepancy}</dt>
                 <dd className="privacy-sensitive text-primary">
-                  {preview.balance.discrepancy === null
-                    ? text.not_comparable
-                    : `${preview.balance.currency} ${preview.balance.discrepancy}`}
+                  {!reviewCurrent
+                    ? text.balance_needs_refresh
+                    : preview.balance.discrepancy === null
+                      ? text.not_comparable
+                      : `${preview.balance.currency} ${preview.balance.discrepancy}`}
                 </dd>
               </dl>
               <Button

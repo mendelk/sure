@@ -122,14 +122,22 @@ RSpec.configure do |config|
                 type: :object, nullable: true,
                 properties: { id: { type: :string, format: :uuid }, name: { type: :string } }
               },
-              canonical_entries: { type: :array, items: { '$ref' => '#/components/schemas/ProviderReplacementEntry' } },
-              incoming_entries: { type: :array, items: { '$ref' => '#/components/schemas/ProviderReplacementEntry' } },
+              canonical_entries: { type: :array, description: 'Existing entries sorted newest first', items: { '$ref' => '#/components/schemas/ProviderReplacementEntry' } },
+              incoming_entries: { type: :array, description: 'Incoming entries sorted newest first', items: { '$ref' => '#/components/schemas/ProviderReplacementEntry' } },
               suggested_matches: {
-                type: :array, description: 'Suggestions only: no pair is approved automatically',
+                type: :array, description: 'Suggestions for review only; apply merges only the explicitly submitted matches',
                 items: {
                   allOf: [
                     { '$ref' => '#/components/schemas/ProviderReplacementMatch' },
-                    { type: :object, properties: { reason: { type: :string } } }
+                    {
+                      type: :object, properties: {
+                        reason: { type: :string },
+                        preselect: {
+                          type: :boolean,
+                          description: 'UI default only: a unique one-to-one match with the same signed amount, currency and date, similar names, and compatible metadata'
+                        }
+                      }
+                    }
                   ]
                 }
               },

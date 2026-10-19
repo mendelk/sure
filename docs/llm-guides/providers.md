@@ -39,12 +39,23 @@ so operators can inspect it in the super-admin `/settings/debug` UI.
 
 The SPA replacement drawer is available from account index and detail actions.
 Detail actions retain the current detail search and use `return_to` to restore
-the opener when the drawer closes. The picker never approves suggested matches.
+the opener when the drawer closes. Incoming entries and existing-entry choices
+are sorted newest first, with deterministic ordering for equal dates.
+
+On the first preview, the drawer preselects only unambiguous one-to-one duplicates:
+the signed amount, currency, and date must match, names must have Dice word
+similarity of at least 0.8 after ignoring case, punctuation, and repeated words,
+and the transactions must have compatible metadata and pending states.
+Ambiguity in either direction prevents preselection. Unique same-amount/currency
+matches within four days remain available as weaker suggestions requiring a
+manual choice. Refreshing preserves manual decisions, including keep-separate.
+Preselection never writes to the ledger or bypasses final review and apply.
 
 Entering final review or selecting Refresh preview sends the current explicit
 `matches` to the preview endpoint. The review displays current, expected,
 replacement and discrepancy balances; changing decisions invalidates the reviewed
-balance. A nonzero discrepancy requires a separate, initially unchecked
+balance, and stale calculations are hidden until review or refresh recomputes them.
+A nonzero discrepancy requires a separate, initially unchecked
 acknowledgement before apply sends `accept_balance_difference: true`.
 Refreshing the preview or changing decisions clears that acknowledgement.
 
@@ -57,9 +68,9 @@ administrator with write access to the canonical, displaced, and affected
 transfer-counterpart accounts. External preview/apply require `read_write`.
 
 Keep the canonical account ID, ownership, sharing, and original opening anchor.
-Every duplicate pair is explicitly selected; other incoming transactions move
-without fuzzy deduplication. Source-generated anchors are archived in the
-operation's before-images rather than imported as spending or additional
+Only duplicate pairs explicitly submitted in `matches` are consolidated; other
+incoming transactions move without automatic deduplication. Source-generated
+anchors are archived in the operation's before-images rather than imported as spending or additional
 opening balances. Real conflicting observations, incompatible split/transfer
 structures, conflicting metadata, and missing dated FX block apply.
 Investment positions are not silently consolidated; manual linking and

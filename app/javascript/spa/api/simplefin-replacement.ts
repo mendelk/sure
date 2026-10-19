@@ -37,7 +37,12 @@ const PreviewSchema = z.object({
   canonical_entries: z.array(EntrySchema),
   incoming_entries: z.array(EntrySchema),
   suggested_matches: z.array(
-    z.object({ incoming_id: z.string(), survivor_id: z.string(), reason: z.string() }),
+    z.object({
+      incoming_id: z.string(),
+      survivor_id: z.string(),
+      reason: z.string(),
+      preselect: z.optional(z.boolean()),
+    }),
   ),
   blockers: z.array(z.string()),
   warnings: z.array(z.string()),
