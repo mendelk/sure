@@ -168,7 +168,13 @@ export function TransferMatchPage() {
     ),
   );
 
-  const candidates = candidatesQuery.data?.candidates ?? [];
+  const writableAccounts =
+    referenceQuery.data?.accounts.filter((account) => account.permissions?.can_edit === true) ?? [];
+  const candidates = (candidatesQuery.data?.candidates ?? []).filter((candidate) =>
+    writableAccounts.some(
+      (account) => account.id === counterpartFor(candidate, transactionId).account.id,
+    ),
+  );
   const [method, setMethod] = useState<"existing" | "new">("existing");
 
   // Default to creating a counterpart when nothing can be matched: mirrors the
@@ -249,6 +255,34 @@ export function TransferMatchPage() {
     },
   });
 
+  if (detail?.permissions.can_edit !== true) {
+    return (
+      <Modal
+        onClose={close}
+        open
+        panelClassName="w-full max-w-xl rounded-xl bg-container p-4 shadow-lg"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <DialogTitle className="text-lg font-medium text-primary">Transfer matching</DialogTitle>
+          <IconButton icon="x" label="Close" onClick={close} />
+        </div>
+        {detail ? (
+          <Alert live="alert" variant="warning">
+            You need full control of this account to match its transactions.
+          </Alert>
+        ) : detailQuery.isError ? (
+          <Alert live="alert" variant="error">
+            Could not load the transaction.
+          </Alert>
+        ) : (
+          <output className="text-sm text-secondary" aria-live="polite">
+            Loading transaction…
+          </output>
+        )}
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       onClose={close}
@@ -265,11 +299,9 @@ export function TransferMatchPage() {
               Match the corresponding transaction in another account or create one if it
               doesn&apos;t exist.
             </p>
-            {detail ? (
-              <p className="mt-0.5 text-sm text-secondary">
-                {detail.name} · {detail.account.name} · {detail.amount} {detail.currency}
-              </p>
-            ) : null}
+            <p className="mt-0.5 text-sm text-secondary">
+              {detail.name} · {detail.account.name} · {detail.amount} {detail.currency}
+            </p>
           </div>
           <IconButton icon="x" label="Close" onClick={close} />
         </div>
@@ -294,9 +326,9 @@ export function TransferMatchPage() {
           <section className="space-y-2">
             <h2 className="text-sm font-medium text-secondary">{currentLabel}</h2>
             <div className="rounded-lg border border-secondary bg-container p-3">
-              <p className="text-sm font-medium text-primary">{detail?.name ?? "…"}</p>
+              <p className="text-sm font-medium text-primary">{detail.name}</p>
               <p className="text-xs text-secondary">
-                {detail ? `${detail.account.name} · ${detail.date}` : "Loading…"}
+                {detail.account.name} · {detail.date}
               </p>
             </div>
           </section>
@@ -363,9 +395,9 @@ export function TransferMatchPage() {
               )
             ) : (
               <TargetAccountSelect
-                accounts={referenceQuery.data?.accounts ?? []}
+                accounts={writableAccounts}
                 disabled={mutation.isPending || referenceQuery.isPending}
-                excludeAccountId={detail?.account.id}
+                excludeAccountId={detail.account.id}
                 onSelect={(id) => {
                   setTargetAccountId(id);
                   setSubmitError(null);
@@ -375,8 +407,7 @@ export function TransferMatchPage() {
             )}
           </section>
 
-          {detail &&
-          targetAccountId !== "" &&
+          {targetAccountId !== "" &&
           effectiveMethod === "new" &&
           targetAccountId === detail.account.id ? (
             <Alert live="status" variant="warning">

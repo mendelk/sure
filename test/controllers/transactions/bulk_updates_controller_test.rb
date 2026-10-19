@@ -136,4 +136,68 @@ class Transactions::BulkUpdatesControllerTest < ActionDispatch::IntegrationTest
     transaction_entry.reload
     assert_equal [ new_tag.id ], transaction_entry.transaction.tag_ids
   end
+
+  test "annotation only bulk edits preserve structural fields and reject mixed writes" do
+    entry = shared_entry("read_write")
+    sign_in users(:family_member)
+
+    get new_transactions_bulk_update_url(format: :json), params: { bulk_update: { entry_ids: [ entry.id ] } }
+    assert_response :success
+    assert_equal({ "can_edit" => false, "can_annotate" => true }, response.parsed_body.fetch("permissions"))
+
+    post transactions_bulk_update_url, params: { bulk_update: { entry_ids: [ entry.id ], notes: "Allowed annotation" } }, as: :json
+    assert_response :redirect
+    assert_equal "Allowed annotation", entry.reload.notes
+
+    post transactions_bulk_update_url, params: {
+      bulk_update: { entry_ids: [ entry.id ], name: "Forbidden rename", notes: "Must not save" }
+    }, as: :json
+    assert_response :forbidden
+    assert_equal "Shared purchase", entry.reload.name
+    assert_equal "Allowed annotation", entry.notes
+  end
+
+  test "bulk edit rejects selections containing read only or inaccessible accounts without partial writes" do
+    writable = shared_entry("full_control")
+    restricted = shared_entry("read_only")
+    sign_in users(:family_member)
+
+    [ true, false ].each do |shared|
+      restricted.account.account_shares.destroy_all unless shared
+      get new_transactions_bulk_update_url(format: :json), params: { bulk_update: { entry_ids: [ writable.id, restricted.id ] } }
+      assert_response :success
+      assert_equal({ "can_edit" => false, "can_annotate" => false }, response.parsed_body.fetch("permissions"))
+
+      post transactions_bulk_update_url, params: {
+        bulk_update: { entry_ids: [ writable.id, restricted.id ], notes: "Forbidden batch" }
+      }, as: :json
+      assert_response :forbidden
+      assert_nil writable.reload.notes
+      assert_nil restricted.reload.notes
+    end
+  end
+
+  test "full control members can bulk edit shared accounts" do
+    entry = shared_entry("full_control")
+    sign_in users(:family_member)
+    post transactions_bulk_update_url, params: {
+      bulk_update: { entry_ids: [ entry.id ], name: "Member edit", date: Date.yesterday }
+    }
+    assert_response :redirect
+    assert_equal "Member edit", entry.reload.name
+    assert_equal Date.yesterday, entry.date
+  end
+
+  private
+    def shared_entry(permission)
+      account = @user.family.accounts.create!(
+        name: "Shared bulk permissions", balance: 1000, currency: "USD",
+        accountable: Depository.new, owner: @user
+      )
+      account.account_shares.create!(user: users(:family_member), permission: permission)
+      account.entries.create!(
+        name: "Shared purchase", date: Date.current, amount: 100, currency: "USD",
+        entryable: Transaction.new
+      )
+    end
 end

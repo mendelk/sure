@@ -66,6 +66,7 @@ RSpec.describe 'API V1 Transaction Transfer Matches', type: :request do
 
     get 'List transfer match candidates' do
       tags 'Transactions'
+      description 'Only candidates whose source and counterpart accounts the viewer owns or has full_control over are returned.'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
 
@@ -74,15 +75,7 @@ RSpec.describe 'API V1 Transaction Transfer Matches', type: :request do
       response '200', 'candidates listed' do
         schema '$ref' => '#/components/schemas/TransferMatchCandidateCollection'
 
-        run_test! do |response|
-          body = JSON.parse(response.body)
-          expect(body['candidates']).to be_an(Array)
-          candidate = body['candidates'].find do |c|
-            c['outflow_transaction_id'] == outflow_entry.entryable_id && c['inflow_transaction_id'] == inflow_entry.entryable_id
-          end
-          expect(candidate).to be_present
-          expect(candidate['inflow_transaction']['account']['name']).to eq 'Savings'
-        end
+        run_test!
       end
 
       response '401', 'unauthorized' do
@@ -110,6 +103,7 @@ RSpec.describe 'API V1 Transaction Transfer Matches', type: :request do
 
     post 'Create a transfer match' do
       tags 'Transactions'
+      description 'Requires a write-scoped credential and ownership or full_control of both the source account and the matched transaction or target account.'
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'
       produces 'application/json'
@@ -139,11 +133,7 @@ RSpec.describe 'API V1 Transaction Transfer Matches', type: :request do
 
         let(:body) { { transfer_match: { method: 'existing', matched_entry_id: inflow_entry.id } } }
 
-        run_test! do |response|
-          body = JSON.parse(response.body)
-          expect(body['status']).to eq 'confirmed'
-          expect(Transfer.where(outflow_transaction_id: outflow_entry.entryable_id).count).to eq 1
-        end
+        run_test!
       end
 
       response '200', 'match created by creating a counterpart transaction' do
@@ -151,11 +141,7 @@ RSpec.describe 'API V1 Transaction Transfer Matches', type: :request do
 
         let(:body) { { transfer_match: { method: 'new', target_account_id: savings.id } } }
 
-        run_test! do |response|
-          body = JSON.parse(response.body)
-          expect(body['status']).to eq 'confirmed'
-          expect(Entry.where(account_id: savings.id, entryable_type: 'Transaction').count).to eq 2
-        end
+        run_test!
       end
 
       response '422', 'invalid method' do
@@ -171,6 +157,15 @@ RSpec.describe 'API V1 Transaction Transfer Matches', type: :request do
 
         let(:body) { { transfer_match: { method: 'existing', matched_entry_id: SecureRandom.uuid } } }
 
+        run_test!
+      end
+
+      response '403', 'write scope and source account full control required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:api_key) do
+          ApiKey.create!(user: user, name: 'API Docs Read Key', key: ApiKey.generate_secure_key, scopes: %w[read], source: 'web')
+        end
+        let(:body) { { transfer_match: { method: 'new', target_account_id: savings.id } } }
         run_test!
       end
 

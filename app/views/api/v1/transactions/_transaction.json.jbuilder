@@ -29,6 +29,7 @@ json.kind transaction.kind.presence_in(Transaction.kinds.keys) || "standard"
 json.investment_activity_label transaction.investment_activity_label
 json.pending transaction.pending?
 json.excluded transaction.entry.excluded?
+json.permissions account_permissions(transaction.entry.account)
 
 # Account information
 json.account do
@@ -72,9 +73,11 @@ end
 # Transfer information (if this transaction is part of a transfer)
 transfer = transaction.transfer
 if transfer.present?
+  outflow_transaction = transfer.outflow_transaction_id == transaction.id ? transaction : transfer.outflow_transaction
   json.transfer do
     json.id transfer.id
     json.status transfer.status
+    json.permissions account_permissions(outflow_transaction.entry.account).slice(:can_edit)
 
     # Other transaction in the transfer
     if transfer.inflow_transaction_id == transaction.id

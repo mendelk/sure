@@ -237,6 +237,8 @@ export function NewTransactionPage() {
   const referencesFailed = referenceQuery.isError && referenceQuery.data === undefined;
   const loading =
     referenceQuery.data === undefined || (duplicateId !== undefined && source === undefined);
+  const writableAccounts =
+    referenceQuery.data?.accounts.filter((account) => account.permissions?.can_edit === true) ?? [];
   return (
     <Modal
       onClose={close}
@@ -284,6 +286,10 @@ export function NewTransactionPage() {
           </Alert>
         ) : loading ? (
           <output className="text-sm text-secondary">{text.creation_loading}</output>
+        ) : writableAccounts.length === 0 ? (
+          <Alert live="alert" variant="warning">
+            You need full control of an account to add transactions.
+          </Alert>
         ) : (
           <NewTransactionSeed
             bootstrap={bootstrap}
@@ -291,7 +297,7 @@ export function NewTransactionPage() {
             defaultNature={search.nature}
             key={`${duplicateId ?? "new"}:${search.account_id ?? accountId ?? ""}:${search.nature ?? ""}`}
             onClose={close}
-            references={referenceQuery.data}
+            references={{ ...referenceQuery.data, accounts: writableAccounts }}
             source={source}
           />
         )}

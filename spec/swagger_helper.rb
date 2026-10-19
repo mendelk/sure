@@ -297,6 +297,21 @@ RSpec.configure do |config|
               message_id: { type: :string, format: :uuid }
             }
           },
+          AccountPermissions: {
+            type: :object,
+            required: %w[can_edit can_annotate],
+            properties: {
+              can_edit: { type: :boolean, description: 'Whether the viewer owns the account or has full control.' },
+              can_annotate: { type: :boolean, description: 'Whether the viewer can change category, merchant, tags, and notes.' }
+            }
+          },
+          TransferPermissions: {
+            type: :object,
+            required: %w[can_edit],
+            properties: {
+              can_edit: { type: :boolean, description: 'Whether the viewer can change the transfer through its outflow account.' }
+            }
+          },
           Account: {
             type: :object,
             required: %w[id name account_type],
@@ -310,7 +325,7 @@ RSpec.configure do |config|
           },
           AccountDetail: {
             type: :object,
-            required: %w[id name balance balance_cents cash_balance cash_balance_cents currency classification account_type status created_at updated_at],
+            required: %w[id name balance balance_cents cash_balance cash_balance_cents currency classification account_type status permissions created_at updated_at],
             properties: {
               id: { type: :string, format: :uuid },
               name: { type: :string },
@@ -323,6 +338,7 @@ RSpec.configure do |config|
               account_type: { type: :string, nullable: true },
               subtype: { type: :string, nullable: true },
               status: { type: :string, enum: %w[active draft disabled pending_deletion] },
+              permissions: { '$ref' => '#/components/schemas/AccountPermissions' },
               institution_name: { type: :string, nullable: true },
               institution_domain: { type: :string, nullable: true },
               notes: { type: :string, nullable: true },
@@ -1236,12 +1252,13 @@ RSpec.configure do |config|
           },
           Transfer: {
             type: :object,
-            required: %w[id amount currency status],
+            required: %w[id amount currency status permissions],
             properties: {
               id: { type: :string, format: :uuid },
               amount: { type: :string },
               currency: { type: :string },
               status: { type: :string, enum: %w[pending confirmed], description: 'Match status. pending transfers can be confirmed or rejected.' },
+              permissions: { '$ref' => '#/components/schemas/TransferPermissions' },
               other_account: { '$ref' => '#/components/schemas/Account', nullable: true }
             }
           },
@@ -1371,7 +1388,7 @@ RSpec.configure do |config|
           },
           Transaction: {
             type: :object,
-            required: %w[id entry_id date amount amount_cents signed_amount_cents currency name classification detail_path pending excluded account tags created_at updated_at],
+            required: %w[id entry_id date amount amount_cents signed_amount_cents currency name classification detail_path pending excluded account permissions tags created_at updated_at],
             properties: {
               id: { type: :string, format: :uuid },
               entry_id: { type: :string, format: :uuid },
@@ -1394,6 +1411,7 @@ RSpec.configure do |config|
               excluded: { type: :boolean, description: 'Whether the transaction is excluded from reports (present in list responses).' },
               recurring_exists: { type: :boolean, description: 'Whether a manual recurring transaction already exists for this pattern (present in detail responses).' },
               account: { '$ref' => '#/components/schemas/Account' },
+              permissions: { '$ref' => '#/components/schemas/AccountPermissions' },
               category: { '$ref' => '#/components/schemas/Category', nullable: true },
               merchant: { '$ref' => '#/components/schemas/Merchant', nullable: true },
               tags: {
@@ -1576,7 +1594,7 @@ RSpec.configure do |config|
           },
           TransferDecision: {
             type: :object,
-            required: %w[id status date amount amount_cents currency transfer_type inflow_transaction outflow_transaction created_at updated_at],
+            required: %w[id status date amount amount_cents currency transfer_type permissions inflow_transaction outflow_transaction created_at updated_at],
             properties: {
               id: { type: :string, format: :uuid },
               status: { type: :string, enum: %w[pending confirmed] },
@@ -1589,9 +1607,10 @@ RSpec.configure do |config|
               name: { type: :string, nullable: true },
               payment: { type: :boolean, nullable: true },
               categorizable: { type: :boolean, nullable: true },
+              permissions: { '$ref' => '#/components/schemas/TransferPermissions' },
               category: { '$ref' => '#/components/schemas/Category', nullable: true },
               tags: { type: :array, items: { '$ref' => '#/components/schemas/Tag' } },
-              can_mark_as_recurring: { type: :boolean, nullable: true },
+              can_mark_as_recurring: { type: :boolean, nullable: true, description: 'Requires ownership or full_control of both endpoint accounts and enabled recurring features.' },
               recurring_exists: { type: :boolean, nullable: true },
               source_fee_amount: { type: :string, nullable: true, description: 'Fee charged to the source account' },
               source_fee_currency: { type: :string, nullable: true },

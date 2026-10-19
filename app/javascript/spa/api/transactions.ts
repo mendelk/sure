@@ -1,5 +1,6 @@
 import { queryOptions, skipToken } from "@tanstack/react-query";
 import * as z from "zod/mini";
+import { AccountPermissionsSchema } from "./accounts";
 import { ReportPaginationSchema } from "../report-definition";
 import {
   AccountIdSchema,
@@ -427,6 +428,26 @@ export async function createTransferMatch(
   });
 }
 
+export function bulkUpdatePermissionsQueryOptions(path: string, entryIds: string[]) {
+  return queryOptions({
+    queryKey: ["spa", "bulk-permissions", path, entryIds] as const,
+    enabled: entryIds.length > 0,
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams();
+      for (const id of entryIds) params.append("bulk_update[entry_ids][]", id);
+      const response = await fetch(`${path}/new.json?${params.toString()}`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+        signal,
+      });
+      if (!response.ok)
+        throw new TransactionApiError("Could not load transaction permissions", response.status);
+      const payload: unknown = await response.json();
+      return z.object({ permissions: AccountPermissionsSchema }).parse(payload).permissions;
+    },
+  });
+}
+
 export type ReferenceOption<TId extends string> = {
   id: TId;
   name: string;
@@ -435,6 +456,7 @@ export type ReferenceOption<TId extends string> = {
   logoUrl?: string;
   parentName?: string;
   accountType?: string;
+  permissions?: z.infer<typeof AccountPermissionsSchema>;
 };
 
 export function recentCategoriesQueryOptions(categoriesPath: string) {
@@ -579,6 +601,10 @@ function parseReferenceList<TId extends string>(
               : undefined,
         parentName,
         accountType: typeof item.account_type === "string" ? item.account_type : undefined,
+        permissions:
+          item.permissions === undefined
+            ? undefined
+            : AccountPermissionsSchema.parse(item.permissions),
       };
     })
     .filter((item) => item.id.length > 0 && item.name.length > 0);

@@ -23,6 +23,10 @@ class Api::V1::TransactionTransferMatchesController < Api::V1::BaseController
   end
 
   def create
+    unless account_permissions(@entry.account)[:can_edit]
+      return render json: { error: "forbidden", message: "Write access required for transaction's account" }, status: :forbidden
+    end
+
     method = transfer_match_params[:method]
 
     if method == "existing"
@@ -107,6 +111,7 @@ class Api::V1::TransactionTransferMatchesController < Api::V1::BaseController
       inflow_entry = Entry.find_by(entryable_id: match.inflow_transaction_id, entryable_type: "Transaction")
       outflow_entry = Entry.find_by(entryable_id: match.outflow_transaction_id, entryable_type: "Transaction")
       return {} if inflow_entry.nil? || outflow_entry.nil?
+      return {} unless account_permissions(inflow_entry.account)[:can_edit] && account_permissions(outflow_entry.account)[:can_edit]
 
       {
         inflow_transaction_id: match.inflow_transaction_id,

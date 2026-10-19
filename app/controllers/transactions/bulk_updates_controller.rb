@@ -1,17 +1,41 @@
 class Transactions::BulkUpdatesController < ApplicationController
+  def new
+    render json: { permissions: selected_permissions }
+  end
+
   def create
+    unless selected_permissions[structural_update? ? :can_edit : :can_annotate]
+      return render json: { error: "Not authorized to update the selected transactions" }, status: :forbidden
+    end
+
     # Skip split parents from bulk update - update children instead
-    updated = Current.family
-                     .entries
+    updated = selected_entries
                      .excluding_split_parents
-                     .where(id: bulk_update_params[:entry_ids])
-                     .includes(:entryable)
+                     .preload(:entryable)
                      .bulk_update!(bulk_update_params, update_tags: tags_provided?)
 
     redirect_back_or_to transactions_path, notice: "#{updated} transactions updated"
   end
 
   private
+    def selected_entries
+      @selected_entries ||= Current.accessible_entries.where(id: bulk_update_params[:entry_ids]).preload(:account)
+    end
+
+    def selected_permissions
+      ids = Array(bulk_update_params[:entry_ids]).uniq
+      complete = ids.present? && selected_entries.size == ids.size
+      permissions = selected_entries.map { |entry| account_permissions(entry.account) }
+      {
+        can_edit: complete && permissions.all? { |permission| permission[:can_edit] },
+        can_annotate: complete && permissions.all? { |permission| permission[:can_annotate] }
+      }
+    end
+
+    def structural_update?
+      bulk_update_params[:date].present? || bulk_update_params[:name].present?
+    end
+
     def bulk_update_params
       params.require(:bulk_update)
             .permit(:date, :notes, :name, :category_id, :merchant_id, entry_ids: [], tag_ids: [])

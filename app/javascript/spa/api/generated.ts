@@ -84,6 +84,10 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer owns the account or has full control.')),
+  "can_annotate": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change category, merchant, tags, and notes.'))
+}),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -106,6 +110,9 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change the transfer through its outflow account.'))
+}),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -243,6 +250,10 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer owns the account or has full control.')),
+  "can_annotate": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change category, merchant, tags, and notes.'))
+}),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -265,6 +276,9 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change the transfer through its outflow account.'))
+}),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -347,6 +361,10 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer owns the account or has full control.')),
+  "can_annotate": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change category, merchant, tags, and notes.'))
+}),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -369,6 +387,9 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change the transfer through its outflow account.'))
+}),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -430,7 +451,7 @@ export const PostApiV1Transactions422Response = /*#__PURE__*/ zod.strictObject({
 
 
 /**
- * Split parents include split_children with transfer_account_id identifying each linked counterpart account, or null for non-transfer children. Use it to preserve transfers when editing a split.
+ * Includes viewer-specific account permissions.can_edit and permissions.can_annotate. Split parents include split_children with transfer_account_id identifying each linked counterpart account, or null for non-transfer children. Use it to preserve transfers when editing a split.
  * @summary Retrieve a transaction
  */
 export const GetApiV1TransactionsIdParams = /*#__PURE__*/ zod.object({
@@ -469,6 +490,10 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer owns the account or has full control.')),
+  "can_annotate": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change category, merchant, tags, and notes.'))
+}),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -491,6 +516,9 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change the transfer through its outflow account.'))
+}),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -552,6 +580,7 @@ export const GetApiV1TransactionsId404Response = /*#__PURE__*/ zod.strictObject(
 
 
 /**
+ * Requires a write-scoped credential and account annotation access. Annotation-only members can change category_id, merchant_id, tag_ids, and notes; all other fields require ownership or full_control. Requests mixing permitted annotations with forbidden fields are rejected without partial updates.
  * @summary Update a transaction
  */
 export const PatchApiV1TransactionsIdParams = /*#__PURE__*/ zod.object({
@@ -609,6 +638,10 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer owns the account or has full control.')),
+  "can_annotate": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change category, merchant, tags, and notes.'))
+}),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -631,6 +664,9 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change the transfer through its outflow account.'))
+}),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -681,6 +717,15 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
 }).brand("PatchApiV1TransactionsId200Response")
 
+export const PatchApiV1TransactionsId403Response = /*#__PURE__*/ zod.strictObject({
+  "error": /*#__PURE__*/ zod.string(),
+  "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "details": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),/*#__PURE__*/ zod.looseObject({
+
+})])),
+  "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
+}).brand("PatchApiV1TransactionsId403Response")
+
 export const PatchApiV1TransactionsId404Response = /*#__PURE__*/ zod.strictObject({
   "error": /*#__PURE__*/ zod.string(),
   "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
@@ -692,6 +737,7 @@ export const PatchApiV1TransactionsId404Response = /*#__PURE__*/ zod.strictObjec
 
 
 /**
+ * Only candidates whose source and counterpart accounts the viewer owns or has full_control over are returned.
  * @summary List transfer match candidates
  */
 export const GetApiV1TransactionsTransactionIdTransferMatchCandidatesParams = /*#__PURE__*/ zod.object({
@@ -754,6 +800,7 @@ export const GetApiV1TransactionsTransactionIdTransferMatchCandidates404Response
 
 
 /**
+ * Requires a write-scoped credential and ownership or full_control of both the source account and the matched transaction or target account.
  * @summary Create a transfer match
  */
 export const PostApiV1TransactionsTransactionIdTransferMatchParams = /*#__PURE__*/ zod.object({
@@ -777,6 +824,25 @@ export const PostApiV1TransactionsTransactionIdTransferMatch200Response = /*#__P
   "currency": /*#__PURE__*/ zod.string(),
   "transfer_type": /*#__PURE__*/ zod.enum(['transfer', 'liability_payment', 'loan_payment']),
   "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "payment": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.boolean()),
+  "categorizable": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.boolean()),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change the transfer through its outflow account.'))
+}),
+  "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string(),
+  "icon": /*#__PURE__*/ zod.string()
+}),/*#__PURE__*/ zod.null()])),
+  "tags": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string()
+}))),
+  "can_mark_as_recurring": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Requires ownership or full_control of both endpoint accounts and enabled recurring features.')),
+  "recurring_exists": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.boolean()),
   "source_fee_amount": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Fee charged to the source account')),
   "source_fee_currency": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "destination_fee_amount": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Fee deducted from the destination account')),
@@ -824,6 +890,15 @@ export const PostApiV1TransactionsTransactionIdTransferMatch401Response = /*#__P
   "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
 }).brand("PostApiV1TransactionsTransactionIdTransferMatch401Response")
 
+export const PostApiV1TransactionsTransactionIdTransferMatch403Response = /*#__PURE__*/ zod.strictObject({
+  "error": /*#__PURE__*/ zod.string(),
+  "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "details": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),/*#__PURE__*/ zod.looseObject({
+
+})])),
+  "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
+}).brand("PostApiV1TransactionsTransactionIdTransferMatch403Response")
+
 export const PostApiV1TransactionsTransactionIdTransferMatch404Response = /*#__PURE__*/ zod.strictObject({
   "error": /*#__PURE__*/ zod.string(),
   "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
@@ -852,7 +927,10 @@ export const PatchApiV1TransfersIdParams = /*#__PURE__*/ zod.object({
 
 export const PatchApiV1TransfersIdBody = /*#__PURE__*/ zod.object({
   "transfer": /*#__PURE__*/ zod.object({
-  "status": /*#__PURE__*/ zod.enum(['confirmed', 'rejected']).check(/*#__PURE__*/ zod.describe('Confirm a pending match, or reject it (removes the match and records the pair as rejected).'))
+  "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['confirmed', 'rejected'])).check(/*#__PURE__*/ zod.describe('Confirm a pending match, or reject it (removes the match and records the pair as rejected).')),
+  "notes": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema)))
 })
 }).brand("PatchApiV1TransfersIdBody")
 
@@ -953,6 +1031,10 @@ export const PostApiV1TransactionsTransactionIdSplit201Response = /*#__PURE__*/ 
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer owns the account or has full control.')),
+  "can_annotate": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change category, merchant, tags, and notes.'))
+}),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -975,6 +1057,9 @@ export const PostApiV1TransactionsTransactionIdSplit201Response = /*#__PURE__*/ 
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change the transfer through its outflow account.'))
+}),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -1119,6 +1204,10 @@ export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer owns the account or has full control.')),
+  "can_annotate": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change category, merchant, tags, and notes.'))
+}),
   "category": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema),
   "name": /*#__PURE__*/ zod.string(),
@@ -1141,6 +1230,9 @@ export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/
   "amount": /*#__PURE__*/ zod.string(),
   "currency": /*#__PURE__*/ zod.string(),
   "status": /*#__PURE__*/ zod.enum(['pending', 'confirmed']).check(/*#__PURE__*/ zod.describe('Match status. pending transfers can be confirmed or rejected.')),
+  "permissions": /*#__PURE__*/ zod.strictObject({
+  "can_edit": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the viewer can change the transfer through its outflow account.'))
+}),
   "other_account": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),

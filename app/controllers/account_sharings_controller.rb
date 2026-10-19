@@ -15,12 +15,23 @@ class AccountSharingsController < ApplicationController
       share = @account.account_shares.find_by!(user: Current.user)
       include_value = params.permit(:include_in_finances)[:include_in_finances]
       share.update!(include_in_finances: ActiveModel::Type::Boolean.new.cast(include_value))
-      redirect_back_or_to account_path(@account), notice: t("account_sharings.update.finance_toggle_success")
+      respond_to do |format|
+        format.json { head :no_content }
+        format.html do
+          redirect_back_or_to account_path(@account),
+            notice: t("account_sharings.update.finance_toggle_success"), status: :see_other
+        end
+      end
       return
     end
 
     unless @account.owned_by?(Current.user)
-      redirect_to account_path(@account), alert: t("account_sharings.update.not_owner")
+      respond_to do |format|
+        format.json { render json: { error: t("account_sharings.update.not_owner") }, status: :forbidden }
+        format.html do
+          redirect_to account_path(@account), alert: t("account_sharings.update.not_owner"), status: :see_other
+        end
+      end
       return
     end
 
@@ -46,7 +57,12 @@ class AccountSharingsController < ApplicationController
       end
     end
 
-    redirect_back_or_to accounts_path, notice: t("account_sharings.update.success")
+    respond_to do |format|
+      format.json { head :no_content }
+      format.html do
+        redirect_back_or_to accounts_path, notice: t("account_sharings.update.success"), status: :see_other
+      end
+    end
   end
 
   private

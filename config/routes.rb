@@ -8,6 +8,7 @@ Rails.application.routes.draw do
   # route can never shadow them — Rails matches top-down.
   get "transactions", to: "spa#show", as: :transactions
   get "transactions/new", to: "spa#show", as: :new_transaction
+  get "transactions/bulk_update/new", to: "transactions/bulk_updates#new", constraints: ->(request) { request.format.json? }
   get "transactions/bulk_update/new", to: "spa#show", as: :new_transactions_bulk_update
   get "transactions/:id", to: "spa#show", as: :spa_transaction, constraints: { id: /[0-9a-f-]{36}/i }
   get "transactions/:transaction_id/split/new", to: "spa#show", constraints: { transaction_id: /[0-9a-f-]{36}/i }

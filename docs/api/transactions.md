@@ -1,27 +1,52 @@
 # Transactions API Documentation
 
-The Transactions API allows external applications to manage financial transactions within Sure. The OpenAPI description is generated directly from executable request specs, ensuring it always reflects the behaviour of the running Rails application.
+The Transactions API allows external applications to manage financial transactions within Sure. The OpenAPI description is generated from documentation-only request specs; Minitest verifies runtime behavior and authorization.
 
 ## Generated OpenAPI specification
 
-- The source of truth for the documentation lives in [`spec/requests/api/v1/transactions_spec.rb`](../../spec/requests/api/v1/transactions_spec.rb). These specs authenticate against the Rails stack, exercise every transaction endpoint, and capture real response shapes.
+- Documentation schemas live in [`spec/swagger_helper.rb`](../../spec/swagger_helper.rb), with operations described in [`spec/requests/api/v1/transactions_spec.rb`](../../spec/requests/api/v1/transactions_spec.rb). Runtime behavior is covered by the controller tests under `test/controllers/api/v1/`.
 - Regenerate the OpenAPI document with:
 
   ```sh
-  SWAGGER_DRY_RUN=0 bundle exec rspec spec/requests --format Rswag::Specs::SwaggerFormatter
+  RAILS_ENV=test bundle exec rake rswag:specs:swaggerize
   ```
 
   The task compiles the request specs and writes the result to [`docs/api/openapi.yaml`](openapi.yaml).
 
-- Run just the documentation specs with:
+- Inspect just the transaction documentation examples without exercising HTTP behavior:
 
   ```sh
-  bundle exec rspec spec/requests/api/v1/transactions_spec.rb
+  RAILS_ENV=test bundle exec rspec --dry-run spec/requests/api/v1/transactions_spec.rb
   ```
 
 ## Authentication requirements
 
 All transaction endpoints require an OAuth2 access token or API key that grants the appropriate scope (`read` or `read_write`). Read endpoints (`GET /api/v1/transactions`) also accept an authenticated browser session (`cookieSession`). Write endpoints also accept a browser session when the request presents a valid CSRF token (`X-CSRF-Token` header), matching the classic web app's forgery protection.
+
+## Account permissions
+
+Credential scopes do not grant access beyond the viewer's account permissions.
+Transaction list/detail responses and account responses include `permissions`:
+
+- `can_annotate`: permits `category_id`, `merchant_id`, `tag_ids`, and `notes`.
+- `can_edit`: permits structural/financial changes and actions such as deletion,
+  unlocking, recurrence, and duplicate resolution. Requires account ownership or
+  a `full_control` share, regardless of the user's family role.
+
+A `read_only` share grants neither capability. A `read_write` share grants only
+annotation. An accessible transaction with insufficient permission returns
+`403 forbidden`; a PATCH that combines permitted annotations with restricted
+fields is rejected atomically. Inaccessible transactions return `404 not_found`.
+Split endpoints retain their writable-account lookup and also return 404 when
+the viewer lacks full control.
+
+Transfer responses and embedded transfer summaries expose
+`permissions.can_edit`, based on the outflow account. Transfer editors must use
+this capability rather than assuming that access to either account grants edits.
+`can_mark_as_recurring` additionally requires full control of both endpoints and
+enabled recurring features; `recurring_exists` separately indicates an existing
+pattern. Transfer-match candidates include only pairs with writable accounts,
+and match creation checks both source and counterpart/target permissions.
 
 ## Available endpoints
 
@@ -84,10 +109,13 @@ A transaction response includes:
     "name": "Checking Account",
     "account_type": "depository"
   },
+  "permissions": {
+    "can_edit": true,
+    "can_annotate": true
+  },
   "category": {
     "id": "uuid",
     "name": "Groceries",
-    "classification": "expense",
     "color": "#4CAF50",
     "icon": "shopping-cart"
   },
@@ -145,6 +173,9 @@ If a transaction is part of a transfer between accounts, the `transfer` field wi
     "amount": "$500.00",
     "currency": "USD",
     "status": "pending",
+    "permissions": {
+      "can_edit": true
+    },
     "other_account": {
       "id": "uuid",
       "name": "Savings Account",
@@ -155,14 +186,16 @@ If a transaction is part of a transfer between accounts, the `transfer` field wi
 ```
 
 The SPA transaction list shows pending matches with an **Auto-matched** pill
-(**A/M** on narrow screens), a checkmark to confirm, and an X to reject.
+(**A/M** on narrow screens). A checkmark to confirm and an X to reject appear only
+when `transfer.permissions.can_edit` is true.
 Both actions use `PATCH /api/v1/transfers/{id}` and refresh the transaction list
 and cached transaction details, including the counterpart. Controls are disabled
 while the action is in progress; failures remain visible beside the match controls.
 Confirmed matches display a link icon instead of the pill and action buttons.
 
 Loan payments expose a **Category** picker under **Details** in the SPA transfer
-drawer when the API returns `categorizable: true`. The picker supports searching,
+drawer when the API returns both `categorizable: true` and
+`permissions.can_edit: true`. Otherwise, the category is read-only. The picker supports searching,
 creating a category, and clearing it with **(uncategorized)**. Saving updates the
 outflow transaction's category and refreshes the filtered ledger and cached
 account/budget summaries. Failed saves leave the previous category intact and
@@ -185,4 +218,4 @@ Errors conform to the shared `ErrorResponse` schema in the OpenAPI document:
 }
 ```
 
-Common error codes include `unauthorized`, `not_found`, `validation_failed`, and `internal_server_error`.
+Common error codes include `unauthorized`, `forbidden`, `not_found`, `validation_failed`, and `internal_server_error`.
