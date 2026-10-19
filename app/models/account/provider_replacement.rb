@@ -115,7 +115,7 @@ class Account::ProviderReplacement
       # Import adapters already take canonical-account row locks. Taking them in
       # UUID order prevents replacement from racing any provider's entry writer.
       Account.where(id: [ account.id, source_account&.id ].compact).order(:id).lock.load
-      @canonical = account.entries.where(parent_entry_id: nil).includes(:child_entries, :entryable).order(:id).to_a
+      @canonical = account.entries.where(parent_entry_id: nil).includes(:child_entries, :entryable).order(date: :desc, id: :asc).to_a
       @mapping_only = source_account && source_account.id != account.id && (
         source_account.account_providers.where.not(provider_type: "SimplefinAccount").exists? || source_account.plaid_account_id.present?)
       @incoming = {}
@@ -153,9 +153,10 @@ class Account::ProviderReplacement
         end
       end
       @warnings << "The previous account retains another provider: only its mapping moves; its ledger and balances remain unchanged" if @mapping_only
-      @warnings << "Review possible duplicates explicitly; suggestions are not approved matches" if canonical.any?
+      @warnings << "Review probable duplicates before applying; preselected matches can be changed or kept separate" if canonical.any?
       @warnings << "Source-generated anchors and equal balance observations will be archived; the canonical opening anchor is preserved" if @archived_observations.any?
       add_raw_incoming
+      @incoming = incoming.sort_by { |id, item| [ -Date.iso8601(item[:summary][:date]).jd, id ] }.to_h
       authorize_counterparts!
     end
 
@@ -204,15 +205,7 @@ class Account::ProviderReplacement
     end
 
     def build_preview(pairs = [])
-      suggestions = incoming.filter_map do |id, item|
-        summary = item[:summary]
-        candidates = canonical.select do |entry|
-          entry.transaction? && entry.amount == summary[:amount].to_d && entry.currency == summary[:currency] &&
-            (entry.date - Date.iso8601(summary[:date])).abs <= 4
-        end
-        next unless candidates.one?
-        { incoming_id: id, survivor_id: candidates.first.id, reason: "Same amount and currency within four days; confirm identity" }
-      end
+      suggestions = duplicate_suggestions
       review = balance_summary(pairs)
       preview_blockers = blockers.dup
       preview_blockers << "A dated exchange rate is missing; refresh exchange rates before applying this replacement" if review[:discrepancy].nil?
@@ -225,6 +218,52 @@ class Account::ProviderReplacement
         anchor_actions: @archived_observations.map { |entry| { id: entry.id, date: entry.date.iso8601, amount: entry.amount.to_s("F"), kind: entry.valuation.kind, action: "archive_source_observation" } },
         summary: { incoming_count: incoming.size, candidate_count: suggestions.size }
       }
+    end
+
+    def duplicate_suggestions
+      transactions = canonical.select(&:transaction?).group_by { |entry| [ entry.amount, entry.currency ] }
+      candidates = incoming.to_h do |id, item|
+        summary = item[:summary]
+        date = Date.iso8601(summary[:date])
+        nearby = transactions.fetch([ summary[:amount].to_d, summary[:currency] ], []).select do |entry|
+          (entry.date - date).abs <= 4 && mergeable_duplicate?(item, entry)
+        end
+        probable = nearby.select { |entry| entry.date == date && similar_transaction_names?(entry.name, summary[:name]) }
+        [ id, { nearby: nearby, probable: probable } ]
+      end
+      # Count every plausible pairing, including ambiguous incoming rows. A
+      # survivor shared by two incoming entries must never be preselected.
+      survivor_counts = candidates.values.flat_map { |item| item[:probable].map(&:id) }.tally
+      candidates.filter_map do |id, item|
+        probable = item[:probable]
+        survivor = probable.one? ? probable.first : (item[:nearby].first if item[:nearby].one?)
+        next unless survivor
+        {
+          incoming_id: id, survivor_id: survivor.id,
+          preselect: probable.one? && survivor_counts[survivor.id] == 1,
+          reason: probable.one? ? "Same date, amount and currency with a similar name; confirm identity" :
+            "Same amount and currency within four days; confirm identity"
+        }
+      end
+    end
+
+    def similar_transaction_names?(left, right)
+      # Ignore casing, punctuation and repeated payee/description words. Require
+      # at least 80% shared words (Dice similarity), not just a common prefix.
+      left_words, right_words = [ left, right ].map { |name| name.downcase.gsub(/[^a-z0-9\s]/, "").split.uniq }
+      return false if left_words.empty? || right_words.empty?
+      2 * (left_words & right_words).size >= 0.8 * (left_words.size + right_words.size)
+    end
+
+    def mergeable_duplicate?(item, survivor)
+      return false if item[:entry] && !item[:entry].transaction?
+      return false if !item[:summary][:pending] && survivor.transaction.pending?
+      validate_merge!(item[:entry], survivor) if item[:entry]
+      true
+    rescue Error
+      # Conflicting metadata/splits/transfers require a manual decision, never
+      # a default that would fail preview validation on entering final review.
+      false
     end
 
     def balance_summary(pairs)

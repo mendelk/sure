@@ -17,10 +17,108 @@ class Account::ProviderReplacementTest < ActiveSupport::TestCase
     assert_no_difference [ "Entry.count", "AccountProvider.count", "SimplefinTransactionIdentity.count", "ProviderReplacementOperation.count" ] do
       preview = replacement.preview
       assert_equal existing.id, preview[:suggested_matches].sole[:survivor_id]
+      refute preview[:suggested_matches].sole[:preselect]
       assert_equal "raw:#{@replacement.id}:new-purchase", preview[:incoming_entries].sole[:id]
       assert_equal "100.0", preview[:balance][:replacement]
     end
     assert_equal @old.id, @account.account_providers.find_by!(provider_type: "SimplefinAccount").provider_id
+  end
+
+  test "preview sorts ledger and raw incoming entries and canonical choices newest first" do
+    earlier = make_entry(@account, "Earlier choice", date: Date.current - 6)
+    later = make_entry(@account, "Later choice", date: Date.current - 1)
+    source = make_account("Replacement history")
+    AccountProvider.create!(account: source, provider: @replacement)
+    middle = make_entry(source, "Middle incoming", date: Date.current - 4)
+    oldest = make_entry(source, "Oldest incoming", date: Date.current - 9)
+    @replacement.update!(raw_transactions_payload: [ raw_transaction("newest").merge("posted" => (Date.current - 1).to_time.to_i) ])
+
+    preview = replacement.preview
+
+    assert_equal [ later.id, earlier.id ], preview[:canonical_entries].map { |entry| entry[:id] }
+    assert_equal [ "raw:#{@replacement.id}:newest", middle.id, oldest.id ], preview[:incoming_entries].map { |entry| entry[:id] }
+  end
+
+  test "similar names identify a unique same date duplicate among equal amount transactions" do
+    existing = make_entry(@account, "Tiller Money Feeds - TILLER MONEY FEEDS", date: Date.current - 2)
+    make_entry(@account, "Other merchant", date: existing.date)
+    make_entry(@account, "Tiller Money Feeds", date: existing.date - 1)
+    @replacement.update!(raw_transactions_payload: [ raw_transaction("tiller").merge("description" => "tiller money feeds!") ])
+
+    assert_no_difference [ "Entry.count", "SimplefinTransactionIdentity.count", "ProviderReplacementOperation.count" ] do
+      suggestion = replacement.preview[:suggested_matches].sole
+      assert_equal existing.id, suggestion[:survivor_id]
+      assert suggestion[:preselect]
+    end
+  end
+
+  test "minor name differences qualify but a shared prefix alone does not" do
+    existing = make_entry(@account, "Capital One Credit Card Autopay Payment")
+    @replacement.update!(raw_transactions_payload: [
+      raw_transaction("autopay").merge("description" => "CAPITAL ONE CREDIT CARD AUTOPAY PYMT")
+    ])
+    suggestion = replacement.preview[:suggested_matches].sole
+    assert_equal existing.id, suggestion[:survivor_id]
+    assert suggestion[:preselect]
+
+    @replacement.update!(raw_transactions_payload: [
+      raw_transaction("different").merge("description" => "Capital One Credit Card Interest Charge")
+    ])
+    refute replacement.preview[:suggested_matches].sole[:preselect]
+  end
+
+  test "nearby dates remain suggestions rather than preselected duplicates" do
+    existing = make_entry(@account, "Purchase", date: Date.current - 3)
+    @replacement.update!(raw_transactions_payload: [ raw_transaction("next-day") ])
+
+    suggestion = replacement.preview[:suggested_matches].sole
+    assert_equal existing.id, suggestion[:survivor_id]
+    refute suggestion[:preselect]
+  end
+
+  test "two possible canonical duplicates require a manual choice" do
+    2.times { make_entry(@account, "Purchase") }
+    @replacement.update!(raw_transactions_payload: [ raw_transaction("ambiguous") ])
+
+    assert_empty replacement.preview[:suggested_matches]
+  end
+
+  test "one canonical entry cannot be preselected for multiple incoming entries" do
+    existing = make_entry(@account, "Purchase")
+    @replacement.update!(raw_transactions_payload: [ raw_transaction("first"), raw_transaction("second") ])
+
+    suggestions = replacement.preview[:suggested_matches]
+    assert_equal 2, suggestions.size
+    assert suggestions.all? { |suggestion| suggestion[:survivor_id] == existing.id && !suggestion[:preselect] }
+  end
+
+  test "posted incoming transactions never preselect pending survivors" do
+    existing = make_entry(@account, "Purchase")
+    existing.transaction.update!(extra: { "simplefin" => { "pending" => true } })
+    @replacement.update!(raw_transactions_payload: [ raw_transaction("posted") ])
+
+    assert_empty replacement.preview[:suggested_matches]
+  end
+
+  test "opposite signed amounts and differing currencies are not suggested duplicates" do
+    make_entry(@account, "Purchase", amount: -10)
+    make_entry(@account, "Purchase", currency: "EUR")
+    @replacement.update!(raw_transactions_payload: [ raw_transaction("different") ])
+
+    assert_empty replacement.preview[:suggested_matches]
+  end
+
+  test "otherwise probable duplicates with conflicting metadata are not preselected" do
+    existing = make_entry(@account, "Purchase")
+    source = make_account("Replacement history")
+    AccountProvider.create!(account: source, provider: @replacement)
+    conflicting = make_entry(source, "Purchase", excluded: true)
+
+    preview = replacement.preview
+    assert_empty preview[:suggested_matches]
+    assert_raises(Account::ProviderReplacement::Error) do
+      replacement.preview(matches: [ { incoming_id: conflicting.id, survivor_id: existing.id } ])
+    end
   end
 
   test "explicit raw alias preserves canonical edits and never resurrects a deleted survivor" do
@@ -44,9 +142,10 @@ class Account::ProviderReplacementTest < ActiveSupport::TestCase
   end
 
   test "keep separate survives normal feed replay even when amount and date match" do
-    existing = make_entry(@account, "Separate legitimate purchase", external_id: "simplefin_same-id")
+    existing = make_entry(@account, "Purchase", external_id: "simplefin_same-id")
     @replacement.update!(raw_transactions_payload: [ raw_transaction("same-id") ])
     preview = replacement.preview
+    assert preview[:suggested_matches].sole[:preselect]
     replacement.apply!(fingerprint: preview[:fingerprint], matches: [], idempotency_key: "separate", accept_balance_difference: true)
     identity = SimplefinTransactionIdentity.find_by!(simplefin_account: @replacement, external_id: "simplefin_same-id")
     refute_equal existing.id, identity.entry_id
