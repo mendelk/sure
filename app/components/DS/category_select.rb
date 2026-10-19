@@ -1,10 +1,11 @@
 class DS::CategorySelect < DesignSystemComponent
-  attr_reader :form, :categories, :selected_id, :disabled, :auto_submit, :blank_label
+  attr_reader :form, :categories, :selected_id, :selected_category, :disabled, :auto_submit, :blank_label
 
   def initialize(
     form:,
     categories:,
     selected_id: nil,
+    selected_category: nil,
     disabled: false,
     auto_submit: false,
     blank_label: nil
@@ -12,6 +13,7 @@ class DS::CategorySelect < DesignSystemComponent
     @form = form
     @categories = categories
     @selected_id = selected_id&.to_s
+    @selected_category = selected_category
     @disabled = disabled
     @auto_submit = auto_submit
     @blank_label = blank_label

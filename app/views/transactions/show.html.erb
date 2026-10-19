@@ -88,6 +88,8 @@
                     disabled: @entry.linked? || split_locked || edit_locked,
                     disable_currency: @entry.linked? || split_locked || edit_locked %>
             </div>
+          <% end %>
+          <% if @entry.transaction.category_editable? %>
             <%= f.fields_for :entryable do |ef| %>
               <%= render DS::CategorySelect.new(
                     form: ef,
@@ -98,32 +100,19 @@
                     blank_label: t(".uncategorized")
                   ) %>
             <% end %>
+          <% elsif @entry.transaction.category_set_on_transfer_outflow? %>
+            <%= f.fields_for :entryable do |ef| %>
+              <%= render DS::CategorySelect.new(
+                    form: ef,
+                    categories: [],
+                    selected_category: read_only_category(@entry.transaction),
+                    disabled: true
+                  ) %>
+            <% end %>
+            <p class="text-xs text-secondary"><%= t(".category_set_on_outflow") %></p>
           <% end %>
         <% end %>
       </div>
-    <% end %>
-    <% if @entry.transaction.transfer? %>
-      <% transfer = @entry.transaction.transfer %>
-      <% counterpart_transaction = transfer.inflow_transaction_id == @entry.transaction.id ? transfer.outflow_transaction : transfer.inflow_transaction %>
-      <% counterpart_entry = counterpart_transaction&.entry %>
-      <% if counterpart_entry.present? && accessible_accounts.where(id: counterpart_entry.account_id).exists? %>
-        <% dialog.with_section(title: t(".matching_transfer"), open: true) do %>
-          <div class="flex items-center justify-between gap-4 p-3">
-            <div class="text-sm space-y-1">
-              <h4 class="text-primary"><%= counterpart_entry.name %></h4>
-              <p class="text-secondary"><%= counterpart_entry.account.name %> • <%= counterpart_entry.date.strftime("%b %d, %Y") %></p>
-            </div>
-            <%= render DS::Link.new(
-              text: t(".view_matching_transfer"),
-              icon: "arrow-right-left",
-              variant: "outline",
-              href: entry_path(counterpart_entry),
-              frame: :drawer,
-              data: { turbo_action: "advance", turbo_prefetch: false }
-            ) %>
-          </div>
-        <% end %>
-      <% end %>
     <% end %>
     <% dialog.with_section(title: t(".details")) do %>
       <div class="space-y-2">

@@ -35,6 +35,60 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
     Redis.new.del("api_rate_limit:#{@read_only_api_key.id}")
   end
 
+  test "unmatched payment and funds movement categories remain editable" do
+    %w[cc_payment funds_movement].each do |kind|
+      entry = create_transaction(account: accounts(:credit_card), amount: "-14.03", kind: kind)
+
+      get api_v1_transaction_url(entry.entryable), headers: api_headers(@read_only_api_key)
+      assert_response :success
+      body = JSON.parse(response.body)
+      assert body["category_editable"]
+      assert_nil body["transfer"]
+
+      patch api_v1_transaction_url(entry.entryable),
+        params: { transaction: { category_id: categories(:food_and_drink).id } },
+        headers: api_headers(@api_key)
+      assert_response :success
+      assert_equal categories(:food_and_drink).id, entry.entryable.reload.category_id
+      assert_equal kind, entry.entryable.kind
+    end
+  end
+
+  test "incoming loan transfer displays the outgoing category read only" do
+    transfer = create_transfer(from_account: accounts(:depository), to_account: accounts(:loan), amount: 100).reload
+    transfer.outflow_transaction.update!(kind: "loan_payment", category: categories(:food_and_drink))
+
+    get api_v1_transaction_url(transfer.inflow_transaction), headers: api_headers(@read_only_api_key)
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_not body["category_editable"]
+    assert body["category_set_on_transfer_outflow"]
+    assert_nil body["category"]
+    assert_equal categories(:food_and_drink).name, body.dig("display_category", "name")
+
+    get api_v1_transactions_url, params: { account_id: accounts(:loan).id }, headers: api_headers(@read_only_api_key)
+    assert_response :success
+    listed = JSON.parse(response.body)["transactions"].find { |item| item["id"] == transfer.inflow_transaction_id }
+    assert_equal body["display_category"], listed["display_category"]
+  end
+
+  test "incoming transfer display does not expose an inaccessible outgoing category" do
+    source = accounts(:depository)
+    source.update!(owner: users(:family_member))
+    source.account_shares.where(user: @user).delete_all
+    private_category = @family.categories.create!(name: "Private transfer category", color: "#123456")
+    transfer = create_transfer(from_account: source, to_account: accounts(:loan), amount: 100).reload
+    transfer.outflow_transaction.update!(kind: "loan_payment", category: private_category)
+
+    get api_v1_transaction_url(transfer.inflow_transaction), headers: api_headers(@read_only_api_key)
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_not body["category_editable"]
+    assert body["category_set_on_transfer_outflow"]
+    assert_equal I18n.t("categories.virtual.payment"), body.dig("display_category", "name")
+    assert_not_includes response.body, private_category.name
+  end
+
   # INDEX action tests
   test "should get index with valid API key" do
     get api_v1_transactions_url, headers: api_headers(@api_key)

@@ -44,6 +44,13 @@ export type Bootstrap = Pick<SpaBootstrap, "apiPaths" | "railsPaths">;
 
 type SaveState = "idle" | "saving" | "error";
 
+const transferKinds: Partial<Record<string, true>> = {
+  funds_movement: true,
+  cc_payment: true,
+  loan_payment: true,
+  investment_contribution: true,
+};
+
 function formatLongDate(isoDate: string): string {
   const parts = isoDate.split("-");
   if (parts.length < 3) return isoDate;
@@ -202,7 +209,7 @@ function TransactionDetailHeader({
           >
             {transaction.amount}
             <span className="text-lg font-normal text-secondary">{transaction.currency}</span>
-            {transaction.transfer ? (
+            {transferKinds[transaction.kind ?? ""] === true ? (
               <Icon name="arrow-left-right" className="text-secondary" />
             ) : null}
           </h1>
@@ -639,6 +646,7 @@ function TransactionEditableForm({
   const categories = referenceQuery.data?.categories ?? [];
   const merchants = referenceQuery.data?.merchants ?? [];
   const tags = referenceQuery.data?.tags ?? [];
+  const transferKind = transferKinds[transaction.kind ?? ""] === true;
 
   return (
     <Section title="Overview">
@@ -698,69 +706,88 @@ function TransactionEditableForm({
               )}
             </form.Field>
           ) : null}
-          <form.Field name="merchant_id">
+          {!transferKind ? (
+            <form.Field name="merchant_id">
+              {(field) => (
+                <MerchantSelect
+                  bootstrap={bootstrap}
+                  disabled={save.isPending}
+                  initialMerchant={transaction.merchant}
+                  merchants={merchants}
+                  onSelect={(merchantId) => {
+                    field.handleChange(merchantId);
+                    saveField(
+                      "merchant_id",
+                      merchantId === "" ? null : merchantId,
+                      transaction.merchant?.id ?? "",
+                    );
+                  }}
+                  selectedMerchantId={field.state.value}
+                />
+              )}
+            </form.Field>
+          ) : null}
+        </div>
+        {transaction.category_editable ? (
+          <form.Field name="category_id">
             {(field) => (
-              <MerchantSelect
+              <CategorySelect
                 bootstrap={bootstrap}
+                categories={categories}
                 disabled={save.isPending}
-                initialMerchant={transaction.merchant}
-                merchants={merchants}
-                onSelect={(merchantId) => {
-                  field.handleChange(merchantId);
+                initialCategory={transaction.category}
+                onSelect={(categoryId) => {
+                  field.handleChange(categoryId);
                   saveField(
-                    "merchant_id",
-                    merchantId === "" ? null : merchantId,
-                    transaction.merchant?.id ?? "",
+                    "category_id",
+                    categoryId === "" ? null : categoryId,
+                    transaction.category?.id ?? "",
                   );
                 }}
-                selectedMerchantId={field.state.value}
+                selectedCategoryId={field.state.value}
               />
             )}
           </form.Field>
-        </div>
-        <form.Field name="category_id">
-          {(field) => (
-            <CategorySelect
-              bootstrap={bootstrap}
-              categories={categories}
-              disabled={save.isPending}
-              initialCategory={transaction.category}
-              notApplicableLabel={
-                transaction.kind === "funds_movement"
-                  ? bootstrap.accountDetailText.category_not_applicable
-                  : undefined
-              }
-              onSelect={(categoryId) => {
-                field.handleChange(categoryId);
-                saveField(
-                  "category_id",
-                  categoryId === "" ? null : categoryId,
-                  transaction.category?.id ?? "",
-                );
-              }}
-              selectedCategoryId={field.state.value}
-            />
-          )}
-        </form.Field>
-        <form.Field name="tag_ids">
-          {(field) => (
-            <TagSelect
-              bootstrap={bootstrap}
-              disabled={save.isPending}
-              initialTags={transaction.tags}
-              onSelect={(tagIds) => {
-                field.handleChange(tagIds);
-                saveField(
-                  "tag_ids",
-                  tagIds,
-                  transaction.tags.map((t) => t.id),
-                );
-              }}
-              selectedTagIds={field.state.value}
-              tags={tags}
-            />
-          )}
-        </form.Field>
+        ) : (
+          <div className="form-field">
+            <div className="form-field__body">
+              <span className="form-field__label">
+                {bootstrap.accountDetailText.category_label}
+              </span>
+              {transaction.display_category ? (
+                <div className="self-start">
+                  <CategoryPill {...transaction.display_category} />
+                </div>
+              ) : null}
+              {transaction.category_set_on_transfer_outflow ? (
+                <p className="text-xs text-secondary">
+                  {bootstrap.accountDetailText.category_set_on_outflow}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        )}
+        {!transferKind ? (
+          <form.Field name="tag_ids">
+            {(field) => (
+              <TagSelect
+                bootstrap={bootstrap}
+                disabled={save.isPending}
+                initialTags={transaction.tags}
+                onSelect={(tagIds) => {
+                  field.handleChange(tagIds);
+                  saveField(
+                    "tag_ids",
+                    tagIds,
+                    transaction.tags.map((t) => t.id),
+                  );
+                }}
+                selectedTagIds={field.state.value}
+                tags={tags}
+              />
+            )}
+          </form.Field>
+        ) : null}
         <form.Field name="notes">
           {(field) => (
             <div className="form-field">
@@ -909,7 +936,7 @@ function TransactionDetailBody({ transaction }: { transaction: SpaTransactionDet
       <dl className="space-y-3">
         <Field label="Account" value={transaction.account.name} />
         {!transaction.permissions.can_annotate || (transaction.parent_entry_id ?? null) !== null ? (
-          <Field label="Category" value={transaction.category?.name ?? "Uncategorized"} />
+          <Field label="Category" value={transaction.display_category?.name ?? "Uncategorized"} />
         ) : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">

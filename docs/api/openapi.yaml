@@ -2528,6 +2528,9 @@ components:
       - tags
       - created_at
       - updated_at
+      - category_editable
+      - category_set_on_transfer_outflow
+      - display_category
       properties:
         id:
           type: string
@@ -2605,6 +2608,31 @@ components:
         category:
           "$ref": "#/components/schemas/Category"
           nullable: true
+        category_editable:
+          type: boolean
+          description: Whether this leg owns an editable category. Unmatched transactions
+            remain editable; account annotation permission is also required.
+        category_set_on_transfer_outflow:
+          type: boolean
+          description: Whether the category belongs to the outgoing leg of this matched
+            transfer.
+        display_category:
+          type: object
+          nullable: true
+          required:
+          - name
+          - color
+          - icon
+          description: Category badge to display, including Payment/Transfer virtual
+            badges or the accessible outgoing leg category. Does not expose categories
+            from inaccessible accounts.
+          properties:
+            name:
+              type: string
+            color:
+              type: string
+            icon:
+              type: string
         merchant:
           "$ref": "#/components/schemas/Merchant"
           nullable: true
@@ -12155,9 +12183,11 @@ paths:
       tags:
       - Transactions
       description: Includes viewer-specific account permissions.can_edit and permissions.can_annotate.
-        Split parents include split_children with transfer_account_id identifying
-        each linked counterpart account, or null for non-transfer children. Use it
-        to preserve transfers when editing a split.
+        category_editable identifies legs that own their category; category_set_on_transfer_outflow
+        identifies read-only incoming legs. display_category includes the visible
+        outgoing category or a virtual Payment/Transfer badge without exposing inaccessible
+        accounts. Split parents include split_children with transfer_account_id identifying
+        each linked counterpart account, or null for non-transfer children.
       security:
       - apiKeyAuth: []
       responses:

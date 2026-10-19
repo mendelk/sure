@@ -96,11 +96,19 @@ fields does not remove an existing transfer. Non-transfer children return `null`
 The detail drawer's Split Entries section uses the same value to identify transfers
 instead of labeling them uncategorized, while retaining any assigned category.
 
-Funds movements keep a visible, disabled Category control labeled “Not applicable”
-in transaction details and split forms. Split forms recompute this state when the
-counterpart account changes and omit any previously selected category on save.
-Incoming split transfer legs and investment-to-investment movements are funds
-movements; outgoing loan payments and investment contributions remain categorizable.
+Transaction category editing follows the upstream ERB ownership policy:
+unmatched payment/transfer kinds stay editable; matched loan payments and
+investment contributions own their category on the outgoing leg. Incoming legs
+show the accessible outgoing category read-only. Matched funds movements and
+credit-card payments show virtual Transfer/Payment badges. The API exposes this
+through `category_editable`, `category_set_on_transfer_outflow`, and
+`display_category`, keeping the stored `category` separate.
+
+Split forms keep a visible, disabled Category control labeled “Not applicable”
+for funds movements, recompute this state when the counterpart account changes,
+and omit any previously selected category on save. Incoming split transfer legs
+and investment-to-investment movements are funds movements; outgoing loan payments
+and investment contributions remain categorizable.
 
 ## Ingestion and background work
 

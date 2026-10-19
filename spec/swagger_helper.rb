@@ -1388,7 +1388,7 @@ RSpec.configure do |config|
           },
           Transaction: {
             type: :object,
-            required: %w[id entry_id date amount amount_cents signed_amount_cents currency name classification detail_path pending excluded account permissions tags created_at updated_at],
+            required: %w[id entry_id date amount amount_cents signed_amount_cents currency name classification detail_path pending excluded account permissions tags created_at updated_at category_editable category_set_on_transfer_outflow display_category],
             properties: {
               id: { type: :string, format: :uuid },
               entry_id: { type: :string, format: :uuid },
@@ -1413,6 +1413,17 @@ RSpec.configure do |config|
               account: { '$ref' => '#/components/schemas/Account' },
               permissions: { '$ref' => '#/components/schemas/AccountPermissions' },
               category: { '$ref' => '#/components/schemas/Category', nullable: true },
+              category_editable: { type: :boolean, description: 'Whether this leg owns an editable category. Unmatched transactions remain editable; account annotation permission is also required.' },
+              category_set_on_transfer_outflow: { type: :boolean, description: 'Whether the category belongs to the outgoing leg of this matched transfer.' },
+              display_category: {
+                type: :object, nullable: true, required: %w[name color icon],
+                description: 'Category badge to display, including Payment/Transfer virtual badges or the accessible outgoing leg category. Does not expose categories from inaccessible accounts.',
+                properties: {
+                  name: { type: :string },
+                  color: { type: :string },
+                  icon: { type: :string }
+                }
+              },
               merchant: { '$ref' => '#/components/schemas/Merchant', nullable: true },
               tags: {
                 type: :array,

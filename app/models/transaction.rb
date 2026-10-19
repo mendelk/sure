@@ -167,6 +167,23 @@ class Transaction < ApplicationRecord
     TRANSFER_KINDS.include?(kind)
   end
 
+  # An unmatched provider-imported leg has no counterpart to own its category.
+  def category_editable?
+    return false if category_set_on_transfer_outflow?
+    return true unless transfer?
+    return true unless transfer
+
+    transfer.categorizable? && transfer.outflow_transaction_id == id
+  end
+
+  def category_set_on_transfer_outflow?
+    transfer_as_inflow.present? && transfer_as_inflow.categorizable?
+  end
+
+  def payment?
+    transfer ? transfer.payment? : cc_payment?
+  end
+
   def set_category!(category)
     if category.is_a?(String)
       category = entry.account.family.categories.find_or_create_by!(
