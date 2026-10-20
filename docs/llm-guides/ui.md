@@ -27,6 +27,17 @@ impose the obsolete `ButtonComponent`/`DialogComponent` examples on this design
 system. Partials use an underscore prefix; shared partials live in
 `app/views/shared/`, context-specific partials under their controller's views.
 
+## Account charts
+
+The account SPA's `AccountChartCard` isolates chart-rendering failures behind a
+local error boundary. Its localized fallback leaves account details and activity
+available, supports retry, and resets when a new chart payload arrives.
+
+Single-day periods are valid, including newly opened accounts viewed over All
+Time. The chart centers these on a one-day display window so TanStack's scale
+and viewport have distinct endpoints; the selected period and source data stay
+unchanged. Keep the full scale extent and initial viewport on the same window.
+
 ## Stimulus
 
 - Declare actions in HTML (`data-action="click->toggle#toggle"`) rather than

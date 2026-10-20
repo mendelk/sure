@@ -148,6 +148,7 @@ en:
         refresh: Refresh account
         period: Period
         chart_view: Chart view
+        chart_unavailable: The chart could not be displayed. Your account details and activity are still available.
         reset_zoom: Reset zoom
         close: Close
         retry: Try again
