@@ -40,8 +40,8 @@ const AuditPageSchema = z.object({
   account_id: AccountIdSchema,
   read_only: z.literal(true),
   coverage: z.object({
-    requested_start_date: z.string(),
-    requested_end_date: z.string(),
+    period_days: z.number(),
+    has_more_connections: z.boolean(),
     window_start_date: z.string(),
     window_end_date: z.string(),
     simplefin_item_id: z.string(),
@@ -72,8 +72,8 @@ const AuditPageSchema = z.object({
 });
 const MetadataSchema = z.object({
   account: z.object({ id: AccountIdSchema, name: z.string(), currency: z.string() }),
-  min_date: z.string(),
-  max_date: z.string(),
+  default_period_days: z.number(),
+  max_period_days: z.number(),
   text: z.record(z.string(), z.string()),
 });
 const ErrorSchema = z.object({ error: z.string(), message: z.string() });
@@ -81,7 +81,7 @@ const ErrorSchema = z.object({ error: z.string(), message: z.string() });
 export type AuditPage = z.infer<typeof AuditPageSchema>;
 export type AuditTransaction = z.infer<typeof TransactionSchema>;
 export type AuditMetadata = z.infer<typeof MetadataSchema>;
-export type AuditRequest = { start_date?: string; end_date?: string; cursor?: string };
+export type AuditRequest = { period_days?: number; cursor?: string };
 
 export class HistoryAuditApiError extends Error {
   constructor(

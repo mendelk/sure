@@ -39,17 +39,15 @@ components:
   schemas:
     SimplefinHistoryAuditRequest:
       type: object
-      description: Dates are inclusive. Omit dates to walk back to 1970-01-01; follow
-        next_cursor one page at a time. Send cursor alone to continue.
+      description: Choose a period of 1–45 days (default 45), initially ending today.
+        Send cursor alone to visit remaining connections in that period, then the
+        preceding period, down to 1970-01-01.
       properties:
-        start_date:
-          type: string
-          format: date
-          nullable: true
-        end_date:
-          type: string
-          format: date
-          nullable: true
+        period_days:
+          type: integer
+          minimum: 1
+          maximum: 45
+          default: 45
         cursor:
           type: string
           nullable: true
@@ -113,20 +111,21 @@ components:
         coverage:
           type: object
           required:
-          - requested_start_date
-          - requested_end_date
+          - period_days
+          - has_more_connections
           - window_start_date
           - window_end_date
           - simplefin_item_id
           - page_complete
           - provider_history_complete
           properties:
-            requested_start_date:
-              type: string
-              format: date
-            requested_end_date:
-              type: string
-              format: date
+            period_days:
+              type: integer
+              minimum: 1
+              maximum: 45
+            has_more_connections:
+              type: boolean
+              description: Continue this period before moving to the preceding period
             window_start_date:
               type: string
               format: date
@@ -11595,10 +11594,12 @@ paths:
       summary: Audit fresh SimpleFIN history without importing or changing financial
         data
       description: Requires an administrator, account write permission, and read_write
-        scope. Each page makes one account-filtered provider request over at most
-        60 days, including associated retired feeds. Follow next_cursor to walk older
-        history without an empty-window or one-year cutoff. Provider history availability
-        is not guaranteed. Stop on provider errors or rate limits.
+        scope. Choose a period of 1–45 days (default 45), initially ending today.
+        Each page makes one account-filtered provider request, including associated
+        retired feeds. Follow next_cursor through remaining connections in that period,
+        then the immediately preceding period of the same length, back to 1970-01-01.
+        Provider history availability is not guaranteed. Stop on provider errors or
+        rate limits.
       tags:
       - Accounts
       security:
@@ -11632,13 +11633,14 @@ paths:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
         '409':
-          description: provider mappings changed; restart or resolve conflicting links
+          description: provider mappings or audit period format changed; restart or
+            resolve conflicting links
           content:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
         '422':
-          description: invalid dates/cursor or no available SimpleFIN feed
+          description: invalid period/cursor or no available SimpleFIN feed
           content:
             application/json:
               schema:

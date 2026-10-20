@@ -145,19 +145,25 @@ curl --request POST \
   "$SURE_URL/api/v1/accounts/$ACCOUNT_ID/simplefin_history_audit" \
   --header "X-Api-Key: $SURE_API_KEY" \
   --header "Content-Type: application/json" \
-  --data '{}'
+  --data '{"period_days":45}'
 ```
 
 This compares SimpleFIN transactions against the account's ledger without
 importing anything or changing balances, mappings, cached payloads, or normal
-sync timestamps. Current and retired feeds are included. Each page requests at
-most 60 days from one connection, filtered to this account's provider IDs.
-Omitting dates starts today and permits paging back to 1970-01-01; optional
-`start_date` and `end_date` restrict the audit and are inclusive.
+sync timestamps. Current and retired feeds are included. Set `period_days` to a
+whole number from 1 to 45; omitting it defaults to 45. The first period ends today.
+Each page requests that many days from one connection, filtered to this account's
+provider IDs. Coverage dates are inclusive. Date-range inputs are not supported.
 
-Send `{"cursor":"<next_cursor>"}` alone to continue. There is no one-year cutoff
-and empty windows do not stop pagination. Deduplicate combined results by
-`simplefin_account_id` and `provider_transaction_id`, not by transaction ID alone.
+Send `{"cursor":"<next_cursor>"}` alone to continue. If
+`coverage.has_more_connections` is true, the next page checks another connection
+for the same period; otherwise it checks the immediately preceding period of the
+same length, without gaps or overlaps. There is no one-year cutoff and empty
+periods do not stop pagination. The final period is clipped at 1970-01-01.
+Deduplicate combined results by `simplefin_account_id` and
+`provider_transaction_id`, not by transaction ID alone.
+If a cursor returns `stale_cursor`, start a new audit. Cursors from the retired
+date-range contract cannot be continued or retried safely.
 Provider history availability varies; an empty page is not proof of complete
 bank history. Large scans consume provider quota: SimpleFIN recommends at most
 24 requests per day. Stop on provider-error/quota warnings or HTTP 429 and retry
