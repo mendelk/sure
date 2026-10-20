@@ -77,6 +77,23 @@ following a redirect. HTML form submissions use `303 See Other` so navigation
 continues as a GET rather than replaying the PATCH. Only an account owner can
 change who it is shared with; members can change only their own finance inclusion.
 
+**Balance updates (valuations).** Creation and detail pages use React drawers,
+including direct `/valuations/new` and `/valuations/:entry_id` links and
+account-scoped entry points. The URL ID is the ledger entry UUID, not the
+underlying valuation UUID. New balances without a selected account offer the
+accounts you can modify.
+
+Creating or changing a balance retains the server-calculated confirmation
+preview, investment holdings/cash breakdown, and Back action with preserved
+draft inputs. Notes save on blur, can be cleared, and do not close the drawer.
+Deletion requires confirmation. Read-only members can view; annotation access
+permits notes only; balance changes and deletion require owner/full-control
+access.
+
+Closing, cancelling, and confirmed creation, balance changes, or deletion return
+to the exact opening URL, retaining filters, tabs, pagination, and query encoding.
+Valuations record absolute balances rather than additional spending or income.
+
 **SimpleFIN account replacement.** Use **Change SimpleFIN account** from an
 existing account's menu, or accept a replacement suggestion on the Accounts
 page. The React drawer also supports linking a manual account and selecting

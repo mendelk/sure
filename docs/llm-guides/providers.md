@@ -80,6 +80,14 @@ structures, conflicting metadata, and missing dated FX block apply.
 Investment positions are not silently consolidated; manual linking and
 mapping-only moves from accounts retaining another provider remain available.
 
+Adopting the new feed's balance uses `Account#set_current_balance`. Its normal
+linked-account behavior creates or updates a `current_anchor` valuation. When
+advancing beyond an older canonical current anchor, it preserves that same entry
+as a historical `reconciliation` and creates the new current anchor. These are
+absolute balance checkpoints, not carryover purchases or discrepancy-adjustment
+transactions; they can appear even when the reviewed balance discrepancy is zero.
+The original opening anchor and canonical historical observations remain intact.
+
 Apply requires the reviewed fingerprint and an idempotency key. Reusing a key
 with the same request returns the recorded result; a changed request conflicts.
 The actor, decisions, balance acknowledgement, and before-images are retained in

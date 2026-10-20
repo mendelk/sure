@@ -2,8 +2,8 @@
   <div class="bg-container space-y-4 p-5 shadow-border-xs rounded-xl">
     <div class="flex items-center justify-between">
       <%= tag.h2 t(".valuations"), class: "font-medium text-lg" %>
-      <%= link_to new_valuation_path(@account),
-                  data:  { turbo_frame: dom_id(@account.entries.valuations.new) },
+      <%= link_to new_valuation_path(account_id: @account.id, return_to: request.fullpath),
+                  data: { turbo: false },
                   class: "flex gap-1 font-medium items-center bg-surface-inset text-primary p-2 rounded-lg" do %>
         <span class="text-primary">
           <%= icon("plus", color: "current") %>

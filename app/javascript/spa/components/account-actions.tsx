@@ -111,6 +111,19 @@ export function AccountActionControl({
         search: { ...search, ...extra },
         resetScroll: false,
       });
+    } else if (
+      url.pathname === "/valuations/new" ||
+      url.pathname === `/accounts/${accountId}/valuations/new`
+    ) {
+      void navigate({
+        to: "/accounts/$accountId/valuations/new",
+        params: { accountId },
+        search: {
+          ...search,
+          return_to: currentReturnTo(),
+        },
+        resetScroll: false,
+      });
     } else if (url.pathname.startsWith("/loans/") && url.pathname.endsWith("/edit")) {
       void navigate({
         to: "/loans/$accountId/edit",
