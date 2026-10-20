@@ -59,6 +59,97 @@ RSpec.configure do |config|
           }
         },
         schemas: {
+          SimplefinHistoryAuditRequest: {
+            type: :object,
+            description: 'Dates are inclusive. Omit dates to walk back to 1970-01-01; follow next_cursor one page at a time. Send cursor alone to continue.',
+            properties: {
+              start_date: { type: :string, format: :date, nullable: true },
+              end_date: { type: :string, format: :date, nullable: true },
+              cursor: { type: :string, nullable: true }
+            }
+          },
+          SimplefinHistoryAuditCandidate: {
+            type: :object, required: %w[entry_id transaction_id name date amount currency source parent_entry_id],
+            properties: {
+              entry_id: { type: :string, format: :uuid },
+              transaction_id: { type: :string, format: :uuid },
+              name: { type: :string },
+              date: { type: :string, format: :date },
+              amount: { type: :string, description: 'Signed ledger amount: positive outflow, negative inflow' },
+              currency: { type: :string },
+              source: { type: :string, nullable: true },
+              parent_entry_id: { type: :string, format: :uuid, nullable: true }
+            }
+          },
+          SimplefinHistoryAudit: {
+            type: :object, required: %w[account_id read_only coverage feeds transactions summary warnings next_cursor retry_cursor],
+            properties: {
+              account_id: { type: :string, format: :uuid },
+              read_only: { type: :boolean, enum: [ true ], description: 'No ledger, balance, mapping, payload-cache, or sync-timestamp changes. Support diagnostics may be recorded.' },
+              coverage: {
+                type: :object,
+                required: %w[requested_start_date requested_end_date window_start_date window_end_date simplefin_item_id page_complete provider_history_complete],
+                properties: {
+                  requested_start_date: { type: :string, format: :date },
+                  requested_end_date: { type: :string, format: :date },
+                  window_start_date: { type: :string, format: :date },
+                  window_end_date: { type: :string, format: :date },
+                  simplefin_item_id: { type: :string, format: :uuid },
+                  page_complete: { type: :boolean, description: 'All requested feeds returned valid transaction lists without provider errors or unresolved rows' },
+                  provider_history_complete: { type: :boolean, enum: [ false ], description: 'SimpleFIN cannot certify complete bank history, even for an empty successful page' }
+                }
+              },
+              feeds: {
+                type: :array, items: {
+                  type: :object, required: %w[simplefin_account_id provider_account_id name retired returned transaction_count],
+                  properties: {
+                    simplefin_account_id: { type: :string, format: :uuid },
+                    provider_account_id: { type: :string },
+                    name: { type: :string },
+                    retired: { type: :boolean },
+                    returned: { type: :boolean },
+                    transaction_count: { type: :integer }
+                  }
+                }
+              },
+              transactions: {
+                type: :array, items: {
+                  type: :object,
+                  required: %w[simplefin_account_id provider_transaction_id external_id date name amount currency entry_id transaction_id possible_matches status],
+                  properties: {
+                    simplefin_account_id: { type: :string, format: :uuid },
+                    provider_transaction_id: { type: :string, nullable: true },
+                    external_id: { type: :string, nullable: true },
+                    date: { type: :string, format: :date, nullable: true },
+                    name: { type: :string, nullable: true },
+                    amount: { type: :string, nullable: true, description: 'Signed ledger amount, not provider sign convention' },
+                    currency: { type: :string, nullable: true },
+                    entry_id: { type: :string, format: :uuid, nullable: true },
+                    transaction_id: { type: :string, format: :uuid, nullable: true },
+                    possible_matches: { type: :array, items: { '$ref' => '#/components/schemas/SimplefinHistoryAuditCandidate' } },
+                    status: { type: :string, enum: %w[recorded intentionally_deleted possible_match missing pending invalid identity_conflict] }
+                  }
+                }
+              },
+              summary: {
+                type: :object,
+                required: %w[recorded intentionally_deleted possible_match missing pending invalid identity_conflict],
+                properties: %w[recorded intentionally_deleted possible_match missing pending invalid identity_conflict].to_h { |status| [ status, { type: :integer, minimum: 0 } ] }
+              },
+              warnings: {
+                type: :array, items: {
+                  type: :object, required: %w[code message],
+                  properties: {
+                    code: { type: :string },
+                    message: { type: :string },
+                    simplefin_account_id: { type: :string, format: :uuid }
+                  }
+                }
+              },
+              next_cursor: { type: :string, nullable: true, description: 'Next connection/window, even after an empty or partial page. Null means the requested range was traversed, not that bank history is complete.' },
+              retry_cursor: { type: :string, nullable: true, description: 'Revisit this partial page without losing the next-page cursor. Stop on provider errors or quota warnings and retry later.' }
+            }
+          },
           ProviderReplacementAccount: {
             type: :object, required: %w[id name currency],
             properties: {

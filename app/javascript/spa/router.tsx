@@ -96,6 +96,10 @@ import {
   validateReplacementSearch,
 } from "./simplefin-replacement-drawer";
 import { ValuationDrawer, validateValuationSearch } from "./valuation-drawer";
+import {
+  SimplefinHistoryAuditDrawer,
+  validateHistoryAuditSearch,
+} from "./simplefin-history-audit-drawer";
 type RouterContext = {
   bootstrap: SpaBootstrap;
 };
@@ -212,6 +216,18 @@ const accountsIndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/accounts",
   component: AccountsIndexPage,
+});
+
+const simplefinHistoryAuditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/accounts/$accountId/simplefin_history_audit",
+  validateSearch: validateHistoryAuditSearch,
+  component: () => (
+    <>
+      <AccountsIndexPage />
+      <SimplefinHistoryAuditDrawer />
+    </>
+  ),
 });
 
 const statementsRoute = createRoute({
@@ -1076,6 +1092,7 @@ const routeTree = rootRoute.addChildren([
     bulkUpdateTransactionRoute,
   ]),
   accountsIndexRoute,
+  simplefinHistoryAuditRoute,
   statementsRoute.addChildren([statementsIndexRoute, statementDetailRoute]),
   dashboardsRoute.addChildren([dashboardsIndexRoute]),
   sourcesRoute.addChildren([sourcesIndexRoute, newSourceRoute, editSourceRoute]),

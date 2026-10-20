@@ -52,7 +52,7 @@ class Provider::Simplefin
     end
   end
 
-  def get_accounts(access_url, start_date: nil, end_date: nil, pending: nil)
+  def get_accounts(access_url, start_date: nil, end_date: nil, pending: nil, account_ids: nil)
     # Build query parameters
     query_params = {}
 
@@ -72,6 +72,10 @@ class Provider::Simplefin
     # param, so sending `pending=0` behaves like `pending=1` — the only
     # spec-compliant way to exclude pending is to omit the param entirely.
     query_params["pending"] = "1" if pending
+
+    Array(account_ids).each do |account_id|
+      (query_params["account"] ||= []) << account_id
+    end
 
     accounts_url = "#{access_url}/accounts"
     accounts_url += "?#{URI.encode_www_form(query_params)}" unless query_params.empty?

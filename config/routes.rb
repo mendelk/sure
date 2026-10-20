@@ -732,6 +732,7 @@ Rails.application.routes.draw do
     end
 
     resource :sharing, only: [ :show, :update ], controller: "account_sharings"
+    resource :simplefin_history_audit, only: :show
     resource :provider_replacement, only: :show, controller: "provider_replacements" do
       post :preview
       post :apply
@@ -811,6 +812,7 @@ Rails.application.routes.draw do
         post :avm_confirm, on: :collection
       end
       resources :accounts, only: [ :index, :show, :create, :update ] do
+        resource :simplefin_history_audit, only: :create
         resource :provider_replacement, only: :show, controller: "provider_replacements" do
           post :preview
           post :apply

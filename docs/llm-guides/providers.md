@@ -105,6 +105,48 @@ Deploy migrations `20261019130000_create_provider_replacement_safety` and
 `20261019140000_adjust_provider_replacement_deletion_safety` before using the
 new flow. The latter preserves existing account/connection deletion behavior.
 
+## SimpleFIN historical coverage audit
+
+`POST /api/v1/accounts/:account_id/simplefin_history_audit` invokes
+`Account::SimplefinHistoryAudit`. It requires administrator/account-write
+authorization and `read_write` scope because it consumes provider quota.
+It is ledger-read-only: never invoke ingestion, update payload caches or normal
+sync timestamps, adopt a provider balance, or create transaction identities.
+Support-relevant failures/partial responses use credential-free debug metadata.
+
+The Accounts row menu exposes **Check for missing transactions** to administrators
+with owner/full-control access to linked SimpleFIN accounts. Its SPA route and
+metadata are `GET /accounts/:account_id/simplefin_history_audit`; opening or
+preloading the drawer must not consume provider quota. Audit POSTs use the API
+above with the browser session and CSRF token. Fetch only on explicit user action,
+deduplicate by provider-account/transaction identity, retain incomplete-page retry
+cursors, and never rewind the forward pagination cursor when retrying an earlier
+page. Provider errors/rate limits stop continuation until explicitly retried.
+
+Each page fetches one connection's associated current and retired feeds with
+repeated SimpleFIN `account` filters, over at most 60 days. UTC start timestamps
+are inclusive; end timestamps are the exclusive midnight after `end_date`.
+Dates in the API are inclusive. The signed cursor binds the requested range,
+connection, and feed fingerprint to the family/account; feed changes require
+restarting. Default history extends to 1970-01-01, with no empty-window or
+one-year stopping rule. Bound each HTTP request rather than performing a
+long-running scan in the web process. Callers must respect SimpleFIN's quotas.
+
+Reuse `SimplefinEntry::Processor#import_attributes` for dates, signs, names and
+currencies. Match provider-scoped identity aliases before anything else; NULL
+entry tombstones are intentional deletions. Legacy external-ID matching is
+only authoritative when the account has a single feed. Equal IDs from different
+feeds must not claim each other's ledger entries. Same signed amount/currency
+within four days produces review candidates, including manual/CSV entries and
+split children, never automatic duplicate decisions or transfer changes.
+
+`page_complete` describes only the response page, not guaranteed bank history.
+Missing/ambiguous feed snapshots, upstream errors, malformed transactions and
+conflicting identity rows make coverage partial. `retry_cursor` revisits that
+page; `next_cursor` can continue other windows/connections without erasing the
+partial coverage. Do not infer that Sure-only historical entries are errors
+when the provider no longer exposes their dates.
+
 ## Pending transactions and FX metadata
 
 Store provider metadata on `Transaction#extra` under the provider namespace.

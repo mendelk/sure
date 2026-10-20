@@ -37,6 +37,260 @@ components:
       in: cookie
       description: Authenticated Sure browser session.
   schemas:
+    SimplefinHistoryAuditRequest:
+      type: object
+      description: Dates are inclusive. Omit dates to walk back to 1970-01-01; follow
+        next_cursor one page at a time. Send cursor alone to continue.
+      properties:
+        start_date:
+          type: string
+          format: date
+          nullable: true
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        cursor:
+          type: string
+          nullable: true
+    SimplefinHistoryAuditCandidate:
+      type: object
+      required:
+      - entry_id
+      - transaction_id
+      - name
+      - date
+      - amount
+      - currency
+      - source
+      - parent_entry_id
+      properties:
+        entry_id:
+          type: string
+          format: uuid
+        transaction_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        date:
+          type: string
+          format: date
+        amount:
+          type: string
+          description: 'Signed ledger amount: positive outflow, negative inflow'
+        currency:
+          type: string
+        source:
+          type: string
+          nullable: true
+        parent_entry_id:
+          type: string
+          format: uuid
+          nullable: true
+    SimplefinHistoryAudit:
+      type: object
+      required:
+      - account_id
+      - read_only
+      - coverage
+      - feeds
+      - transactions
+      - summary
+      - warnings
+      - next_cursor
+      - retry_cursor
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        read_only:
+          type: boolean
+          enum:
+          - true
+          description: No ledger, balance, mapping, payload-cache, or sync-timestamp
+            changes. Support diagnostics may be recorded.
+        coverage:
+          type: object
+          required:
+          - requested_start_date
+          - requested_end_date
+          - window_start_date
+          - window_end_date
+          - simplefin_item_id
+          - page_complete
+          - provider_history_complete
+          properties:
+            requested_start_date:
+              type: string
+              format: date
+            requested_end_date:
+              type: string
+              format: date
+            window_start_date:
+              type: string
+              format: date
+            window_end_date:
+              type: string
+              format: date
+            simplefin_item_id:
+              type: string
+              format: uuid
+            page_complete:
+              type: boolean
+              description: All requested feeds returned valid transaction lists without
+                provider errors or unresolved rows
+            provider_history_complete:
+              type: boolean
+              enum:
+              - false
+              description: SimpleFIN cannot certify complete bank history, even for
+                an empty successful page
+        feeds:
+          type: array
+          items:
+            type: object
+            required:
+            - simplefin_account_id
+            - provider_account_id
+            - name
+            - retired
+            - returned
+            - transaction_count
+            properties:
+              simplefin_account_id:
+                type: string
+                format: uuid
+              provider_account_id:
+                type: string
+              name:
+                type: string
+              retired:
+                type: boolean
+              returned:
+                type: boolean
+              transaction_count:
+                type: integer
+        transactions:
+          type: array
+          items:
+            type: object
+            required:
+            - simplefin_account_id
+            - provider_transaction_id
+            - external_id
+            - date
+            - name
+            - amount
+            - currency
+            - entry_id
+            - transaction_id
+            - possible_matches
+            - status
+            properties:
+              simplefin_account_id:
+                type: string
+                format: uuid
+              provider_transaction_id:
+                type: string
+                nullable: true
+              external_id:
+                type: string
+                nullable: true
+              date:
+                type: string
+                format: date
+                nullable: true
+              name:
+                type: string
+                nullable: true
+              amount:
+                type: string
+                nullable: true
+                description: Signed ledger amount, not provider sign convention
+              currency:
+                type: string
+                nullable: true
+              entry_id:
+                type: string
+                format: uuid
+                nullable: true
+              transaction_id:
+                type: string
+                format: uuid
+                nullable: true
+              possible_matches:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/SimplefinHistoryAuditCandidate"
+              status:
+                type: string
+                enum:
+                - recorded
+                - intentionally_deleted
+                - possible_match
+                - missing
+                - pending
+                - invalid
+                - identity_conflict
+        summary:
+          type: object
+          required:
+          - recorded
+          - intentionally_deleted
+          - possible_match
+          - missing
+          - pending
+          - invalid
+          - identity_conflict
+          properties:
+            recorded:
+              type: integer
+              minimum: 0
+            intentionally_deleted:
+              type: integer
+              minimum: 0
+            possible_match:
+              type: integer
+              minimum: 0
+            missing:
+              type: integer
+              minimum: 0
+            pending:
+              type: integer
+              minimum: 0
+            invalid:
+              type: integer
+              minimum: 0
+            identity_conflict:
+              type: integer
+              minimum: 0
+        warnings:
+          type: array
+          items:
+            type: object
+            required:
+            - code
+            - message
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+              simplefin_account_id:
+                type: string
+                format: uuid
+        next_cursor:
+          type: string
+          nullable: true
+          description: Next connection/window, even after an empty or partial page.
+            Null means the requested range was traversed, not that bank history is
+            complete.
+        retry_cursor:
+          type: string
+          nullable: true
+          description: Revisit this partial page without losing the next-page cursor.
+            Stop on provider errors or quota warnings and retry later.
     ProviderReplacementAccount:
       type: object
       required:
@@ -11330,6 +11584,83 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/accounts/{account_id}/simplefin_history_audit":
+    parameters:
+    - name: account_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Audit fresh SimpleFIN history without importing or changing financial
+        data
+      description: Requires an administrator, account write permission, and read_write
+        scope. Each page makes one account-filtered provider request over at most
+        60 days, including associated retired feeds. Follow next_cursor to walk older
+        history without an empty-window or one-year cutoff. Provider history availability
+        is not guaranteed. Stop on provider errors or rate limits.
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: history comparison page, with coverage warnings and continuation/retry
+            cursors
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SimplefinHistoryAudit"
+        '401':
+          description: authentication required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: administrator, account write permission, and read_write scope
+            required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: account not accessible
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '409':
+          description: provider mappings changed; restart or resolve conflicting links
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: invalid dates/cursor or no available SimpleFIN feed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '429':
+          description: provider or API request quota reached; retry the same page
+            later
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '502':
+          description: provider request failed or returned malformed account data
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/SimplefinHistoryAuditRequest"
   "/api/v1/syncs":
     get:
       summary: Lists sync history
