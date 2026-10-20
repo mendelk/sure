@@ -1,6 +1,6 @@
 // eslint-disable import/max-dependencies -- The shared chart composes exact-subpath chart marks, scales, accessible interactions, and standard controls.
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
-import { useMemo, useRef, useState } from "react";
+import { Component, useMemo, useRef, useState } from "react";
 import { defineChart, lineY, ruleX, type ChartTooltipInput } from "@tanstack/charts";
 import { Chart } from "@tanstack/charts/react";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
@@ -27,6 +27,16 @@ type PlotPoint = {
 function timestamp(date: string) {
   return Date.parse(`${date}T00:00:00Z`);
 }
+
+function chartPeriodWindow(chart: AccountChart): ZoomXWindow<number> {
+  const start = timestamp(chart.period.start_date);
+  const end = timestamp(chart.period.end_date);
+  // A valid one-day period has identical dates. Center it in a one-day display
+  // window so both the scale and viewport have distinct endpoints.
+  const padding = start === end ? 12 * 60 * 60 * 1000 : 0;
+  return { start: start - padding, end: end + padding };
+}
+
 export function AccountTimeSeriesChart({
   chart,
   selectable,
@@ -65,8 +75,7 @@ export function AccountTimeSeriesChart({
     () => series.flatMap((item) => item.points.map((point) => point.timestamp)),
     [series],
   );
-  const periodStart = timestamp(chart.period.start_date);
-  const periodEnd = timestamp(chart.period.end_date);
+  const { start: periodStart, end: periodEnd } = chartPeriodWindow(chart);
   const fullStart = Math.min(periodStart, ...pointTimestamps);
   const fullEnd = Math.max(periodEnd, ...pointTimestamps);
   // The zoom surface only captures the wheel while focused. Pointing at the
@@ -223,23 +232,61 @@ export function AccountTimeSeriesChart({
     </div>
   );
 }
-export function AccountChartCard({
-  chart,
-  text,
-  selectable,
-  onSearchChange,
-}: {
+type AccountChartCardProps = {
   chart: AccountChart;
   text: Record<string, string>;
   selectable: boolean;
   onSearchChange: (patch: Partial<AccountSearch>) => void;
-}) {
+};
+
+type AccountChartCardState = { failed: boolean; chart: AccountChart };
+
+export class AccountChartCard extends Component<AccountChartCardProps, AccountChartCardState> {
+  state: AccountChartCardState = { failed: false, chart: this.props.chart };
+
+  static getDerivedStateFromProps(
+    props: AccountChartCardProps,
+    state: AccountChartCardState,
+  ): Partial<AccountChartCardState> | null {
+    return props.chart === state.chart ? null : { failed: false, chart: props.chart };
+  }
+
+  static getDerivedStateFromError(): Partial<AccountChartCardState> {
+    return { failed: true };
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <Alert variant="error" live="alert">
+          <p>{this.props.text.chart_unavailable}</p>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              this.setState({ failed: false });
+            }}
+          >
+            {this.props.text.retry}
+          </Button>
+        </Alert>
+      );
+    }
+    return <AccountChartCardContent {...this.props} />;
+  }
+}
+
+function AccountChartCardContent({
+  chart,
+  text,
+  selectable,
+  onSearchChange,
+}: AccountChartCardProps) {
   // The zoom window is a local viewport onto the loaded series: pan/zoom never
   // navigates, so the page does not refetch or lose focus mid-gesture. While
   // zoomed, the preset dropdown no longer describes what is shown, so it is
   // disabled and the visible range is shown with a way back.
-  const periodStart = timestamp(chart.period.start_date);
-  const periodEnd = timestamp(chart.period.end_date);
+  const { start: periodStart, end: periodEnd } = chartPeriodWindow(chart);
   const [viewport, setViewport] = useState<ZoomXWindow<number> | null>(null);
   const periodKey = `${chart.view}-${chart.period.start_date}-${chart.period.end_date}`;
   const [syncedPeriodKey, setSyncedPeriodKey] = useState(periodKey);

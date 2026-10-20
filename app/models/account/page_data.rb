@@ -451,7 +451,7 @@ class Account::PageData
     end
 
     def text
-      keys = %w[activity new search_placeholder filter status confirmed pending uncategorized_only columns merchant notes tags category date amount no_entries previous_page next_page per_page select_all select_entry selected_entries edit_selected delete_selected duplicate_selected delete_confirm account_menu refresh period chart_view reset_zoom reconciliation close retry unavailable year loading cancel]
+      keys = %w[activity new search_placeholder filter status confirmed pending uncategorized_only columns merchant notes tags category date amount no_entries previous_page next_page per_page select_all select_entry selected_entries edit_selected delete_selected duplicate_selected delete_confirm account_menu refresh period chart_view chart_unavailable reset_zoom reconciliation close retry unavailable year loading cancel]
       keys.index_with do |key|
         if key.in?(%w[activity new search_placeholder filter status confirmed pending uncategorized_only category date amount no_entries])
           t("accounts.show.activity.#{key == 'activity' ? 'title' : key}")
