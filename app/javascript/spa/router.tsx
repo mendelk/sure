@@ -95,6 +95,7 @@ import {
   SimplefinReplacementDrawer,
   validateReplacementSearch,
 } from "./simplefin-replacement-drawer";
+import { ValuationDrawer, validateValuationSearch } from "./valuation-drawer";
 type RouterContext = {
   bootstrap: SpaBootstrap;
 };
@@ -120,6 +121,43 @@ const accountTransferRoute = createRoute({
   getParentRoute: () => accountDetailRoute,
   path: "transfers/$transferId",
   component: TransferDetailDrawer,
+});
+
+const newAccountValuationRoute = createRoute({
+  getParentRoute: () => accountDetailRoute,
+  path: "valuations/new",
+  validateSearch: validateValuationSearch,
+  component: ValuationDrawer,
+});
+
+const accountValuationRoute = createRoute({
+  getParentRoute: () => accountDetailRoute,
+  path: "valuations/$valuationId",
+  validateSearch: validateValuationSearch,
+  component: ValuationDrawer,
+});
+
+function StandaloneValuationPage() {
+  return (
+    <>
+      <AccountsIndexPage />
+      <ValuationDrawer />
+    </>
+  );
+}
+
+const newValuationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/valuations/new",
+  validateSearch: validateValuationSearch,
+  component: StandaloneValuationPage,
+});
+
+const valuationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/valuations/$valuationId",
+  validateSearch: validateValuationSearch,
+  component: StandaloneValuationPage,
 });
 
 const newAccountTransactionRoute = createRoute({
@@ -1026,6 +1064,8 @@ const routeTree = rootRoute.addChildren([
     accountTransactionRoute,
     accountTransferRoute,
     newAccountTransactionRoute,
+    newAccountValuationRoute,
+    accountValuationRoute,
     accountSharingRoute,
     providerReplacementRoute,
   ]),
@@ -1064,6 +1104,8 @@ const routeTree = rootRoute.addChildren([
   propertyAddressRoute,
   propertyEditRoute,
   standaloneTransferRoute,
+  newValuationRoute,
+  valuationRoute,
 ]);
 export type SpaRouter = Router<typeof routeTree>;
 

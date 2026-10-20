@@ -15,6 +15,12 @@ Rails.application.routes.draw do
   get "transactions/:transaction_id/split/edit", to: "spa#show", constraints: { transaction_id: /[0-9a-f-]{36}/i }
   get "transactions/transfers/:id", to: "spa#show", constraints: { id: /[0-9a-f-]{36}/i }
   get "accounts/:account_id/transfers/:id", to: "spa#show", constraints: { account_id: /[0-9a-f-]{36}/i, id: /[0-9a-f-]{36}/i }
+  get "valuations/new", to: "valuations#new", constraints: ->(request) { request.format.json? }
+  get "valuations/new", to: "spa#show"
+  get "valuations/:id", to: "valuations#show", constraints: ->(request) { request.format.json? }
+  get "valuations/:id", to: "spa#show"
+  get "accounts/:account_id/valuations/new", to: "spa#show", as: :new_account_valuation
+  get "accounts/:account_id/valuations/:id", to: "spa#show", as: :account_valuation
   get "dashboards", to: "spa#show", as: :dashboards
   get "sources", to: "spa#show", as: :sources
   get "sources/new", to: "spa#show", as: :new_source

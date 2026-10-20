@@ -23,6 +23,7 @@ en:
       update: update
       action_set: set
       action_update: update
+      description: "%{action} %{balance} on %{date} to %{amount}."
     create:
       account_updated: Account updated
     update:
@@ -30,6 +31,11 @@ en:
       entry_updated: Entry updated
     errors:
       amount_required: Amount is required
+      amount_invalid: Amount must be a valid number
+      date_invalid: Date must be a valid date
+      date_out_of_range: "Date must be between %{min} and %{max}"
+      invalid_entry: Provide balance and date, or notes
+      not_found: Balance update not found
     form:
       amount: Amount
       submit: Add balance update
@@ -66,3 +72,18 @@ en:
     confirm_update:
       title: Update balance
       update: Update
+    spa:
+      account: Account
+      currency: Currency
+      preview: Preview
+      back: Back
+      cancel: Cancel
+      save_notes: Save notes
+      delete_confirm_title: Delete balance update?
+      delete_confirm_body: This will permanently delete this balance update and recalculate the account. This action cannot be undone.
+      loading: Loading balance update…
+      unavailable: Balance update unavailable
+      retry: Try again
+      request_failed: Unable to save the balance update. Please try again.
+      notes_saved: Notes saved
+      no_accounts: No writable accounts available

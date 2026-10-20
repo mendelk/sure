@@ -45,6 +45,7 @@ import { TransactionRow, TransactionRowHeader } from "./components/transaction-r
 import { TablePaginationBar } from "./components/table";
 import { BrandLogo } from "./components/brand-logo";
 import { TransactionSearchBox } from "./components/transaction-search-box";
+import { currentReturnTo } from "./return-to";
 
 function arrayValue(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String).filter((item) => item.length > 0);
@@ -862,12 +863,23 @@ function ActivityEntryView({
         </BrandLogo>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={entry.href}
-              className="truncate text-sm font-medium text-primary hover:underline"
-            >
-              {entry.name}
-            </a>
+            {entry.type === "valuation" ? (
+              <Link
+                to="/accounts/$accountId/valuations/$valuationId"
+                params={{ accountId, valuationId: entry.id }}
+                search={() => ({ ...search, return_to: currentReturnTo() })}
+                className="truncate text-sm font-medium text-primary hover:underline"
+              >
+                {entry.name}
+              </Link>
+            ) : (
+              <a
+                href={entry.href}
+                className="truncate text-sm font-medium text-primary hover:underline"
+              >
+                {entry.name}
+              </a>
+            )}
             <EntryBadges entry={entry} />
           </div>
           {extras}

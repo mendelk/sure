@@ -274,7 +274,7 @@ class Account::PageData
       end
       {
         id: entry.id, type: entry.entryable_type.underscore, name: entry.name,
-        href: view.entry_path(entry, grouped: parent.present? ? true : nil), amount: amount.format,
+        href: entry.valuation? ? view.valuation_path(entry, return_to: valuation_return_to) : view.entry_path(entry, grouped: parent.present? ? true : nil), amount: amount.format,
         positive: amount.amount.positive?, excluded: entry.excluded?, notes: entry.notes,
         description: label.present? ? t("transactions.activity_labels.#{label.parameterize(separator: '_')}", default: label) : nil,
         selectable: managed? && !(transaction && transaction.transfer.present?),
@@ -287,11 +287,15 @@ class Account::PageData
       }
     end
 
+    def valuation_return_to
+      [ view.account_path(account), view.request.query_string.presence ].compact.join("?")
+    end
+
     def new_actions
       return [] unless managed? && (!account.linked? || !account.crypto?)
 
       result = []
-      result << action(:balance, t("accounts.show.activity.new_balance"), view.new_valuation_path(account_id: account.id), "circle-dollar-sign") unless account.linked?
+      result << action(:balance, t("accounts.show.activity.new_balance"), view.new_valuation_path(account_id: account.id, return_to: valuation_return_to), "circle-dollar-sign") unless account.linked?
       unless account.crypto?
         result << if account.investment?
           action(:activity, t("accounts.show.activity.new_activity"), view.new_trade_path(account_id: account.id), "arrow-left-right")

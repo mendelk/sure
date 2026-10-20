@@ -8,6 +8,8 @@
      t("accounts.index.accounts")
    elsif request.path == "/accounts/new" || request.path.start_with?("/accounts/new/")
      t("accounts.show.spa.accountable_title_new")
+   elsif request.path.start_with?("/valuations")
+     t(request.path == "/valuations/new" ? "valuations.new.title" : "valuations.header.balance")
    elsif request.path.start_with?("/tags")
      t("tags.index.tags")
    elsif request.path.start_with?("/categories")
