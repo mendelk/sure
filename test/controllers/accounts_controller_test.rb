@@ -963,4 +963,27 @@ class AccountsControllerSimplefinCtaTest < ActionDispatch::IntegrationTest
     item_data = response.parsed_body["items"].find { |it| it["id"] == item.id }
     assert_nil item_data["setup_href"]
   end
+
+  test "akahu item with unlinked accounts exposes setup href" do
+    item = AkahuItem.create!(family: @family, name: "Akahu Conn", app_token: "tok", user_token: "utok")
+    item.akahu_accounts.create!(name: "Unlinked", account_id: "ak_#{SecureRandom.hex(4)}", currency: "USD", current_balance: 10, account_type: "TRANSACTIONAL")
+
+    get accounts_path(format: :json)
+    assert_response :success
+    item_data = response.parsed_body["items"].find { |it| it["id"] == item.id }
+    assert_equal setup_accounts_akahu_item_path(item), item_data["setup_href"]
+  end
+
+  test "member does not receive setup href" do
+    member = users(:family_member)
+    item = SimplefinItem.create!(family: @family, name: "Conn Member", access_url: "https://example.com/access")
+    item.simplefin_accounts.create!(name: "M", account_id: "sf_m_#{SecureRandom.hex(4)}", currency: "USD", current_balance: 1, account_type: "depository")
+
+    sign_in member
+    get accounts_path(format: :json)
+    assert_response :success
+    item_data = response.parsed_body["items"].find { |it| it["id"] == item.id }
+    # Members either don't see the card or see it without the admin-gated setup action.
+    assert item_data.nil? || item_data["setup_href"].nil?
+  end
 end
