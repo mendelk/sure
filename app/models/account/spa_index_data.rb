@@ -262,15 +262,45 @@ class Account::SpaIndexData
       return "Reconnect" if spec[:key] == :snaptrade && spec[:item].status == "requires_update"
       nil
     end
+    SETUP_ROUTES = {
+      akahu: :setup_accounts_akahu_item_path,
+      binance: :setup_accounts_binance_item_path,
+      brex: :setup_accounts_brex_item_path,
+      coinbase: :setup_accounts_coinbase_item_path,
+      coinspot: :setup_accounts_coinspot_item_path,
+      enable_banking: :setup_accounts_enable_banking_item_path,
+      fio: :setup_accounts_fio_item_path,
+      ibkr: :setup_accounts_ibkr_item_path,
+      indexa_capital: :setup_accounts_indexa_capital_item_path,
+      kraken: :setup_accounts_kraken_item_path,
+      lunchflow: :setup_accounts_lunchflow_item_path,
+      mercury: :setup_accounts_mercury_item_path,
+      monobank: :setup_accounts_monobank_item_path,
+      simplefin: :setup_accounts_simplefin_item_path,
+      snaptrade: :setup_accounts_snaptrade_item_path,
+      sophtron: :setup_accounts_sophtron_item_path,
+      trading212: :setup_accounts_trading212_item_path,
+      up: :setup_accounts_up_item_path,
+      wise: :setup_accounts_wise_item_path,
+      redbark: :setup_accounts_redbark_item_path,
+      questrade: :setup_accounts_questrade_item_path,
+      trade_republic: :setup_accounts_trade_republic_item_path
+    }.freeze
+
     def item_setup_href(spec)
-      item = spec[:item]
-      case spec[:key]
-      when :simplefin
-        unlinked = item.simplefin_accounts.left_joins(:account, :account_provider).where(accounts: { id: nil }, account_providers: { id: nil }).count
-        routes.setup_accounts_simplefin_item_path(item, only_path: true) if unlinked > 0
-      when :akahu
-        routes.setup_accounts_akahu_item_path(item, only_path: true) if item.respond_to?(:unlinked_accounts_count) && item.unlinked_accounts_count > 0
+      route_name = SETUP_ROUTES[spec[:key]]
+      return nil unless route_name
+      # ERB gates the card behind admin and only shows setup when unlinked
+      # provider accounts exist; simplefin uses a direct join since it has
+      # no unlinked_accounts_count helper.
+      return nil unless @user.admin?
+      unlinked = if spec[:key] == :simplefin
+        spec[:item].simplefin_accounts.left_joins(:account, :account_provider).where(accounts: { id: nil }, account_providers: { id: nil }).count
+      elsif spec[:item].respond_to?(:unlinked_accounts_count)
+        spec[:item].unlinked_accounts_count
       end
+      return nil unless unlinked.to_i > 0
+      routes.public_send(route_name, spec[:item], only_path: true)
     rescue StandardError
       nil
     end

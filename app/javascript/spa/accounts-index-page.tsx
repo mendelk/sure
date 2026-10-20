@@ -748,6 +748,14 @@ function ProviderCard({
   }
 
   const actions: SpaAction[] = [];
+  if (item.setup_href !== undefined && item.setup_href !== null && item.setup_href !== "") {
+    actions.push({
+      key: "setup_accounts",
+      label: "Set up accounts",
+      href: item.setup_href,
+      method: "get",
+    });
+  }
   if (item.manage_href !== undefined && item.manage_href !== null && item.manage_href !== "") {
     actions.push({
       key: "manage",
@@ -844,6 +852,15 @@ function ProviderCard({
           <div className="flex flex-col items-center justify-center gap-2 p-4">
             <p className="text-sm font-medium text-primary">{item.empty.title}</p>
             <p className="text-sm text-secondary">{item.empty.description}</p>
+            {item.setup_href !== undefined && item.setup_href !== null && item.setup_href !== "" ? (
+              <a
+                className="focus-ring mt-1 inline-flex h-9 items-center gap-1.5 rounded-lg bg-container px-3 text-xs font-medium text-primary shadow-border-xs hover:bg-surface-hover"
+                href={item.setup_href}
+              >
+                <Icon name="plus" size="sm" />
+                Set up accounts
+              </a>
+            ) : null}
           </div>
         ) : null}
       </div>
