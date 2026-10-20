@@ -39,7 +39,7 @@ class Api::V1::AccountFormOptionsController < Api::V1::BaseController
     def account_type_options
       ACCOUNT_TYPES.map do |type|
         klass = ACCOUNTABLE_CLASS.fetch(type)
-        { value: type, label: klass.singular_display_name, classification: klass.classification }
+        { value: type, label: klass.singular_display_name, classification: klass.classification, icon: klass.icon, color: klass.color }
       end
     end
 

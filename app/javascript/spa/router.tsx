@@ -81,7 +81,11 @@ import {
   AccountableEditDrawer,
   AccountableNewDrawer,
   AccountableTypePickerDrawer,
+  validateNewAccountSearch,
+  type NewAccountSearch,
 } from "./accountable-drawer";
+export type { NewAccountSearch };
+export { validateNewAccountSearch };
 import {
   PropertyAddressDrawer,
   PropertyAvmDrawer,
@@ -359,7 +363,7 @@ function AccountableNewShell() {
 const accountableNewTypeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/accounts/new",
-  validateSearch: validateAccountSearch,
+  validateSearch: validateNewAccountSearch,
   component: AccountableNewShell,
 });
 
@@ -375,7 +379,7 @@ function AccountableNewTypeChildShell() {
 const accountableNewRoute = createRoute({
   getParentRoute: () => accountableNewTypeRoute,
   path: "$accountType",
-  validateSearch: validateAccountSearch,
+  validateSearch: validateNewAccountSearch,
   component: AccountableNewTypeChildShell,
 });
 
@@ -388,11 +392,13 @@ function PropertyNewShell() {
     </>
   );
 }
-
+export function validatePropertyNewSearch(input: Record<string, unknown>) {
+  return { ...validateAccountSearch(input), ...validateNewAccountSearch(input) };
+}
 const propertyNewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/properties/new",
-  validateSearch: validateAccountSearch,
+  validateSearch: validatePropertyNewSearch,
   component: PropertyNewShell,
 });
 

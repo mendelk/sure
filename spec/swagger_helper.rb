@@ -846,11 +846,13 @@ RSpec.configure do |config|
                 type: :array,
                 items: {
                   type: :object,
-                  required: %w[value label classification],
+                  required: %w[value label classification icon color],
                   properties: {
                     value: { type: :string },
                     label: { type: :string },
-                    classification: { type: :string, enum: %w[asset liability] }
+                    classification: { type: :string, enum: %w[asset liability] },
+                    icon: { type: :string },
+                    color: { type: :string }
                   }
                 }
               },
@@ -936,6 +938,27 @@ RSpec.configure do |config|
                 label: { type: :string },
                 short_label: { type: :string, nullable: true },
                 group: { type: :string, nullable: true, description: 'Region label for investment subtypes; null otherwise' }
+              }
+            }
+          },
+          AccountLinkOptions: {
+            type: :object,
+            required: %w[account_type manual_path manual_label providers],
+            properties: {
+              account_type: { type: :string },
+              manual_path: { type: :string },
+              manual_label: { type: :string },
+              providers: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[key name new_account_path],
+                  properties: {
+                    key: { type: :string },
+                    name: { type: :string },
+                    new_account_path: { type: :string }
+                  }
+                }
               }
             }
           },
