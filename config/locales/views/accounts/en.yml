@@ -224,7 +224,24 @@ en:
         accountable_provider_description: This account type can also sync automatically. Continue in the full page to link a provider.
         accountable_provider_open: Open provider options
         accountable_type_label: What would you like to add?
-        accountable_type_manual: Enter account balance
+        accountable_method_manual: Enter account balance
+        accountable_method_link: Link with %{provider}
+        accountable_method_title: How would you like to add it?
+        accountable_loan_initial_balance: Original loan balance
+        accountable_loan_interest_rate: Interest rate (%)
+        accountable_loan_rate_type: Rate type
+        accountable_loan_down_payment: Down payment
+        accountable_loan_start_date: Origination date
+        accountable_loan_start_date_hint: When the loan was drawn down. Leave blank to use the account's opening date.
+        accountable_loan_term_months: Term (months)
+        accountable_loan_insurance_rate: Insurance rate (%)
+        accountable_loan_insurance_rate_type: Insurance type
+        accountable_loan_insurance_none: None
+        accountable_loan_insurance_rate_hint: An annual rate, charged monthly alongside the repayment. Level term is charged on the original balance; decreasing on what is still owed.
+        accountable_import_accounts: Import accounts
+        accountable_picker_select: Select
+        accountable_picker_navigate: Navigate
+        accountable_picker_close: Close
         property_title_new: New property
         property_title_edit: Edit property
         property_subtitle_new: Enter the property details manually.

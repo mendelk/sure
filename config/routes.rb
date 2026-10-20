@@ -27,7 +27,7 @@ Rails.application.routes.draw do
   get "sources/:id/edit", to: "spa#show", as: :edit_source
   get "loans/:id/edit", to: "spa#show", as: :edit_loan, constraints: { id: /[0-9a-f-]{36}/i }
   get "accounts/new", to: "spa#show", as: :spa_new_account
-  get "accounts/new/:account_type", to: "spa#show", as: :spa_new_account_type, constraints: { account_type: /depository|investment|vehicle|credit_card|crypto|other_asset|other_liability/ }
+  get "accounts/new/:account_type", to: "spa#show", as: :spa_new_account_type, constraints: { account_type: /depository|investment|vehicle|credit_card|crypto|loan|other_asset|other_liability|property/ }
   get "accounts/:id/edit", to: "spa#show", as: :spa_edit_account, constraints: { id: /[0-9a-f-]{36}/i }
   get "properties/new", to: "spa#show", as: :spa_new_property
   get "properties/new/manual", to: "spa#show", as: :spa_new_property_manual
@@ -804,6 +804,7 @@ Rails.application.routes.draw do
       patch "auth/enable_ai", to: "auth#enable_ai"
 
       resource :account_form_options, only: :show
+      resource :account_link_options, only: :show
       resources :properties, only: [ :create ] do
         patch :address, on: :member, action: :update_address
         get :form_options, on: :collection

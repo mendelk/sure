@@ -1488,6 +1488,8 @@ components:
             - value
             - label
             - classification
+            - icon
+            - color
             properties:
               value:
                 type: string
@@ -1498,6 +1500,10 @@ components:
                 enum:
                 - asset
                 - liability
+              icon:
+                type: string
+              color:
+                type: string
         subtypes:
           type: object
           properties:
@@ -1601,6 +1607,35 @@ components:
             type: string
             nullable: true
             description: Region label for investment subtypes; null otherwise
+    AccountLinkOptions:
+      type: object
+      required:
+      - account_type
+      - manual_path
+      - manual_label
+      - providers
+      properties:
+        account_type:
+          type: string
+        manual_path:
+          type: string
+        manual_label:
+          type: string
+        providers:
+          type: array
+          items:
+            type: object
+            required:
+            - key
+            - name
+            - new_account_path
+            properties:
+              key:
+                type: string
+              name:
+                type: string
+              new_account_path:
+                type: string
     FamilySettings:
       type: object
       required:
@@ -6240,6 +6275,45 @@ paths:
                 "$ref": "#/components/schemas/ErrorResponse"
         '403':
           description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/api/v1/account_link_options":
+    get:
+      summary: Retrieve account link options
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters:
+      - name: account_type
+        in: query
+        required: true
+        description: Underscore account type (e.g. depository, credit_card)
+        schema:
+          type: string
+      responses:
+        '200':
+          description: link options retrieved
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AccountLinkOptions"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: insufficient scope
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: invalid account type
           content:
             application/json:
               schema:

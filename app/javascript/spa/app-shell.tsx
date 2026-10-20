@@ -307,7 +307,6 @@ function SidebarContent() {
   const accounts = data?.accounts ?? [];
   const assets = accounts.filter((a) => a.classification === "asset");
   const liabilities = accounts.filter((a) => a.classification === "liability");
-
   return (
     <div className="flex h-full flex-col">
       <TabGroup>
@@ -345,6 +344,9 @@ function SidebarContent() {
               total={data?.liabilities}
               groups={groupAccountsByType(liabilities)}
             />
+            <NewAccountLink classification={undefined}>
+              {bootstrap.accountDetailText.accountable_title_new}
+            </NewAccountLink>
           </TabPanel>
 
           <TabPanel className="space-y-2 focus:outline-none">
@@ -353,6 +355,9 @@ function SidebarContent() {
               total={data?.assets}
               groups={groupAccountsByType(assets)}
             />
+            <NewAccountLink classification="asset">
+              {bootstrap.accountDetailText.accountable_title_new}
+            </NewAccountLink>
           </TabPanel>
 
           <TabPanel className="space-y-2 focus:outline-none">
@@ -361,17 +366,32 @@ function SidebarContent() {
               total={data?.liabilities}
               groups={groupAccountsByType(liabilities)}
             />
+            <NewAccountLink classification="liability">
+              {bootstrap.accountDetailText.accountable_title_new}
+            </NewAccountLink>
           </TabPanel>
         </TabPanels>
       </TabGroup>
-      <Link
-        to="/accounts/new"
-        className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-secondary hover:bg-surface-hover hover:text-primary"
-      >
-        <Icon name="plus" size="sm" />
-        {bootstrap.accountDetailText.accountable_title_new}
-      </Link>
     </div>
+  );
+}
+
+function NewAccountLink({
+  classification,
+  children,
+}: {
+  classification?: "asset" | "liability";
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      to="/accounts/new"
+      search={classification === undefined ? {} : { classification }}
+      className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-secondary hover:bg-surface-hover hover:text-primary"
+    >
+      <Icon name="plus" size="sm" />
+      {children}
+    </Link>
   );
 }
 
