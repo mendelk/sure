@@ -169,6 +169,67 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     assert_equal "partial_response", diagnostic.metadata.fetch("code")
   end
 
+  test "retains provider error explanations and scope only in support diagnostics" do
+    stub_history([], errors: [ "Bank temporarily unavailable" ], errlist: [
+      { code: "con.auth", msg: "Reconnect your bank", conn_id: "CON-bank", account_id: "ACT-card",
+        access_url: "https://private.example/secret", transactions: [ { amount: "private-amount" } ] }
+    ])
+
+    audit(start_date: "2026-09-01", end_date: "2026-09-30")
+
+    assert_response :success
+    refute response.parsed_body.dig("coverage", "page_complete")
+    metadata = DebugLogEntry.where(account: @account, category: "simplefin_history_audit").sole.metadata
+    assert_equal [ "Bank temporarily unavailable" ], metadata.fetch("provider_errors").fetch("errors")
+    assert_equal [ { "code" => "con.auth", "msg" => "Reconnect your bank", "conn_id" => "CON-bank", "account_id" => "ACT-card" } ],
+      metadata.fetch("provider_errors").fetch("errlist")
+    assert_equal @item.id, metadata.fetch("simplefin_item_id")
+    assert_equal "2026-09-01", metadata.fetch("window_start_date")
+    assert_equal "2026-09-30", metadata.fetch("window_end_date")
+    assert_not_includes metadata.to_json, "private"
+    assert_not_includes response.body, "Reconnect your bank"
+    assert_not_includes response.body, "Bank temporarily unavailable"
+  end
+
+  test "redacts credentials and URLs before bounding provider error diagnostics" do
+    @item.update!(access_url: "https://audit-user:audit%2Fpassword@example.com/audit")
+    encoded_credentials = Base64.strict_encode64("audit-user:audit%2Fpassword")
+    message = "Bank unavailable: #{@item.access_url} audit-user audit%2Fpassword audit/password " \
+      "https://bank.example/reconnect?token=private-link Authorization: Bearer private-bearer " \
+      "refresh_token=private-token password=\"private password\" #{encoded_credentials}"
+    stub_request(:get, %r{\Ahttps://example\.com/audit/accounts\?})
+      .to_return(body: { accounts: [], errlist: [ { code: "con.auth", msg: message, token: "private-field" } ] }.to_json)
+
+    audit
+
+    assert_response :success
+    metadata = DebugLogEntry.where(account: @account, category: "simplefin_history_audit").sole.metadata
+    error = metadata.fetch("provider_errors").fetch("errlist").sole
+    assert_equal "con.auth", error.fetch("code")
+    assert_includes error.fetch("msg"), "Bank unavailable:"
+    assert_includes error.fetch("msg"), "[FILTERED]"
+    %w[audit-user audit%2Fpassword audit/password private- example.com bank.example].each do |secret|
+      assert_not_includes metadata.to_json, secret
+    end
+    assert_not_includes metadata.to_json, encoded_credentials
+    assert_not_includes response.body, "Bank unavailable:"
+  end
+
+  test "bounds provider error diagnostics and ignores unexpected nested error data" do
+    stub_history([], errors: [ "x" * 2_000 ] * 30, errlist: [
+      { msg: { token: "nested-secret" }, code: "gen.api", unknown: "private-field" }
+    ])
+
+    audit
+
+    assert_response :success
+    details = DebugLogEntry.where(account: @account, category: "simplefin_history_audit").sole.metadata.fetch("provider_errors")
+    assert_equal [ "x" * 1_000 ] * 20, details.fetch("errors")
+    assert_equal [ { "code" => "gen.api" } ], details.fetch("errlist")
+    assert_not_includes details.to_json, "secret"
+    assert_not_includes details.to_json, "private"
+  end
+
   test "duplicate provider rows do not invent missing payments and conflicting duplicates remain unresolved" do
     same = raw_transaction("duplicate")
     stub_history([ same, same, raw_transaction("conflict"), raw_transaction("conflict", amount: "-1.00") ])
@@ -262,8 +323,8 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
       { id: id, posted: Time.utc(date.year, date.month, date.day, 12).to_i, amount: amount, description: "AUTOPAY", payee: "Card payment" }
     end
 
-    def stub_history(rows, other_feeds = {}, errors: [])
+    def stub_history(rows, other_feeds = {}, errors: [], errlist: [])
       feeds = { @provider.account_id => rows }.merge(other_feeds).map { |id, transactions| { id: id, transactions: transactions } }
-      stub_request(:get, %r{\Ahttps://example\.com/audit/accounts\?}).to_return(status: 200, body: { errors: errors, accounts: feeds }.to_json)
+      stub_request(:get, %r{\Ahttps://example\.com/audit/accounts\?}).to_return(status: 200, body: { errors: errors, errlist: errlist, accounts: feeds }.to_json)
     end
 end

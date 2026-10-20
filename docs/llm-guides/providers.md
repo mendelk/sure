@@ -113,6 +113,16 @@ authorization and `read_write` scope because it consumes provider quota.
 It is ledger-read-only: never invoke ingestion, update payload caches or normal
 sync timestamps, adopt a provider balance, or create transaction identities.
 Support-relevant failures/partial responses use credential-free debug metadata.
+Partial-response diagnostics in the super-admin `/settings/debug` UI use category
+`simplefin_history_audit`. Alongside the connection and date window, metadata
+`provider_errors` retains legacy `errors` strings and structured `errlist` fields
+`code`, `msg`, `message`, `description`, `error`, `conn_id` and `account_id`.
+Only string values in those fields are retained; nested/unknown data is excluded.
+Access credentials (including URL-encoded and Basic-auth forms), URLs and
+credential assignments are redacted before limiting each string to 1,000 characters
+and each error list to 20 entries. Browser/API warnings remain generic; no raw
+account or transaction payload is added to diagnostics. Previously discarded
+explanations cannot be recovered retroactively.
 
 The Accounts row menu exposes **Check for missing transactions** to administrators
 with owner/full-control access to linked SimpleFIN accounts. Its SPA route and
