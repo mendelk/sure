@@ -28,7 +28,8 @@ class Account::SimplefinHistoryAudit
     feeds, transactions, warnings = compare(payload)
     page_complete = warnings.empty?
     unless page_complete
-      capture_diagnostic("partial_response", warning_codes: warnings.map { |warning| warning[:code] }.uniq)
+      capture_diagnostic("partial_response", warning_codes: warnings.map { |warning| warning[:code] }.uniq,
+        provider_errors: sanitized_provider_errors(payload))
     end
 
     {
@@ -258,6 +259,43 @@ class Account::SimplefinHistoryAudit
 
     def cursor_purpose
       "simplefin-history-audit/#{account.family_id}/#{account.id}"
+    end
+
+    # Keep explanations, not arbitrary provider payloads. SimpleFIN v1 uses
+    # string errors; v2 errlist adds codes and connection/account identifiers.
+    def sanitized_provider_errors(payload)
+      access_url = @groups.fetch(@item_id).first.simplefin_item.access_url
+      uri = URI.parse(access_url)
+      secrets = [ access_url, uri.user, uri.password ].compact.flat_map do |value|
+        [ value, URI::DEFAULT_PARSER.unescape(value) ]
+      end
+      if uri.userinfo
+        secrets.concat([ uri.userinfo, URI::DEFAULT_PARSER.unescape(uri.userinfo) ].map { |value| Base64.strict_encode64(value) })
+      end
+      secret_pattern = Regexp.union(secrets.reject(&:empty?).sort_by { |value| -value.length })
+
+      %i[errors errlist].each_with_object({}) do |field, details|
+        next if payload[field].blank?
+
+        details[field] = Array.wrap(payload[field]).first(20).filter_map do |error|
+          if error.is_a?(String)
+            sanitized_error_text(error, secret_pattern)
+          elsif error.is_a?(Hash)
+            error.slice(:code, :msg, :message, :description, :error, :conn_id, :account_id)
+              .each_with_object({}) do |(key, value), fields|
+                fields[key] = sanitized_error_text(value, secret_pattern) if value.is_a?(String)
+              end
+          end
+        end
+      end
+    end
+
+    def sanitized_error_text(value, secret_pattern)
+      value.gsub(secret_pattern, "[FILTERED]")
+        .gsub(%r{https?://[^\s<>"']+}i, "[FILTERED]")
+        .gsub(/\b(?:Basic|Bearer)\s+[A-Za-z0-9+\/=_\-.]+/i, "[FILTERED]")
+        .gsub(/\b(?:(?:[a-z0-9]+[_-])*(?:password|token|secret|key)|access[_-]?url)\b["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)/i, "[FILTERED]")
+        .first(1_000)
     end
 
     def capture_diagnostic(code, **metadata)
