@@ -133,14 +133,23 @@ deduplicate by provider-account/transaction identity, retain incomplete-page ret
 cursors, and never rewind the forward pagination cursor when retrying an earlier
 page. Provider errors/rate limits stop continuation until explicitly retried.
 
+The drawer uses one **Period (days)** control, defaulting to 45. The API accepts
+`period_days` as an integer from 1 to 45, or a cursor alone. New audits end today;
+Older walks back by the selected period length, without gaps or overlaps.
+Start/end date inputs and requested-range coverage fields are removed.
+The metadata endpoint exposes `default_period_days` and `max_period_days`.
+
 Each page fetches one connection's associated current and retired feeds with
-repeated SimpleFIN `account` filters, over at most 60 days. UTC start timestamps
-are inclusive; end timestamps are the exclusive midnight after `end_date`.
-Dates in the API are inclusive. The signed cursor binds the requested range,
-connection, and feed fingerprint to the family/account; feed changes require
-restarting. Default history extends to 1970-01-01, with no empty-window or
-one-year stopping rule. Bound each HTTP request rather than performing a
-long-running scan in the web process. Callers must respect SimpleFIN's quotas.
+repeated SimpleFIN `account` filters. `coverage.has_more_connections` identifies
+pages whose next cursor stays in the same period; the drawer labels that action
+Continue this period rather than Older. Each explicit action still makes only
+one provider request. UTC start timestamps are inclusive; end timestamps are the
+exclusive midnight after `coverage.window_end_date`.
+The signed cursor binds the period length, end date, connection and feed
+fingerprint to the family/account. Feed changes or cursors from the retired
+date-range format require restarting. Pagination stops at 1970-01-01, clipping
+the final period, with no empty-period or one-year stopping rule. Bound each
+HTTP request rather than scanning history in the web process. Respect quotas.
 
 Reuse `SimplefinEntry::Processor#import_attributes` for dates, signs, names and
 currencies. Match provider-scoped identity aliases before anything else; NULL

@@ -61,10 +61,9 @@ RSpec.configure do |config|
         schemas: {
           SimplefinHistoryAuditRequest: {
             type: :object,
-            description: 'Dates are inclusive. Omit dates to walk back to 1970-01-01; follow next_cursor one page at a time. Send cursor alone to continue.',
+            description: 'Choose a period of 1–45 days (default 45), initially ending today. Send cursor alone to visit remaining connections in that period, then the preceding period, down to 1970-01-01.',
             properties: {
-              start_date: { type: :string, format: :date, nullable: true },
-              end_date: { type: :string, format: :date, nullable: true },
+              period_days: { type: :integer, minimum: 1, maximum: 45, default: 45 },
               cursor: { type: :string, nullable: true }
             }
           },
@@ -88,10 +87,10 @@ RSpec.configure do |config|
               read_only: { type: :boolean, enum: [ true ], description: 'No ledger, balance, mapping, payload-cache, or sync-timestamp changes. Support diagnostics may be recorded.' },
               coverage: {
                 type: :object,
-                required: %w[requested_start_date requested_end_date window_start_date window_end_date simplefin_item_id page_complete provider_history_complete],
+                required: %w[period_days has_more_connections window_start_date window_end_date simplefin_item_id page_complete provider_history_complete],
                 properties: {
-                  requested_start_date: { type: :string, format: :date },
-                  requested_end_date: { type: :string, format: :date },
+                  period_days: { type: :integer, minimum: 1, maximum: 45 },
+                  has_more_connections: { type: :boolean, description: 'Continue this period before moving to the preceding period' },
                   window_start_date: { type: :string, format: :date },
                   window_end_date: { type: :string, format: :date },
                   simplefin_item_id: { type: :string, format: :uuid },

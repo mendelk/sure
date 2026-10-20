@@ -6,8 +6,8 @@ class SimplefinHistoryAuditsController < ApplicationController
 
     render json: {
       account: @account.slice(:id, :name, :currency),
-      min_date: Account::SimplefinHistoryAudit::FIRST_DATE.iso8601,
-      max_date: Date.current.iso8601,
+      default_period_days: Account::SimplefinHistoryAudit::MAX_PERIOD_DAYS,
+      max_period_days: Account::SimplefinHistoryAudit::MAX_PERIOD_DAYS,
       text: I18n.t("accounts.simplefin_history_audit")
     }
   end

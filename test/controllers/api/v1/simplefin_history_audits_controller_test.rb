@@ -2,7 +2,7 @@ require "test_helper"
 
 class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    travel_to Time.utc(2026, 10, 19, 12)
+    travel_to Time.utc(2026, 9, 30, 12)
     @user = users(:family_admin)
     @family = @user.family
     @account = @family.accounts.create!(owner: @user, name: "Continuous card", currency: "USD", balance: 29.72, accountable: CreditCard.new)
@@ -22,7 +22,7 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     before = [ @account.attributes, @provider.attributes, @item.attributes, @item.last_synced_at ]
 
     assert_no_difference [ "Entry.count", "Transaction.count", "Valuation.count", "Transfer.count", "AccountProvider.count", "SimplefinTransactionIdentity.count", "Sync.count" ] do
-      audit(start_date: "2026-09-01", end_date: "2026-09-30")
+      audit(period_days: 30)
       assert_response :success
     end
 
@@ -33,7 +33,9 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     assert_equal "2026-09-15", transaction.fetch("date")
     assert_equal "USD", transaction.fetch("currency")
     assert_equal "Card payment - AUTOPAY", transaction.fetch("name")
-    assert_nil response.parsed_body.fetch("next_cursor")
+    assert_equal 30, response.parsed_body.dig("coverage", "period_days")
+    assert_equal "2026-09-01", response.parsed_body.dig("coverage", "window_start_date")
+    assert_equal "2026-09-30", response.parsed_body.dig("coverage", "window_end_date")
     assert response.parsed_body.dig("coverage", "page_complete")
     refute response.parsed_body.dig("coverage", "provider_history_complete")
   end
@@ -49,7 +51,7 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     stub_history([ raw_transaction("card-payment", amount: "144.81") ])
 
     assert_no_difference [ "Entry.count", "Transfer.count", "SimplefinTransactionIdentity.count" ] do
-      audit(start_date: "2026-09-01", end_date: "2026-09-30")
+      audit(period_days: 30)
     end
     result = response.parsed_body.fetch("transactions").sole
     assert_equal "possible_match", result.fetch("status")
@@ -69,7 +71,7 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     SimplefinTransactionIdentity.create!(simplefin_account: @provider, external_id: "simplefin_deleted", entry: nil)
     stub_history([ raw_transaction("shared"), raw_transaction("deleted") ], { old.account_id => [ raw_transaction("shared") ] })
 
-    audit(start_date: "2026-09-01", end_date: "2026-09-30")
+    audit(period_days: 30)
     assert_response :success
     rows = response.parsed_body.fetch("transactions")
     retired_row = rows.find { |row| row["simplefin_account_id"] == old.id }
@@ -82,15 +84,17 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
   end
 
   test "legacy external IDs are recognized for an unreplaced feed" do
+    travel_to Time.utc(2026, 9, 15, 12)
     existing = make_entry(source: "simplefin", external_id: "simplefin_legacy")
     stub_history([ raw_transaction("legacy") ])
-    audit(start_date: "2026-09-15", end_date: "2026-09-15")
+    audit(period_days: 1)
     row = response.parsed_body.fetch("transactions").sole
     assert_equal "recorded", row.fetch("status")
     assert_equal existing.id, row.fetch("entry_id")
   end
 
   test "continues beyond empty windows and a year with inclusive date boundaries" do
+    travel_to Time.utc(2026, 10, 19, 12)
     historical = raw_transaction("old-missing", date: Date.new(2025, 1, 1))
     requested = []
     stub_request(:get, %r{\Ahttps://example\.com/audit/accounts\?}).to_return do |request|
@@ -104,18 +108,18 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     cursor = nil
     found = []
     loop do
-      audit(cursor ? { cursor: cursor } : { start_date: "2025-01-01", end_date: "2026-10-19" })
+      audit(cursor ? { cursor: cursor } : {})
       assert_response :success
       found.concat(response.parsed_body.fetch("transactions").map { |row| row.fetch("provider_transaction_id") })
       cursor = response.parsed_body.fetch("next_cursor")
-      break unless cursor
+      break if cursor.nil? || found.include?("old-missing")
     end
 
     assert_equal [ "old-missing" ], found
-    assert_equal Time.utc(2025, 1, 1).to_i, requested.last.first
+    assert_operator requested.last.first, :<=, historical[:posted]
     assert_equal Time.utc(2026, 10, 20).to_i, requested.first.last
     requested.each_cons(2) { |newer, older| assert_equal newer.first, older.last, "History pages must have no boundary gaps" }
-    assert requested.all? { |start_time, end_time| end_time - start_time <= 60.days }
+    assert requested.all? { |start_time, end_time| end_time - start_time <= 45.days }
   end
 
   test "queries only associated feeds even if the bridge returns unrelated accounts" do
@@ -125,7 +129,7 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
       pairs.select { |name, _| name == "account" }.map(&:last) == [ @provider.account_id ] &&
         pairs.none? { |name, _| name == "pending" }
     end
-    audit(start_date: "2026-09-01", end_date: "2026-09-30")
+    audit(period_days: 30)
     assert_response :success
     assert_equal [ "ours" ], response.parsed_body.fetch("transactions").map { |row| row.fetch("provider_transaction_id") }
     assert_requested request
@@ -139,22 +143,26 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     stub_request(:get, %r{\Ahttps://example\.com/other-audit/accounts\?}).to_return(body: { errors: [], accounts: [ { id: old.account_id, transactions: [ raw_transaction("old-feed-missing") ] } ] }.to_json)
     windows, ids = [], []
     cursor = nil
-    2.times do
-      audit(cursor ? { cursor: cursor } : { start_date: "2026-09-01", end_date: "2026-09-30" })
+    2.times do |index|
+      audit(cursor ? { cursor: cursor } : { period_days: 30 })
       assert_response :success
       windows << response.parsed_body.fetch("coverage").slice("window_start_date", "window_end_date")
+      assert_equal index.zero?, response.parsed_body.dig("coverage", "has_more_connections")
       ids.concat(response.parsed_body.fetch("transactions").map { |row| row.fetch("provider_transaction_id") })
       cursor = response.parsed_body.fetch("next_cursor")
     end
     assert_equal windows.first, windows.last
     assert_equal [ "old-feed-missing" ], ids
-    assert_nil cursor
+    audit(cursor: cursor)
+    assert_response :success
+    assert_equal "2026-08-02", response.parsed_body.dig("coverage", "window_start_date")
+    assert_equal "2026-08-31", response.parsed_body.dig("coverage", "window_end_date")
   end
 
   test "partial errors unavailable feeds and malformed transactions provide retry coverage" do
     old = make_provider("unavailable", retired_at: Time.current, retired_account: @account)
     stub_history([ raw_transaction("bad", amount: "not-money"), { description: "No identity" }, raw_transaction("pending").merge(pending: true) ], {}, errors: [ "Private upstream details" ])
-    audit(start_date: "2026-09-01", end_date: "2026-09-30")
+    audit(period_days: 30)
     assert_response :success
     body = response.parsed_body
     refute body.dig("coverage", "page_complete")
@@ -175,7 +183,7 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
         access_url: "https://private.example/secret", transactions: [ { amount: "private-amount" } ] }
     ])
 
-    audit(start_date: "2026-09-01", end_date: "2026-09-30")
+    audit(period_days: 30)
 
     assert_response :success
     refute response.parsed_body.dig("coverage", "page_complete")
@@ -233,10 +241,70 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
   test "duplicate provider rows do not invent missing payments and conflicting duplicates remain unresolved" do
     same = raw_transaction("duplicate")
     stub_history([ same, same, raw_transaction("conflict"), raw_transaction("conflict", amount: "-1.00") ])
-    audit(start_date: "2026-09-01", end_date: "2026-09-30")
+    audit(period_days: 30)
     assert_equal 1, response.parsed_body.dig("summary", "missing")
     assert_equal 1, response.parsed_body.dig("summary", "invalid")
     refute response.parsed_body.dig("coverage", "page_complete")
+  end
+
+  test "selected periods page backward without gaps and retries stay anchored across midnight" do
+    stub_history([], errors: [ "Temporary bank error" ])
+    audit(period_days: 7)
+    assert_response :success
+    first = response.parsed_body
+    assert_equal "2026-09-24", first.dig("coverage", "window_start_date")
+    assert_equal "2026-09-30", first.dig("coverage", "window_end_date")
+
+    stub_history([])
+    travel_to Time.utc(2026, 10, 2, 12)
+    audit(cursor: first.fetch("next_cursor"))
+    assert_response :success
+    assert_equal 7, response.parsed_body.dig("coverage", "period_days")
+    assert_equal "2026-09-17", response.parsed_body.dig("coverage", "window_start_date")
+    assert_equal "2026-09-23", response.parsed_body.dig("coverage", "window_end_date")
+
+    audit(cursor: first.fetch("retry_cursor"))
+    assert_response :success
+    assert_equal first.fetch("coverage").slice("period_days", "window_start_date", "window_end_date"),
+      response.parsed_body.fetch("coverage").slice("period_days", "window_start_date", "window_end_date")
+    assert response.parsed_body.dig("coverage", "page_complete")
+  end
+
+  test "one day periods stop at the historical boundary and longer final periods are clipped" do
+    travel_to Time.utc(1970, 1, 2, 12)
+    stub_history([])
+    audit(period_days: 1)
+    assert_response :success
+    assert_equal "1970-01-02", response.parsed_body.dig("coverage", "window_start_date")
+    assert_equal "1970-01-02", response.parsed_body.dig("coverage", "window_end_date")
+    audit(cursor: response.parsed_body.fetch("next_cursor"))
+    assert_response :success
+    assert_equal "1970-01-01", response.parsed_body.dig("coverage", "window_start_date")
+    assert_equal "1970-01-01", response.parsed_body.dig("coverage", "window_end_date")
+    assert_nil response.parsed_body.fetch("next_cursor")
+
+    audit
+    assert_response :success
+    assert_equal 45, response.parsed_body.dig("coverage", "period_days")
+    assert_equal "1970-01-01", response.parsed_body.dig("coverage", "window_start_date")
+    assert_equal "1970-01-02", response.parsed_body.dig("coverage", "window_end_date")
+    assert_nil response.parsed_body.fetch("next_cursor")
+  end
+
+  test "cursors from a different request window require restarting before fetching history" do
+    stub_history([])
+    audit
+    assert_response :success
+    verifier = Rails.application.message_verifier("simplefin-history-audit")
+    purpose = "simplefin-history-audit/#{@family.id}/#{@account.id}"
+    page = verifier.verify(response.parsed_body.fetch("next_cursor"), purpose: purpose)
+    Provider::Simplefin.any_instance.expects(:get_accounts).never
+
+    [ page.except("period_days"), page.except("period_days").merge("window_days" => 45) ].each do |old_page|
+      audit(cursor: verifier.generate(old_page, purpose: purpose))
+      assert_response :conflict
+      assert_equal "stale_cursor", response.parsed_body.fetch("error")
+    end
   end
 
   test "cursors reject tampering cross account replay changed feeds and mixed parameters" do
@@ -246,7 +314,7 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     cursor = response.parsed_body.fetch("next_cursor")
     audit(cursor: cursor + "tampered")
     assert_response :unprocessable_entity
-    audit(cursor: cursor, start_date: "2026-09-01")
+    audit(cursor: cursor, period_days: 30)
     assert_response :unprocessable_entity
     another = @family.accounts.create!(owner: @user, name: "Other card", currency: "USD", balance: 0, accountable: CreditCard.new)
     another_provider = make_provider("other-card")
@@ -259,9 +327,10 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     assert_equal "stale_cursor", response.parsed_body.fetch("error")
   end
 
-  test "invalid dates malformed scalars and unavailable SimpleFIN return actionable errors" do
-    [ { start_date: "2026-02-30" }, { start_date: [ "2026-09-01" ] }, { cursor: {} },
-      { start_date: "2026-10-20" }, { start_date: "1969-12-31" }, { start_date: "2026-10-19", end_date: "2026-09-01" } ].each do |params|
+  test "invalid periods malformed scalars retired date parameters and unavailable SimpleFIN return actionable errors" do
+    [ { period_days: 0 }, { period_days: 46 }, { period_days: -1 }, { period_days: 1.5 },
+      { period_days: "30" }, { period_days: [ 30 ] }, { period_days: {} }, { cursor: {} },
+      { start_date: "2026-09-01" }, { end_date: "2026-09-30" } ].each do |params|
       audit(params)
       assert_response :unprocessable_entity
     end

@@ -1,9 +1,9 @@
 require "digest"
 
 class Account::SimplefinHistoryAudit
-  # Match the importer's conservative request window, without its total-history
-  # cap or empty-window stopping rule. One provider request per API page.
-  WINDOW_DAYS = 60
+  # Stay within the bridge's recommended date range. One provider request per
+  # page, without a total-history cap or empty-window stopping rule.
+  MAX_PERIOD_DAYS = 45
   FIRST_DATE = Date.new(1970, 1, 1)
   STATUSES = %w[recorded intentionally_deleted possible_match missing pending invalid identity_conflict].freeze
 
@@ -20,10 +20,10 @@ class Account::SimplefinHistoryAudit
     @account, @user = account, user
   end
 
-  def call(start_date: nil, end_date: nil, cursor: nil)
+  def call(period_days: nil, cursor: nil)
     authorize!
     load_providers!
-    load_page!(start_date, end_date, cursor)
+    load_page!(period_days, cursor)
     payload = fetch_page
     feeds, transactions, warnings = compare(payload)
     page_complete = warnings.empty?
@@ -35,7 +35,7 @@ class Account::SimplefinHistoryAudit
     {
       account_id: account.id, read_only: true,
       coverage: {
-        requested_start_date: @start_date.iso8601, requested_end_date: @end_date.iso8601,
+        period_days: @period_days, has_more_connections: @item_id != @groups.keys.last,
         window_start_date: @window_start.iso8601, window_end_date: @window_end.iso8601,
         simplefin_item_id: @item_id, page_complete: page_complete,
         provider_history_complete: false
@@ -75,38 +75,38 @@ class Account::SimplefinHistoryAudit
       @fingerprint = Digest::SHA256.hexdigest(providers.map { |provider| [ provider.id, provider.simplefin_item_id, provider.account_id, provider.retired_at ] }.to_json)
     end
 
-    def load_page!(start_date, end_date, cursor)
+    def load_page!(period_days, cursor)
       if cursor
-        raise Error, "Send either cursor or date parameters, not both" unless start_date.nil? && end_date.nil?
+        raise Error, "Send either cursor or period_days, not both" unless period_days.nil?
         raise Error, "cursor must be a string" unless cursor.is_a?(String)
         page = verifier.verify(cursor, purpose: cursor_purpose)
+        unless page.key?("period_days")
+          raise Error.new("Audit period format changed; restart the audit", code: "stale_cursor", status: :conflict)
+        end
         unless page.fetch("fingerprint") == @fingerprint
           raise Error.new("SimpleFIN feeds changed; restart the audit", code: "stale_cursor", status: :conflict)
         end
-        @start_date = parse_date(page.fetch("start_date"))
-        @end_date = parse_date(page.fetch("end_date"))
-        @window_end = parse_date(page.fetch("window_end"))
+        @period_days = parse_period_days(page.fetch("period_days"))
+        @window_end = Date.iso8601(page.fetch("window_end"))
         @item_id = page.fetch("item_id")
       else
-        @start_date = start_date.nil? ? FIRST_DATE : parse_date(start_date)
-        @end_date = end_date.nil? ? Date.current : parse_date(end_date)
-        @window_end = @end_date
+        @period_days = parse_period_days(period_days.nil? ? MAX_PERIOD_DAYS : period_days)
+        @window_end = Date.current
         @item_id = @groups.keys.first
       end
-      unless @start_date >= FIRST_DATE && @start_date <= @end_date && @end_date <= Date.current &&
-          @window_end.between?(@start_date, @end_date) && @groups.key?(@item_id)
-        raise Error, "Dates must be between 1970-01-01 and today, with start_date on or before end_date"
+      unless @window_end.between?(FIRST_DATE, Date.current) && @groups.key?(@item_id)
+        raise Error, "Invalid audit cursor"
       end
-      @window_start = [ @start_date, @window_end - (WINDOW_DAYS - 1) ].max
-    rescue ActiveSupport::MessageVerifier::InvalidSignature, KeyError, TypeError
+      @window_start = [ FIRST_DATE, @window_end - (@period_days - 1) ].max
+    rescue ActiveSupport::MessageVerifier::InvalidSignature, KeyError, TypeError, Date::Error
       raise Error, "Invalid audit cursor"
     end
 
-    def parse_date(value)
-      raise Error, "Dates must use YYYY-MM-DD" unless value.is_a?(String) && value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
-      Date.iso8601(value)
-    rescue Date::Error
-      raise Error, "Invalid date"
+    def parse_period_days(value)
+      unless value.is_a?(Integer) && value.between?(1, MAX_PERIOD_DAYS)
+        raise Error, "period_days must be a whole number between 1 and #{MAX_PERIOD_DAYS}"
+      end
+      value
     end
 
     def fetch_page
@@ -243,14 +243,14 @@ class Account::SimplefinHistoryAudit
       next_item = item_ids[item_ids.index(@item_id) + 1]
       if next_item
         page_cursor(next_item, @window_end)
-      elsif @window_start > @start_date
+      elsif @window_start > FIRST_DATE
         page_cursor(item_ids.first, @window_start - 1)
       end
     end
 
     def page_cursor(item_id, window_end)
-      verifier.generate({ "start_date" => @start_date.iso8601, "end_date" => @end_date.iso8601,
-        "window_end" => window_end.iso8601, "item_id" => item_id, "fingerprint" => @fingerprint }, purpose: cursor_purpose)
+      verifier.generate({ "period_days" => @period_days, "window_end" => window_end.iso8601,
+        "item_id" => item_id, "fingerprint" => @fingerprint }, purpose: cursor_purpose)
     end
 
     def verifier

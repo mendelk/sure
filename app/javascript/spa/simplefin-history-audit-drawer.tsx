@@ -112,8 +112,7 @@ export function SimplefinHistoryAuditDrawer() {
 
 function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: () => void }) {
   const { account, text } = metadata;
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [periodDays, setPeriodDays] = useState(String(metadata.default_period_days));
   const [pages, setPages] = useState<AuditPage[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [filter, setFilter] = useState("attention");
@@ -205,42 +204,24 @@ function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: 
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
-              void load(
-                {
-                  ...(startDate ? { start_date: startDate } : {}),
-                  ...(endDate ? { end_date: endDate } : {}),
-                },
-                "start",
-              );
+              void load({ period_days: Number(periodDays) }, "start");
             }}
           >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormField
-                id="audit-start-date"
-                label={text.start_date}
-                type="date"
-                min={metadata.min_date}
-                max={endDate || metadata.max_date}
-                value={startDate}
-                disabled={pending}
-                onChange={(event) => {
-                  setStartDate(event.target.value);
-                }}
-              />
-              <FormField
-                id="audit-end-date"
-                label={text.end_date}
-                type="date"
-                min={startDate || metadata.min_date}
-                max={metadata.max_date}
-                value={endDate}
-                disabled={pending}
-                onChange={(event) => {
-                  setEndDate(event.target.value);
-                }}
-              />
-            </div>
-            <p className="text-xs text-secondary">{text.date_hint}</p>
+            <FormField
+              id="audit-period-days"
+              label={text.period_days}
+              type="number"
+              min={1}
+              max={metadata.max_period_days}
+              step={1}
+              required
+              value={periodDays}
+              disabled={pending}
+              onChange={(event) => {
+                setPeriodDays(event.target.value);
+              }}
+            />
+            <p className="text-xs text-secondary">{text.period_hint}</p>
             <Button
               type="submit"
               disabled={pending}
@@ -361,7 +342,11 @@ function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: 
                   pending ? { name: "loader-circle", className: "animate-spin" } : undefined
                 }
               >
-                {pending ? text.loading : text.older}
+                {pending
+                  ? text.loading
+                  : pages.at(-1)?.coverage.has_more_connections === true
+                    ? text.continue_period
+                    : text.older}
               </Button>
             )}
           </>

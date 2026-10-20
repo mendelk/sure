@@ -27,7 +27,7 @@ RSpec.describe "API V1 SimpleFIN History Audit", type: :request do
     parameter name: :account_id, in: :path, type: :string, required: true
 
     post "Audit fresh SimpleFIN history without importing or changing financial data" do
-      description "Requires an administrator, account write permission, and read_write scope. Each page makes one account-filtered provider request over at most 60 days, including associated retired feeds. Follow next_cursor to walk older history without an empty-window or one-year cutoff. Provider history availability is not guaranteed. Stop on provider errors or rate limits."
+      description "Requires an administrator, account write permission, and read_write scope. Choose a period of 1–45 days (default 45), initially ending today. Each page makes one account-filtered provider request, including associated retired feeds. Follow next_cursor through remaining connections in that period, then the immediately preceding period of the same length, back to 1970-01-01. Provider history availability is not guaranteed. Stop on provider errors or rate limits."
       tags "Accounts"
       security [ { apiKeyAuth: [] } ]
       consumes "application/json"
@@ -54,7 +54,7 @@ RSpec.describe "API V1 SimpleFIN History Audit", type: :request do
         schema "$ref" => "#/components/schemas/ErrorResponse"
         run_test!
       end
-      response "409", "provider mappings changed; restart or resolve conflicting links" do
+      response "409", "provider mappings or audit period format changed; restart or resolve conflicting links" do
         let(:audit_request) do
           cursor = Account::SimplefinHistoryAudit.new(account: account, user: user).call.fetch(:next_cursor)
           provider.update!(account_id: "changed-feed")
@@ -63,8 +63,8 @@ RSpec.describe "API V1 SimpleFIN History Audit", type: :request do
         schema "$ref" => "#/components/schemas/ErrorResponse"
         run_test!
       end
-      response "422", "invalid dates/cursor or no available SimpleFIN feed" do
-        let(:audit_request) { { start_date: "not-a-date" } }
+      response "422", "invalid period/cursor or no available SimpleFIN feed" do
+        let(:audit_request) { { period_days: 46 } }
         schema "$ref" => "#/components/schemas/ErrorResponse"
         run_test!
       end
