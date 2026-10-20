@@ -442,6 +442,7 @@ class Account::SpaIndexData
           actions << { key: "link_simplefin_account", label: I18n.t("simplefin_items.provider_replacement.link_simplefin"), href: routes.account_provider_replacement_path(account, return_to: routes.accounts_path, only_path: true), method: "get" } if permission.in?([ :owner, :full_control ])
         elsif account.linked? && account.linked_to?("SimplefinAccount")
           actions << { key: "change_simplefin_account", label: I18n.t("accounts.account.change_simplefin_account"), href: routes.account_provider_replacement_path(account, return_to: routes.accounts_path, only_path: true), method: "get" } if permission.in?([ :owner, :full_control ])
+          actions << { key: "simplefin_history_audit", label: I18n.t("accounts.simplefin_history_audit.title"), href: routes.account_simplefin_history_audit_path(account, return_to: routes.accounts_path, only_path: true), method: "get" } if permission.in?([ :owner, :full_control ])
         end
         actions << { key: "unlink_provider", label: I18n.t("accounts.account.unlink_provider"), href: routes.confirm_unlink_account_path(account, only_path: true), method: "get" } if account.linked?
       end

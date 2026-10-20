@@ -24,6 +24,51 @@ en:
       default_label: Default
       delete: Delete account
       sharing: Sharing
+    simplefin_history_audit:
+      title: Check for missing transactions
+      description: Compare fresh SimpleFIN history with this account, including its retired feeds. Nothing will be imported, merged, deleted, or changed.
+      limits: Each check requests up to 60 days from one connection. Older history is loaded only when you ask. SimpleFIN recommends no more than 24 requests per day; history availability depends on your bank.
+      start_date: From date (optional)
+      end_date: Through date (optional)
+      date_hint: Leave dates blank to start today and allow paging back to 1970. Dates are inclusive.
+      start: Start audit
+      restart: Start new audit
+      loading: Checking SimpleFIN…
+      older: Check older history
+      retry: Retry request
+      retry_page: Retry this period
+      close: Close
+      unavailable: The history audit could not be loaded.
+      failed: The request failed. Your previous results are preserved; retry the same request.
+      stale: The provider mappings changed. Start a new audit.
+      rate_limited: SimpleFIN or Sure has reached its request limit. Stop checking and retry later.
+      provider_errors: SimpleFIN reported errors. Stop checking and retry the affected period later.
+      partial: Some periods could not be checked completely. Review their warnings below. Finding no missing transactions does not prove the account is complete.
+      warning_provider_errors: SimpleFIN reported errors; this period may be incomplete.
+      warning_feed_unavailable: SimpleFIN did not return a transaction list for this feed.
+      warning_unresolved_transactions: Some provider transactions could not be compared safely.
+      coverage: Periods checked
+      complete_page: Response checked
+      partial_page: Incomplete response
+      history_end: The requested range has been traversed. SimpleFIN still cannot certify complete bank history.
+      empty: No transactions match this filter in the history checked so far.
+      filter: Show results
+      attention: Needs review
+      all: All transactions
+      status_recorded: Already recorded
+      status_intentionally_deleted: Intentionally deleted
+      status_possible_match: Possible existing match
+      status_missing: Missing from ledger
+      status_pending: Pending at provider
+      status_invalid: Invalid provider transaction
+      status_identity_conflict: Identity conflict
+      unknown: Unidentified transaction
+      retired: Retired feed
+      candidates: Possible matches — review before adding anything
+      open_transaction: Open existing transaction
+      new_tab: Opens in a new tab
+      amount_hint: Amounts use ledger signs — positive for outflows, negative for inflows.
+      no_guarantee: An empty response is not proof of complete history. Your bank may no longer expose older transactions.
     chart:
       data_not_available: Data not available for the selected period
     create:

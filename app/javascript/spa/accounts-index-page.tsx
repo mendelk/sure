@@ -25,6 +25,7 @@ import { IconButton } from "./components/icon-button";
 import { Toggle } from "./components/toggle";
 import { BrandLogo } from "./components/brand-logo";
 import { Modal } from "./modal";
+import { currentReturnTo } from "./return-to";
 
 // ERB parity strings the row renders inline.
 const ROW_TEXT = {
@@ -305,7 +306,19 @@ function AccountRowMenu({
         portal
       >
         {editable.map((action) =>
-          action.key === "change_simplefin_account" || action.key === "link_simplefin_account" ? (
+          action.key === "simplefin_history_audit" ? (
+            <MenuItem key={action.key}>
+              <Link
+                className="block w-full px-4 py-2 text-left text-sm text-primary data-focus:bg-container-hover"
+                params={{ accountId: row.id }}
+                search={{ return_to: currentReturnTo() }}
+                to="/accounts/$accountId/simplefin_history_audit"
+              >
+                {action.label}
+              </Link>
+            </MenuItem>
+          ) : action.key === "change_simplefin_account" ||
+            action.key === "link_simplefin_account" ? (
             <MenuItem key={action.key}>
               <Link
                 className="block w-full px-4 py-2 text-left text-sm text-primary data-focus:bg-container-hover"

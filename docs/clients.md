@@ -123,6 +123,55 @@ its `/preview` and `/apply` children. Apply requires the preview fingerprint,
 explicit duplicate pairs, and a stable idempotency key; see the
 [OpenAPI reference](api/openapi.yaml).
 
+**SimpleFIN missing-transaction audit.** On **Accounts**, open a linked SimpleFIN
+account's menu and choose **Check for missing transactions**. The read-only React
+drawer is available to administrators with account write permission. Opening it
+does not fetch bank history; choose optional date bounds and select **Start audit**.
+Results default to **Needs review**, with other statuses available through
+**Show results**, sorted newest first. Existing-transaction links open in a new
+tab so the audit stays intact.
+
+Use **Check older history** to fetch one more page. **Periods checked** preserves
+coverage warnings and lets you retry incomplete periods without losing earlier
+results or rewinding the scan. Provider errors and rate limits pause continuation.
+Closing the drawer restores its opening URL; reloading the drawer starts with
+the audit form and does not automatically repeat provider requests.
+
+API clients use the same audit endpoint with an administrator's account write
+permission and a `read_write` API key or OAuth scope:
+
+```sh
+curl --request POST \
+  "$SURE_URL/api/v1/accounts/$ACCOUNT_ID/simplefin_history_audit" \
+  --header "X-Api-Key: $SURE_API_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{}'
+```
+
+This compares SimpleFIN transactions against the account's ledger without
+importing anything or changing balances, mappings, cached payloads, or normal
+sync timestamps. Current and retired feeds are included. Each page requests at
+most 60 days from one connection, filtered to this account's provider IDs.
+Omitting dates starts today and permits paging back to 1970-01-01; optional
+`start_date` and `end_date` restrict the audit and are inclusive.
+
+Send `{"cursor":"<next_cursor>"}` alone to continue. There is no one-year cutoff
+and empty windows do not stop pagination. Deduplicate combined results by
+`simplefin_account_id` and `provider_transaction_id`, not by transaction ID alone.
+Provider history availability varies; an empty page is not proof of complete
+bank history. Large scans consume provider quota: SimpleFIN recommends at most
+24 requests per day. Stop on provider-error/quota warnings or HTTP 429 and retry
+later rather than blindly following cursors.
+
+Results distinguish `recorded`, `intentionally_deleted`, `possible_match`,
+`missing`, `pending`, `invalid`, and `identity_conflict`. Possible matches have
+the same signed amount and currency within four days; they are candidates, not
+confirmed duplicates. A manually repaired payment remains intact and can be
+reviewed instead of imported again. Nothing is linked or repaired automatically.
+Unavailable feeds and invalid/partial responses set `coverage.page_complete`
+to false and provide a `retry_cursor`; retain these unresolved pages even when
+continuing with `next_cursor`. Provider failures return sanitized errors.
+
 Transaction controls follow the viewer's **account permission**, not their family
 role. A member can split transactions when they own the account or have full
 control.
