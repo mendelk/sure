@@ -25,6 +25,7 @@ const SpaBootstrapSchema = z.object({
   reportBuilderText: z.record(z.string(), z.string()),
   accountDetailText: z.record(z.string(), z.string()),
   bulkUpdateText: z.record(z.string(), z.string()),
+  homeText: z.record(z.string(), z.string()),
   flashMessages: z.array(
     z.object({
       message: z.string(),
@@ -52,6 +53,7 @@ const SpaBootstrapSchema = z.object({
     transfer_confirmed: z.string(),
   }),
   apiPaths: z.object({
+    home: z.string(),
     transactions: z.string(),
     recurringTransactions: z.optional(z.string()),
     summary: z.string(),

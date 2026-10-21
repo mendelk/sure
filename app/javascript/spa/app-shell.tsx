@@ -48,9 +48,9 @@ function navItemActive(item: NavItem, pathname: string): boolean {
 }
 
 function spaHref(item: NavItem): boolean {
+  if (item.href === "/") return true;
   return SPA_PREFIXES.some((prefix) => item.href.startsWith(prefix));
 }
-
 function RailNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
   const active = navItemActive(item, pathname);
 
