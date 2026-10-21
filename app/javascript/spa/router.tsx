@@ -15,6 +15,8 @@ import {
 import type { SpaBootstrap } from "./bootstrap";
 import { parseSpaSearch, stringifySpaSearch } from "./search-params";
 import { AppShell } from "./app-shell";
+import { HomePage } from "./home-page";
+import { validateHomeSearch } from "./home/home-search";
 import { AccountDetailPage, validateAccountSearch } from "./account-detail-page";
 import { DashboardsPage } from "./dashboards-page";
 import { validateDashboardSearch } from "./dashboard-storage";
@@ -113,6 +115,12 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   notFoundComponent: NotFoundPage,
 });
 
+const homeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  validateSearch: validateHomeSearch,
+  component: HomePage,
+});
 const accountDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/accounts/$accountId",
@@ -1080,8 +1088,8 @@ const chatEditRoute = createRoute({
   path: "$chatId/edit",
   component: ChatEditRouteComponent,
 });
-
 const routeTree = rootRoute.addChildren([
+  homeRoute,
   accountDetailRoute.addChildren([
     accountTransactionRoute,
     accountTransferRoute,
@@ -1140,6 +1148,13 @@ export function createSpaRouter(bootstrap: SpaBootstrap): SpaRouter {
     stringifySearch: stringifySpaSearch,
     routeTree,
     scrollRestoration: true,
+    defaultOnCatch: (error) => {
+      // eslint-disable-next-line no-console -- Temporary probe for the d3-sankey render crash; remove after diagnosis.
+      console.error(
+        "[home-crash]",
+        error instanceof Error ? (error.stack ?? error.message) : error,
+      );
+    },
   });
 }
 

@@ -1,5 +1,5 @@
-<% page_title = if request.path.start_with?("/dashboards")
-     "Dashboards"
+<% page_title = if request.path == "/"
+     t("pages.dashboard.new", default: "Home")
    elsif request.path.start_with?("/sources")
      "Sources"
    elsif request.path.start_with?("/account_statements") || request.path.start_with?("/statements")
@@ -64,6 +64,7 @@
     label: t("web_notifications.inbox.title")
   } : nil,
   apiPaths: {
+    home: api_v1_home_path,
     transactions: api_v1_transactions_path,
     recurringTransactions: api_v1_recurring_transactions_path,
     summary: api_v1_balance_sheet_path,
@@ -91,6 +92,29 @@
     creation_transfer_tab: t("shared.transaction_tabs.transfer"),
     creation_type_label: t("shared.transaction_tabs.aria", default: "Transaction type")
   ),
+  homeText: {
+    welcome: t("pages.dashboard.welcome"),
+    subtitle: t("pages.dashboard.subtitle"),
+    new: t("pages.dashboard.new"),
+    investment_title: t("pages.dashboard.investment_summary.title"),
+    investment_total_return: t("pages.dashboard.investment_summary.total_return"),
+    investment_holding: t("pages.dashboard.investment_summary.holding"),
+    investment_weight: t("pages.dashboard.investment_summary.weight"),
+    investment_value: t("pages.dashboard.investment_summary.value"),
+    investment_return: t("pages.dashboard.investment_summary.return"),
+    investment_contributions: t("pages.dashboard.investment_summary.contributions"),
+    investment_withdrawals: t("pages.dashboard.investment_summary.withdrawals"),
+    investment_trades: t("pages.dashboard.investment_summary.trades"),
+    insights_title: t("pages.dashboard.insights_feed.title"),
+    insights_header: t("insights.feed.header"),
+    insights_header_new: t("insights.feed.header_new"),
+    insights_view_all: t("insights.feed.view_all"),
+    insights_acknowledge: t("insights.card.acknowledge"),
+    insights_preview: t("shared.preview"),
+    no_accounts_title: t("pages.dashboard.no_accounts.title"),
+    no_accounts_description: t("pages.dashboard.no_accounts.description"),
+    no_accounts_add: t("pages.dashboard.no_accounts.add_account"),
+  },
   bulkUpdateText: t("transactions.bulk_updates.new"),
   flashMessages: flash.to_hash.slice("notice", "alert").map { |kind, message|
     { message: message.to_s, variant: kind == "alert" ? "error" : "success" }

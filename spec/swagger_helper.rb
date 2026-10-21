@@ -2770,11 +2770,346 @@ RSpec.configure do |config|
               }
             }
           },
-          SuccessMessage: {
+          HomeSectionLayout: {
             type: :object,
-            required: %w[message],
             properties: {
-              message: { type: :string }
+              col_span: { type: :string, enum: %w[single full] },
+              grow: { type: :boolean },
+              min_height: { type: :integer },
+              width_toggle: { type: :boolean },
+              height_preset: { type: :string, enum: %w[compact auto tall] },
+              height_px: { type: :integer }
+            }
+          },
+          HomeSection: {
+            type: :object,
+            required: %w[key visible collapsible collapsed],
+            properties: {
+              key: { type: :string },
+              visible: { type: :boolean },
+              collapsible: { type: :boolean },
+              collapsed: { type: :boolean },
+              layout: { '$ref' => '#/components/schemas/HomeSectionLayout' }
+            }
+          },
+          HomeSankeyNode: {
+            type: :object,
+            required: %w[id name value percentage],
+            properties: {
+              id: { type: :string },
+              name: { type: :string },
+              filter_value: { type: :string, nullable: true },
+              value: { type: :number },
+              percentage: { type: :number },
+              color: { type: :string, nullable: true }
+            }
+          },
+          HomeSankeyLink: {
+            type: :object,
+            required: %w[source target value percentage],
+            properties: {
+              source: { type: :integer, minimum: 0 },
+              target: { type: :integer, minimum: 0 },
+              value: { type: :number },
+              color: { type: :string, nullable: true },
+              percentage: { type: :number }
+            }
+          },
+          HomeSankey: {
+            type: :object,
+            required: %w[nodes links currency_symbol],
+            properties: {
+              nodes: { type: :array, items: { '$ref' => '#/components/schemas/HomeSankeyNode' } },
+              links: { type: :array, items: { '$ref' => '#/components/schemas/HomeSankeyLink' } },
+              currency_symbol: { type: :string }
+            }
+          },
+          HomeMoneyFlowBar: {
+            type: :object,
+            required: %w[date label short_label income expense highlighted partial],
+            properties: {
+              date: { type: :string, format: :date },
+              label: { type: :string },
+              short_label: { type: :string },
+              income: { type: :number },
+              expense: { type: :number },
+              highlighted: { type: :boolean },
+              partial: { type: :boolean }
+            }
+          },
+          HomeMoneyFlow: {
+            type: :object,
+            required: %w[bars period month month_label income expense balance balance_tone account_ids accounts accessible_account_ids all_accounts_selected income_href expense_href],
+            properties: {
+              bars: { type: :array, items: { '$ref' => '#/components/schemas/HomeMoneyFlowBar' } },
+              period: {
+                type: :object,
+                required: %w[start_date end_date date_range_label],
+                properties: {
+                  start_date: { type: :string, format: :date },
+                  end_date: { type: :string, format: :date },
+                  date_range_label: { type: :string }
+                }
+              },
+              month: { type: :string, format: :date },
+              month_label: { type: :string },
+              income: { '$ref' => '#/components/schemas/Money' },
+              expense: { '$ref' => '#/components/schemas/Money' },
+              balance: { '$ref' => '#/components/schemas/Money' },
+              balance_tone: { type: :string, enum: %w[positive negative neutral] },
+              account_ids: { type: :array, items: { type: :string }, nullable: true },
+              accounts: {
+                type: :array,
+                items: { type: :object, required: %w[id name], properties: { id: { type: :string }, name: { type: :string } } }
+              },
+              accessible_account_ids: { type: :array, items: { type: :string } },
+              all_accounts_selected: { type: :boolean },
+              income_href: { type: :string },
+              expense_href: { type: :string }
+            }
+          },
+          HomeSpendingPoint: {
+            type: :object,
+            required: %w[day value date date_formatted],
+            properties: {
+              day: { type: :integer },
+              value: { type: :number },
+              date: { type: :string, format: :date },
+              date_formatted: { type: :string }
+            }
+          },
+          HomeSpendingTrend: {
+            type: :object,
+            required: %w[month month_label period previous_period days current_days axis_labels current previous current_total previous_total delta delta_tone previous_label date_range_short],
+            properties: {
+              month: { type: :string, format: :date },
+              month_label: { type: :string },
+              period: {
+                type: :object,
+                required: %w[start_date end_date date_range_label],
+                properties: {
+                  start_date: { type: :string, format: :date },
+                  end_date: { type: :string, format: :date },
+                  date_range_label: { type: :string }
+                }
+              },
+              previous_period: { '$ref' => '#/components/schemas/FinancialPeriod' },
+              days: { type: :integer },
+              current_days: { type: :integer },
+              axis_labels: { type: :array, items: { type: :string } },
+              current: { type: :array, items: { '$ref' => '#/components/schemas/HomeSpendingPoint' } },
+              previous: { type: :array, items: { '$ref' => '#/components/schemas/HomeSpendingPoint' } },
+              current_total: { '$ref' => '#/components/schemas/Money' },
+              previous_total: { '$ref' => '#/components/schemas/Money' },
+              delta: { '$ref' => '#/components/schemas/Money' },
+              delta_tone: { type: :string, enum: %w[up down flat] },
+              previous_label: { type: :string },
+              previous_comparison_day: { type: :integer, nullable: true },
+              date_range_short: { type: :string }
+            }
+          },
+          HomeOutflowsCategory: {
+            type: :object,
+            required: %w[id name filter_value amount currency percentage color clickable],
+            properties: {
+              id: { type: :string },
+              name: { type: :string },
+              filter_value: { type: :string },
+              amount: { type: :number },
+              currency: { type: :string },
+              percentage: { type: :number },
+              color: { type: :string },
+              icon: { type: :string, nullable: true },
+              clickable: { type: :boolean }
+            }
+          },
+          HomeOutflows: {
+            type: :object,
+            required: %w[categories total total_formatted currency currency_symbol period],
+            properties: {
+              categories: { type: :array, items: { '$ref' => '#/components/schemas/HomeOutflowsCategory' } },
+              total: { type: :number },
+              total_formatted: { type: :string },
+              currency: { type: :string },
+              currency_symbol: { type: :string },
+              period: { '$ref' => '#/components/schemas/FinancialPeriod' }
+            }
+          },
+          HomeBalanceSheetAccount: {
+            type: :object,
+            required: %w[id name path balance currency weight],
+            properties: {
+              id: { type: :string, format: :uuid },
+              name: { type: :string },
+              path: { type: :string },
+              balance: { '$ref' => '#/components/schemas/Money' },
+              currency: { type: :string },
+              weight: { type: :string },
+              logo_url: { type: :string, nullable: true }
+            }
+          },
+          HomeAccountGroup: {
+            type: :object,
+            required: %w[key name color weight total accounts],
+            properties: {
+              key: { type: :string },
+              name: { type: :string },
+              color: { type: :string },
+              weight: { type: :string },
+              total: { '$ref' => '#/components/schemas/Money' },
+              accounts: { type: :array, items: { '$ref' => '#/components/schemas/HomeBalanceSheetAccount' } }
+            }
+          },
+          HomeClassificationGroup: {
+            type: :object,
+            required: %w[key name icon total weight syncing account_groups],
+            properties: {
+              key: { type: :string, enum: %w[asset liability] },
+              name: { type: :string },
+              icon: { type: :string },
+              total: { '$ref' => '#/components/schemas/Money' },
+              weight: { type: :string },
+              syncing: { type: :boolean },
+              account_groups: { type: :array, items: { '$ref' => '#/components/schemas/HomeAccountGroup' } }
+            }
+          },
+          HomeBalanceSheet: {
+            type: :object,
+            required: %w[currency net_worth assets_total liabilities_total syncing classification_groups always_expanded],
+            properties: {
+              currency: { type: :string },
+              net_worth: { '$ref' => '#/components/schemas/Money' },
+              assets_total: { '$ref' => '#/components/schemas/Money' },
+              liabilities_total: { '$ref' => '#/components/schemas/Money' },
+              syncing: { type: :boolean },
+              classification_groups: { type: :array, items: { '$ref' => '#/components/schemas/HomeClassificationGroup' } },
+              always_expanded: { type: :array, items: { type: :string } }
+            }
+          },
+          HomeNetWorthTrend: {
+            type: :object,
+            required: %w[current change percent color direction],
+            properties: {
+              current: { '$ref' => '#/components/schemas/Money' },
+              change: { '$ref' => '#/components/schemas/Money' },
+              percent: { type: :string },
+              color: { type: :string },
+              direction: { type: :string, enum: %w[up down flat] }
+            }
+          },
+          HomeNetWorth: {
+            type: :object,
+            required: %w[series comparison_label syncing],
+            properties: {
+              series: { type: :array, items: { '$ref' => '#/components/schemas/BalanceSheetPoint' } },
+              trend: { '$ref' => '#/components/schemas/HomeNetWorthTrend', nullable: true },
+              comparison_label: { type: :string },
+              syncing: { type: :boolean }
+            }
+          },
+          HomeHolding: {
+            type: :object,
+            required: %w[ticker weight value],
+            properties: {
+              ticker: { type: :string },
+              name: { type: :string, nullable: true },
+              logo_url: { type: :string, nullable: true },
+              weight: { type: :string },
+              value: { '$ref' => '#/components/schemas/Money' },
+              return_percent: { type: :string, nullable: true },
+              color: { type: :string, nullable: true }
+            }
+          },
+          HomeInvestmentActivity: {
+            type: :object,
+            required: %w[label contributions withdrawals trades_count],
+            properties: {
+              label: { type: :string },
+              contributions: { '$ref' => '#/components/schemas/Money' },
+              withdrawals: { '$ref' => '#/components/schemas/Money' },
+              trades_count: { type: :integer }
+            }
+          },
+          HomeInvestmentSummary: {
+            type: :object,
+            required: %w[present],
+            properties: {
+              present: { type: :boolean },
+              portfolio_value: { '$ref' => '#/components/schemas/Money' },
+              total_return: {
+                type: :object,
+                required: %w[value percent color],
+                nullable: true,
+                properties: {
+                  value: { '$ref' => '#/components/schemas/Money' },
+                  percent: { type: :string },
+                  color: { type: :string }
+                }
+              },
+              holdings: { type: :array, items: { '$ref' => '#/components/schemas/HomeHolding' } },
+              activity: { '$ref' => '#/components/schemas/HomeInvestmentActivity', nullable: true }
+            }
+          },
+          HomeInsight: {
+            type: :object,
+            required: %w[id type title body priority status icon_key icon_css_color sentiment acknowledge_path],
+            properties: {
+              id: { type: :string, format: :uuid },
+              type: { type: :string },
+              title: { type: :string },
+              body: { type: :string },
+              priority: { type: :string },
+              status: { type: :string },
+              generated_at: { type: :string, format: :'date-time', nullable: true },
+              icon_key: { type: :string },
+              icon_css_color: { type: :string },
+              sentiment: { type: :string },
+              key_figure: {
+                type: :object,
+                required: %w[value caption],
+                nullable: true,
+                properties: {
+                  value: { type: :string },
+                  caption: { type: :string }
+                }
+              },
+              acknowledge_path: { type: :string }
+            }
+          },
+          HomeInsights: {
+            type: :object,
+            required: %w[enabled insights],
+            properties: {
+              enabled: { type: :boolean },
+              insights: { type: :array, items: { '$ref' => '#/components/schemas/HomeInsight' } }
+            }
+          },
+          HomeResponse: {
+            type: :object,
+            required: %w[has_accounts first_name two_column preview period sections balance_sheet net_worth cashflow_sankey money_flow spending_trend outflows investment_summary insights],
+            properties: {
+              has_accounts: { type: :boolean },
+              first_name: { type: :string },
+              two_column: { type: :boolean },
+              preview: { type: :boolean },
+              period: {
+                type: :object,
+                required: %w[start_date end_date label],
+                properties: {
+                  start_date: { type: :string, format: :date },
+                  end_date: { type: :string, format: :date },
+                  label: { type: :string }
+                }
+              },
+              sections: { type: :array, items: { '$ref' => '#/components/schemas/HomeSection' } },
+              balance_sheet: { '$ref' => '#/components/schemas/HomeBalanceSheet' },
+              net_worth: { '$ref' => '#/components/schemas/HomeNetWorth' },
+              cashflow_sankey: { '$ref' => '#/components/schemas/HomeSankey' },
+              money_flow: { '$ref' => '#/components/schemas/HomeMoneyFlow' },
+              spending_trend: { '$ref' => '#/components/schemas/HomeSpendingTrend' },
+              outflows: { '$ref' => '#/components/schemas/HomeOutflows' },
+              investment_summary: { '$ref' => '#/components/schemas/HomeInvestmentSummary' },
+              insights: { '$ref' => '#/components/schemas/HomeInsights' }
             }
           },
           ResetInitiatedResponse: {

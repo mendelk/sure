@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   # the two account-transaction routes, which hit `accounts#show` and render
   # the same shell for HTML). Kept together at the top so a legacy resource
   # route can never shadow them — Rails matches top-down.
+  root to: "spa#show"
   get "transactions", to: "spa#show", as: :transactions
   get "transactions/new", to: "spa#show", as: :new_transaction
   get "transactions/bulk_update/new", to: "transactions/bulk_updates#new", constraints: ->(request) { request.format.json? }
@@ -865,6 +866,7 @@ Rails.application.routes.draw do
       resource :usage, only: [ :show ], controller: :usage
       resource :cash_flow, only: [ :show ], controller: :cash_flows
       resource :balance_sheet, only: [ :show ], controller: :balance_sheet
+      resource :home, only: [ :show ], controller: :home
       resources :insights, only: [ :index ]
       resources :push_subscriptions, only: [ :create, :destroy ]
       resource :family_settings, only: [ :show ], controller: :family_settings
@@ -1104,6 +1106,6 @@ Rails.application.routes.draw do
     end
   end
 
-  # Defines the root path route ("/")
-  root "pages#dashboard"
+  # Legacy ERB dashboard (kept for reference; root now serves the SPA home).
+  get "home_legacy", to: "pages#dashboard", as: :pages_dashboard
 end
