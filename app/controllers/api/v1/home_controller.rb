@@ -65,6 +65,7 @@ class Api::V1::HomeController < Api::V1::BaseController
       balance_sheet: balance_sheet_json(balance_sheet, user),
       net_worth: net_worth_json(balance_sheet),
       cashflow_sankey: build_cashflow_sankey_data(net_totals, income_totals, expense_totals, family.currency),
+      cash_forecast: cash_forecast_json(user),
       money_flow: money_flow_json(income_statement, money_flow_month, money_flow_account_ids),
       spending_trend: spending_trend_json(spending_trend_data),
       outflows: outflows_json(net_totals),
@@ -77,6 +78,7 @@ class Api::V1::HomeController < Api::V1::BaseController
     LAYOUT_DEFAULTS = {
       "insights_feed" => { col_span: "full", grow: false, min_height: 0, width_toggle: true },
       "cashflow_sankey" => { col_span: "full", grow: false, min_height: 384, width_toggle: true },
+      "cash_forecast" => { col_span: "single", grow: true, min_height: 208, width_toggle: true },
       "money_flow" => { col_span: "single", grow: false, min_height: 0, width_toggle: true },
       "spending_trend" => { col_span: "single", grow: true, min_height: 208, width_toggle: true },
       "outflows_donut" => { col_span: "single", grow: false, min_height: 0 },
@@ -122,6 +124,7 @@ class Api::V1::HomeController < Api::V1::BaseController
       all = [
         { key: "insights_feed", visible: feed_visible, collapsible: true, layout: section_layout(user, "insights_feed") },
         { key: "cashflow_sankey", visible: has_accounts, collapsible: true, layout: section_layout(user, "cashflow_sankey") },
+        { key: "cash_forecast", visible: has_accounts, collapsible: true, layout: section_layout(user, "cash_forecast") },
         { key: "money_flow", visible: has_accounts, collapsible: true, layout: section_layout(user, "money_flow") },
         { key: "spending_trend", visible: has_accounts, collapsible: true, layout: section_layout(user, "spending_trend") },
         {
@@ -615,6 +618,32 @@ class Api::V1::HomeController < Api::V1::BaseController
         comparison_label: @period.comparison_label,
         syncing: balance_sheet.syncing?
       }
+    end
+
+    # -- cash forecast --
+
+    # 30-day projection of cash on hand: starting Depository balance plus
+    # every projected recurring inflow/outflow inside the window that touches
+    # a cash (Depository) account. Mirrors the occurrence-level approach of
+    # Insight::Generators::CashFlowWarningGenerator#upcoming_recurring_entries
+    # (a weekly bill contributes every hit, partially paid occurrences
+    # contribute only their remaining_amount) but stays a pure projection:
+    # no statistical daily-spend baseline is layered on top.
+    #
+    # Overdue open occurrences (due_on < today) still need paying, so they
+    # land whole on day 0 (today) rather than vanishing from the forecast.
+    #
+    # Scoping notes: family-scoped (not RecurringTransaction.accessible_by).
+    # The Bills page uses accessible_by because it renders per-series rows a
+    # user without access to an endpoint must not see; here each event carries
+    # only a name/date/amount, and the starting balance is the viewer's own
+    # accessible-account total, so the aggregate needs no per-endpoint gate.
+    def cash_forecast_json(user)
+      family = user.family
+      accounts = user.accessible_accounts.visible.where(accountable_type: "Depository").to_a
+      return nil if accounts.none? || accounts.none? { |a| a.currency == family.currency }
+
+      HomeCashForecast.new(family: family, user: user).as_json
     end
 
     # -- investments --

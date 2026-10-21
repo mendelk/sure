@@ -42,7 +42,7 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
       payload = response.parsed_body
       %w[
         has_accounts first_name two_column preview period sections
-        balance_sheet net_worth cashflow_sankey money_flow spending_trend
+        balance_sheet net_worth cashflow_sankey cash_forecast money_flow spending_trend
         outflows investment_summary insights
       ].each do |top_key|
         assert payload.key?(top_key), "expected payload to include #{top_key}"
@@ -64,7 +64,7 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "payload covers all seven dashboard widgets" do
+  test "payload covers all eight dashboard widgets" do
     account = @family.accounts.create!(name: "Home Checking", currency: @family.currency, balance: 0, accountable: Depository.new)
     create_transaction(account: account, name: "Paycheck", amount: -1000, date: Date.current.beginning_of_month)
     create_transaction(account: account, name: "Groceries", amount: 40, date: Date.current.beginning_of_month)
@@ -76,7 +76,7 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
 
     section_keys = payload["sections"].map { |s| s["key"] }
     %w[
-      cashflow_sankey money_flow spending_trend outflows_donut
+      cashflow_sankey cash_forecast money_flow spending_trend outflows_donut
       investment_summary net_worth_chart balance_sheet
     ].each do |key|
       assert_includes section_keys, key
@@ -247,9 +247,146 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert response.parsed_body.key?("balance_sheet")
   end
+  test "cash forecast projects depository occurrences over 30 days" do
+    set_cash(5000)
+    create_series(name: "Rent", amount: 1500, due: Date.current + 10)
+    create_series(name: "Paycheck", amount: -2000, due: Date.current + 5, income: true)
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    forecast = response.parsed_body["cash_forecast"]
+
+    assert_equal @family.currency, forecast["starting_balance"]["currency"]
+    assert forecast["starting_balance"]["formatted"].present?
+    assert_equal 31, forecast["series"].size, "today plus 30 days"
+    assert_equal Date.current.iso8601, forecast["series"].first["date"]
+    assert_equal (Date.current + 30).iso8601, forecast["series"].last["date"]
+    assert_equal forecast["series"].last["balance"], forecast["ending_balance"]
+
+    events = forecast["events"]
+    assert_equal 2, events.size
+    rent = events.find { |e| e["name"] == "Rent" }
+    paycheck = events.find { |e| e["name"] == "Paycheck" }
+    assert_equal "outflow", rent["direction"]
+    assert_equal "inflow", paycheck["direction"]
+    assert_equal (Date.current + 10).iso8601, rent["date"]
+    assert_equal (Date.current + 5).iso8601, paycheck["date"]
+  end
+
+  test "cash forecast excludes credit-card series and transfers" do
+    set_cash(5000)
+    create_series(name: "Card Bill", amount: 300, due: Date.current + 7, account: accounts(:credit_card))
+    checking = accounts(:depository)
+    savings = @family.accounts.create!(name: "Forecast Savings", currency: @family.currency, balance: 0, accountable: Depository.new)
+    create_series(name: "Vault Sweep", amount: 400, due: Date.current + 6, account: checking, destination_account: savings)
+    create_series(name: "Rent", amount: 1500, due: Date.current + 10)
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    names = response.parsed_body["cash_forecast"]["events"].map { |e| e["name"] }
+
+    assert_equal [ "Rent" ], names
+  end
+
+  test "cash forecast excludes foreign-currency occurrences" do
+    set_cash(5000)
+    create_series(name: "Tokyo Storage", amount: 10_000, due: Date.current + 4, currency: "JPY")
+    create_series(name: "Rent", amount: 1500, due: Date.current + 10)
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    names = response.parsed_body["cash_forecast"]["events"].map { |e| e["name"] }
+
+    assert_equal [ "Rent" ], names
+  end
+
+  test "cash forecast counts every weekly hit and partial-payment remainder" do
+    set_cash(5000)
+    weekly = create_series(name: "Groceries", amount: 200, due: Date.current + 2, preset: "weekly")
+    first = weekly.recurring_occurrences.order(:due_on).first
+    RecurringTransaction::Allocator.new(first).allocate!(amount: "50")
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    forecast = response.parsed_body["cash_forecast"]
+    hits = forecast["events"].select { |e| e["name"] == "Groceries" }
+
+    assert hits.size >= 4, "weekly series contributes every hit in the window, got #{hits.size}"
+    assert_includes hits.map { |e| e["amount"]["amount"] }, Money.new(150, @family.currency).as_json["amount"],
+      "partially paid first hit contributes only its remainder"
+    assert hits.all? { |e| e["direction"] == "outflow" }
+  end
+
+  test "cash forecast folds overdue occurrences into today" do
+    set_cash(5000)
+    create_series(name: "Overdue Power", amount: 120, due: Date.current - 3)
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    forecast = response.parsed_body["cash_forecast"]
+    event = forecast["events"].find { |e| e["name"] == "Overdue Power" }
+
+    assert_equal Date.current.iso8601, event["date"]
+  end
+
+  test "cash forecast surfaces an overdraft floor" do
+    set_cash(100)
+    create_series(name: "Rent", amount: 1500, due: Date.current + 10)
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    forecast = response.parsed_body["cash_forecast"]
+
+    assert_equal true, forecast["below_zero"]
+    assert forecast["lowest"].present?
+    assert_equal (Date.current + 10).iso8601, forecast["lowest"]["date"]
+  end
+
+  test "cash forecast is null without family-currency depository accounts" do
+    @family.accounts.where(accountable_type: "Depository").update_all(currency: "EUR")
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    payload = response.parsed_body
+
+    assert payload.key?("cash_forecast"), "key always present (object-or-null)"
+    assert_nil payload["cash_forecast"]
+  end
+
 
   private
     def api_headers(auth)
       { "X-Api-Key" => auth.display_key }
+    end
+
+    # Cash on hand across every deposit account (the fixture family carries
+    # two), so the starting balance is pinned exactly.
+    def set_cash(amount)
+      depositories = @family.accounts.where(accountable_type: "Depository")
+      depositories.update_all(balance: amount / depositories.count.to_d)
+    end
+
+    def create_series(name:, amount:, due:, preset: "monthly", income: false, account: accounts(:depository), destination_account: nil, currency: "USD")
+      series = @family.recurring_transactions.create!(
+        name: name,
+        account: account,
+        destination_account: destination_account,
+        amount: amount,
+        currency: currency,
+        bill_type: income ? "income" : "bill",
+        expected_day_of_month: due.day,
+        anchor_date: due,
+        last_occurrence_date: due,
+        next_expected_date: due,
+        status: "active",
+        manual: true
+      )
+
+      if preset != "monthly"
+        RecurringTransaction::FrequencyPreset.apply(series, preset: preset, weekday: due.wday)
+        series.save!
+      end
+
+      series
     end
 end

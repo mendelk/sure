@@ -104,6 +104,14 @@ en:
         no_data_title: "No cash flow data for this time period"
         no_data_description: "Add transactions to display cash flow data or expand the time period"
         add_transaction: "Add transaction"
+      cash_forecast:
+        title: "Cash Forecast"
+        starting: "Starting balance"
+        ending: "In 30 days"
+        low: "Projected low"
+        below_zero: "Projected to dip below zero in the next 30 days"
+        no_activity: "No upcoming recurring activity"
+        upcoming: "Upcoming"
       no_accounts:
         title: "No accounts yet"
         description: "Add accounts to display net worth data"

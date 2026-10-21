@@ -67,6 +67,7 @@ export type HomeHeightPreset = keyof typeof HOME_HEIGHT_PRESETS;
 export const HOME_DEFAULT_ORDER = [
   "insights_feed",
   "cashflow_sankey",
+  "cash_forecast",
   "money_flow",
   "spending_trend",
   "outflows_donut",

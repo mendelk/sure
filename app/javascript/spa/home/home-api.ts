@@ -138,16 +138,32 @@ const HomeInsightSchema = z.object({
   key_figure: z.nullable(HomeInsightFigureSchema),
   acknowledge_path: z.string(),
 });
-
 const HomeInsightsSchema = z.object({
   enabled: z.boolean(),
   insights: z.array(HomeInsightSchema),
+});
+
+const HomeCashForecastEventSchema = z.object({
+  date: z.string(),
+  name: z.string(),
+  amount: HomeMoneySchema,
+  direction: z.enum(["inflow", "outflow"]),
+});
+
+const HomeCashForecastSchema = z.object({
+  starting_balance: HomeMoneySchema,
+  ending_balance: HomeMoneySchema,
+  lowest: z.nullable(z.object({ date: z.string(), balance: HomeMoneySchema })),
+  below_zero: z.boolean(),
+  series: z.array(z.object({ date: z.string(), balance: HomeMoneySchema })),
+  events: z.array(HomeCashForecastEventSchema),
 });
 
 const HomeResponseSchema = z.object({
   balance_sheet: HomeBalanceSheetSchema,
   net_worth: HomeNetWorthSchema,
   cashflow_sankey: HomeSankeySchema,
+  cash_forecast: z.nullable(HomeCashForecastSchema),
   investment_summary: HomeInvestmentSummarySchema,
   insights: HomeInsightsSchema,
 });
@@ -182,6 +198,7 @@ export function homePathForPeriod(homePath: string, period: HomePeriodInput): st
 
 export type HomeInvestmentSummary = z.infer<typeof HomeInvestmentSummarySchema>;
 export type HomeInsight = z.infer<typeof HomeInsightSchema>;
+export type HomeCashForecast = z.infer<typeof HomeCashForecastSchema>;
 
 export class HomeApiError extends Error {
   readonly status: number;
