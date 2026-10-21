@@ -3084,9 +3084,53 @@ RSpec.configure do |config|
               insights: { type: :array, items: { '$ref' => '#/components/schemas/HomeInsight' } }
             }
           },
+          HomeCashForecast: {
+            type: :object,
+            required: %w[starting_balance ending_balance lowest below_zero series events],
+            description: '30-day cash-on-hand projection from family-currency Depository occurrences. Null when the family has no family-currency Depository account.',
+            properties: {
+              starting_balance: { '$ref' => '#/components/schemas/Money' },
+              ending_balance: { '$ref' => '#/components/schemas/Money' },
+              lowest: {
+                type: :object,
+                required: %w[date balance],
+                nullable: true,
+                properties: {
+                  date: { type: :string, format: :date },
+                  balance: { '$ref' => '#/components/schemas/Money' }
+                }
+              },
+              below_zero: { type: :boolean },
+              series: {
+                type: :array,
+                description: 'Daily projected balance, starting today (31 points for the 30-day window).',
+                items: {
+                  type: :object,
+                  required: %w[date balance],
+                  properties: {
+                    date: { type: :string, format: :date },
+                    balance: { '$ref' => '#/components/schemas/Money' }
+                  }
+                }
+              },
+              events: {
+                type: :array,
+                items: {
+                  type: :object,
+                  required: %w[date name amount direction],
+                  properties: {
+                    date: { type: :string, format: :date },
+                    name: { type: :string },
+                    amount: { '$ref' => '#/components/schemas/Money' },
+                    direction: { type: :string, enum: %w[inflow outflow] }
+                  }
+                }
+              }
+            }
+          },
           HomeResponse: {
             type: :object,
-            required: %w[has_accounts first_name two_column preview period sections balance_sheet net_worth cashflow_sankey money_flow spending_trend outflows investment_summary insights],
+            required: %w[has_accounts first_name two_column preview period sections balance_sheet net_worth cashflow_sankey cash_forecast money_flow spending_trend outflows investment_summary insights],
             properties: {
               has_accounts: { type: :boolean },
               first_name: { type: :string },
@@ -3105,6 +3149,7 @@ RSpec.configure do |config|
               balance_sheet: { '$ref' => '#/components/schemas/HomeBalanceSheet' },
               net_worth: { '$ref' => '#/components/schemas/HomeNetWorth' },
               cashflow_sankey: { '$ref' => '#/components/schemas/HomeSankey' },
+              cash_forecast: { '$ref' => '#/components/schemas/HomeCashForecast', nullable: true },
               money_flow: { '$ref' => '#/components/schemas/HomeMoneyFlow' },
               spending_trend: { '$ref' => '#/components/schemas/HomeSpendingTrend' },
               outflows: { '$ref' => '#/components/schemas/HomeOutflows' },

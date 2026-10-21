@@ -1,4 +1,4 @@
-/* eslint-disable import/max-dependencies -- Home shell composes all seven dashboard widgets, search, layout state, and section chrome. */
+/* eslint-disable import/max-dependencies -- Home shell composes all eight dashboard widgets, search, layout state, and section chrome. */
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { NetWorthWidget } from "./home/net-worth-widget";
 import { CashflowSankeyWidget } from "./home/cashflow-sankey-widget";
 import { MoneyFlowWidget } from "./home/money-flow-widget";
 import { SpendingTrendWidget } from "./home/spending-trend-widget";
+import { CashForecastWidget, resolveCashForecastText } from "./home/cash-forecast-widget";
 import { OutflowsDonutWidget } from "./home/outflows-donut-widget";
 import {
   InsightsFeedWidget,
@@ -25,6 +26,7 @@ import {
   HomeApiError,
   homeWidgetsQueryOptions,
   type HomeBalanceSheet,
+  type HomeCashForecast,
   type HomeInsight as ApiInsight,
   type HomeInvestmentSummary,
   type HomeNetWorth,
@@ -36,6 +38,7 @@ import { HomeSection } from "./home/home-section";
 const SECTION_TITLES: Record<string, string> = {
   insights_feed: "Insights",
   cashflow_sankey: "Cashflow",
+  cash_forecast: "Cash Forecast",
   money_flow: "Money In / Out",
   spending_trend: "Spending",
   outflows_donut: "Outflows",
@@ -48,6 +51,7 @@ type WidgetPayload = {
   balance_sheet: HomeBalanceSheet;
   net_worth: HomeNetWorth;
   cashflow_sankey: HomeSankey;
+  cash_forecast: HomeCashForecast | null;
   investment_summary: HomeInvestmentSummary;
   insights: { enabled: boolean; insights: ApiInsight[] };
   money_flow_accounts?: { id: string; name: string }[];
@@ -82,6 +86,20 @@ function sectionMetas(payload: WidgetPayload | undefined): HomeSectionInfo[] {
         colSpan: "full",
         grow: false,
         minHeight: 384,
+        widthToggle: true,
+        heightPreset: "auto",
+        heightPx: 288,
+      },
+    },
+    {
+      key: "cash_forecast",
+      visible: payload.cash_forecast !== null,
+      collapsible: true,
+      collapsed: false,
+      layout: {
+        colSpan: "single",
+        grow: true,
+        minHeight: 208,
         widthToggle: true,
         heightPreset: "auto",
         heightPx: 288,
@@ -227,6 +245,13 @@ function HomeWidgetBody({
         <InvestmentSummaryWidget
           summary={toInvestmentSummaryData(payload.investment_summary)}
           text={resolveInvestmentText(homeText)}
+        />
+      );
+    case "cash_forecast":
+      return (
+        <CashForecastWidget
+          forecast={payload.cash_forecast}
+          text={resolveCashForecastText(homeText)}
         />
       );
     case "cashflow_sankey":
