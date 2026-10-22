@@ -38,6 +38,9 @@ http://localhost:3000
 
 The web app also serves as the surface rendered by the macOS desktop app.
 
+Collapsing a home dashboard section reduces it to its header without reserving
+blank chart space. Expanding it restores the section's configured chart sizing.
+
 The home page **Cash Forecast** starts from the viewer's visible, accessible
 checking balance in the family's currency. It projects recurring checking income
 and expenses plus unpaid dynamic statement payments for visible credit cards with
