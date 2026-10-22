@@ -49,18 +49,18 @@ starting blank.
 
 ## Automatic credit-card payments
 
-Each visible **Credit Card** account has one system-managed monthly payment
-series. Ordinary Loan accounts do not use this feature. New cards get their
-series automatically; existing cards are picked up by the nightly job, sync
-pipeline, or the first Bills visit. Bills remains a preview feature.
+Each visible **Credit Card** account with an explicitly configured **Payment due
+day** has one system-managed monthly payment series. Ordinary Loan accounts do
+not use this feature. Configured cards get their series automatically; existing
+cards are refreshed by the nightly job, sync pipeline, or the first Bills visit.
+Bills remains a preview feature.
 
-Set **Payment due day** (1–31) in the credit-card account's settings. Short
-months use their last day. Leaving it blank asks Sure to infer a day from
-posted repayments: at least three distinct months with one recognizable
-repayment each, a repeated modal day, and at least 80% within two days of that
-day (month-end dates are treated together). Multiple payments in a month do
-not establish a deadline. Payment history estimates a payment day, **not a
-bank-confirmed deadline**; enter the bank's actual day when known.
+Set **Payment due day** (1–31) in the credit-card account's settings. Short months
+use their last day. Leaving it blank disables automatic statement payments;
+payment history never supplies a due day. Clearing an existing setting pauses
+its managed series and removes its payments from payable/upcoming views and the
+cash forecast without deleting statement or payment history. Setting a due day
+again reactivates the series.
 
 Statement close currently defaults to **25 days before payment**, using
 `CreditCard::PaymentSchedule::STATEMENT_GAP_DAYS`. This is an assumption,
@@ -69,9 +69,11 @@ on its estimated closing date, using posted activity available so far, and
 continues refreshing as posted activity arrives. Future-cycle amounts are
 not projected from past payments. The first run starts at the latest cycle
 whose estimated closing date is today or earlier, rather than inventing
-missed historical bills. Changing the due day
-applies to newly generated cycles; existing cycles keep their dates and
-statement boundaries.
+missed historical bills. Changing the due day immediately recalculates unpaid
+estimated statements due today or later, including their due dates, statement
+boundaries, and amounts, while retaining recorded allocations. Past-due statements
+and settled payment history keep their dates. If the new statement close is still
+in the future, no unpaid estimate contributes until that closing date.
 
 The estimate is the **full outstanding statement debt, not the minimum
 payment**. It includes carried debt and posted charges, fees, and interest
@@ -101,12 +103,12 @@ and transfers are not rewritten or deleted. Payments already recorded on
 the older series still reduce the new estimate.
 
 The home page **Cash Forecast** includes these dynamic statement payments as
-outflows over its 30-day window, using each open occurrence's unpaid remainder.
-Statements due today or overdue are deducted from today's projected balance.
+outflows from today through day 30, using each open occurrence's unpaid remainder
+on its scheduled due date. Statements due today reduce today's projected balance;
+past-due statements are excluded even if still unpaid, not moved onto today.
 Only visible cards and statements in the family's currency contribute. Ordinary
 card purchases and transfer series are not added again; the starting balance
 still comes only from checking accounts.
-
 
 ### API fields and deployment
 
@@ -123,17 +125,17 @@ The existing account update endpoint accepts:
 }
 ```
 
-Send `payment_due_day: null` to return to inference. Account responses expose
-`estimated_payment_due_day`, `payment_due_day_source` (`manual`, `estimated`,
-or null), and `statement_gap_days`.
+Send `payment_due_day: null` to disable automatic statement payments. Account
+responses expose `payment_due_day_source` (`manual` or null) and
+`statement_gap_days`; historical due-day estimates are no longer returned.
 
 Recurring-transaction responses identify the series with
 `system_managed_kind: "credit_card_payment"` and expose `current_occurrence`
 with the estimated statement dates, closing balance, post-close credits,
 expected amount, remaining amount, currency, and due-date source. The
 series-level `amount` is zero bookkeeping, not an estimate: use occurrence
-amounts for these series. With `upcoming=true`, only cards with a dated open
-occurrence due today or within the statement-to-due gap appear (currently
+amounts for these series. With `upcoming=true`, only configured cards with a dated
+open occurrence due today or within the statement-to-due gap appear (currently
 25 days, from `CreditCard::PaymentSchedule::STATEMENT_GAP_DAYS`). Ordinary
 recurring items retain their 10-day default. An explicit `upcoming_days`
 overrides both windows. The `amount` / `amount_cents` fields report the

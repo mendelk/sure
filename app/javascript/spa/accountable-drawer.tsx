@@ -623,15 +623,6 @@ function SupportedEditForm({
               <p className="text-xs text-secondary">
                 {text.accountable_credit_payment_due_day_hint}
               </p>
-              {accountable?.estimated_payment_due_day !== undefined &&
-              accountable.estimated_payment_due_day !== null ? (
-                <p className="text-xs text-secondary">
-                  {text.accountable_credit_estimated_payment_due_day.replace(
-                    "%{day}",
-                    String(accountable.estimated_payment_due_day),
-                  )}
-                </p>
-              ) : null}
               <div className="flex items-center gap-2">
                 <FormField
                   id="acct-minimum-payment"

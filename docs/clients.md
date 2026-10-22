@@ -40,12 +40,21 @@ The web app also serves as the surface rendered by the macOS desktop app.
 
 The home page **Cash Forecast** starts from the viewer's visible, accessible
 checking balance in the family's currency. It projects recurring checking income
-and expenses plus all unpaid dynamic statement payments for visible credit cards
-in that currency, using each statement occurrence's remaining amount rather than
-the series-level amount. Paid statements and ordinary card purchases are excluded;
-due-today and overdue payments reduce today's projected balance. Savings (including
-mortgage escrow), other depository subtypes, and ordinary transfers stay excluded.
-The forecast is unavailable without an eligible checking account.
+and expenses plus unpaid dynamic statement payments for visible credit cards with
+an explicitly configured payment due day, using each statement occurrence's
+remaining amount in that currency rather than the series-level amount.
+Only occurrences due today through the next 30 days
+contribute, on their scheduled dates. Past-due income, bills, and statements
+are excluded rather than moved to today, even if still unpaid. Due-today items
+affect today's projected balance. Paid statements, ordinary card purchases,
+savings (including mortgage escrow), other depository subtypes, and ordinary
+transfers stay excluded. The forecast is unavailable without an eligible checking
+account.
+
+Leaving a credit card's **Payment due day** blank disables automatic statement
+payments; history is not used to infer a day. Changing the setting recalculates
+unpaid estimates due today or later, including dates, statement boundaries, and
+amounts, while preserving recorded payments and past statements.
 
 The React app's desktop **Toggle sidebar** control remembers its expanded or
 collapsed state in localStorage across page refreshes. It defaults to expanded

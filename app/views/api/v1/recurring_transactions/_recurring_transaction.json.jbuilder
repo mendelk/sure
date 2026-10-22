@@ -21,7 +21,7 @@ json.name recurring_transaction.name
 json.manual recurring_transaction.manual
 json.system_managed_kind recurring_transaction.system_managed_kind
 if recurring_transaction.credit_card_payment?
-  occurrence = recurring_transaction.current_occurrence
+  occurrence = recurring_transaction.current_occurrence if card_schedule.due_day
   if occurrence
     json.current_occurrence do
       json.id occurrence.id

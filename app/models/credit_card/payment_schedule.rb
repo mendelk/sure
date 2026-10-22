@@ -1,6 +1,6 @@
 class CreditCard
-  # Statement boundaries are estimates, not bank-issued bills. Payment dates
-  # supply a cadence, never an amount; posted debt supplies the obligation.
+  # Statement boundaries are estimates, not bank-issued bills. The configured
+  # payment day supplies the cadence; posted debt supplies the obligation.
   class PaymentSchedule
     STATEMENT_GAP_DAYS = 25
     PAYMENT_NAME = /autopay|automatic payment|auto[ -]?pmt|payment.*thank|payment received|online payment|electronic payment|\Apayment\z/i
@@ -28,28 +28,12 @@ class CreditCard
       typed_payment || entry.name.match?(PAYMENT_NAME)
     end
 
-    def inferred_due_day
-      months = posted_entries.select { |entry| self.class.payment?(entry) && entry.date >= Date.current - 12.months }
-                             .group_by { |entry| entry.date.beginning_of_month }
-      # Multiple payments in a month are not evidence of a fixed deadline.
-      days = months.values.filter_map { |entries| entries.first.date.day if entries.one? }
-      return nil if days.size < 3
-
-      day, count = days.tally.max_by { |candidate, frequency| [ frequency, candidate ] }
-      stable = days.count { |candidate| (candidate - day).abs <= 2 || (candidate >= 28 && day >= 28) }
-      return nil unless count >= 2 && stable >= 3 && stable.fdiv(days.size) >= 0.8
-
-      day
-    end
-
     def due_day
-      card.payment_due_day || inferred_due_day
+      card.payment_due_day
     end
 
     def due_day_source
-      return "manual" if card.payment_due_day
-
-      "estimated" if inferred_due_day
+      "manual" if due_day
     end
 
     def next_due_on
@@ -69,16 +53,21 @@ class CreditCard
         return 0 unless Account::VISIBLE_STATUSES.include?(account.status)
         return 0 if account.family.recurring_transactions_disabled?
 
+        unless due_day
+          account.recurring_transactions.find_by(system_managed_kind: "credit_card_payment")
+            &.system_update!(status: "paused")
+          return 0
+        end
+
         series = ensure_series!
         retire_previous_payment_series!(series)
-        if due_day
-          update_series!(series)
-          RecurringTransaction::Matcher.new(account.family).repair_orphans!(series: series)
-          added = generate_closed_cycles!(series)
-          refresh_estimates!(series)
-          allocate_payments!(series)
-          refresh_estimates!(series)
-        end
+        reschedule_open_cycles!(series) if series.expected_day_of_month != due_day || series.paused?
+        update_series!(series)
+        RecurringTransaction::Matcher.new(account.family).repair_orphans!(series: series)
+        added = generate_closed_cycles!(series)
+        refresh_estimates!(series)
+        allocate_payments!(series)
+        refresh_estimates!(series)
       end
       added
     end
@@ -105,15 +94,31 @@ class CreditCard
       def ensure_series!
         account.recurring_transactions.find_or_create_by!(system_managed_kind: "credit_card_payment") do |series|
           series.assign_attributes(family: account.family, name: account.name, amount: 0, currency: account.currency,
-                                   expected_day_of_month: due_day || 1, last_occurrence_date: Date.current,
-                                   next_expected_date: next_due_on || Date.current, amount_tolerance_pct: 0,
-                                   manual: true, anchor_date: due_day ? latest_closed_due : nil)
+                                   expected_day_of_month: due_day, last_occurrence_date: Date.current,
+                                   next_expected_date: next_due_on, amount_tolerance_pct: 0,
+                                   manual: true, anchor_date: latest_closed_due)
         end
       end
 
       def update_series!(series)
         series.system_update!(name: account.name, currency: account.currency, expected_day_of_month: due_day,
-                              next_expected_date: next_due_on, anchor_date: series.anchor_date || latest_closed_due)
+                              status: "active", next_expected_date: next_due_on, anchor_date: series.anchor_date || latest_closed_due)
+      end
+
+      def reschedule_open_cycles!(series)
+        series.recurring_occurrences
+          .where(due_on: Date.current..)
+          .includes(:allocations)
+          .order(:due_on).each do |occurrence|
+          next unless occurrence.scheduled? || (occurrence.closed_source == "auto" && occurrence.allocations.empty?)
+
+          due = date_in_month(occurrence.due_on, due_day)
+          due = date_in_month(due.next_month, due_day) if due < Date.current
+          ending = due - STATEMENT_GAP_DAYS
+          starting = date_in_month(due.prev_month, due_day) - STATEMENT_GAP_DAYS + 1
+          occurrence.update!(due_on: due, statement_start_on: starting, statement_end_on: ending,
+                             due_date_source: "manual")
+        end
       end
 
       def retire_previous_payment_series!(series)
@@ -128,7 +133,7 @@ class CreditCard
 
       def generate_closed_cycles!(series)
         added = 0
-        month = series.recurring_occurrences.maximum(:original_due_on)&.next_month || series.anchor_date
+        month = series.recurring_occurrences.maximum(:due_on)&.next_month || series.anchor_date
         last_end = series.recurring_occurrences.maximum(:statement_end_on)
         while month && month.beginning_of_month <= latest_closed_due.beginning_of_month
           due = date_in_month(month, due_day)
@@ -182,6 +187,11 @@ class CreditCard
           next unless occurrence.scheduled? || (occurrence.closed_source == "auto" && occurrence.allocations.empty?)
 
           occurrence.with_lock do
+            if occurrence.statement_end_on > Date.current
+              occurrence.update!(expected_amount: occurrence.confirmed_allocated, statement_balance: nil, post_statement_credits: 0)
+              next
+            end
+
             closing = balance_on(occurrence.statement_end_on)
             subsequent = posted_entries.select { |entry| entry.date > occurrence.statement_end_on && entry.amount.negative? }
             credits = subsequent.sum { |entry| self.class.payment?(entry) ? 0 : -entry.amount }

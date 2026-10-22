@@ -34,7 +34,7 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
-  test "credit card due day round trips and can be cleared without editing its managed bill" do
+  test "credit card due day round trips and clearing it disables automatic statement payments" do
     account = accounts(:credit_card)
     patch api_v1_account_url(account), params: { account: { accountable: { payment_due_day: 31 } } },
           headers: api_headers(@read_write_api_key), as: :json
@@ -48,6 +48,10 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
           headers: api_headers(@read_write_api_key), as: :json
     assert_response :success
     assert_nil account.accountable.reload.payment_due_day
+    assert_nil response.parsed_body.dig("accountable", "payment_due_day")
+    assert_nil response.parsed_body.dig("accountable", "payment_due_day_source")
+    assert_not account.recurring_transactions.active.exists?(system_managed_kind: "credit_card_payment")
+    assert account.recurring_transactions.paused.exists?(system_managed_kind: "credit_card_payment")
   end
 
   test "credit card invalid due day and foreign account writes leave the due day unchanged" do

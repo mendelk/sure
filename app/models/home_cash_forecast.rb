@@ -21,10 +21,8 @@
 # Only family-currency rows apply: cross-currency amounts need an FX lookup
 # the forecast does not perform.
 #
-# Overdue open occurrences (due_on < today) are folded into day 0 (today):
-# they are already owed, so the forecast treats them as due now rather than
-# dropping them. Fully-past occurrences before today with zero remainder
-# are skipped via the remaining-positivity check.
+# Only occurrences due today through the 30-day horizon contribute. Overdue
+# rows are excluded, not moved onto today.
 #
 # Family-scoped by design (see cash_forecast_json in
 # Api::V1::HomeController for the rationale): the widget renders an
@@ -91,13 +89,12 @@ class HomeCashForecast
     end
 
     def projected_entries(horizon, currency)
-      today = Date.current
       occurrences = family.recurring_occurrences
         .open_status
         .joins(:recurring_transaction)
         .where(recurring_transactions: { status: :active })
         .where(currency: currency)
-        .where(due_on: ..(horizon.end))
+        .where(due_on: horizon)
         .includes(:recurring_transaction)
         .to_a
 
@@ -106,7 +103,9 @@ class HomeCashForecast
       checking_ids = family.accounts.visible
         .where(accountable_type: "Depository", accountable_id: Depository.where(subtype: "checking").select(:id))
         .pluck(:id).to_set
-      card_ids = family.accounts.visible.where(accountable_type: "CreditCard").pluck(:id).to_set
+      card_ids = family.accounts.visible
+        .where(accountable_type: "CreditCard", accountable_id: CreditCard.where.not(payment_due_day: nil).select(:id))
+        .pluck(:id).to_set
 
       entries = []
       occurrences.each do |occurrence|
@@ -131,11 +130,7 @@ class HomeCashForecast
           direction = "outflow"
         end
 
-        # Overdue open rows are already owed: charge them on day 0.
-        date = [ occurrence.due_on, today ].max
-        next if date > horizon.end
-
-        entries << Event.new(date: date, name: series.display_name.to_s, amount: amount, direction: direction)
+        entries << Event.new(date: occurrence.due_on, name: series.display_name.to_s, amount: amount, direction: direction)
       end
       entries.sort_by { |entry| [ entry.date, entry.name ] }
     end

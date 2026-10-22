@@ -332,6 +332,8 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
         RecurringTransaction::Allocator.new(paid_occurrence).mark_paid!
       end
       create_statement_card(name: "Hidden Statement Card", amount: 400, due_day: 23).update!(status: "disabled")
+      create_statement_card(name: "Unconfigured Statement Card", amount: 600, due_day: 24)
+        .accountable.update_column(:payment_due_day, nil)
       create_statement_card(name: "Foreign Statement Card", amount: 900, due_day: 24, currency: "EUR")
       create_series(name: "Card Purchase", amount: 75, due: Date.current + 2, account: card)
       create_series(name: "Savings Sweep", amount: 200, due: Date.current + 3,
@@ -350,7 +352,7 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "cash forecast deducts overdue and due today statement payments today" do
+  test "cash forecast includes due today statement payments but excludes overdue statements" do
     travel_to Time.zone.local(2026, 10, 12, 12) do
       set_cash(5000)
       create_statement_card(name: "Overdue Statement Card", amount: 200, due_day: 10)
@@ -360,10 +362,12 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
       assert_response :success
       forecast = response.parsed_body["cash_forecast"]
 
-      assert_equal Money.new(4500, "USD").as_json, forecast["ending_balance"]
-      assert_equal Money.new(4500, "USD").as_json, forecast["series"].first["balance"]
-      assert_equal [ Date.current.iso8601 ], forecast["events"].map { |event| event["date"] }.uniq
-      assert_equal({ "date" => Date.current.iso8601, "balance" => Money.new(4500, "USD").as_json }, forecast["lowest"])
+      assert_equal Money.new(4700, "USD").as_json, forecast["ending_balance"]
+      assert_equal Money.new(4700, "USD").as_json, forecast["series"].first["balance"]
+      assert_equal [
+        { "date" => Date.current.iso8601, "name" => "Due Today Statement Card", "amount" => Money.new(300, "USD").as_json, "direction" => "outflow" }
+      ], forecast["events"]
+      assert_equal({ "date" => Date.current.iso8601, "balance" => Money.new(4700, "USD").as_json }, forecast["lowest"])
     end
   end
 
@@ -396,16 +400,35 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     assert hits.all? { |e| e["direction"] == "outflow" }
   end
 
-  test "cash forecast folds overdue occurrences into today" do
-    set_cash(5000)
-    create_series(name: "Overdue Power", amount: 120, due: Date.current - 3)
+  test "cash forecast limits income and expenses to today through day thirty" do
+    travel_to Time.zone.local(2026, 10, 12, 12) do
+      set_cash(5000)
+      [
+        create_series(name: "Paycheck", amount: -1000, due: Date.current, income: true),
+        create_series(name: "Power", amount: 120, due: Date.current)
+      ].each do |series|
+        series.recurring_occurrences.delete_all
+        [ -1, 0, 30, 31 ].each do |offset|
+          due = Date.current + offset
+          series.recurring_occurrences.create!(
+            family: @family, original_due_on: due, due_on: due, currency: @family.currency
+          )
+        end
+      end
 
-    get "/api/v1/home", headers: api_headers(@read_key)
-    assert_response :success
-    forecast = response.parsed_body["cash_forecast"]
-    event = forecast["events"].find { |e| e["name"] == "Overdue Power" }
+      get "/api/v1/home", headers: api_headers(@read_key)
+      assert_response :success
+      forecast = response.parsed_body["cash_forecast"]
 
-    assert_equal Date.current.iso8601, event["date"]
+      assert_equal [
+        [ Date.current.iso8601, "Paycheck" ],
+        [ Date.current.iso8601, "Power" ],
+        [ (Date.current + 30).iso8601, "Paycheck" ],
+        [ (Date.current + 30).iso8601, "Power" ]
+      ], forecast["events"].map { |event| [ event["date"], event["name"] ] }
+      assert_equal Money.new(5880, "USD").as_json, forecast["series"].first["balance"]
+      assert_equal Money.new(6760, "USD").as_json, forecast["ending_balance"]
+    end
   end
 
   test "cash forecast surfaces an overdraft floor" do

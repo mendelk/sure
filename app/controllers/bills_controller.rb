@@ -461,7 +461,9 @@ class BillsController < ApplicationController
       Current.family.recurring_transactions
              .where(status: %w[active inactive])
              .where("amount > 0 OR system_managed_kind = 'credit_card_payment'")
-             .where("system_managed_kind IS NULL OR account_id IN (?)", Account.visible.select(:id))
+             .where("system_managed_kind IS NULL OR account_id IN (?)",
+               Account.visible.where(accountable_type: "CreditCard",
+                 accountable_id: CreditCard.where.not(payment_due_day: nil).select(:id)).select(:id))
              .merge(
                RecurringTransaction.where(destination_account_id: nil)
                                    .or(RecurringTransaction.where(destination_account_id: debt_accounts))

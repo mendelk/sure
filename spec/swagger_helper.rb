@@ -625,7 +625,7 @@ RSpec.configure do |config|
               mileage_unit: { type: :string },
               available_credit: { type: :number },
               minimum_payment: { type: :number },
-              payment_due_day: { type: :integer, minimum: 1, maximum: 31, nullable: true, description: 'Credit cards only: confirmed monthly due day. Clear to infer a payment day from history; short months clamp to their last day.' },
+              payment_due_day: { type: :integer, minimum: 1, maximum: 31, nullable: true, description: 'Credit cards only: confirmed monthly due day. Clear to disable automatic statement payments; short months clamp to their last day. Changes recalculate unpaid estimated statements due today or later, preserving past statements and recorded payments.' },
               apr: { type: :number },
               annual_fee: { type: :number },
               expiration_date: { type: :string, format: :date },
@@ -702,8 +702,7 @@ RSpec.configure do |config|
               available_credit: { type: :string, nullable: true },
               minimum_payment: { type: :string, nullable: true },
               payment_due_day: { type: :integer, minimum: 1, maximum: 31, nullable: true },
-              estimated_payment_due_day: { type: :integer, minimum: 1, maximum: 31, nullable: true, readOnly: true, description: 'Historical payment-day estimate, not a bank-confirmed deadline.' },
-              payment_due_day_source: { type: :string, nullable: true, enum: %w[manual estimated], readOnly: true },
+              payment_due_day_source: { type: :string, nullable: true, enum: %w[manual], readOnly: true },
               statement_gap_days: { type: :integer, readOnly: true, description: 'Assumed days from statement close to payment; currently 25.' },
               apr: { type: :string, nullable: true },
               annual_fee: { type: :string, nullable: true },
@@ -3087,7 +3086,7 @@ RSpec.configure do |config|
           HomeCashForecast: {
             type: :object,
             required: %w[starting_balance ending_balance lowest below_zero series events],
-            description: '30-day cash-on-hand projection using checking balances, recurring checking activity, and unpaid dynamic credit-card statement payments in the family currency. Other depository subtypes and ordinary transfers are excluded. Due-today and overdue payments reduce today’s projected balance. Null when the viewer has no visible, accessible checking account in the family currency.',
+            description: '30-day cash-on-hand projection using checking balances, recurring checking activity, and unpaid dynamic credit-card statement payments in the family currency. Cards require an explicitly configured payment due day. Only occurrences due today through day 30 are included, on their scheduled dates; overdue occurrences are excluded. Other depository subtypes and ordinary transfers are excluded. Null when the viewer has no visible, accessible checking account in the family currency.',
             properties: {
               starting_balance: { '$ref' => '#/components/schemas/Money' },
               ending_balance: { '$ref' => '#/components/schemas/Money' },
