@@ -622,9 +622,9 @@ class Api::V1::HomeController < Api::V1::BaseController
 
     # -- cash forecast --
 
-    # 30-day projection of cash on hand: starting Depository balance plus
-    # every projected recurring inflow/outflow inside the window that touches
-    # a cash (Depository) account. Mirrors the occurrence-level approach of
+    # 30-day projection of checking cash on hand: starting checking balance
+    # plus every projected recurring inflow/outflow inside the window that
+    # touches a checking account. Mirrors the occurrence-level approach of
     # Insight::Generators::CashFlowWarningGenerator#upcoming_recurring_entries
     # (a weekly bill contributes every hit, partially paid occurrences
     # contribute only their remaining_amount) but stays a pure projection:
@@ -640,8 +640,10 @@ class Api::V1::HomeController < Api::V1::BaseController
     # accessible-account total, so the aggregate needs no per-endpoint gate.
     def cash_forecast_json(user)
       family = user.family
-      accounts = user.accessible_accounts.visible.where(accountable_type: "Depository").to_a
-      return nil if accounts.none? || accounts.none? { |a| a.currency == family.currency }
+      accounts = user.accessible_accounts.visible
+        .where(accountable_type: "Depository", currency: family.currency)
+        .where(accountable_id: Depository.where(subtype: "checking").select(:id))
+      return nil unless accounts.exists?
 
       HomeCashForecast.new(family: family, user: user).as_json
     end

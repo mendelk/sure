@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-# 30-day projection of cash on hand: the starting Depository balance plus
-# every projected recurring inflow/outflow inside the window that touches a
-# cash (Depository) account. Credit-card-only activity never appears.
+# 30-day projection of checking cash on hand: the starting checking balance
+# plus every projected recurring inflow/outflow inside the window that
+# touches a checking account. Other depository subtypes never contribute.
 #
 # Occurrence-level, mirroring
 # Insight::Generators::CashFlowWarningGenerator#upcoming_recurring_entries:
@@ -11,15 +11,12 @@
 # remaining_amount.
 #
 # Inclusion rules per series shape:
-# - Transfers (destination_account present) are excluded entirely: source
-#   Depository -> dest Depository is internal, and source Depository ->
-#   dest liability is a debt payment the forecast does not model.
+# - Transfers (destination_account present) are excluded entirely, including
+#   internal movements and debt payments the forecast does not model.
 # - Income (typed_income? or negative amount) counts only when its `account`
-#   is a Depository: a paycheck landing in checking is cash in; income
-#   pointed at another account type is not cash on hand.
-# - Expenses count only when their `account` is a Depository (destination
-#   nil or Depository): a bill paid from checking is cash out; a bill
-#   charged to a credit card never touches cash.
+#   is checking: a paycheck landing in checking is cash in.
+# - Expenses count only when their `account` is checking: a bill paid from
+#   checking is cash out; a bill charged to a credit card never touches cash.
 # Only family-currency rows apply: cross-currency amounts need an FX lookup
 # the forecast does not perform.
 #
@@ -88,6 +85,7 @@ class HomeCashForecast
     def starting_balance
       user.accessible_accounts.visible
         .where(accountable_type: "Depository", currency: family.currency)
+        .where(accountable_id: Depository.where(subtype: "checking").select(:id))
         .sum(:balance).to_d
     end
 
@@ -104,8 +102,9 @@ class HomeCashForecast
 
       preload_confirmed_sums(occurrences)
 
-      depository_ids = family.accounts.visible
-        .where(accountable_type: "Depository").pluck(:id).to_set
+      checking_ids = family.accounts.visible
+        .where(accountable_type: "Depository", accountable_id: Depository.where(subtype: "checking").select(:id))
+        .pluck(:id).to_set
 
       entries = []
       occurrences.each do |occurrence|
@@ -116,12 +115,12 @@ class HomeCashForecast
         next unless remaining.positive?
 
         if series.typed_income? || series.amount.negative?
-          next unless series.account_id.present? && depository_ids.include?(series.account_id)
+          next unless series.account_id.present? && checking_ids.include?(series.account_id)
           amount = remaining
           direction = "inflow"
         else
-          next unless series.account_id.present? && depository_ids.include?(series.account_id)
-          next if series.destination_account_id.present? && !depository_ids.include?(series.destination_account_id)
+          next unless series.account_id.present? && checking_ids.include?(series.account_id)
+          next if series.destination_account_id.present? && !checking_ids.include?(series.destination_account_id)
           amount = -remaining
           direction = "outflow"
         end
