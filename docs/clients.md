@@ -41,6 +41,16 @@ The web app also serves as the surface rendered by the macOS desktop app.
 Collapsing a home dashboard section reduces it to its header without reserving
 blank chart space. Expanding it restores the section's configured chart sizing.
 
+The home **Cashflow** Sankey adapts node spacing to graph density and uses
+category-colored gradient ribbons. Crowded labels yield to larger categories;
+hovering or using the chart's arrow-key navigation reveals each category's full
+name, amount, and percentage without a duplicate category-button list.
+Select a category label to open filtered transactions. Select a parent bar to
+zoom into its branch, then use **Back to full cashflow** to reset; leaf bars open
+transactions directly. **Expand** adds enough height for dense graphs inside a
+scrollable dialog. Narrow screens scroll the chart horizontally without widening
+the page.
+
 The home page **Cash Forecast** starts from the viewer's visible, accessible
 checking balance in the family's currency. It projects recurring checking income
 and expenses plus unpaid dynamic statement payments for visible credit cards with
