@@ -3087,7 +3087,7 @@ RSpec.configure do |config|
           HomeCashForecast: {
             type: :object,
             required: %w[starting_balance ending_balance lowest below_zero series events],
-            description: '30-day cash-on-hand projection using only checking account balances and recurring occurrences in the family currency. Other depository subtypes and transfers are excluded. Null when the viewer has no visible, accessible checking account in the family currency.',
+            description: '30-day cash-on-hand projection using checking balances, recurring checking activity, and unpaid dynamic credit-card statement payments in the family currency. Other depository subtypes and ordinary transfers are excluded. Due-today and overdue payments reduce today’s projected balance. Null when the viewer has no visible, accessible checking account in the family currency.',
             properties: {
               starting_balance: { '$ref' => '#/components/schemas/Money' },
               ending_balance: { '$ref' => '#/components/schemas/Money' },

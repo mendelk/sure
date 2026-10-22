@@ -623,8 +623,8 @@ class Api::V1::HomeController < Api::V1::BaseController
     # -- cash forecast --
 
     # 30-day projection of checking cash on hand: starting checking balance
-    # plus every projected recurring inflow/outflow inside the window that
-    # touches a checking account. Mirrors the occurrence-level approach of
+    # plus recurring checking activity and unpaid dynamic card statements.
+    # Mirrors the occurrence-level approach of
     # Insight::Generators::CashFlowWarningGenerator#upcoming_recurring_entries
     # (a weekly bill contributes every hit, partially paid occurrences
     # contribute only their remaining_amount) but stays a pure projection:

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 # 30-day projection of checking cash on hand: the starting checking balance
-# plus every projected recurring inflow/outflow inside the window that
-# touches a checking account. Other depository subtypes never contribute.
+# plus recurring checking inflows/outflows and dynamic credit-card statement
+# payments. Other depository subtypes never contribute.
 #
 # Occurrence-level, mirroring
 # Insight::Generators::CashFlowWarningGenerator#upcoming_recurring_entries:
@@ -11,8 +11,9 @@
 # remaining_amount.
 #
 # Inclusion rules per series shape:
-# - Transfers (destination_account present) are excluded entirely, including
-#   internal movements and debt payments the forecast does not model.
+# - Dynamic credit-card statement payments count as outflows using each open
+#   occurrence's unpaid remainder, even though the series belongs to a card.
+# - Other transfers are excluded, including internal movements.
 # - Income (typed_income? or negative amount) counts only when its `account`
 #   is checking: a paycheck landing in checking is cash in.
 # - Expenses count only when their `account` is checking: a bill paid from
@@ -49,10 +50,10 @@ class HomeCashForecast
     entries = projected_entries(horizon, currency)
     by_date = entries.group_by(&:date)
 
-    balance = starting
+    balance = starting + by_date.fetch(today, []).sum(&:amount)
     series = [ { date: today.iso8601, balance: Money.new(balance, currency).as_json } ]
     lowest_date = today
-    lowest_balance = starting
+    lowest_balance = balance
 
     (1..HORIZON_DAYS).each do |offset|
       date = today + offset
@@ -105,6 +106,7 @@ class HomeCashForecast
       checking_ids = family.accounts.visible
         .where(accountable_type: "Depository", accountable_id: Depository.where(subtype: "checking").select(:id))
         .pluck(:id).to_set
+      card_ids = family.accounts.visible.where(accountable_type: "CreditCard").pluck(:id).to_set
 
       entries = []
       occurrences.each do |occurrence|
@@ -114,7 +116,11 @@ class HomeCashForecast
         remaining = occurrence.remaining_amount
         next unless remaining.positive?
 
-        if series.typed_income? || series.amount.negative?
+        if series.credit_card_payment?
+          next unless card_ids.include?(series.account_id)
+          amount = -remaining
+          direction = "outflow"
+        elsif series.typed_income? || series.amount.negative?
           next unless series.account_id.present? && checking_ids.include?(series.account_id)
           amount = remaining
           direction = "inflow"

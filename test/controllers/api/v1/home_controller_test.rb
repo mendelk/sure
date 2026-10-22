@@ -318,6 +318,55 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "Rent" ], names
   end
 
+  test "cash forecast includes every visible dynamic statement payment remainder" do
+    travel_to Time.zone.local(2026, 10, 12, 12) do
+      set_cash(5000)
+      card = create_statement_card(name: "Statement Card", amount: 600, due_day: 20)
+      occurrence = card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+        .recurring_occurrences.open_status.first!
+      RecurringTransaction::Allocator.new(occurrence).allocate!(amount: 100)
+      create_statement_card(name: "Second Statement Card", amount: 250, due_day: 25)
+      create_statement_card(name: "Paid Statement Card", amount: 300, due_day: 22).tap do |paid_card|
+        paid_occurrence = paid_card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+          .recurring_occurrences.open_status.first!
+        RecurringTransaction::Allocator.new(paid_occurrence).mark_paid!
+      end
+      create_statement_card(name: "Hidden Statement Card", amount: 400, due_day: 23).update!(status: "disabled")
+      create_statement_card(name: "Foreign Statement Card", amount: 900, due_day: 24, currency: "EUR")
+      create_series(name: "Card Purchase", amount: 75, due: Date.current + 2, account: card)
+      create_series(name: "Savings Sweep", amount: 200, due: Date.current + 3,
+        destination_account: card)
+
+      get "/api/v1/home", headers: api_headers(@read_key)
+      assert_response :success
+      forecast = response.parsed_body["cash_forecast"]
+
+      assert_equal Money.new(5000, "USD").as_json, forecast["starting_balance"]
+      assert_equal Money.new(4250, "USD").as_json, forecast["ending_balance"]
+      assert_equal [
+        { "date" => "2026-10-20", "name" => "Statement Card", "amount" => Money.new(500, "USD").as_json, "direction" => "outflow" },
+        { "date" => "2026-10-25", "name" => "Second Statement Card", "amount" => Money.new(250, "USD").as_json, "direction" => "outflow" }
+      ], forecast["events"]
+    end
+  end
+
+  test "cash forecast deducts overdue and due today statement payments today" do
+    travel_to Time.zone.local(2026, 10, 12, 12) do
+      set_cash(5000)
+      create_statement_card(name: "Overdue Statement Card", amount: 200, due_day: 10)
+      create_statement_card(name: "Due Today Statement Card", amount: 300, due_day: 12)
+
+      get "/api/v1/home", headers: api_headers(@read_key)
+      assert_response :success
+      forecast = response.parsed_body["cash_forecast"]
+
+      assert_equal Money.new(4500, "USD").as_json, forecast["ending_balance"]
+      assert_equal Money.new(4500, "USD").as_json, forecast["series"].first["balance"]
+      assert_equal [ Date.current.iso8601 ], forecast["events"].map { |event| event["date"] }.uniq
+      assert_equal({ "date" => Date.current.iso8601, "balance" => Money.new(4500, "USD").as_json }, forecast["lowest"])
+    end
+  end
+
   test "cash forecast excludes foreign-currency occurrences" do
     set_cash(5000)
     create_series(name: "Tokyo Storage", amount: 10_000, due: Date.current + 4, currency: "JPY")
@@ -393,6 +442,15 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     def set_cash(amount)
       @family.accounts.where(accountable_type: "Depository").update_all(balance: 0)
       accounts(:depository).update_column(:balance, amount)
+    end
+
+    def create_statement_card(name:, amount:, due_day:, currency: "USD")
+      account = @family.accounts.create!(
+        name: name, owner: @user, currency: currency, balance: amount,
+        accountable: CreditCard.new(payment_due_day: due_day)
+      )
+      account.accountable.payment_schedule.refresh!
+      account
     end
 
     def create_series(name:, amount:, due:, preset: "monthly", income: false, account: accounts(:depository), destination_account: nil, currency: "USD")
