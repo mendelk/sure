@@ -38,8 +38,9 @@ RSpec.describe 'API V1 Home', type: :request do
     get 'Show home dashboard payload' do
       tags 'Home'
       description 'Returns the server-rendered home dashboard payload: ordered sections with ' \
-                  'layout overrides, plus balance sheet, net worth, cashflow sankey, money flow, ' \
-                  'spending trend, outflows, investment summary, and the preview-gated insights feed. ' \
+                  'layout overrides, plus balance sheet, net worth, cashflow sankey, checking-only cash forecast, ' \
+                  'money flow, spending trend, outflows, investment summary, and the preview-gated insights feed. ' \
+                  'The cash forecast excludes savings and other non-checking accounts. ' \
                   'Supports the same period and money-flow/spending-month query params as the ERB dashboard.'
       parameter name: :period, in: :query, required: false, schema: { type: :string }, description: 'Period key (e.g. last_30_days).'
       parameter name: :start_date, in: :query, required: false, schema: { type: :string, format: :date }, description: 'Custom period start (requires end_date).'

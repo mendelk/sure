@@ -1,5 +1,5 @@
-// Cash forecast widget: starting cash on hand plus every projected recurring
-// inflow/outflow over the next 30 days that touches a cash (Depository)
+// Cash forecast widget: starting checking balance plus every projected
+// recurring inflow/outflow over the next 30 days that touches a checking
 // account. The server computes daily balances and per-day events; money
 // renders verbatim from the server `formatted` strings. Self-contained SVG
 // line chart (no chart deps): daily balance line, zero floor when the

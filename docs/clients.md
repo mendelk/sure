@@ -38,6 +38,12 @@ http://localhost:3000
 
 The web app also serves as the surface rendered by the macOS desktop app.
 
+The home page **Cash Forecast** uses only checking accounts: the starting balance
+is the viewer's visible, accessible checking balance in the family's currency,
+and projected recurring income and expenses must touch a checking account.
+Savings (including mortgage escrow), other depository subtypes, and transfers
+are excluded. The forecast is unavailable without an eligible checking account.
+
 The React app's desktop **Toggle sidebar** control remembers its expanded or
 collapsed state in localStorage across page refreshes. It defaults to expanded
 when no preference is saved. If browser storage is unavailable, toggling still

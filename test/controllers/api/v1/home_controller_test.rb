@@ -8,6 +8,7 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
   setup do
     @user = users(:family_admin)
     @family = @user.family
+    accounts(:depository).accountable.update!(subtype: "checking")
     @user.api_keys.active.destroy_all
 
     @read_key = ApiKey.create!(
@@ -247,7 +248,7 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert response.parsed_body.key?("balance_sheet")
   end
-  test "cash forecast projects depository occurrences over 30 days" do
+  test "cash forecast projects checking occurrences over 30 days" do
     set_cash(5000)
     create_series(name: "Rent", amount: 1500, due: Date.current + 10)
     create_series(name: "Paycheck", amount: -2000, due: Date.current + 5, income: true)
@@ -273,11 +274,40 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     assert_equal (Date.current + 5).iso8601, paycheck["date"]
   end
 
+  test "cash forecast excludes savings balances and recurring activity" do
+    set_cash(5000)
+    savings = @family.accounts.create!(
+      name: "Mortgage Escrow", currency: @family.currency, balance: 16_605.29,
+      accountable: Depository.new(subtype: "savings")
+    )
+    create_series(name: "Escrow Deposit", amount: -800, due: Date.current + 5, account: savings, income: true)
+    create_series(name: "Escrow Disbursement", amount: 1200, due: Date.current + 10, account: savings)
+    create_series(name: "Rent", amount: 1500, due: Date.current + 10)
+    create_series(name: "Paycheck", amount: -2000, due: Date.current + 5, income: true)
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    forecast = response.parsed_body["cash_forecast"]
+
+    assert_equal Money.new(5000, @family.currency).as_json, forecast["starting_balance"]
+    assert_equal Money.new(5500, @family.currency).as_json, forecast["ending_balance"]
+    assert_equal [ "Paycheck", "Rent" ], forecast["events"].map { |event| event["name"] }
+  end
+
+  test "cash forecast is null when only savings accounts remain" do
+    Depository.where(id: @family.accounts.where(accountable_type: "Depository").select(:accountable_id))
+      .update_all(subtype: "savings")
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    assert_nil response.parsed_body["cash_forecast"]
+  end
+
   test "cash forecast excludes credit-card series and transfers" do
     set_cash(5000)
     create_series(name: "Card Bill", amount: 300, due: Date.current + 7, account: accounts(:credit_card))
     checking = accounts(:depository)
-    savings = @family.accounts.create!(name: "Forecast Savings", currency: @family.currency, balance: 0, accountable: Depository.new)
+    savings = @family.accounts.create!(name: "Forecast Savings", currency: @family.currency, balance: 0, accountable: Depository.new(subtype: "savings"))
     create_series(name: "Vault Sweep", amount: 400, due: Date.current + 6, account: checking, destination_account: savings)
     create_series(name: "Rent", amount: 1500, due: Date.current + 10)
 
@@ -342,7 +372,7 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     assert_equal (Date.current + 10).iso8601, forecast["lowest"]["date"]
   end
 
-  test "cash forecast is null without family-currency depository accounts" do
+  test "cash forecast is null without family-currency checking accounts" do
     @family.accounts.where(accountable_type: "Depository").update_all(currency: "EUR")
 
     get "/api/v1/home", headers: api_headers(@read_key)
@@ -359,11 +389,10 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
       { "X-Api-Key" => auth.display_key }
     end
 
-    # Cash on hand across every deposit account (the fixture family carries
-    # two), so the starting balance is pinned exactly.
+    # Pin cash in the primary checking account; leave other deposit balances at zero.
     def set_cash(amount)
-      depositories = @family.accounts.where(accountable_type: "Depository")
-      depositories.update_all(balance: amount / depositories.count.to_d)
+      @family.accounts.where(accountable_type: "Depository").update_all(balance: 0)
+      accounts(:depository).update_column(:balance, amount)
     end
 
     def create_series(name:, amount:, due:, preset: "monthly", income: false, account: accounts(:depository), destination_account: nil, currency: "USD")

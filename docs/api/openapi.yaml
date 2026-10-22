@@ -5862,8 +5862,10 @@ components:
       - below_zero
       - series
       - events
-      description: 30-day cash-on-hand projection from family-currency Depository
-        occurrences. Null when the family has no family-currency Depository account.
+      description: 30-day cash-on-hand projection using only checking account balances
+        and recurring occurrences in the family currency. Other depository subtypes
+        and transfers are excluded. Null when the viewer has no visible, accessible
+        checking account in the family currency.
       properties:
         starting_balance:
           "$ref": "#/components/schemas/Money"
@@ -9895,10 +9897,11 @@ paths:
       tags:
       - Home
       description: 'Returns the server-rendered home dashboard payload: ordered sections
-        with layout overrides, plus balance sheet, net worth, cashflow sankey, money
-        flow, spending trend, outflows, investment summary, and the preview-gated
-        insights feed. Supports the same period and money-flow/spending-month query
-        params as the ERB dashboard.'
+        with layout overrides, plus balance sheet, net worth, cashflow sankey, checking-only
+        cash forecast, money flow, spending trend, outflows, investment summary, and
+        the preview-gated insights feed. The cash forecast excludes savings and other
+        non-checking accounts. Supports the same period and money-flow/spending-month
+        query params as the ERB dashboard.'
       parameters:
       - name: period
         in: query
