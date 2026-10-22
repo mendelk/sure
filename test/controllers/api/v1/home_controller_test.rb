@@ -179,6 +179,29 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     assert money_flow["expense_href"].include?("account_ids")
   end
 
+  test "money flow excludes tax advantaged accounts from totals and drill downs" do
+    retirement = @family.accounts.create!(
+      name: "Home Retirement", owner: @user, currency: @family.currency,
+      balance: 0, accountable: Investment.new(subtype: "401k")
+    )
+    create_transaction(account: retirement, amount: 999, date: Date.current)
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    default_flow = response.parsed_body.fetch("money_flow")
+    assert_not_includes default_flow.fetch("accounts").map { |account| account.fetch("id") }, retirement.id
+    %w[income_href expense_href].each do |key|
+      query = Rack::Utils.parse_nested_query(URI.parse(default_flow.fetch(key)).query).fetch("q")
+      assert_not_includes query.fetch("account_ids"), retirement.id
+    end
+
+    get "/api/v1/home", params: { money_flow_account_ids: [ retirement.id ] }, headers: api_headers(@read_key)
+    assert_response :success
+    filtered_flow = response.parsed_body.fetch("money_flow")
+    assert_nil filtered_flow.fetch("account_ids")
+    assert_equal default_flow.fetch("bars"), filtered_flow.fetch("bars")
+  end
+
   test "money flow clamps a future month instead of erroring" do
     get "/api/v1/home",
       params: { money_flow_month: 1.month.from_now.beginning_of_month.iso8601 },

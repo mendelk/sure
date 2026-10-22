@@ -76,6 +76,16 @@ class WebNotification::EventCollectorTest < ActiveSupport::TestCase
     assert_equal %w[payment_due statement_ready], notifications.pluck(:event_type).sort
   end
 
+  test "managed statements without a configured due day do not generate notifications" do
+    series = managed_series
+    create_occurrence(Date.new(2026, 11, 5), series: series, statement_end_on: Date.new(2026, 10, 11))
+    series.account.accountable.update_column(:payment_due_day, nil)
+    collect
+    collect_at Time.utc(2026, 10, 11, 12)
+
+    assert_empty notifications
+  end
+
   test "first enrollment and re-enrollment baseline stale statement and bill boundaries" do
     series = managed_series
     create_occurrence(Date.new(2026, 10, 15), series: series, statement_end_on: Date.new(2026, 10, 1))
@@ -391,6 +401,7 @@ class WebNotification::EventCollectorTest < ActiveSupport::TestCase
     end
 
     def managed_series
+      accounts(:credit_card).accountable.update_column(:payment_due_day, 5)
       @family.recurring_transactions.create!(account: accounts(:credit_card), name: "Card statement",
         system_managed_kind: "credit_card_payment", amount: 0, currency: "USD", expected_day_of_month: 5,
         last_occurrence_date: Date.current, next_expected_date: Date.current + 25, status: "active")
