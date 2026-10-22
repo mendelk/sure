@@ -158,7 +158,7 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
 
   test "index batches investment activity security lookups" do
     @transaction.update!(extra: { "security_id" => securities(:aapl).id })
-    baseline_queries = count_db_queries do
+    baseline_queries = capture_sql_queries do
       get api_v1_transactions_url, params: { per_page: 100 }, headers: api_headers(@read_only_api_key)
       assert_response :success
     end
@@ -170,12 +170,13 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
       )
     end
 
-    expanded_queries = count_db_queries do
+    expanded_queries = capture_sql_queries do
       get api_v1_transactions_url, params: { per_page: 100 }, headers: api_headers(@read_only_api_key)
       assert_response :success
     end
 
-    assert_equal baseline_queries, expanded_queries
+    assert_equal 1, baseline_queries.grep(/\bFROM "securities"/).size
+    assert_equal 1, expanded_queries.grep(/\bFROM "securities"/).size
   end
 
   test "index avoids per-transaction transfer queries" do
