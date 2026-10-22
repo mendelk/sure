@@ -80,7 +80,7 @@ export function HomeSection({
       onDragStart={onDragStart}
       onDrop={onDrop}
       onKeyDown={onKeyDown}
-      style={sectionStyle(layout)}
+      style={collapsed ? undefined : sectionStyle(layout)}
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Sortable section: ERB uses section[tabindex=0] with the same keyboard reorder pattern.
       tabIndex={0}
     >
@@ -146,7 +146,7 @@ export function HomeSection({
           )}
           <button
             aria-label="Drag to reorder section"
-            className="hidden h-6 w-6 cursor-grab items-center justify-center text-secondary transition-colors hover:text-primary active:cursor-grabbing lg:flex lg:opacity-0 lg:group-hover:opacity-100"
+            className="hidden size-6 cursor-grab items-center justify-center text-secondary transition-colors hover:text-primary active:cursor-grabbing lg:flex lg:opacity-0 lg:group-hover:opacity-100"
             onClick={onGrabToggle}
             type="button"
           >
@@ -155,7 +155,7 @@ export function HomeSection({
           <div className="flex items-center gap-1 lg:hidden">
             <button
               aria-label="Move section up"
-              className="flex items-center justify-center w-6 h-6 rounded-md text-secondary hover:text-primary"
+              className="flex items-center justify-center size-6 rounded-md text-secondary hover:text-primary"
               onClick={() => {
                 onMove(-1);
               }}
@@ -164,7 +164,7 @@ export function HomeSection({
             </button>
             <button
               aria-label="Move section down"
-              className="flex items-center justify-center w-6 h-6 rounded-md text-secondary hover:text-primary"
+              className="flex items-center justify-center size-6 rounded-md text-secondary hover:text-primary"
               onClick={() => {
                 onMove(1);
               }}
