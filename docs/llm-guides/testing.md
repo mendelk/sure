@@ -21,7 +21,10 @@ behavioral tests or factories. RSpec/rswag is the explicit exception for
   Keep credentials out of recordings; filters and shared setup live in
   [`test/test_helper.rb`](../../test/test_helper.rb).
 - Match controller assertions to current route ownership. SPA routes no longer
-  render retired ERB drawers; do not retain their markup or translated-copy assertions.
+  render retired ERB drawers or dashboard charts; remove their markup and
+  translated-copy assertions. Cover dashboard calculations and period/account
+  boundaries through the home API, and check React interactions in the browser.
+  Server-rendered layout checks must request an ERB-owned page.
 - Provider metadata/date tests must explicitly enable pending imports and clear
   environment overrides with `with_env_overrides`, rather than rely on deployment defaults.
 - Separate PostgreSQL sessions in lock tests must use the configured database

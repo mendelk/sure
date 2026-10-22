@@ -6,6 +6,13 @@ class InsightsControllerTest < ActionDispatch::IntegrationTest
     enable_preview_features
     @insight = insights(:spending_anomaly_dining)
     ensure_tailwind_build
+    @read_key = ApiKey.create!(
+      user: @user,
+      name: "Home Insights Read Key",
+      scopes: [ "read" ],
+      display_key: "test_home_insights_ro_#{SecureRandom.hex(8)}",
+      source: "mobile"
+    )
   end
 
   test "index renders visible insights and marks them read" do
@@ -23,16 +30,16 @@ class InsightsControllerTest < ActionDispatch::IntegrationTest
     assert @insight.reload.active?
   end
 
-  # Unread state is carried by the well's header count, not by a pill on every
-  # row. The widget shows three rows, so the pill was usually on all of them,
-  # repeating what the header already says and crowding each title.
-  test "dashboard insights feed counts unread in its header, without per-row badges" do
-    get root_url
+  test "home feed exposes unread state without marking insights read" do
+    insights(:cash_flow_warning).mark_read!
+
+    get "/api/v1/home", headers: api_headers(@read_key)
 
     assert_response :success
-    assert_select "#insights-feed", count: 1
-    assert_select "#insights-feed p", text: /#{Regexp.escape(I18n.t("insights.feed.header_new"))}/
-    assert_select "#insights-feed span", text: I18n.t("insights.card.new"), count: 0
+    rows = response.parsed_body.fetch("insights").fetch("insights")
+    assert_equal "active", rows.find { |row| row.fetch("id") == @insight.id }.fetch("status")
+    assert_equal "read", rows.find { |row| row.fetch("id") == insights(:cash_flow_warning).id }.fetch("status")
+    assert @insight.reload.active?
   end
 
   test "insights feed leads the dashboard for users with a saved order that predates it" do
@@ -40,13 +47,12 @@ class InsightsControllerTest < ActionDispatch::IntegrationTest
       "section_order" => %w[cashflow_sankey outflows_donut net_worth_chart balance_sheet]
     ))
 
-    get root_url
+    get "/api/v1/home", headers: api_headers(@read_key)
 
     assert_response :success
-    feed_position = response.body.index('data-section-key="insights_feed"')
-    sankey_position = response.body.index('data-section-key="cashflow_sankey"')
-    assert feed_position.present? && feed_position < sankey_position,
-      "insights_feed should be prepended, not appended, for saved orders that predate it"
+    keys = response.parsed_body.fetch("sections").map { |section| section.fetch("key") }
+    assert_equal "insights_feed", keys.first
+    assert_operator keys.index("insights_feed"), :<, keys.index("cashflow_sankey")
   end
 
   # Acknowledging is a quiet action — no undo toast. Acknowledgement only covers
@@ -95,17 +101,18 @@ class InsightsControllerTest < ActionDispatch::IntegrationTest
     assert_match CGI.escapeHTML(I18n.t("insights.index.empty.title")), response.body
   end
 
-  # A full dashboard render already drops the section (insights_feed_section sets
-  # `visible: @feed_insights.any?`), so the turbo path has to as well — otherwise
-  # the section shell lingered with its header above an empty well.
-  test "acknowledging the last insight removes the dashboard section" do
+  test "acknowledging the last insight hides the home feed" do
     @user.family.insights.where.not(id: @insight.id).destroy_all
 
     patch acknowledge_insight_url(@insight), as: :turbo_stream
+    assert_response :success
+
+    get "/api/v1/home", headers: api_headers(@read_key)
 
     assert_response :success
-    assert_select "turbo-stream[action=remove][targets=?]", "[data-section-key='insights_feed']"
-    assert_select "turbo-stream[action=replace][target=?]", "insights-feed", count: 0
+    assert_empty response.parsed_body.fetch("insights").fetch("insights")
+    section = response.parsed_body.fetch("sections").find { |item| item.fetch("key") == "insights_feed" }
+    assert_equal false, section.fetch("visible")
   end
 
   test "unacknowledge restores the insight as read and re-renders the list" do
@@ -120,18 +127,7 @@ class InsightsControllerTest < ActionDispatch::IntegrationTest
     assert_nil @insight.dismissed_at
   end
 
-  # Acknowledging used to be reachable only from /insights, so the dashboard —
-  # the surface people actually look at — could show an insight but not clear it.
-  test "dashboard feed rows carry an acknowledge control" do
-    get root_url
-
-    assert_response :success
-    assert_select "#insights-feed form[action=?]", acknowledge_insight_path(@insight)
-  end
-
-  # The widget shows the top N, so clearing one has to promote the next into the
-  # freed slot rather than leave a gap — hence a re-render, not a row removal.
-  test "acknowledge re-renders the dashboard feed so the next insight backfills" do
+  test "acknowledging a home feed insight promotes the next visible insight" do
     family = @user.family
     family.insights.destroy_all
 
@@ -152,9 +148,13 @@ class InsightsControllerTest < ActionDispatch::IntegrationTest
     patch acknowledge_insight_url(rows.first), as: :turbo_stream
 
     assert_response :success
-    assert_match "insights-feed", response.body
-    assert_no_match(/Test insight 0/, response.body)
-    assert_match(/Test insight #{Insight::FEED_LIMIT}/, response.body)
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+
+    assert_response :success
+    ids = response.parsed_body.fetch("insights").fetch("insights").map { |row| row.fetch("id") }
+    assert_equal rows.drop(1).first(Insight::FEED_LIMIT).map(&:id), ids
+    assert rows.first.reload.acknowledged?
   end
 
   test "refresh swaps the button into a pending state via turbo stream" do
@@ -190,10 +190,8 @@ class InsightsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to insights_path
   end
 
-  # Preview gate. Insights is opt-in via Settings → Preferences, so a user
-  # without the flag reaches none of it — not the page, not the dashboard
-  # section, not the top-bar entry, and not the job the refresh action would
-  # otherwise enqueue.
+  # Preview access belongs to the individual user, even though insights are
+  # shared within the family.
   test "redirects users without preview access" do
     disable_preview_features
 
@@ -222,14 +220,19 @@ class InsightsControllerTest < ActionDispatch::IntegrationTest
     assert @insight.reload.active?
   end
 
-  test "dashboard omits the insights feed and top-bar entry without preview access" do
+  test "home feed stays disabled when only another family member has preview access" do
     disable_preview_features
+    member = @user.family.users.where.not(id: @user.id).first
+    member.update!(preferences: (member.preferences || {}).merge("preview_features_enabled" => true))
 
-    get root_url
+    get "/api/v1/home", headers: api_headers(@read_key)
 
     assert_response :success
-    assert_select "#insights-feed", count: 0
-    assert_select "a[href=?]", insights_path, count: 0
+    payload = response.parsed_body
+    assert_equal false, payload.fetch("preview")
+    assert_equal false, payload.fetch("insights").fetch("enabled")
+    assert_empty payload.fetch("insights").fetch("insights")
+    assert_not_includes payload.fetch("sections").map { |section| section.fetch("key") }, "insights_feed"
   end
 
   private
