@@ -100,6 +100,14 @@ the managed series, retaining their historical payments. Account entries
 and transfers are not rewritten or deleted. Payments already recorded on
 the older series still reduce the new estimate.
 
+The home page **Cash Forecast** includes these dynamic statement payments as
+outflows over its 30-day window, using each open occurrence's unpaid remainder.
+Statements due today or overdue are deducted from today's projected balance.
+Only visible cards and statements in the family's currency contribute. Ordinary
+card purchases and transfer series are not added again; the starting balance
+still comes only from checking accounts.
+
+
 ### API fields and deployment
 
 Deployments must run the `AddManagedCreditCardPayments` database migration.
