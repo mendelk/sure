@@ -1,13 +1,18 @@
-// Cashflow sankey widget: d3-sankey layout with drill-down links,
-// zoom-to-category, and an expand dialog. Mirrors sankey_chart_controller.js
-// behavior: category label click navigates to filtered transactions, shape
-// click zooms into the subtree, hover highlights the connected flow.
+// Cashflow sankey widget: TanStack sankeyDiagram layout with drill-down
+// links, zoom-to-category, and an expand dialog. Mirrors
+// sankey_chart_controller.js behavior: category label click navigates to
+// filtered transactions, shape click zooms into the subtree, hover
+// highlights the connected flow.
 //
-// Layout follows https://www.react-graph-gallery.com/sankey-diagram:
-// d3 computes node/link geometry, React renders the <rect> and <path>.
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from "d3-sankey";
+// Layout follows the TanStack sankey reference: sankeyDiagram computes
+// geometry in final pixels, ordinary link/rect/text marks render it.
+// Numbers are server-computed; render verbatim.
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { defineChart, link, rect, text as textMark } from "@tanstack/charts";
+import { Chart } from "@tanstack/charts/react";
+import { sankeyDiagram } from "@tanstack/charts/network/sankey";
+import type { SankeyLink, SankeyNode } from "@tanstack/charts/network/sankey";
 import { Modal } from "../modal";
 import type { HomeSankey, HomeSankeyLink, HomeSankeyNode } from "./home-api";
 
@@ -40,7 +45,6 @@ const CSS_VAR_MAP: Record<string, string> = {
   "var(--color-gray-400)": "#9E9E9E",
   "var(--color-gray-500)": "#737373",
 };
-const MARGIN = 16;
 const NODE_WIDTH = 15;
 const NODE_PADDING = 20;
 function isNavigableCategoryNode(id: string): boolean {
@@ -70,10 +74,18 @@ function categoryTransactionsPath({
   return `/transactions?${params.toString()}`;
 }
 
+function formatCurrency(value: number, symbol: string): string {
+  const formatted = value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${symbol}${formatted}`;
+}
+
 type SankeyInputNode = {
   id: string;
   name: string;
-  filter_value: string | null;
+  filterValue: string | null;
   value: number;
   percentage: number;
   color: string | null;
@@ -87,61 +99,23 @@ type SankeyInputLink = {
   color: string | null;
 };
 
-type SankeyOutNode = SankeyNode<SankeyInputNode, SankeyInputLink>;
-type SankeyOutLink = SankeyLink<SankeyInputNode, SankeyInputLink>;
-type SankeyEndpointPair = { source: SankeyOutNode; target: SankeyOutNode };
-
-function useSankeyLayout(
-  nodes: HomeSankeyNode[],
-  links: HomeSankeyLink[],
-  width: number,
-  height: number,
-) {
-  return useMemo(() => {
-    const inputNodes: SankeyInputNode[] = nodes.map((node) => ({
-      id: node.id,
-      name: node.name,
-      filter_value: node.filter_value,
-      value: Math.max(node.value, 0.01),
-      percentage: node.percentage,
-      color: node.color,
-    }));
-    const inputLinks: SankeyInputLink[] = links.map((link) => {
-      const source =
-        nodes.at(typeof link.source === "number" ? link.source : Number(link.source))?.id ?? "";
-      const target =
-        nodes.at(typeof link.target === "number" ? link.target : Number(link.target))?.id ?? "";
-      return {
-        source,
-        target,
-        value: Math.max(link.value, 0.01),
-        percentage: link.percentage,
-        color: link.color,
-      };
-    });
-    const generator = sankey<SankeyInputNode, SankeyInputLink>()
-      .nodeId((node) => node.id)
-      .nodeWidth(NODE_WIDTH)
-      .nodePadding(NODE_PADDING)
-      .extent([
-        [MARGIN, MARGIN],
-        [width - MARGIN, height - MARGIN],
-      ]);
-    return generator({ nodes: inputNodes, links: inputLinks });
-  }, [nodes, links, width, height]);
-}
-
-function linkEnds(link: SankeyOutLink): SankeyEndpointPair | null {
-  if (typeof link.source !== "object" || typeof link.target !== "object") return null;
-  return { source: link.source, target: link.target };
-}
-function formatCurrency(value: number, symbol: string): string {
-  const formatted = value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return `${symbol}${formatted}`;
-}
+// Horizontal bezier for sankey flows: d3's sankeyLinkHorizontal shape
+// adapted to the ChartCurve interface (two-point line + cubic path).
+const horizontalLinkCurve = {
+  line: (points: readonly (readonly [number, number])[]) => {
+    const first = points.at(0);
+    const last = points.at(-1);
+    if (first === undefined || last === undefined) return "";
+    const [x1, y1] = first;
+    const [x2, y2] = last;
+    const curve = Math.max(24, (x2 - x1) / 2);
+    return `M ${x1},${y1} C ${x1 + curve},${y1} ${x2 - curve},${y2} ${x2},${y2}`;
+  },
+  area: (
+    _top: readonly (readonly [number, number])[],
+    _bottom: readonly (readonly [number, number])[],
+  ) => "",
+};
 
 function descendantsOf(
   nodes: HomeSankeyNode[],
@@ -150,19 +124,23 @@ function descendantsOf(
 ): Set<string> {
   const outbound = new Map<number, number[]>();
   const inbound = new Map<number, number[]>();
-  const normalized = links.map((link) => ({
-    source: typeof link.source === "number" ? link.source : Number(link.source),
-    target: typeof link.target === "number" ? link.target : Number(link.target),
-  }));
-  for (const link of normalized) {
-    const outgoing = outbound.get(link.source) ?? [];
-    outgoing.push(link.target);
-    outbound.set(link.source, outgoing);
-    const incoming = inbound.get(link.target) ?? [];
-    incoming.push(link.source);
-    inbound.set(link.target, incoming);
-  }
+  const idByIndex = new Map(nodes.map((node, index) => [index, node.id]));
   const indexById = new Map(nodes.map((node, index) => [node.id, index]));
+  const normalized = links.map((edge) => ({
+    source: typeof edge.source === "number" ? edge.source : -1,
+    target: typeof edge.target === "number" ? edge.target : -1,
+  }));
+  for (const edge of normalized) {
+    if (edge.source < 0 || edge.target < 0) continue;
+    const outgoing = outbound.get(edge.source) ?? [];
+    outgoing.push(edge.target);
+    outbound.set(edge.source, outgoing);
+    const incoming = inbound.get(edge.target) ?? [];
+    incoming.push(edge.source);
+    inbound.set(edge.target, incoming);
+  }
+  const rootIndex = indexById.get(rootId);
+  if (rootIndex === undefined) return new Set([rootId]);
   const cashFlowIndex = indexById.get(CASH_FLOW_NODE_ID);
   const reachable = (from: number, to: number): boolean => {
     if (from === to) return true;
@@ -179,8 +157,6 @@ function descendantsOf(
     }
     return false;
   };
-  const rootIndex = indexById.get(rootId);
-  if (rootIndex === undefined) return new Set([rootId]);
   const childrenOf = (nodeIndex: number): number[] => {
     if (nodeIndex === cashFlowIndex) return outbound.get(nodeIndex) ?? [];
     if (cashFlowIndex !== undefined && reachable(cashFlowIndex, nodeIndex))
@@ -192,16 +168,33 @@ function descendantsOf(
   const included = new Set([rootId]);
   const queue: number[] = [rootIndex];
   for (let head = 0; head < queue.length; head += 1) {
-    const childNodes = childrenOf(queue[head]);
-    for (const child of childNodes) {
-      if (!Object.hasOwn(nodes, child)) continue;
-      const id = nodes[child].id;
-      if (included.has(id)) continue;
+    for (const child of childrenOf(queue[head])) {
+      const id = idByIndex.get(child);
+      if (id === undefined || included.has(id)) continue;
       included.add(id);
       queue.push(child);
     }
   }
   return included;
+}
+
+function visibleGraph(data: SankeyData, zoomRootId: string | null) {
+  if (zoomRootId === null || zoomRootId === "") return data;
+  const included = descendantsOf(data.nodes, data.links, zoomRootId);
+  if (included.size <= 1) return data;
+  const kept = new Set([...included, CASH_FLOW_NODE_ID]);
+  const keptNodes = data.nodes.filter((node) => kept.has(node.id));
+  const keptLinks = data.links.filter((edge) => {
+    const source = typeof edge.source === "number" ? data.nodes[edge.source]?.id : edge.source;
+    const target = typeof edge.target === "number" ? data.nodes[edge.target]?.id : edge.target;
+    return (
+      typeof source === "string" &&
+      typeof target === "string" &&
+      kept.has(source) &&
+      kept.has(target)
+    );
+  });
+  return { ...data, nodes: keptNodes, links: keptLinks };
 }
 
 function SankeyDiagram({
@@ -224,62 +217,39 @@ function SankeyDiagram({
   onZoom: (nodeId: string | null) => void;
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [measuredWidth, setMeasuredWidth] = useState(0);
+  const navigate = useNavigate();
 
-  useEffect(
+  const visible = useMemo(() => visibleGraph(data, zoomRootId), [data, zoomRootId]);
+
+  const inputNodes: SankeyInputNode[] = useMemo(
     () =>
-      typeof ResizeObserver !== "undefined" && containerRef.current !== null
-        ? (() => {
-            const target = containerRef.current as HTMLElement;
-            const observer = new ResizeObserver((entries) => {
-              const entry = entries.at(0);
-              if (entry !== undefined) setMeasuredWidth(entry.contentRect.width);
-            });
-            observer.observe(target);
-            return () => {
-              observer.disconnect();
-            };
-          })()
-        : undefined,
-    [],
+      visible.nodes.map((node) => ({
+        id: node.id,
+        name: node.name,
+        filterValue: node.filter_value,
+        value: Math.max(node.value, 0.01),
+        percentage: node.percentage,
+        color: node.color,
+      })),
+    [visible],
   );
-
-  const width = Math.max(measuredWidth, 320);
-
-  const visible = useMemo(() => {
-    if (zoomRootId === null || zoomRootId === "") return data;
-    const included = descendantsOf(data.nodes, data.links, zoomRootId);
-    if (included.size <= 1) return data;
-    const kept = new Set([...included, CASH_FLOW_NODE_ID]);
-    const keptNodes = data.nodes.filter((node) => kept.has(node.id));
-    const indexById = new Map(keptNodes.map((node, index) => [node.id, index]));
-    const keptLinks = data.links.filter((link) => {
-      const source = data.nodes.at(
-        typeof link.source === "number" ? link.source : Number(link.source),
-      )?.id;
-      const target = data.nodes.at(
-        typeof link.target === "number" ? link.target : Number(link.target),
-      )?.id;
-      return source !== undefined && target !== undefined && kept.has(source) && kept.has(target);
-    });
-    const reindexed: HomeSankeyLink[] = keptLinks.map((link) => ({
-      value: link.value,
-      percentage: "percentage" in link && typeof link.percentage === "number" ? link.percentage : 0,
-      color: "color" in link && typeof link.color === "string" ? link.color : null,
-      source:
-        indexById.get(
-          data.nodes.at(typeof link.source === "number" ? link.source : Number(link.source))?.id ??
-            "",
-        ) ?? 0,
-      target:
-        indexById.get(
-          data.nodes.at(typeof link.target === "number" ? link.target : Number(link.target))?.id ??
-            "",
-        ) ?? 0,
-    }));
-    return { ...data, nodes: keptNodes, links: reindexed };
-  }, [data, zoomRootId]);
+  const inputLinks: SankeyInputLink[] = useMemo(
+    () =>
+      visible.links.map((edge) => {
+        const source =
+          typeof edge.source === "number" ? (visible.nodes[edge.source]?.id ?? "") : edge.source;
+        const target =
+          typeof edge.target === "number" ? (visible.nodes[edge.target]?.id ?? "") : edge.target;
+        return {
+          source,
+          target,
+          value: Math.max(edge.value, 0.01),
+          percentage: edge.percentage,
+          color: edge.color,
+        };
+      }),
+    [visible],
+  );
 
   const hasChildren = useMemo(() => {
     const entries: Record<string, boolean> = {};
@@ -293,18 +263,99 @@ function SankeyDiagram({
     return entries;
   }, [data]);
 
-  const { nodes, links }: { nodes: SankeyOutNode[]; links: SankeyOutLink[] } = useSankeyLayout(
-    visible.nodes,
-    visible.links,
-    width,
-    height,
-  );
-  const linkPath = sankeyLinkHorizontal();
-
-  const connected = (node: SankeyOutNode): boolean => {
-    if (hovered === null) return true;
-    return links.some((link) => link.source === node || link.target === node);
+  const activateNode = (nodeId: string) => {
+    const node = visible.nodes.find((candidate) => candidate.id === nodeId);
+    if (nodeId !== "" && isNavigableCategoryNode(nodeId)) {
+      const path =
+        node?.filter_value === null || node?.filter_value === undefined
+          ? null
+          : categoryTransactionsPath({ filterValue: node.filter_value, startDate, endDate });
+      if (path !== null) {
+        void navigate({ to: path });
+        return;
+      }
+    }
+    if (nodeId !== "" && (hasChildren[nodeId] ?? false)) onZoom(nodeId);
+    else onZoom(nodeId);
   };
+  const definition = useMemo(
+    () =>
+      defineChart({
+        marks: [
+          sankeyDiagram({
+            nodes: inputNodes.map((node) => ({ ...node, fill: resolveColor(node.color) })),
+            links: inputLinks.map((edge) => ({
+              ...edge,
+              stroke: resolveColor(
+                inputNodes.find((node) => node.id === edge.source)?.color ?? null,
+              ),
+            })),
+            nodeKey: "id",
+            source: "source",
+            target: "target",
+            value: "value",
+            nodeWidth: NODE_WIDTH,
+            nodePadding: NODE_PADDING,
+            inset: { left: 150, right: 150, top: 16, bottom: 16 },
+            marks: ({ nodes: layoutNodes, links: layoutLinks }) =>
+              [
+                link(layoutLinks, {
+                  x1: "x1",
+                  y1: "y1",
+                  x2: "x2",
+                  y2: "y2",
+                  key: "key",
+                  curve: horizontalLinkCurve,
+                  strokeWidth: (flow: SankeyLink<SankeyInputNode, SankeyInputLink>) =>
+                    Math.max(1, flow.width),
+                  stroke: (flow: SankeyLink<SankeyInputNode, SankeyInputLink>) =>
+                    resolveColor(flow.sourceNode.data.color),
+                  strokeOpacity: (flow: SankeyLink<SankeyInputNode, SankeyInputLink>) =>
+                    hovered === null ||
+                    flow.sourceNode.data.id === hovered ||
+                    flow.targetNode.data.id === hovered
+                      ? 0.35
+                      : 0.15,
+                  lineCap: "butt",
+                }),
+                rect(layoutNodes, {
+                  x1: "x0",
+                  x2: "x1",
+                  y1: "y0",
+                  y2: "y1",
+                  key: "key",
+                  inset: 0,
+                  fill: "fill",
+                }),
+                textMark(layoutNodes, {
+                  x: (node: SankeyNode<SankeyInputNode, SankeyInputLink>) =>
+                    node.depth <= 1 ? node.x1 + 8 : node.x0 - 8,
+                  y: (node: SankeyNode<SankeyInputNode, SankeyInputLink>) =>
+                    (node.y0 + node.y1) / 2 - 2,
+                  text: (node: SankeyNode<SankeyInputNode, SankeyInputLink>) => node.data.name,
+                  key: "key",
+                  anchor: (node: SankeyNode<SankeyInputNode, SankeyInputLink>) =>
+                    node.depth <= 1 ? "start" : "end",
+                }),
+                textMark(layoutNodes, {
+                  x: (node: SankeyNode<SankeyInputNode, SankeyInputLink>) =>
+                    node.depth <= 1 ? node.x1 + 8 : node.x0 - 8,
+                  y: (node: SankeyNode<SankeyInputNode, SankeyInputLink>) =>
+                    (node.y0 + node.y1) / 2 + 12,
+                  text: (node: SankeyNode<SankeyInputNode, SankeyInputLink>) =>
+                    formatCurrency(node.data.value, currencySymbol),
+                  key: "key",
+                  anchor: (node: SankeyNode<SankeyInputNode, SankeyInputLink>) =>
+                    node.depth <= 1 ? "start" : "end",
+                }),
+              ] as const,
+          }),
+        ],
+        scales: { x: null, y: null },
+        guides: false,
+      }),
+    [inputNodes, inputLinks, currencySymbol, hovered],
+  );
 
   return (
     <div className="flex size-full flex-col gap-2">
@@ -323,142 +374,43 @@ function SankeyDiagram({
           </button>
         ) : null}
       </div>
-      <div className="min-h-0 flex-1" ref={containerRef}>
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className="privacy-sensitive size-full"
-          aria-label={text.dialogTitle}
-          preserveAspectRatio="xMidYMid meet"
-        >
-          <g fill="none">
-            {links.map((link) => {
-              const ends = linkEnds(link);
-              if (ends === null) return null;
-              const dimmed =
-                hovered !== null && ends.source.id !== hovered && ends.target.id !== hovered;
-              const path = linkPath(link);
-              if (path === null || link.width === undefined) return null;
-              return (
-                <path
-                  key={`${ends.source.id}-${ends.target.id}-${link.value}`}
-                  d={path}
-                  stroke={resolveColor(ends.source.color)}
-                  strokeOpacity={dimmed ? 0.15 : 0.35}
-                  strokeWidth={Math.max(1, link.width)}
-                  fill="none"
-                >
-                  <title>{`${ends.source.id} → ${ends.target.id}: ${formatCurrency(link.value, currencySymbol)}`}</title>
-                </path>
-              );
-            })}
-          </g>
-          <g>
-            {nodes.map((node) => {
-              const nodeId = node.id;
-              const x0 = node.x0 ?? 0;
-              const x1 = node.x1 ?? 0;
-              const y0 = node.y0 ?? 0;
-              const y1 = node.y1 ?? 0;
-              const nodeWidth = Math.max(1, x1 - x0);
-              const nodeHeight = Math.max(4, y1 - y0);
-              const dimmed = hovered !== null && !connected(node);
-              const navigable = isNavigableCategoryNode(nodeId);
-              const zoomable = hasChildren[nodeId] ?? false;
-              const path =
-                node.filter_value === null
-                  ? null
-                  : categoryTransactionsPath({
-                      filterValue: node.filter_value,
-                      startDate,
-                      endDate,
-                    });
-              const leftSide = x0 < width / 2;
-              const labelX = leftSide ? x1 + 8 : x0 - 8;
-              const anchor = leftSide ? "start" : "end";
-              const label = (
-                <g
-                  opacity={dimmed ? 0.4 : 1}
-                  onMouseEnter={() => {
-                    setHovered(nodeId);
-                  }}
-                  onMouseLeave={() => {
-                    setHovered(null);
-                  }}
-                >
-                  <text
-                    x={labelX}
-                    y={y0 + nodeHeight / 2 - 2}
-                    textAnchor={anchor}
-                    className="fill-current text-xs font-medium"
-                  >
-                    {node.name}
-                  </text>
-                  <text
-                    x={labelX}
-                    y={y0 + nodeHeight / 2 + 12}
-                    textAnchor={anchor}
-                    className="fill-current font-mono"
-                    fontSize="10"
-                    opacity={0.75}
-                  >
-                    {formatCurrency(node.value, currencySymbol)}
-                  </text>
-                  <title>{`${node.name}: ${formatCurrency(node.value, currencySymbol)}`}</title>
-                </g>
-              );
-              return (
-                <g key={nodeId} opacity={dimmed ? 0.4 : 1}>
-                  <rect
-                    x={x0}
-                    y={y0}
-                    width={nodeWidth}
-                    height={nodeHeight}
-                    rx={4}
-                    fill={resolveColor(node.color)}
-                    stroke={node.color === "" ? "var(--color-gray-500)" : "none"}
-                    style={{ cursor: navigable || zoomable ? "pointer" : "default" }}
-                    onMouseEnter={() => {
-                      setHovered(nodeId);
-                    }}
-                    onMouseLeave={() => {
-                      setHovered(null);
-                    }}
-                    onClick={() => {
-                      if (nodeId !== "") onZoom(nodeId);
-                    }}
-                  >
-                    <title>{`${node.name}: ${formatCurrency(node.value, currencySymbol)}`}</title>
-                  </rect>
-                  {navigable && path !== null ? (
-                    <Link
-                      to={path}
-                      aria-label={`${node.name}: ${formatCurrency(node.value, currencySymbol)}`}
-                    >
-                      {label}
-                    </Link>
-                  ) : (
-                    <g
-                      style={{ cursor: zoomable ? "pointer" : "default" }}
-                      onClick={() => {
-                        if (zoomable && nodeId !== "") onZoom(nodeId);
-                      }}
-                    >
-                      {label}
-                    </g>
-                  )}
-                </g>
-              );
-            })}
-          </g>
-        </svg>
+      <div className="min-h-0 flex-1">
+        <Chart ariaLabel={text.dialogTitle} definition={definition} height={height} />
         <ul className="sr-only">
-          {nodes.map((node) => (
+          {data.nodes.map((node) => (
             <li key={node.id}>
               {node.name}: {formatCurrency(node.value, currencySymbol)}
             </li>
           ))}
         </ul>
       </div>
+      <ul aria-label={`${text.dialogTitle} categories`} className="flex flex-wrap gap-1 px-4">
+        {visible.nodes.map((node) => (
+          <li key={node.id}>
+            <button
+              type="button"
+              onClick={() => {
+                activateNode(node.id);
+              }}
+              onMouseEnter={() => {
+                setHovered(node.id);
+              }}
+              onMouseLeave={() => {
+                setHovered(null);
+              }}
+              onFocus={() => {
+                setHovered(node.id);
+              }}
+              onBlur={() => {
+                setHovered(null);
+              }}
+              className="rounded-md px-2 py-1 text-xs font-medium text-secondary hover:bg-container-inset-hover hover:text-primary focus-visible:outline-2"
+            >
+              {node.name}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
