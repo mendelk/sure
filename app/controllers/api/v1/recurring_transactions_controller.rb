@@ -199,7 +199,8 @@ class Api::V1::RecurringTransactionsController < Api::V1::BaseController
                                                .having("MIN(due_on) BETWEEN ? AND ?", Date.current, Date.current + card_days)
                                                .select(:recurring_transaction_id)
         cards = query.where(system_managed_kind: "credit_card_payment", id: due_card_series,
-                            account_id: Account.visible.select(:id))
+                            account_id: Account.visible.where(accountable_type: "CreditCard",
+                              accountable_id: CreditCard.where.not(payment_due_day: nil).select(:id)).select(:id))
         query = ordinary.or(cards).active
       else
         if params[:start_date].present?

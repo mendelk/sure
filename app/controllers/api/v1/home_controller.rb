@@ -630,8 +630,8 @@ class Api::V1::HomeController < Api::V1::BaseController
     # contribute only their remaining_amount) but stays a pure projection:
     # no statistical daily-spend baseline is layered on top.
     #
-    # Overdue open occurrences (due_on < today) still need paying, so they
-    # land whole on day 0 (today) rather than vanishing from the forecast.
+    # Only occurrences due today through the 30-day horizon contribute;
+    # overdue income, bills, and statements are excluded without redating.
     #
     # Scoping notes: family-scoped (not RecurringTransaction.accessible_by).
     # The Bills page uses accessible_by because it renders per-series rows a

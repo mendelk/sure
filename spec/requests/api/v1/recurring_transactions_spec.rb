@@ -87,7 +87,7 @@ RSpec.describe 'API V1 Recurring Transactions', type: :request do
       parameter name: :account_id, in: :query, required: false, description: 'Filter by account ID',
                 schema: { type: :string, format: :uuid }
       parameter name: :upcoming, in: :query, required: false,
-                description: 'Only upcoming active series. Credit cards require an open, closed-statement occurrence; their amount is its unpaid remainder.',
+                description: 'Only upcoming active series. Credit cards require an explicitly configured payment due day and an open, closed-statement occurrence; their amount is its unpaid remainder.',
                 schema: { type: :boolean, default: false }
       parameter name: :upcoming_days, in: :query, required: false,
                 description: 'Upcoming horizon in days when upcoming=true. Defaults to 10 for ordinary series and the statement-to-due gap (currently 25) for credit cards. An explicit value overrides both.',

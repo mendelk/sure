@@ -60,10 +60,11 @@ class Api::V1::RecurringTransactionsControllerTest < ActionDispatch::Integration
     assert RecurringTransaction.exists?(series.id)
   end
 
-  test "unknown managed payment dates are null rather than fabricated in the API" do
+  test "clearing a managed payment due day removes its upcoming date from the API" do
     card = accounts(:credit_card)
-    card.accountable.payment_schedule.refresh!
+    card.accountable.update!(payment_due_day: 10)
     series = card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+    card.accountable.update!(payment_due_day: nil)
     get api_v1_recurring_transaction_url(series), headers: api_headers(@api_key)
     assert_response :success
     row = response.parsed_body
@@ -77,9 +78,10 @@ class Api::V1::RecurringTransactionsControllerTest < ActionDispatch::Integration
       card = @family.accounts.create!(name: "Upcoming card", owner: @user, balance: 80, currency: "USD",
                                      accountable: CreditCard.new(payment_due_day: 31))
       unknown = @family.accounts.create!(name: "Unknown day", owner: @user, balance: 100, currency: "USD",
-                                        accountable: CreditCard.new)
+                                        accountable: CreditCard.new(payment_due_day: 31))
       series = card.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
       unknown_series = unknown.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+      unknown.accountable.update_column(:payment_due_day, nil)
       card.entries.create!(date: Date.new(2026, 9, 21), name: "Opening debt", amount: 80, currency: "USD",
                            entryable: Valuation.new(kind: "opening_anchor"))
       card.entries.create!(date: Date.new(2026, 10, 10), name: "Payment", amount: -25, currency: "USD",

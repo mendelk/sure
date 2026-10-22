@@ -203,7 +203,7 @@ RSpec.describe 'API V1 Accounts', type: :request do
     end
 
     patch 'Update an account' do
-      description 'Updates manual and linked accounts. Credit cards accept accountable.payment_due_day (1–31), or null to fall back to an estimated historical payment day. This configures the automatic read-only card payment series.'
+      description 'Updates manual and linked accounts. Credit cards accept accountable.payment_due_day (1–31), or null to disable automatic statement payments. An explicit due day configures the automatic read-only card payment series.'
       tags 'Accounts'
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'

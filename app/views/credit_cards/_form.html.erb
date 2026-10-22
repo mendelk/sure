@@ -9,9 +9,6 @@
                                        label: t("credit_cards.form.payment_due_day"),
                                        min: 1, max: 31, step: 1 %>
       <p class="text-xs text-secondary"><%= t("credit_cards.form.payment_due_day_hint") %></p>
-      <% if (estimated_day = account.accountable.payment_schedule.inferred_due_day) %>
-        <p class="text-xs text-secondary"><%= t("credit_cards.form.estimated_payment_due_day", day: estimated_day) %></p>
-      <% end %>
 
       <div class="flex items-center gap-2">
         <%= credit_card_form.number_field :available_credit,

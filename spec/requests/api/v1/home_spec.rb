@@ -41,6 +41,7 @@ RSpec.describe 'API V1 Home', type: :request do
                   'layout overrides, plus balance sheet, net worth, cashflow sankey, cash forecast, ' \
                   'money flow, spending trend, outflows, investment summary, and the preview-gated insights feed. ' \
                   'The cash forecast uses checking balances and activity plus unpaid dynamic credit-card statement payments; savings are excluded. ' \
+                  'Only occurrences due today through the next 30 days are projected; overdue items are excluded. ' \
                   'Supports the same period and money-flow/spending-month query params as the ERB dashboard.'
       parameter name: :period, in: :query, required: false, schema: { type: :string }, description: 'Period key (e.g. last_30_days).'
       parameter name: :start_date, in: :query, required: false, schema: { type: :string, format: :date }, description: 'Custom period start (requires end_date).'

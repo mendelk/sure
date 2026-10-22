@@ -164,29 +164,95 @@ class CreditCard::PaymentScheduleTest < ActiveSupport::TestCase
     assert_equal 25, occurrence.remaining_amount
   end
 
-  test "inference requires three distinct stable months and manual day takes precedence" do
-    [ 7, 8 ].each { |month| charge(-50, Date.new(2026, month, 10), name: "Autopay") }
-    assert_nil @card.payment_schedule.inferred_due_day
-    charge(-900, Date.new(2026, 9, 11), name: "Autopay")
-    # A fresh read is how the account editor requests an inference.
-    @card.reload
-    assert_equal 10, CreditCard::PaymentSchedule.new(@card).inferred_due_day
-    configure_day(20)
-    assert_equal 20, @card.payment_schedule.due_day
-    assert_equal "manual", @card.payment_schedule.due_day_source
-    @card.update!(payment_due_day: nil)
-    assert_equal 10, @card.payment_schedule.due_day
-    assert_equal "estimated", @card.payment_schedule.due_day_source
+  test "payment history never generates a statement without an explicit due day" do
+    [ 7, 8, 9 ].each { |month| charge(-50, Date.new(2026, month, 10), name: "Autopay") }
+    refresh
+
+    assert_nil @card.payment_schedule.due_day
+    assert_nil @card.payment_schedule.next_due_on
+    refute @account.recurring_transactions.exists?(system_managed_kind: "credit_card_payment")
   end
 
-  test "spiky manual payments and refunds do not fabricate a due day" do
-    [ [ 7, 2 ], [ 8, 15 ], [ 9, 27 ] ].each { |month, day| charge(-100, Date.new(2026, month, day), name: "Payment") }
-    charge(-50, Date.new(2026, 10, 10), name: "Refund")
+  test "clearing the due day pauses payments and preserves allocations until reconfigured" do
+    configure_day(20)
+    original = occurrence
+    allocation = RecurringTransaction::Allocator.new(original).allocate!(amount: 25)
+    @card.update!(payment_due_day: nil)
     refresh
-    assert_nil @card.payment_schedule.due_day
+
+    assert series.reload.paused?
     assert_nil series.next_due_date
-    refute series.overdue?
-    assert_empty series.recurring_occurrences
+    refute RecurringTransaction.payable.exists?(id: series.id)
+    assert_equal 75, original.reload.remaining_amount
+    assert_equal original.id, allocation.reload.recurring_occurrence_id
+
+    configure_day(20)
+    assert series.reload.active?
+    assert_equal original.id, occurrence.id
+    assert_equal 75, occurrence.remaining_amount
+  end
+
+  test "changing the due day recalculates an upcoming statement and keeps its payments" do
+    charge(400, Date.new(2026, 9, 5))
+    charge(300, Date.new(2026, 9, 27))
+    configure_day(20)
+    original = occurrence
+    allocation = RecurringTransaction::Allocator.new(original).allocate!(amount: 100)
+    assert_equal 400, original.reload.remaining_amount
+
+    configure_day(25)
+    original.reload
+    assert_equal Date.new(2026, 10, 25), original.due_on
+    assert_equal Date.new(2026, 9, 30), original.statement_end_on
+    assert_equal 800, original.expected_amount
+    assert_equal 700, original.remaining_amount
+    assert_equal original.id, allocation.reload.recurring_occurrence_id
+    refresh
+    assert_equal [ original.id ], series.recurring_occurrences.pluck(:id)
+    assert_equal 700, original.reload.remaining_amount
+  end
+
+  test "moving today's payment to a later cycle waits for the new statement close" do
+    configure_day(12)
+    original = occurrence
+    configure_day(10)
+
+    assert_equal Date.new(2026, 11, 10), original.reload.due_on
+    assert_equal Date.new(2026, 10, 16), original.statement_end_on
+    assert_equal 0, original.remaining_amount
+    charge(50, Date.new(2026, 10, 13))
+    travel_to Time.zone.local(2026, 10, 16, 12)
+    refresh
+    assert_equal 150, original.reload.remaining_amount
+  end
+
+  test "due day changes recalculate zero estimates without changing paid history" do
+    charge(-100, Date.new(2026, 9, 10), name: "Refund")
+    charge(200, Date.new(2026, 9, 28))
+    configure_day(20)
+    zero_estimate = occurrence
+    assert zero_estimate.paid?
+    assert_equal 0, zero_estimate.remaining_amount
+
+    configure_day(25)
+    assert_equal Date.new(2026, 10, 25), zero_estimate.reload.due_on
+    assert_equal 200, zero_estimate.remaining_amount
+    assert zero_estimate.scheduled?
+
+    RecurringTransaction::Allocator.new(zero_estimate).mark_paid!
+    configure_day(26)
+    assert_equal Date.new(2026, 10, 25), zero_estimate.reload.due_on
+    assert zero_estimate.paid?
+    assert_equal 200, zero_estimate.confirmed_allocated
+  end
+
+  test "due day changes preserve overdue statement dates" do
+    configure_day(9)
+    past = occurrence
+    original_dates = past.attributes.slice("due_on", "statement_start_on", "statement_end_on")
+    configure_day(20)
+    assert_equal original_dates, past.reload.attributes.slice("due_on", "statement_start_on", "statement_end_on")
+    assert past.scheduled?
   end
 
   test "due days clamp across leap years and year boundaries" do

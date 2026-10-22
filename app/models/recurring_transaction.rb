@@ -317,7 +317,9 @@ class RecurringTransaction < ApplicationRecord
 
     active.where("amount > 0 OR system_managed_kind = 'credit_card_payment'")
           .merge(where(destination_account_id: nil).or(where(debt_destination.arel.exists)))
-          .where("system_managed_kind IS NULL OR account_id IN (?)", Account.visible.select(:id))
+          .where("system_managed_kind IS NULL OR account_id IN (?)",
+            Account.visible.where(accountable_type: "CreditCard",
+              accountable_id: CreditCard.where.not(payment_due_day: nil).select(:id)).select(:id))
   }
 
   # The bills that want an action from you. Autopay bills still belong on the
@@ -368,6 +370,7 @@ class RecurringTransaction < ApplicationRecord
   # materialized yet.
   def next_due_date
     if credit_card_payment?
+      return nil unless account.accountable.payment_due_day
       return next_open_occurrence&.effective_due_on || account.accountable.payment_schedule.next_due_on
     end
 

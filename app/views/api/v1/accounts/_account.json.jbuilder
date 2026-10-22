@@ -47,7 +47,6 @@ json.accountable do
     json.expiration_date accountable.expiration_date&.iso8601
     schedule = accountable.payment_schedule
     json.payment_due_day accountable.payment_due_day
-    json.estimated_payment_due_day schedule.inferred_due_day
     json.payment_due_day_source schedule.due_day_source
     json.statement_gap_days CreditCard::PaymentSchedule::STATEMENT_GAP_DAYS
   when Loan

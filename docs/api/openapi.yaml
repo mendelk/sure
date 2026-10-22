@@ -1123,8 +1123,10 @@ components:
           minimum: 1
           maximum: 31
           nullable: true
-          description: 'Credit cards only: confirmed monthly due day. Clear to infer
-            a payment day from history; short months clamp to their last day.'
+          description: 'Credit cards only: confirmed monthly due day. Clear to disable
+            automatic statement payments; short months clamp to their last day. Changes
+            recalculate unpaid estimated statements due today or later, preserving
+            past statements and recorded payments.'
         apr:
           type: number
         annual_fee:
@@ -1260,19 +1262,11 @@ components:
           minimum: 1
           maximum: 31
           nullable: true
-        estimated_payment_due_day:
-          type: integer
-          minimum: 1
-          maximum: 31
-          nullable: true
-          readOnly: true
-          description: Historical payment-day estimate, not a bank-confirmed deadline.
         payment_due_day_source:
           type: string
           nullable: true
           enum:
           - manual
-          - estimated
           readOnly: true
         statement_gap_days:
           type: integer
@@ -5864,9 +5858,11 @@ components:
       - events
       description: 30-day cash-on-hand projection using checking balances, recurring
         checking activity, and unpaid dynamic credit-card statement payments in the
-        family currency. Other depository subtypes and ordinary transfers are excluded.
-        Due-today and overdue payments reduce today’s projected balance. Null when
-        the viewer has no visible, accessible checking account in the family currency.
+        family currency. Cards require an explicitly configured payment due day. Only
+        occurrences due today through day 30 are included, on their scheduled dates;
+        overdue occurrences are excluded. Other depository subtypes and ordinary transfers
+        are excluded. Null when the viewer has no visible, accessible checking account
+        in the family currency.
       properties:
         starting_balance:
           "$ref": "#/components/schemas/Money"
@@ -7199,7 +7195,7 @@ paths:
     patch:
       summary: Update an account
       description: Updates manual and linked accounts. Credit cards accept accountable.payment_due_day
-        (1–31), or null to fall back to an estimated historical payment day. This
+        (1–31), or null to disable automatic statement payments. An explicit due day
         configures the automatic read-only card payment series.
       tags:
       - Accounts
@@ -9902,8 +9898,9 @@ paths:
         forecast, money flow, spending trend, outflows, investment summary, and the
         preview-gated insights feed. The cash forecast uses checking balances and
         activity plus unpaid dynamic credit-card statement payments; savings are excluded.
-        Supports the same period and money-flow/spending-month query params as the
-        ERB dashboard.'
+        Only occurrences due today through the next 30 days are projected; overdue
+        items are excluded. Supports the same period and money-flow/spending-month
+        query params as the ERB dashboard.'
       parameters:
       - name: period
         in: query
@@ -11618,8 +11615,9 @@ paths:
       - name: upcoming
         in: query
         required: false
-        description: Only upcoming active series. Credit cards require an open, closed-statement
-          occurrence; their amount is its unpaid remainder.
+        description: Only upcoming active series. Credit cards require an explicitly
+          configured payment due day and an open, closed-statement occurrence; their
+          amount is its unpaid remainder.
         schema:
           type: boolean
           default: false
