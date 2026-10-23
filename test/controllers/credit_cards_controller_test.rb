@@ -93,6 +93,19 @@ class CreditCardsControllerTest < ActionDispatch::IntegrationTest
     assert_enqueued_with(job: SyncJob)
   end
 
+  test "account page prefill exposes the minimum payment flag as a boolean" do
+    get account_url(@account, format: :json)
+
+    assert_response :success
+    assert_equal false, response.parsed_body.dig("accountable", "minimum_payment_only")
+
+    @account.credit_card.update!(minimum_payment_only: true)
+    get account_url(@account, format: :json)
+
+    assert_response :success
+    assert_equal true, response.parsed_body.dig("accountable", "minimum_payment_only")
+  end
+
   test "updates enable banking balance interpretation flag when linked" do
     enable_banking_account = create_linked_enable_banking_account
 

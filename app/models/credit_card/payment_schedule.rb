@@ -181,6 +181,10 @@ class CreditCard
         occurrences = series.recurring_occurrences.order(:statement_end_on).includes(:allocations).to_a
         payment_ids = posted_entries.filter_map { |entry| entry.id if self.class.payment?(entry) }
         payment_amounts = RecurringAllocation.confirmed.where(entry_id: payment_ids).group(:entry_id).sum(:source_amount)
+        managed_payment_amounts = if card.minimum_payment_only?
+          series.recurring_occurrences.joins(:allocations).merge(RecurringAllocation.confirmed)
+            .group("recurring_allocations.entry_id").sum("recurring_allocations.source_amount")
+        end
         prior_remaining = 0.to_d
         occurrences.each do |occurrence|
           next unless occurrence.currency == account.currency
@@ -198,7 +202,20 @@ class CreditCard
             payments = subsequent.sum { |entry| self.class.payment?(entry) ? payment_amounts.fetch(entry.id, 0) : 0 }
             allocated = occurrence.confirmed_allocated
             payments += occurrence.allocations.confirmed.where(entry_id: nil).sum(:allocated_amount)
-            remaining = [ closing - payments - credits - prior_remaining, 0 ].max
+            remaining = if card.minimum_payment_only?
+              # Carried principal still belongs to each new statement's base.
+              # Only this cycle's allocations (or payments on a retired series)
+              # satisfy its minimum; another cycle's minimum is not a repayment
+              # of this obligation.
+              obligation = ([ closing - credits, 0 ].max * CreditCard::MINIMUM_PAYMENT_PERCENTAGE / 100)
+                .round(Money::Currency.new(account.currency).default_precision)
+              external_payments = subsequent.sum do |entry|
+                self.class.payment?(entry) ? payment_amounts.fetch(entry.id, 0) - managed_payment_amounts.fetch(entry.id, 0) : 0
+              end
+              [ obligation - allocated - external_payments, 0 ].max
+            else
+              [ closing - payments - credits - prior_remaining, 0 ].max
+            end
             expected = remaining + allocated
             occurrence.update!(statement_balance: closing,
                                post_statement_credits: credits,

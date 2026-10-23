@@ -352,6 +352,101 @@ class CreditCard::PaymentScheduleTest < ActiveSupport::TestCase
     assert_empty occurrence.allocations
   end
 
+  test "minimum payment uses the entire closing debt but excludes new and pending purchases" do
+    charge(400, Date.new(2026, 9, 5))
+    charge(300, Date.new(2026, 10, 1))
+    charge(900, Date.new(2026, 9, 10), extra: { plaid: { pending: true } })
+    @card.update!(minimum_payment_only: true)
+    configure_day(9)
+
+    assert_equal 500, occurrence.statement_balance
+    assert_equal 5, occurrence.expected_amount
+    assert_equal 5, occurrence.remaining_amount
+  end
+
+  test "minimum payment rounds to currency precision and never estimates negative debt" do
+    charge(87.69, Date.new(2026, 9, 5))
+    @card.update!(minimum_payment_only: true)
+    configure_day(9)
+    assert_equal BigDecimal("1.88"), occurrence.expected_amount
+
+    charge(-300, Date.new(2026, 9, 6), name: "Refund")
+    refresh
+    assert_equal 0, occurrence.remaining_amount
+    assert occurrence.paid?
+  end
+
+  test "minimum refunds reduce the principal base while payments satisfy the estimated obligation" do
+    charge(400, Date.new(2026, 9, 5))
+    @card.update!(minimum_payment_only: true)
+    configure_day(9)
+    payment = charge(-2, Date.new(2026, 10, 9), name: "Automatic payment")
+    charge(-50, Date.new(2026, 10, 10), name: "Merchant refund")
+    refresh
+
+    assert_equal 500, occurrence.statement_balance
+    assert_equal BigDecimal("4.50"), occurrence.expected_amount
+    assert_equal 2, occurrence.confirmed_allocated
+    assert_equal BigDecimal("2.50"), occurrence.remaining_amount
+    assert_equal [ payment.id ], occurrence.allocations.pluck(:entry_id)
+    refresh
+    assert_equal BigDecimal("2.50"), occurrence.remaining_amount
+  end
+
+  test "each unpaid minimum includes carried principal without counting another cycle payment twice" do
+    charge(400, Date.new(2026, 9, 5))
+    charge(300, Date.new(2026, 10, 1))
+    @card.update!(minimum_payment_only: true)
+    configure_day(9)
+    travel_to Time.zone.local(2026, 10, 21, 12)
+    refresh
+    rows = series.recurring_occurrences.order(:due_on).to_a
+    assert_equal [ 5, 8 ], rows.map(&:remaining_amount)
+
+    payment = charge(-7, Date.new(2026, 10, 20), name: "Payment")
+    refresh
+    rows.each(&:reload)
+    assert_equal [ 0, 6 ], rows.map(&:remaining_amount)
+    assert_equal [ 5, 2 ], rows.map(&:confirmed_allocated)
+    assert_equal 7, RecurringAllocation.where(entry: payment).sum(:allocated_amount)
+    refresh
+    assert_equal [ 0, 6 ], rows.map { |row| row.reload.remaining_amount }
+  end
+
+  test "the next minimum includes debt carried after paying the previous minimum" do
+    charge(400, Date.new(2026, 9, 5))
+    @card.update!(minimum_payment_only: true)
+    configure_day(9)
+    charge(-5, Date.new(2026, 10, 9), name: "Autopay")
+    refresh
+    assert occurrence.paid?
+
+    travel_to Time.zone.local(2026, 10, 16, 12)
+    refresh
+    current = series.next_open_occurrence
+    assert_equal 495, current.statement_balance
+    assert_equal BigDecimal("4.95"), current.remaining_amount
+  end
+
+  test "toggling minimum payment recalculates unpaid estimates and retains partial payments" do
+    charge(400, Date.new(2026, 9, 5))
+    configure_day(9)
+    original = occurrence
+    allocation = RecurringTransaction::Allocator.new(original).allocate!(amount: 2)
+
+    @card.update!(minimum_payment_only: true)
+    refresh
+    assert_equal 5, original.reload.expected_amount
+    assert_equal 3, original.remaining_amount
+    assert_equal 500, original.statement_balance
+    assert_equal original.id, allocation.reload.recurring_occurrence_id
+
+    @card.update!(minimum_payment_only: false)
+    refresh
+    assert_equal 500, original.reload.expected_amount
+    assert_equal 498, original.remaining_amount
+  end
+
   private
     def charge(amount, date, name: "Purchase", currency: "USD", extra: {})
       @account.entries.create!(date: date, name: name, amount: amount, currency: currency, entryable: Transaction.new(extra: extra))

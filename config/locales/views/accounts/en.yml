@@ -199,7 +199,9 @@ en:
         accountable_credit_minimum_payment: Minimum payment
         accountable_credit_minimum_payment_placeholder: '100'
         accountable_credit_payment_due_day: Payment due day
-        accountable_credit_payment_due_day_hint: Day of the month (1–31). Leave blank to disable automatic statement payments. Short months use their last day. Changes recalculate unpaid statements due today or later; past statements and payment history are preserved.
+        accountable_credit_payment_due_day_hint: Day of the month (1–31). Leave blank to disable payment estimates. Short months use their last day. Changes recalculate unpaid statements due today or later; past statements and payment history are preserved. These settings do not change bank autopay instructions.
+        accountable_credit_minimum_payment_only: Minimum payment only
+        accountable_credit_minimum_payment_only_hint: Estimate 1% of the closing statement balance (Citi approximation), adjusted for later credits and payments. This is not a guaranteed bank minimum; no additional interest, fees or issuer minimum floors are modeled. The fixed Minimum payment field is not used. Leave off for full statement payments. Bank autopay instructions are unchanged.
         accountable_credit_apr: APR
         accountable_credit_apr_placeholder: '15.99'
         accountable_credit_expiration_date: Expiration date

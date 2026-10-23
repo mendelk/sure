@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_19_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -579,6 +579,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_140000) do
     t.date "expiration_date"
     t.jsonb "locked_attributes", default: {}
     t.decimal "minimum_payment", precision: 10, scale: 2
+    t.boolean "minimum_payment_only", default: false, null: false
     t.integer "payment_due_day"
     t.string "subtype"
     t.datetime "updated_at", null: false

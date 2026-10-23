@@ -69,6 +69,140 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 10, account.accountable.reload.payment_due_day
   end
 
+  test "credit card minimum payment setting round trips and recalculates the upcoming obligation" do
+    travel_to Time.zone.local(2026, 10, 12, 12) do
+      post api_v1_accounts_url,
+        params: {
+          account: {
+            name: "Minimum payment card", account_type: "credit_card", balance: 1000, currency: "USD",
+            opening_balance_date: "2026-09-01",
+            accountable: { payment_due_day: 20, minimum_payment_only: true, minimum_payment: 99 }
+          }
+        },
+        headers: api_headers(@read_write_api_key), as: :json
+
+      assert_response :created
+      account = @user.family.accounts.find(response.parsed_body["id"])
+      assert_equal true, response.parsed_body.dig("accountable", "minimum_payment_only")
+      assert_equal 99, account.credit_card.minimum_payment
+      occurrence = account.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+        .recurring_occurrences.find_by!(due_on: Date.new(2026, 10, 20))
+      assert_equal 1000, occurrence.statement_balance
+      assert_equal 10, occurrence.expected_amount
+
+      get api_v1_account_url(account), headers: api_headers(@api_key)
+
+      assert_response :success
+      assert_equal true, response.parsed_body.dig("accountable", "minimum_payment_only")
+
+      patch api_v1_account_url(account),
+        params: { account: { accountable: { minimum_payment_only: false } } },
+        headers: api_headers(@read_write_api_key), as: :json
+
+      assert_response :success
+      assert_equal false, response.parsed_body.dig("accountable", "minimum_payment_only")
+      assert_equal 1000, occurrence.reload.expected_amount
+      assert_equal 1000, occurrence.statement_balance
+
+      patch api_v1_account_url(account),
+        params: { account: { accountable: { minimum_payment_only: true } } },
+        headers: api_headers(@read_write_api_key), as: :json
+
+      assert_response :success
+      assert_equal true, response.parsed_body.dig("accountable", "minimum_payment_only")
+      assert_equal 10, occurrence.reload.expected_amount
+      assert_equal 1000, occurrence.statement_balance
+    end
+  end
+
+  test "credit card defaults preserve full statement estimates for existing API requests" do
+    travel_to Time.zone.local(2026, 10, 12, 12) do
+      post api_v1_accounts_url,
+        params: {
+          account: {
+            name: "Full payment card", account_type: "credit_card", balance: 1000, currency: "USD",
+            opening_balance_date: "2026-09-01", accountable: { payment_due_day: 20 }
+          }
+        },
+        headers: api_headers(@read_write_api_key), as: :json
+
+      assert_response :created
+      assert_equal false, response.parsed_body.dig("accountable", "minimum_payment_only")
+      account = @user.family.accounts.find(response.parsed_body["id"])
+      occurrence = account.recurring_transactions.find_by!(system_managed_kind: "credit_card_payment")
+        .recurring_occurrences.find_by!(due_on: Date.new(2026, 10, 20))
+      assert_equal 1000, occurrence.expected_amount
+
+      patch api_v1_account_url(account), params: { account: { notes: "Legacy update" } },
+        headers: api_headers(@read_write_api_key), as: :json
+
+      assert_response :success
+      assert_equal false, response.parsed_body.dig("accountable", "minimum_payment_only")
+      assert_equal 1000, occurrence.reload.expected_amount
+    end
+  end
+
+  test "null minimum payment flag returns a validation error without changing the account" do
+    account = accounts(:credit_card)
+
+    patch api_v1_account_url(account),
+      params: { account: { accountable: { minimum_payment_only: nil } } },
+      headers: api_headers(@read_write_api_key), as: :json
+
+    assert_response :unprocessable_entity
+    assert_not account.credit_card.reload.minimum_payment_only?
+  end
+
+  test "minimum payment only without a due day does not enable automatic payments" do
+    account = accounts(:credit_card)
+
+    patch api_v1_account_url(account),
+      params: { account: { accountable: { payment_due_day: nil, minimum_payment_only: true } } },
+      headers: api_headers(@read_write_api_key), as: :json
+
+    assert_response :success
+    assert account.credit_card.reload.minimum_payment_only?
+    assert_not account.recurring_transactions.active.exists?(system_managed_kind: "credit_card_payment")
+  end
+
+  test "read-only and foreign family API keys cannot change minimum payment settings" do
+    account = accounts(:credit_card)
+    @other_family_api_key.update!(scopes: [ "read_write" ])
+
+    { @api_key => :forbidden, @other_family_api_key => :not_found }.each do |key, status|
+      patch api_v1_account_url(account),
+        params: { account: { accountable: { minimum_payment_only: true } } },
+        headers: api_headers(key), as: :json
+
+      assert_response status
+      assert_not account.credit_card.reload.minimum_payment_only?
+    end
+  end
+
+  test "non-card accounts ignore minimum payment only on create and update" do
+    post api_v1_accounts_url,
+      params: {
+        account: {
+          name: "Unrelated checking", account_type: "depository", balance: 100,
+          accountable: { minimum_payment_only: true }
+        }
+      },
+      headers: api_headers(@read_write_api_key), as: :json
+
+    assert_response :created
+    account = @user.family.accounts.find(response.parsed_body["id"])
+    assert_not response.parsed_body["accountable"].key?("minimum_payment_only")
+
+    patch api_v1_account_url(account),
+      params: { account: { notes: "Updated", accountable: { minimum_payment_only: true } } },
+      headers: api_headers(@read_write_api_key), as: :json
+
+    assert_response :success
+    assert_equal "Updated", account.reload.notes
+    assert_not response.parsed_body["accountable"].key?("minimum_payment_only")
+    assert_not account.recurring_transactions.exists?(system_managed_kind: "credit_card_payment")
+  end
+
   test "should require authentication" do
     get "/api/v1/accounts"
     assert_response :unauthorized

@@ -75,20 +75,43 @@ boundaries, and amounts, while retaining recorded allocations. Past-due statemen
 and settled payment history keep their dates. If the new statement close is still
 in the future, no unpaid estimate contributes until that closing date.
 
-The estimate is the **full outstanding statement debt, not the minimum
-payment**. It includes carried debt and posted charges, fees, and interest
+By default, the estimate is the **full outstanding statement debt**. Enable
+**Minimum payment only** in the SPA credit-card account settings to estimate a
+payment of **1% of the full closing statement balance** instead. This single
+flag defaults to off for both existing and new cards. The full statement
+balance is preserved separately from the estimated payment; each new minimum
+includes carried principal, even after the previous minimum was paid.
+
+The setting is available in the SPA create/edit drawers and the account API,
+not the legacy ERB account forms. Legacy ERB templates are unchanged.
+
+The 1% rate is the requested **Citi approximation**, not an issuer-confirmed
+minimum. There is no issuer detection or table of issuer percentages.
+[Citi's minimum-payment guidance](https://www.citi.com/credit-cards/understanding-credit-cards/how-do-credit-card-minimum-payments-work)
+describes formulas that can also include fixed minimums, interest, fees, and
+past-due amounts; a percentage alone does not reproduce those formulas. This
+estimate does not add those components or use the existing fixed-currency
+**Minimum payment** metadata field. Posted interest and fees already included
+in the closing balance remain part of the percentage base. Verify the actual
+minimum on the bank's statement. These settings do not change bank autopay.
+
+The closing balance includes carried debt and posted charges, fees, and interest
 through the estimated close. Reconciled daily balances in the account's
 currency take precedence over opening-valuation reconstruction, which can
 be inaccurate when a linked account has incomplete imported history.
 Pending transactions and later-cycle purchases are excluded. Repayments and
 post-close credits are matched in the account's currency. Confirmed repayments
-reduce what remains; later refunds and other non-payment credits reduce the
-outstanding estimate.
-The nightly job keeps refreshing unpaid cycles. Carried debt and credits
-are not billed twice when multiple cycles remain unpaid; settled payment
-history is preserved. The displayed post-close credit total describes credits
-since that particular close, so totals from overlapping cycles must not be
-added together.
+reduce what remains dollar for dollar; later refunds and other non-payment
+credits reduce the principal base before calculating the minimum percentage.
+Minimum estimates round to the account currency's display precision.
+
+The nightly job keeps refreshing unpaid cycles. Full-payment estimates do
+not bill carried debt twice; minimum-payment estimates calculate a separate
+obligation for each cycle without counting a repayment against multiple minima.
+Settled payment history is preserved. Changing **Minimum payment only**
+immediately recalculates open estimates while retaining recorded allocations.
+The displayed post-close credit total describes credits since that particular
+close, so totals from overlapping cycles must not be added together.
 
 Users cannot edit, pause, delete, skip, snooze, or override this managed
 schedule through the web app, API, or assistant. They can still record
@@ -112,14 +135,16 @@ still comes only from checking accounts.
 
 ### API fields and deployment
 
-Deployments must run the `AddManagedCreditCardPayments` database migration.
+Deployments must run the `AddManagedCreditCardPayments` and
+`AddMinimumPaymentOnlyToCreditCards` database migrations.
 The existing account update endpoint accepts:
 
 ```json
 {
   "account": {
     "accountable": {
-      "payment_due_day": 9
+      "payment_due_day": 9,
+      "minimum_payment_only": true
     }
   }
 }
@@ -128,6 +153,10 @@ The existing account update endpoint accepts:
 Send `payment_due_day: null` to disable automatic statement payments. Account
 responses expose `payment_due_day_source` (`manual` or null) and
 `statement_gap_days`; historical due-day estimates are no longer returned.
+Account responses also expose the boolean `minimum_payment_only`. Send `false`
+to restore full-statement estimates; omitting it preserves the existing setting.
+Enabling it without a due day does not create payment estimates.
+
 
 Recurring-transaction responses identify the series with
 `system_managed_kind: "credit_card_payment"` and expose `current_occurrence`

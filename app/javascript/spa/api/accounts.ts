@@ -243,6 +243,7 @@ export const AccountDetailSchema = z.object({
         available_credit: z.optional(z.nullable(z.number())),
         minimum_payment: z.optional(z.nullable(z.number())),
         payment_due_day: z.optional(z.nullable(z.number())),
+        minimum_payment_only: z.optional(z.boolean()),
         payment_due_day_source: z.optional(z.nullable(z.enum(["manual"]))),
         statement_gap_days: z.optional(z.number()),
         apr: z.optional(z.nullable(z.number())),
