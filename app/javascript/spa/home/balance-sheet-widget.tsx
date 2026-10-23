@@ -1,7 +1,12 @@
 // Balance sheet widget: classification groups with account-group weights and
 // always-expanded prefs. Numbers arrive server-formatted; render verbatim.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { barX, defineChart, stackRowsX } from "@tanstack/charts";
+import { Chart } from "@tanstack/charts/react";
+import { scaleLinear } from "@tanstack/charts/scales/linear";
+import { scaleBand } from "@tanstack/charts/scales/band";
+import { chartTheme } from "../../charts/theme";
 import { Icon } from "../icon";
 import type { HomeClassificationGroup } from "./home-api";
 
@@ -47,6 +52,29 @@ function GroupWeight({ weight, color }: { weight: string; color: string }) {
       <p className="privacy-sensitive text-sm whitespace-nowrap">{weight}</p>
     </div>
   );
+}
+
+function AllocationStrip({ group }: { group: HomeClassificationGroup }) {
+  const definition = useMemo(() => {
+    const rows = stackRowsX(group.account_groups, {
+      x: (accountGroup) => numericWeight(accountGroup.weight),
+      y: () => "allocation",
+      z: "key",
+    });
+    return defineChart({
+      theme: chartTheme,
+      marks: [
+        barX(rows, { key: "key", x1: "x1", x2: "x2", y: "y", fill: (row) => row.color, radius: 2 }),
+      ],
+      scales: {
+        x: { scale: scaleLinear().domain([0, 100]), axis: false },
+        y: { scale: scaleBand().domain(["allocation"]), axis: false },
+      },
+      margin: 0,
+      focus: false,
+    });
+  }, [group.account_groups]);
+  return <Chart definition={definition} height={6} ariaLabel={group.name} />;
 }
 
 export function BalanceSheetWidget({
@@ -118,18 +146,7 @@ export function BalanceSheetWidget({
           {group.account_groups.length > 0 ? (
             <>
               <div className="space-y-2">
-                <div className="flex gap-1" aria-hidden="true">
-                  {group.account_groups.map((accountGroup) => (
-                    <div
-                      key={accountGroup.key}
-                      className="h-1.5 rounded-sm"
-                      style={{
-                        width: `${numericWeight(accountGroup.weight)}%`,
-                        backgroundColor: accountGroup.color,
-                      }}
-                    />
-                  ))}
-                </div>
+                <AllocationStrip group={group} />
                 <div className="flex flex-wrap gap-4">
                   {group.account_groups.map((accountGroup) => (
                     <div key={accountGroup.key} className="flex items-center gap-2 text-sm">

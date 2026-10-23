@@ -1,15 +1,16 @@
 // Net worth widget: headline total + trend vs comparison label, series chart.
-// Money arrives server-formatted; render verbatim. Reuses the TanStack
-// time-series pattern from AccountTimeSeriesChart (lineY + zoomX + cursor).
-import { Component, useMemo, useRef, useState } from "react";
+// Money arrives server-formatted; render verbatim. Account and net-worth charts
+// share controlled local zoom, cursor, and editable-field focus handling.
+import { Component, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { defineChart, lineY, ruleX, type ChartTooltipInput } from "@tanstack/charts";
+import { defineChart, lineY, type ChartTooltipInput } from "@tanstack/charts";
 import { Chart } from "@tanstack/charts/react";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
-import { zoomX, type ZoomXChange, type ZoomXWindow } from "@tanstack/charts/interaction/zoom";
-import { controlledSignal } from "@tanstack/charts/interaction/signal";
-import { createChartCursor, cursorHost } from "@tanstack/charts/cursor";
-import { chartTooltip } from "../components/chart-tooltip";
+import type { ZoomXWindow } from "@tanstack/charts/interaction/zoom";
+import { chartTheme, chartColors } from "../../charts/theme";
+import { utcDayDomain, utcDayTimestamp } from "../../charts/time";
+import { chartTooltip } from "../../charts/tooltip";
+import { useTimeSeriesInteraction } from "../components/use-time-series-interaction";
 import type { HomeNetWorth } from "./home-api";
 
 export type NetWorthData = HomeNetWorth;
@@ -25,10 +26,6 @@ type PlotPoint = {
   formatted: string;
 };
 
-function timestampOf(date: string): number {
-  return Date.parse(`${date}T00:00:00Z`);
-}
-
 function NetWorthChart({ series, title }: { series: PlotPoint[]; title: string }) {
   const formatter = useMemo(
     () =>
@@ -41,23 +38,20 @@ function NetWorthChart({ series, title }: { series: PlotPoint[]; title: string }
     [],
   );
   const pointTimestamps = useMemo(() => series.map((point) => point.timestamp), [series]);
-  const fullStart = Math.min(...pointTimestamps);
-  const fullEnd = Math.max(...pointTimestamps);
+  const [fullStart, fullEnd] = utcDayDomain(
+    Math.min(...pointTimestamps),
+    Math.max(...pointTimestamps),
+  );
   const [viewport, setViewport] = useState<ZoomXWindow<number>>({ start: fullStart, end: fullEnd });
-  const [isCoarsePointer] = useState(() => window.matchMedia("(pointer: coarse)").matches);
-  const hostRef = useRef<HTMLDivElement>(null);
-  const focusZoomSurface = () => {
-    const active = document.activeElement;
-    if (
-      active instanceof HTMLElement &&
-      active.closest("input, textarea, select, [contenteditable='true']")
-    )
-      return;
-    hostRef.current
-      ?.querySelector<SVGElement>("[data-chart-zoom-surface]")
-      ?.focus({ preventScroll: true });
-  };
-  const [cursor] = useState(() => createChartCursor<number, number>());
+  const { interaction, hostProps } = useTimeSeriesInteraction({
+    pointCount: series.length,
+    start: fullStart,
+    end: fullEnd,
+    viewport,
+    onViewportChange: setViewport,
+    title,
+    formatter,
+  });
 
   const definition = useMemo(() => {
     const tooltipOptions = {
@@ -69,20 +63,20 @@ function NetWorthChart({ series, title }: { series: PlotPoint[]; title: string }
               formatter.format(points[0]?.datum.timestamp ?? 0),
               ...points.map(({ datum }) => datum.formatted),
             ].join("\n"),
-    } satisfies ChartTooltipInput<PlotPoint>;
-    const zoomable = !isCoarsePointer && pointTimestamps.length > 1 && fullEnd > fullStart;
+    } satisfies ChartTooltipInput<PlotPoint, number, number, "dom">;
     return defineChart({
+      theme: chartTheme,
+      ...interaction,
       marks: [
         lineY(series, {
           id: "net-worth",
           x: "timestamp",
           y: "value",
           z: () => "net-worth",
-          stroke: "var(--utility-text-primary)",
+          stroke: chartColors.text,
           strokeWidth: 2.25,
           points: series.length === 1,
         }),
-        ruleX([], { x: "timestamp" }),
       ],
       clip: true,
       scales: {
@@ -98,58 +92,14 @@ function NetWorthChart({ series, title }: { series: PlotPoint[]; title: string }
         },
         y: { scale: scaleLinear, nice: true, axis: false },
       },
-      focus: "group-x",
-      cursor: {
-        use: cursorHost,
-        controller: cursor,
-        mode: "focus",
-        match: "x",
-        pin: false,
-      },
-      maxFocusDistance: Number.POSITIVE_INFINITY,
       tooltip: tooltipOptions,
-      controls: zoomable
-        ? [
-            zoomX({
-              window: controlledSignal<ZoomXWindow<number>, ZoomXChange<number>>(
-                viewport,
-                (next, { reason }) => {
-                  if (reason.type === "cancel") {
-                    setViewport({ start: reason.origin.start, end: reason.origin.end });
-                    return;
-                  }
-                  if (next.start === next.end) return;
-                  setViewport({ start: next.start, end: next.end });
-                },
-              ),
-              extent: [fullStart, fullEnd],
-              ariaLabel: title,
-              format: (value) => formatter.format(value),
-            }),
-          ]
-        : [],
     });
-  }, [
-    series,
-    fullStart,
-    fullEnd,
-    pointTimestamps,
-    viewport,
-    formatter,
-    isCoarsePointer,
-    cursor,
-    title,
-  ]);
+  }, [series, fullStart, fullEnd, viewport, formatter, interaction]);
 
   if (pointTimestamps.length === 0) return null;
 
   return (
-    <div
-      className="privacy-sensitive min-w-0"
-      ref={hostRef}
-      onPointerEnter={focusZoomSurface}
-      onFocusCapture={focusZoomSurface}
-    >
+    <div className="privacy-sensitive min-w-0" {...hostProps}>
       <Chart definition={definition} height={208} ariaLabel={title} />
       <ul className="sr-only">
         {series.map((point) => (
@@ -190,7 +140,7 @@ export function NetWorthWidget({
     () =>
       netWorth.series.map((point) => ({
         date: point.date,
-        timestamp: timestampOf(point.date),
+        timestamp: utcDayTimestamp(point.date),
         value: Number(point.value.amount),
         formatted: point.value.formatted,
       })),
@@ -227,7 +177,7 @@ export function NetWorthWidget({
           className="privacy-sensitive min-h-52 size-full"
           style={{ height: "var(--dash-widget-h, 13rem)" }}
         >
-          <NetWorthErrorBoundary>
+          <NetWorthErrorBoundary key={`${series[0].date}-${series.at(-1)!.date}`}>
             <NetWorthChart series={series} title={title} />
           </NetWorthErrorBoundary>
         </div>

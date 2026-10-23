@@ -8,8 +8,8 @@ import { NoAccountsPlaceholder, resolveNoAccountsText } from "./home/no-accounts
 import { BalanceSheetWidget } from "./home/balance-sheet-widget";
 import { NetWorthWidget } from "./home/net-worth-widget";
 import { CashflowSankeyWidget } from "./home/cashflow-sankey-widget";
-import { MoneyFlowWidget } from "./home/money-flow-widget";
-import { SpendingTrendWidget } from "./home/spending-trend-widget";
+import { MoneyFlowWidget, resolveMoneyFlowText } from "./home/money-flow-widget";
+import { SpendingTrendWidget, resolveSpendingTrendText } from "./home/spending-trend-widget";
 import { CashForecastWidget, resolveCashForecastText } from "./home/cash-forecast-widget";
 import { OutflowsDonutWidget } from "./home/outflows-donut-widget";
 import {
@@ -263,6 +263,7 @@ function HomeWidgetBody({
           month={month}
           accountIds={search.money_flow_account_ids}
           homePath={homePath}
+          text={resolveMoneyFlowText(homeText)}
           onMonthChange={(iso) => {
             void navigate({ search: { ...search, money_flow_month: iso } });
           }}
@@ -278,6 +279,7 @@ function HomeWidgetBody({
         <SpendingTrendWidget
           month={month}
           homePath={homePath}
+          text={resolveSpendingTrendText(homeText)}
           onMonthChange={(iso) => {
             void navigate({ search: { ...search, spending_month: iso } });
           }}
@@ -432,6 +434,7 @@ export function HomePage() {
                   setHeight(key, preset);
                 }}
                 onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
+                  if (event.target !== event.currentTarget) return;
                   if (grabbedKey !== key) {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();

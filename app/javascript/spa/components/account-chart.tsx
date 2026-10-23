@@ -1,11 +1,10 @@
 // eslint-disable import/max-dependencies -- The shared chart composes exact-subpath chart marks, scales, accessible interactions, and standard controls.
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
-import { Component, useMemo, useRef, useState } from "react";
+import { Component, useMemo, useState } from "react";
 import { defineChart, lineY, ruleX, type ChartTooltipInput } from "@tanstack/charts";
 import { Chart } from "@tanstack/charts/react";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
-import { zoomX, type ZoomXChange, type ZoomXWindow } from "@tanstack/charts/interaction/zoom";
-import { controlledSignal } from "@tanstack/charts/interaction/signal";
+import type { ZoomXWindow } from "@tanstack/charts/interaction/zoom";
 import { useDebouncedValue } from "@tanstack/react-pacer/debouncer";
 import type { AccountChart, AccountSearch } from "../api/accounts";
 import { AccountCards, ACCOUNT_COLORS } from "./account-sections";
@@ -14,8 +13,10 @@ import { IconButton } from "./icon-button";
 import { Alert } from "./alert";
 import { FormField } from "./form-field";
 import { CategoryIcon } from "../icon";
-import { createChartCursor, cursorHost } from "@tanstack/charts/cursor";
-import { chartTooltip } from "./chart-tooltip";
+import { chartTheme } from "../../charts/theme";
+import { utcDayDomain, utcDayTimestamp } from "../../charts/time";
+import { chartTooltip } from "../../charts/tooltip";
+import { useTimeSeriesInteraction } from "./use-time-series-interaction";
 
 type PlotPoint = {
   date: string;
@@ -24,17 +25,13 @@ type PlotPoint = {
   formatted: string;
   series: string;
 };
-function timestamp(date: string) {
-  return Date.parse(`${date}T00:00:00Z`);
-}
 
 function chartPeriodWindow(chart: AccountChart): ZoomXWindow<number> {
-  const start = timestamp(chart.period.start_date);
-  const end = timestamp(chart.period.end_date);
-  // A valid one-day period has identical dates. Center it in a one-day display
-  // window so both the scale and viewport have distinct endpoints.
-  const padding = start === end ? 12 * 60 * 60 * 1000 : 0;
-  return { start: start - padding, end: end + padding };
+  const [start, end] = utcDayDomain(
+    utcDayTimestamp(chart.period.start_date),
+    utcDayTimestamp(chart.period.end_date),
+  );
+  return { start, end };
 }
 
 export function AccountTimeSeriesChart({
@@ -64,13 +61,12 @@ export function AccountTimeSeriesChart({
         ...item,
         points: item.points.map((point): PlotPoint => ({
           ...point,
-          timestamp: timestamp(point.date),
+          timestamp: utcDayTimestamp(point.date),
           series: item.label,
         })),
       })),
     [chart.series],
   );
-  const [isCoarsePointer] = useState(() => window.matchMedia("(pointer: coarse)").matches);
   const pointTimestamps = useMemo(
     () => series.flatMap((item) => item.points.map((point) => point.timestamp)),
     [series],
@@ -78,22 +74,16 @@ export function AccountTimeSeriesChart({
   const { start: periodStart, end: periodEnd } = chartPeriodWindow(chart);
   const fullStart = Math.min(periodStart, ...pointTimestamps);
   const fullEnd = Math.max(periodEnd, ...pointTimestamps);
-  // The zoom surface only captures the wheel while focused. Pointing at the
-  // chart implies intent on a desktop, so move focus there on hover unless the
-  // user is working in an editable field.
-  const hostRef = useRef<HTMLDivElement>(null);
-  const focusZoomSurface = () => {
-    const active = document.activeElement;
-    if (
-      active instanceof HTMLElement &&
-      active.closest("input, textarea, select, [contenteditable='true']")
-    )
-      return;
-    hostRef.current
-      ?.querySelector<SVGElement>("[data-chart-zoom-surface]")
-      ?.focus({ preventScroll: true });
-  };
-  const [cursor] = useState(() => createChartCursor<number, number>());
+  const { interaction, hostProps } = useTimeSeriesInteraction({
+    enabled: selectable,
+    pointCount: pointTimestamps.length,
+    start: fullStart,
+    end: fullEnd,
+    viewport,
+    onViewportChange,
+    title: chart.title,
+    formatter,
+  });
   const definition = useMemo(() => {
     const tooltipOptions = {
       use: chartTooltip,
@@ -104,10 +94,10 @@ export function AccountTimeSeriesChart({
               formatter.format(points[0].datum.timestamp),
               ...points.map(({ datum }) => `${datum.series}: ${datum.formatted}`),
             ].join("\n"),
-    } satisfies ChartTooltipInput<PlotPoint>;
-    const zoomable =
-      selectable && !isCoarsePointer && pointTimestamps.length > 1 && fullEnd > fullStart;
+    } satisfies ChartTooltipInput<PlotPoint, number, number, "dom">;
     return defineChart({
+      theme: chartTheme,
+      ...interaction,
       marks: [
         ...series.map((item) =>
           lineY(item.points, {
@@ -124,7 +114,7 @@ export function AccountTimeSeriesChart({
         ruleX(
           chart.markers.map((marker) => ({
             ...marker,
-            timestamp: timestamp(marker.date),
+            timestamp: utcDayTimestamp(marker.date),
           })),
           {
             x: "timestamp",
@@ -148,54 +138,9 @@ export function AccountTimeSeriesChart({
         },
         y: { scale: scaleLinear, nice: true, axis: false },
       },
-      focus: "group-x",
-      cursor: {
-        use: cursorHost,
-        controller: cursor,
-        mode: "focus",
-        match: "x",
-        pin: false,
-      },
-      maxFocusDistance: Number.POSITIVE_INFINITY,
       tooltip: tooltipOptions,
-      controls: zoomable
-        ? [
-            zoomX({
-              window: controlledSignal<ZoomXWindow<number>, ZoomXChange<number>>(
-                viewport,
-                (next, { reason }) => {
-                  if (reason.type === "cancel") {
-                    onViewportChange({
-                      start: reason.origin.start,
-                      end: reason.origin.end,
-                    });
-                    return;
-                  }
-                  if (next.start === next.end) return;
-                  onViewportChange({ start: next.start, end: next.end });
-                },
-              ),
-              extent: [fullStart, fullEnd],
-              ariaLabel: chart.title,
-              format: (value) => formatter.format(value),
-            }),
-          ]
-        : [],
     });
-  }, [
-    series,
-    fullStart,
-    fullEnd,
-    pointTimestamps,
-    viewport,
-    formatter,
-    selectable,
-    isCoarsePointer,
-    cursor,
-    chart.markers,
-    chart.title,
-    onViewportChange,
-  ]);
+  }, [series, fullStart, fullEnd, viewport, formatter, interaction, chart.markers]);
   if (pointTimestamps.length === 0) {
     return (
       <p className="flex h-64 items-center justify-center text-sm text-secondary">
@@ -204,12 +149,7 @@ export function AccountTimeSeriesChart({
     );
   }
   return (
-    <div
-      className="privacy-sensitive min-w-0"
-      ref={hostRef}
-      onPointerEnter={focusZoomSurface}
-      onFocusCapture={focusZoomSurface}
-    >
+    <div className="privacy-sensitive min-w-0" {...hostProps}>
       <Chart
         definition={definition}
         height={256}
@@ -426,7 +366,7 @@ function AccountChartCardContent({
           </div>
           <IconButton
             icon={collapsed ? "chevron-down" : "chevron-up"}
-            label={collapsed ? "Expand chart" : "Collapse chart"}
+            label={collapsed ? text.expand_chart : text.collapse_chart}
             onClick={() => {
               const next = !collapsed;
               setCollapsed(next);
