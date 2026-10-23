@@ -1,8 +1,5 @@
 // eslint-disable import/max-dependencies -- Account sections compose the standard action, table, form, alert, and chart primitives.
 import { useMemo } from "react";
-import { defineChart } from "@tanstack/charts";
-import { pie, polar, radialArc } from "@tanstack/charts/polar";
-import { Chart } from "@tanstack/charts/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { AccountCard, AccountDataTable, AccountSearch, AccountSection } from "../api/accounts";
 import type { AccountId } from "../ids";
@@ -12,6 +9,7 @@ import { FormField } from "./form-field";
 import { Table, type ColumnStyle, type TableFeatures } from "./table";
 import { Alert } from "./alert";
 import { BrandLogo } from "./brand-logo";
+import { DonutChart } from "./donut-chart";
 
 export const ACCOUNT_TONES = {
   primary: "text-primary",
@@ -46,41 +44,28 @@ export function AccountCards({ cards }: { cards: AccountCard[] }) {
 }
 function AccountProgress({ progress }: { progress: NonNullable<AccountSection["progress"]> }) {
   const percent = Math.min(100, Math.max(0, progress.percent));
-  const definition = useMemo(
-    () =>
-      defineChart({
-        marks: [
-          polar({
-            radiusRatio: 0.9,
-            marks: [
-              radialArc(
-                pie(
-                  [
-                    { key: "paid", value: percent },
-                    { key: "remaining", value: 100 - percent },
-                  ],
-                  { value: "value" },
-                ),
-                {
-                  key: "key",
-                  innerRadius: ({ radius }) => radius * 0.78,
-                  fill: (point) =>
-                    point.key === "paid" ? ACCOUNT_COLORS.success : "var(--color-container-inset)",
-                },
-              ),
-            ],
-            scales: { angle: null, radius: null },
-          }),
-        ],
-        scales: { x: null, y: null },
-        margin: 0,
-      }),
-    [percent],
+  const slices = useMemo(
+    () => [
+      { id: "paid", label: progress.label, value: percent, color: ACCOUNT_COLORS.success },
+      {
+        id: "remaining",
+        label: progress.description,
+        value: 100 - percent,
+        color: "var(--color-container-inset)",
+      },
+    ],
+    [percent, progress.label, progress.description],
   );
   return (
     <div className="flex flex-wrap items-center gap-4">
       <div className="relative size-32">
-        <Chart definition={definition} height={128} ariaLabel={progress.label} />
+        <DonutChart
+          slices={slices}
+          height={128}
+          ariaLabel={progress.label}
+          innerRadiusRatio={0.78}
+          interactive={false}
+        />
         <span className="privacy-sensitive pointer-events-none absolute inset-0 flex items-center justify-center text-xl font-medium text-primary">
           {new Intl.NumberFormat(document.documentElement.lang || undefined, {
             maximumFractionDigits: 1,

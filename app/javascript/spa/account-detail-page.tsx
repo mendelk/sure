@@ -18,7 +18,7 @@ import {
   useRouteContext,
   useSearch,
 } from "@tanstack/react-router";
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   accountDetailQueryOptions,
   type AccountActivity,
@@ -149,7 +149,10 @@ export function AccountDetailPage() {
   const navigate = useNavigate();
   const query = useQuery(accountDetailQueryOptions(accountId, search));
   const data = query.data;
-  const text = data?.text ?? bootstrap.accountDetailText;
+  const text = useMemo(
+    () => ({ ...bootstrap.accountDetailText, ...data?.text }),
+    [bootstrap.accountDetailText, data?.text],
+  );
   const onSearchChange = (patch: Partial<AccountSearch>) => {
     void navigate({
       to: "/accounts/$accountId",

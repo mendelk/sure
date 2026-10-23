@@ -15,7 +15,9 @@ import {
 import { decorative } from "@tanstack/charts/mark/decorative";
 import { Chart } from "@tanstack/charts/react";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
-import { tooltip } from "@tanstack/charts/tooltip";
+import { chartTheme, chartColors } from "../../charts/theme";
+import { utcDayDomain, utcDayTimestamp } from "../../charts/time";
+import { chartTooltip } from "../../charts/tooltip";
 import { Alert } from "../components/alert";
 import type { HomeCashForecast } from "./home-api";
 
@@ -82,9 +84,7 @@ function useDayFormatter(): (date: string | number) => string {
   );
   return useMemo(
     () => (date: string | number) =>
-      formatter.format(
-        typeof date === "number" ? date : Date.parse(`${date.slice(0, 10)}T00:00:00Z`),
-      ),
+      formatter.format(typeof date === "number" ? date : utcDayTimestamp(date)),
     [formatter],
   );
 }
@@ -106,7 +106,7 @@ function CashForecastChart({
     }
     return forecast.series.map((point) => ({
       date: point.date,
-      timestamp: Date.parse(`${point.date.slice(0, 10)}T00:00:00Z`),
+      timestamp: utcDayTimestamp(point.date),
       value: Number(point.balance.amount),
       formatted: point.balance.formatted,
       events: eventsByDate.get(point.date.slice(0, 10)) ?? [],
@@ -151,12 +151,9 @@ function CashForecastPlot({
     const tickDates = points
       .filter((_, index) => index % 7 === 0 || index === points.length - 1)
       .map((point) => point.timestamp);
-    // A singleton still needs a nonzero temporal domain.
-    const halfDay = points.length === 1 ? 43_200_000 : 0;
     const tooltipOptions: ChartTooltipInput<PlotPoint, number, number, "dom"> = {
-      use: tooltip,
+      use: chartTooltip,
       sticky: false,
-      className: "rounded-lg border border-primary bg-container p-3 text-xs text-primary shadow-md",
       content: (focused) => {
         const point = focused[0].datum;
         let title = formatDay(point.timestamp);
@@ -169,8 +166,7 @@ function CashForecastPlot({
             ...point.events.map((event) => ({
               label: event.name,
               value: `${event.direction === "inflow" ? "+" : "−"}${event.amount.formatted}`,
-              color:
-                event.direction === "inflow" ? "var(--color-success)" : "var(--color-destructive)",
+              color: event.direction === "inflow" ? chartColors.income : chartColors.negative,
             })),
           ],
         };
@@ -178,16 +174,11 @@ function CashForecastPlot({
     };
 
     return defineChart({
-      theme: {
-        foreground: "var(--utility-text-primary)",
-        muted: "var(--utility-text-secondary)",
-        grid: "var(--utility-border-primary)",
-        background: "transparent",
-        focusRing: false,
-      },
+      theme: chartTheme,
+      focusRing: false,
       scales: {
         x: {
-          scale: scaleLinear([first.timestamp - halfDay, last.timestamp + halfDay], [0, 1]),
+          scale: scaleLinear(utcDayDomain(first.timestamp, last.timestamp), [0, 1]),
           axis: {
             ticks: { values: tickDates, format: formatDay },
             tickLabels: { thin: { minGap: 16, priority: "ends" } },
@@ -206,31 +197,29 @@ function CashForecastPlot({
             x: "timestamp",
             y1: 0,
             y2: "value",
-            fill: "var(--color-info)",
+            fill: chartColors.balance,
             fillOpacity: 0.1,
           }),
         ),
         decorative(
           ruleY([first], {
             y: () => 0,
-            stroke: forecast.below_zero
-              ? "var(--color-destructive)"
-              : "var(--utility-border-primary)",
+            stroke: forecast.below_zero ? chartColors.negative : chartColors.grid,
             strokeDasharray: "4 4",
           }),
         ),
         lineY(points, {
           x: "timestamp",
           y: "value",
-          stroke: "var(--color-info)",
+          stroke: chartColors.balance,
           strokeWidth: 2.5,
         }),
-        decorative(dot([last], { x: "timestamp", y: "value", fill: "var(--color-info)", r: 3.5 })),
+        decorative(dot([last], { x: "timestamp", y: "value", fill: chartColors.balance, r: 3.5 })),
         decorative(
           dot(firstNegative === undefined ? [] : [firstNegative], {
             x: "timestamp",
             y: "value",
-            fill: "var(--color-warning)",
+            fill: chartColors.warning,
             r: 6,
           }),
         ),
@@ -238,14 +227,14 @@ function CashForecastPlot({
           dot(lowest, {
             x: "timestamp",
             y: "value",
-            fill: "var(--color-destructive)",
+            fill: chartColors.negative,
             r: 5,
           }),
         ),
         crosshair({
-          x: { stroke: "var(--utility-text-subdued)", strokeDasharray: "4 4" },
+          x: { stroke: chartColors.comparison, strokeDasharray: "4 4" },
           y: false,
-          marker: { radius: 4, fill: "var(--color-info)", stroke: "var(--color-container)" },
+          marker: { radius: 4, fill: chartColors.balance, stroke: chartColors.container },
         }),
       ],
       focus: "group-x",

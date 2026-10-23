@@ -41,6 +41,16 @@ The web app also serves as the surface rendered by the macOS desktop app.
 Collapsing a home dashboard section reduces it to its header without reserving
 blank chart space. Expanding it restores the section's configured chart sizing.
 
+The SPA's home, account, and dashboard-source charts use TanStack Charts with
+shared light/dark styling and keyboard-accessible value inspection. Tooltips
+announce keyboard changes without announcing every mouse movement. Money-flow
+bars compare both income and expenses; spending comparisons align calendar-day
+positions without inventing future activity. Outflow slices and category rows
+share highlighting and retain category/date-scoped transaction links.
+Account and home net-worth pan/zoom stays local rather than refetching or changing
+the URL; touch devices retain normal scrolling. This chart cutover does not
+change the separate ERB/Stimulus charts or printed reports.
+
 The home **Cashflow** Sankey adapts node spacing to graph density and uses
 category-colored gradient ribbons. Crowded labels yield to larger categories;
 hovering or using the chart's arrow-key navigation reveals each category's full

@@ -1,7 +1,9 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod/mini";
+import { Chart } from "@tanstack/charts/react";
+import { spendingDefinition } from "../../charts/comparison";
 import { useSpaPaths } from "../api/paths";
 import { Icon } from "../icon";
 import { HomeApiError } from "./home-api";
@@ -88,6 +90,8 @@ export type SpendingTrendText = {
   noData: string;
   loading: string;
   loadError: string;
+  chartLabel: string;
+  chartInstructions: string;
 };
 
 const DEFAULT_TEXT: SpendingTrendText = {
@@ -97,7 +101,19 @@ const DEFAULT_TEXT: SpendingTrendText = {
   noData: "No spending data for this month",
   loading: "Loading…",
   loadError: "Spending could not be loaded.",
+  chartLabel: "Cumulative spending comparison",
+  chartInstructions: "Use the left and right arrow keys to compare values.",
 };
+
+export function resolveSpendingTrendText(
+  homeText: Record<string, string | undefined>,
+): SpendingTrendText {
+  return {
+    ...DEFAULT_TEXT,
+    chartLabel: homeText.spending_trend_chart_label ?? DEFAULT_TEXT.chartLabel,
+    chartInstructions: homeText.spending_trend_chart_instructions ?? DEFAULT_TEXT.chartInstructions,
+  };
+}
 
 function lastTwelveMonths(): string[] {
   const out: string[] = [];
@@ -109,228 +125,27 @@ function lastTwelveMonths(): string[] {
   return out;
 }
 
-function formatTickCompact(value: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      notation: "compact",
-      maximumFractionDigits: 1,
-    }).format(value);
-  } catch {
-    return String(value);
-  }
-}
-
-function formatTooltipMoney(value: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(value);
-  } catch {
-    return String(value);
-  }
-}
-
-function SpendingTrendChart({
-  data,
-  currency,
-  currentLabel,
-  previousLabel,
-}: {
-  data: SpendingTrendData;
-  currency: string;
-  currentLabel: string;
-  previousLabel: string;
-}) {
-  const [hoverDay, setHoverDay] = useState<number | null>(null);
-
-  const width = 1000;
-  const height = 208;
-  const margin = { top: 8, right: 52, bottom: 24, left: 4 };
-  const innerWidth = width - margin.left - margin.right;
-  const innerHeight = height - margin.top - margin.bottom;
-  const { current, previous, days, axis_labels: axisLabels } = data;
-
-  const maxValue = useMemo(
-    () => Math.max(0, ...current.map((p) => p.value), ...previous.map((p) => p.value)),
-    [current, previous],
+function SpendingTrendChart({ data, text }: { data: SpendingTrendData; text: SpendingTrendText }) {
+  const definition = useMemo(
+    () =>
+      spendingDefinition(data, {
+        currency: data.current_total.currency,
+        locale: document.documentElement.lang || undefined,
+        currentLabel: data.month_label,
+        previousLabel: data.previous_label,
+      }),
+    [data],
   );
-  const top = maxValue * 1.05;
-
-  const ticks = useMemo(() => {
-    const target = top / 4;
-    const magnitude = 10 ** Math.floor(Math.log10(Math.max(1, target)));
-    const ratio = target / magnitude;
-    const step = magnitude * (ratio >= 5 ? 5 : ratio >= 2 ? 2 : 1);
-    const out: number[] = [];
-    for (let v = 0; v <= top + step / 2; v += step) out.push(Math.round(v));
-    return out.length > 0 ? out : [0];
-  }, [top]);
-
-  const tickDays = useMemo(() => {
-    const span =
-      typeof window !== "undefined" && window.innerWidth < 640
-        ? Math.min(days, data.current_days)
-        : days;
-    return [...new Set([1, Math.round((1 + span) / 2), span])];
-  }, [days, data]);
-
-  const currentByDay = useMemo(() => new Map(current.map((p) => [p.day, p])), [current]);
-  const previousByDay = useMemo(() => new Map(previous.map((p) => [p.day, p])), [previous]);
-
-  if (maxValue <= 0) return null;
-
-  const pointX = (day: number) => margin.left + ((day - 1) / Math.max(1, days - 1)) * innerWidth;
-  const pointY = (value: number) => margin.top + innerHeight - (value / top) * innerHeight;
-
-  const linePath = (points: SpendingTrendPoint[]) =>
-    points
-      .map(
-        (p, i) => `${i === 0 ? "M" : "L"}${pointX(p.day).toFixed(1)},${pointY(p.value).toFixed(1)}`,
-      )
-      .join(" ");
-
-  const hoveredCurrent = hoverDay === null ? undefined : currentByDay.get(hoverDay);
-  const hoveredPrevious = hoverDay === null ? undefined : previousByDay.get(hoverDay);
-  const hoveredLabel = hoveredCurrent ?? hoveredPrevious;
-  const currentEndpoint = current.at(-1);
-  const tooltipX = hoverDay === null ? 0 : pointX(hoverDay);
 
   return (
-    <div className="relative w-full">
-      <div
-        onMouseLeave={() => {
-          setHoverDay(null);
-        }}
-        onMouseMove={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          const px = ((event.clientX - rect.left) / rect.width) * width - margin.left;
-          const dayFloat = 1 + (px / innerWidth) * (days - 1);
-          setHoverDay(Math.max(1, Math.min(days, Math.round(dayFloat))));
-        }}
-      >
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className="h-52 w-full"
-          aria-label="Cumulative spending chart"
-        >
-          {ticks.map((tick) => (
-            <g key={tick}>
-              <line
-                x1={margin.left}
-                x2={margin.left + innerWidth}
-                y1={pointY(tick)}
-                y2={pointY(tick)}
-                stroke="var(--color-gray-300)"
-                strokeDasharray="4, 4"
-                strokeOpacity={0.6}
-              />
-              <text
-                x={margin.left + innerWidth + 8}
-                y={pointY(tick) + 4}
-                fontSize={12}
-                fill="var(--color-secondary)"
-              >
-                {formatTickCompact(tick, currency)}
-              </text>
-            </g>
-          ))}
-          {tickDays.map((day) => (
-            <text
-              key={day}
-              x={pointX(day)}
-              y={height - 6}
-              textAnchor={day === 1 ? "start" : day === days ? "end" : "middle"}
-              fontSize={12}
-              fill="var(--color-secondary)"
-            >
-              {axisLabels[day - 1] ?? String(day)}
-            </text>
-          ))}
-          {previous.length > 0 ? (
-            <path
-              d={linePath(previous)}
-              fill="none"
-              stroke="var(--color-gray-400)"
-              strokeWidth={1.5}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-          ) : null}
-          {current.length > 0 ? (
-            <path
-              d={linePath(current)}
-              fill="none"
-              stroke="var(--color-success)"
-              strokeWidth={2}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-          ) : null}
-          {currentEndpoint !== undefined ? (
-            <circle
-              cx={pointX(currentEndpoint.day)}
-              cy={pointY(currentEndpoint.value)}
-              r={3.5}
-              fill="var(--color-success)"
-            />
-          ) : null}
-          {hoverDay !== null ? (
-            <line
-              x1={tooltipX}
-              x2={tooltipX}
-              y1={margin.top}
-              y2={margin.top + innerHeight}
-              stroke="currentColor"
-              strokeDasharray="4, 4"
-              className="text-subdued"
-            />
-          ) : null}
-          {hoveredCurrent !== undefined && hoverDay !== null ? (
-            <circle
-              cx={tooltipX}
-              cy={pointY(hoveredCurrent.value)}
-              r={4}
-              fill="var(--color-success)"
-              pointerEvents="none"
-            />
-          ) : null}
-          {hoveredPrevious !== undefined && hoverDay !== null ? (
-            <circle
-              cx={tooltipX}
-              cy={pointY(hoveredPrevious.value)}
-              r={4}
-              fill="var(--color-gray-400)"
-              pointerEvents="none"
-            />
-          ) : null}
-        </svg>
-      </div>
-      {hoverDay !== null && hoveredLabel !== undefined ? (
-        <div className="pointer-events-none absolute z-20 rounded-lg border border-primary bg-container p-3 text-xs shadow-md">
-          <div className="mb-1 text-xs text-secondary">{hoveredLabel.date_formatted}</div>
-          <div className="space-y-1">
-            {hoveredCurrent !== undefined ? (
-              <div className="flex items-center gap-1.5 font-medium tabular-nums text-primary">
-                <span
-                  className="inline-block size-2 rounded-full"
-                  style={{ backgroundColor: "var(--color-success)" }}
-                />
-                {currentLabel}: {formatTooltipMoney(hoveredCurrent.value, currency)}
-              </div>
-            ) : null}
-            {hoveredPrevious !== undefined ? (
-              <div className="flex items-center gap-1.5 font-medium tabular-nums text-primary">
-                <span
-                  className="inline-block size-2 rounded-full"
-                  style={{ backgroundColor: "var(--color-gray-400)" }}
-                />
-                {previousLabel}: {formatTooltipMoney(hoveredPrevious.value, currency)}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <Chart
+      definition={definition}
+      height={208}
+      className="w-full"
+      ariaLabel={text.chartLabel}
+      ariaDescription={text.chartInstructions}
+      tabIndex={0}
+    />
   );
 }
 
@@ -447,12 +262,7 @@ export function SpendingTrendWidget({
           </div>
           {hasData ? (
             <div className="privacy-sensitive min-h-52 w-full">
-              <SpendingTrendChart
-                data={data}
-                currency={data.current_total.currency}
-                currentLabel={data.month_label}
-                previousLabel={data.previous_label}
-              />
+              <SpendingTrendChart data={data} text={text} />
             </div>
           ) : (
             <div className="flex h-52 w-full items-center justify-center">

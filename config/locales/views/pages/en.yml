@@ -139,6 +139,8 @@ en:
         add_investment: "Add an investment account to track your portfolio"
       money_flow:
         title: "Money In / Out"
+        chart_label: "Income and expenses by month"
+        chart_instructions: "Use the left and right arrow keys to compare values."
         date_range: "%{start_date} to %{end_date}"
         month_picker_aria_label: "Select month"
         filter_accounts: "Filter accounts (%{count})"
@@ -152,6 +154,8 @@ en:
         expenses: "Expenses"
       spending_trend:
         title: "Spending"
+        chart_label: "Cumulative spending comparison"
+        chart_instructions: "Use the left and right arrow keys to compare values."
         date_range: "%{start_date} to %{end_date}"
         date_range_short: "%{start_date} - %{end_day}, %{year}"
         date_range_short_single: "%{date}, %{year}"

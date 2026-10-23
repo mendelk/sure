@@ -4,6 +4,7 @@ import { z } from "zod/mini";
 import { useSpaPaths } from "../api/paths";
 import { CategoryIcon } from "../icon";
 import { HomeApiError } from "./home-api";
+import { DonutChart } from "../components/donut-chart";
 
 const OutflowsCategorySchema = z.object({
   id: z.string(),
@@ -92,111 +93,65 @@ function categoryTransactionsHref(
   return `/transactions?${params.toString()}`;
 }
 
-function DonutChart({
+function OutflowsChart({
   categories,
   totalFormatted,
+  currencySymbol,
+  totalLabel,
   hoveredId,
+  listHoveredId,
   period,
   onHover,
 }: {
   categories: OutflowsCategory[];
   totalFormatted: string;
+  currencySymbol: string;
+  totalLabel: string;
   hoveredId: string | null;
+  listHoveredId: string | null;
   period: { start_date: string; end_date: string };
   onHover: (id: string | null) => void;
 }) {
-  const size = 100;
-  const radius = 38;
-  const stroke = 12;
-  const total = categories.reduce((sum, c) => sum + c.amount, 0);
-
-  const segments = useMemo(() => {
-    if (total <= 0) return [];
-    const gap = 0.005;
-    let angle = -Math.PI / 2;
-    return categories.map((category) => {
-      const fraction = category.amount / total;
-      const sweep = Math.max(0.02, fraction * Math.PI * 2 - gap);
-      const start = angle + gap / 2;
-      const end = start + sweep;
-      angle = end + gap / 2;
-      const large = sweep > Math.PI ? 1 : 0;
-      const x1 = size / 2 + radius * Math.cos(start);
-      const y1 = size / 2 + radius * Math.sin(start);
-      const x2 = size / 2 + radius * Math.cos(end);
-      const y2 = size / 2 + radius * Math.sin(end);
-      return {
-        category,
-        d: `M${x1.toFixed(2)},${y1.toFixed(2)} A${radius},${radius} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)}`,
-      };
-    });
-  }, [categories, total]);
-
-  const hovered = hoveredId === null ? undefined : categories.find((c) => c.id === hoveredId);
-
+  const slices = useMemo(
+    () =>
+      categories.map((category) => ({ ...category, label: category.name, value: category.amount })),
+    [categories],
+  );
+  const hovered = categories.find((category) => category.id === hoveredId);
   return (
-    <div className="relative h-[300px]">
-      <div
-        onMouseLeave={() => {
-          onHover(null);
-        }}
-      >
-        <svg viewBox={`0 0 ${size} ${size}`} className="size-full" aria-label={totalFormatted}>
-          {segments.map(({ category, d }) => {
-            const dimmed = hoveredId !== null && hoveredId !== category.id;
-            return (
-              <path
-                key={category.id}
-                d={d}
-                fill="none"
-                stroke={
-                  dimmed ? "var(--budget-unallocated-fill, var(--color-gray-200))" : category.color
-                }
-                strokeWidth={stroke}
-                strokeLinecap="round"
-                opacity={0.9}
-                data-segment-id={category.id}
-                style={{ pointerEvents: "all", cursor: category.clickable ? "pointer" : "default" }}
-                onMouseEnter={() => {
-                  onHover(category.id);
-                }}
-                onClick={() => {
-                  if (category.clickable)
-                    window.location.href = categoryTransactionsHref(category, period);
-                }}
-              >
-                <title>{category.name}</title>
-              </path>
-            );
-          })}
-        </svg>
-      </div>
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        {hovered !== undefined ? (
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-sm text-secondary">{hovered.name}</p>
-            <p className="text-3xl font-medium whitespace-nowrap text-primary privacy-sensitive">
-              {hovered.amount.toLocaleString()}
-            </p>
-            <p className="text-sm text-secondary privacy-sensitive">
-              {typeof hovered.percentage === "number"
-                ? hovered.percentage
-                : hovered.percentage.replace(/%$/u, "")}
-              %
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center">
-            <div className="mb-2 text-sm text-secondary">
-              <span>{DEFAULT_TEXT.totalOutflows}</span>
-            </div>
-            <div className="text-3xl font-medium whitespace-nowrap text-primary privacy-sensitive">
-              {totalFormatted}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    <DonutChart
+      slices={slices}
+      ariaLabel={totalLabel}
+      opacity={0.9}
+      highlightedId={listHoveredId}
+      onHover={onHover}
+      onSelect={(category) => {
+        if (category.clickable) window.location.href = categoryTransactionsHref(category, period);
+      }}
+    >
+      {hovered !== undefined ? (
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-sm text-secondary">{hovered.name}</p>
+          <p className="text-3xl font-medium whitespace-nowrap text-primary privacy-sensitive">
+            {currencySymbol}
+            {hovered.amount.toLocaleString()}
+          </p>
+          <p className="text-sm text-secondary privacy-sensitive">
+            {typeof hovered.percentage === "number"
+              ? hovered.percentage
+              : hovered.percentage.replace(/%$/u, "")}
+            %
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center">
+          <p className="mb-2 text-sm text-secondary">{totalLabel}</p>
+          <p className="text-3xl font-medium whitespace-nowrap text-primary privacy-sensitive">
+            {totalFormatted}
+          </p>
+        </div>
+      )}
+    </DonutChart>
   );
 }
 
@@ -215,7 +170,9 @@ export function OutflowsDonutWidget({
       !(error instanceof HomeApiError && error.status < 500) && failureCount < 2,
   });
   const data = query.data;
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [listHoveredId, setHoveredId] = useState<string | null>(null);
+  const [chartHoveredId, setChartHoveredId] = useState<string | null>(null);
+  const hoveredId = listHoveredId ?? chartHoveredId;
 
   return (
     <div id="outflows-donut-section" className="@container">
@@ -227,12 +184,15 @@ export function OutflowsDonutWidget({
         ) : (
           <div className="flex flex-col items-center gap-8 @2xl:flex-row">
             <div className="w-full max-w-[300px] px-4 @2xl:w-1/3">
-              <DonutChart
+              <OutflowsChart
                 categories={data.categories}
                 totalFormatted={data.total_formatted}
+                currencySymbol={data.currency_symbol}
+                totalLabel={text.totalOutflows}
                 hoveredId={hoveredId}
+                listHoveredId={listHoveredId}
                 period={data.period}
-                onHover={setHoveredId}
+                onHover={setChartHoveredId}
               />
             </div>
             <div className="w-full space-y-1 overflow-x-auto rounded-xl bg-container-inset p-1 @2xl:w-2/3">
@@ -261,6 +221,12 @@ export function OutflowsDonutWidget({
                         href={categoryTransactionsHref(category, data.period)}
                         data-category-id={category.id}
                         aria-label={`${category.name}: ${category.amount.toLocaleString()}`}
+                        onFocus={() => {
+                          setHoveredId(category.id);
+                        }}
+                        onBlur={() => {
+                          setHoveredId(null);
+                        }}
                         className="group mx-3 flex items-center justify-between gap-3 rounded-lg p-3"
                         onMouseEnter={() => {
                           setHoveredId(category.id);

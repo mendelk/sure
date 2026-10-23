@@ -1,15 +1,24 @@
 // eslint-disable import/max-dependencies -- Reusable chart rendering uses the installed marks, scales, tooltip, and React adapter.
 import { useMemo } from "react";
 import { barY, defineChart, lineY, type ChartTooltipInput } from "@tanstack/charts";
-import { pie, polar, radialArc } from "@tanstack/charts/polar";
 import { Chart } from "@tanstack/charts/react";
 import { scaleBand } from "@tanstack/charts/scales/band";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
 import { scalePoint } from "@tanstack/charts/scales/point";
-import { tooltip } from "@tanstack/charts/tooltip";
+import { chartTheme, chartColors } from "../charts/theme";
+import { chartTooltip } from "../charts/tooltip";
+import { polarDefinition } from "../charts/polar";
 import type { DashboardLayoutProps } from "./dashboard-storage";
 import type { SourceColumn, SourceData } from "./source";
 import type { ReportRowId } from "./ids";
+
+const SOURCE_SLICE_COLORS = [
+  chartColors.balance,
+  chartColors.income,
+  chartColors.warning,
+  chartColors.negative,
+  chartColors.muted,
+] as const;
 
 export type ChartSettings = Omit<DashboardLayoutProps["Chart"], "sourceId" | "id">;
 export type SourceChartPoint = { id: ReportRowId; label: string; value: number; position: number };
@@ -138,59 +147,62 @@ function SourceChartGroupView({
       ),
     [mapping.value.kind, group.currency],
   );
-  const definition = useMemo(() => {
-    const chartTooltip = {
-      use: tooltip,
+  const chart = useMemo(() => {
+    const tooltipOptions = {
+      use: chartTooltip,
       format: ({ datum }) =>
         `${mapping.category.key === "" ? "" : `${mapping.category.label}: ${datum.label}\n`}${mapping.value.label}: ${formatter.format(datum.value)}`,
-    } satisfies ChartTooltipInput<SourceChartPoint>;
+    } satisfies ChartTooltipInput<SourceChartPoint, number, number, "dom">;
     if (chartType === "pie") {
-      const pieData = pie(group.points, { value: (point) => point.value, gapAngle: 0.02 });
-      return defineChart(
-        {
-          marks: [
-            polar({
-              inset: 0,
-              radiusRatio: 0.8,
-              marks: [
-                radialArc(pieData, { key: (point) => point.id, color: (point) => point.label }),
-              ],
-              scales: { angle: null, radius: null },
-            }),
-          ],
-          scales: { x: null, y: null },
-          margin: 0,
-        },
-        { keyboard: true, tooltip: chartTooltip },
-      );
+      return {
+        type: "pie" as const,
+        definition: polarDefinition<SourceChartPoint>(
+          group.points.map((point) => ({
+            ...point,
+            color: SOURCE_SLICE_COLORS[point.position % SOURCE_SLICE_COLORS.length],
+          })),
+          { innerRadiusRatio: 0, radiusRatio: 0.8, gapAngle: 0.02, tooltip: tooltipOptions },
+        ),
+      };
     }
-    return defineChart({
-      marks: [
-        chartType === "bar"
-          ? barY(group.points, { x: "position", y1: 0, y2: "value" })
-          : lineY(group.points, { x: "position", y: "value", points: true }),
-      ],
-      scales: {
-        x: {
-          scale:
-            chartType === "bar" ? () => scaleBand().padding(0.2) : () => scalePoint().padding(0.5),
-          axis: {
-            label: mapping.category.label,
-            ticks: { format: (position: number) => group.points.at(position)?.label ?? "" },
+    return {
+      type: "cartesian" as const,
+      definition: defineChart({
+        theme: chartTheme,
+        marks: [
+          chartType === "bar"
+            ? barY(group.points, { x: "position", y1: 0, y2: "value", fill: chartColors.balance })
+            : lineY(group.points, {
+                x: "position",
+                y: "value",
+                stroke: chartColors.balance,
+                points: true,
+              }),
+        ],
+        scales: {
+          x: {
+            scale:
+              chartType === "bar"
+                ? () => scaleBand().padding(0.2)
+                : () => scalePoint().padding(0.5),
+            axis: {
+              label: mapping.category.label,
+              ticks: { format: (position: number) => group.points.at(position)?.label ?? "" },
+            },
+          },
+          y: {
+            scale: scaleLinear,
+            nice: true,
+            grid: true,
+            axis: {
+              label: [mapping.value.label, group.currency].filter(Boolean).join(" · "),
+              ticks: { format: (value: number) => formatter.format(value) },
+            },
           },
         },
-        y: {
-          scale: scaleLinear,
-          nice: true,
-          grid: true,
-          axis: {
-            label: [mapping.value.label, group.currency].filter(Boolean).join(" · "),
-            ticks: { format: (value: number) => formatter.format(value) },
-          },
-        },
-      },
-      tooltip: chartTooltip,
-    });
+        tooltip: tooltipOptions,
+      }),
+    };
   }, [
     group,
     mapping.category.key,
@@ -203,7 +215,11 @@ function SourceChartGroupView({
   return (
     <div className="min-w-0">
       {group.currency && <p className="mb-2 text-sm font-medium text-primary">{group.currency}</p>}
-      <Chart ariaLabel={chartLabel} definition={definition} height={260} />
+      {chart.type === "pie" ? (
+        <Chart ariaLabel={chartLabel} definition={chart.definition} height={260} />
+      ) : (
+        <Chart ariaLabel={chartLabel} definition={chart.definition} height={260} />
+      )}
       <ul aria-label={chartLabel} className="sr-only">
         {group.points.map((point) => (
           <li key={point.id} className="flex items-baseline justify-between gap-2">

@@ -2,6 +2,8 @@ import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod/mini";
+import { Chart } from "@tanstack/charts/react";
+import { moneyFlowDefinition } from "../../charts/comparison";
 import { useSpaPaths } from "../api/paths";
 import { Icon } from "../icon";
 import { Button } from "../components/button";
@@ -98,6 +100,8 @@ export type MoneyFlowText = {
   scopeHint: string;
   loading: string;
   loadError: string;
+  chartLabel: string;
+  chartInstructions: string;
 };
 
 const DEFAULT_TEXT: MoneyFlowText = {
@@ -114,7 +118,19 @@ const DEFAULT_TEXT: MoneyFlowText = {
     "Shows the months you pick here — independent of the dashboard's time period at the top.",
   loading: "Loading…",
   loadError: "Money flow could not be loaded.",
+  chartLabel: "Income and expenses by month",
+  chartInstructions: "Use the left and right arrow keys to compare values.",
 };
+
+export function resolveMoneyFlowText(homeText: Record<string, string | undefined>): MoneyFlowText {
+  return {
+    ...DEFAULT_TEXT,
+    chartLabel: homeText.money_flow_chart_label ?? DEFAULT_TEXT.chartLabel,
+    chartInstructions: homeText.money_flow_chart_instructions ?? DEFAULT_TEXT.chartInstructions,
+    income: homeText.money_flow_income ?? DEFAULT_TEXT.income,
+    expenses: homeText.money_flow_expenses ?? DEFAULT_TEXT.expenses,
+  };
+}
 
 function lastTwelveMonths(): string[] {
   const out: string[] = [];
@@ -136,115 +152,29 @@ function monthLabel(iso: string): string {
   });
 }
 
-function formatTooltipValue(value: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return String(value);
-  }
-}
+function MoneyFlowChart({ data, text }: { data: MoneyFlowData; text: MoneyFlowText }) {
+  const definition = useMemo(
+    () =>
+      moneyFlowDefinition(data.bars, {
+        currency: data.income.currency,
+        locale: document.documentElement.lang || undefined,
+        incomeLabel: text.income,
+        expenseLabel: text.expenses,
+      }),
+    [data.bars, data.income.currency, text.income, text.expenses],
+  );
 
-function MoneyFlowChart({ data, currency }: { data: MoneyFlowData; currency: string }) {
-  const [hover, setHover] = useState<{ bar: number; key: "income" | "expense" } | null>(null);
-  const bars = data.bars;
-
-  const width = 640;
-  const height = 176;
-  const margin = { top: 16, right: 4, bottom: 28, left: 4 };
-  const innerWidth = width - margin.left - margin.right;
-  const innerHeight = height - margin.top - margin.bottom;
-  const maxValue =
-    bars.length > 0 ? Math.max(1, ...bars.map((bar) => Math.max(bar.income, bar.expense))) : 1;
-  const groupWidth = bars.length > 0 ? innerWidth / bars.length : innerWidth;
-  const barWidth = Math.min(22, (groupWidth * 0.7) / 2);
-  const ceiling = maxValue * 1.1;
-
-  if (bars.length === 0) return null;
-
-  const hovered = hover === null ? undefined : bars[hover.bar];
+  if (data.bars.length === 0) return null;
 
   return (
-    <div className="relative w-full">
-      <div
-        onMouseLeave={() => {
-          setHover(null);
-        }}
-      >
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className="h-44 w-full"
-          aria-label={`${DEFAULT_TEXT.income} / ${DEFAULT_TEXT.expenses} chart`}
-        >
-          {bars.map((bar, index) => {
-            const groupX = margin.left + index * groupWidth;
-            const centerX = groupX + groupWidth / 2;
-            const incomeHeight =
-              bar.income > 0 ? Math.max(2, (bar.income / ceiling) * innerHeight) : 0;
-            const expenseHeight =
-              bar.expense > 0 ? Math.max(2, (bar.expense / ceiling) * innerHeight) : 0;
-            return (
-              <g key={bar.date}>
-                <rect
-                  x={centerX - barWidth - 2}
-                  y={margin.top + innerHeight - incomeHeight}
-                  width={barWidth}
-                  height={incomeHeight}
-                  rx={3}
-                  fill="var(--color-success)"
-                  fillOpacity={bar.partial ? 0.5 : 1}
-                >
-                  <title>{`${bar.label}: ${DEFAULT_TEXT.income}`}</title>
-                </rect>
-                <rect
-                  x={centerX + 2}
-                  y={margin.top + innerHeight - expenseHeight}
-                  width={barWidth}
-                  height={expenseHeight}
-                  rx={3}
-                  fill="var(--color-gray-400)"
-                  fillOpacity={bar.partial ? 0.5 : 1}
-                >
-                  <title>{`${bar.label}: ${DEFAULT_TEXT.expenses}`}</title>
-                </rect>
-                <text
-                  x={centerX}
-                  y={height - 8}
-                  textAnchor="middle"
-                  fontSize={12}
-                  fontWeight={bar.highlighted ? 600 : 500}
-                  fill={bar.highlighted ? "var(--color-primary)" : "var(--color-secondary)"}
-                  onMouseEnter={() => {
-                    setHover({ bar: index, key: "income" });
-                  }}
-                >
-                  {bar.short_label.length > 0 ? bar.short_label : bar.label}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-      {hovered !== undefined && hover !== null ? (
-        <div className="pointer-events-none absolute z-20 rounded-lg border border-primary bg-container p-3 text-xs shadow-md">
-          <div className="mb-1 text-secondary">{hovered.label}</div>
-          <div className="flex items-center gap-1.5 font-medium tabular-nums text-primary">
-            <span
-              className="inline-block size-2 rounded-full"
-              style={{
-                backgroundColor:
-                  hover.key === "income" ? "var(--color-success)" : "var(--color-gray-400)",
-              }}
-            />
-            {hover.key === "income" ? DEFAULT_TEXT.income : DEFAULT_TEXT.expenses}:{" "}
-            {formatTooltipValue(hovered[hover.key], currency)}
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <Chart
+      definition={definition}
+      height={176}
+      className="w-full"
+      ariaLabel={text.chartLabel}
+      ariaDescription={text.chartInstructions}
+      tabIndex={0}
+    />
   );
 }
 
@@ -433,7 +363,7 @@ export function MoneyFlowWidget({
               </span>
             </div>
             <div className="privacy-sensitive h-44 w-full">
-              <MoneyFlowChart data={data} currency={data.income.currency} />
+              <MoneyFlowChart data={data} text={text} />
             </div>
           </div>
 

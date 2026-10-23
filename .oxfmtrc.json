@@ -8,6 +8,7 @@
   "ignorePatterns": [
     "**/*",
     "!app/javascript/spa/**",
+    "!app/javascript/charts/**",
     "app/javascript/spa/routeTree.gen.ts",
     "app/javascript/spa/api/generated.ts"
   ]

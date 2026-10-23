@@ -36,6 +36,32 @@ and properties retain their specialized `/loans/:id/edit` and
 `/properties/:id/edit` SPA editors. Keep account-list navigation consistent with
 the account-detail actions so SPA-only settings remain reachable.
 
+## SPA charts
+
+SPA charts use TanStack's native marks, scales, focus, and responsive hosts.
+Shared definitions and infrastructure live in `app/javascript/charts/`:
+semantic theme/colors, accessible native tooltips, UTC calendar-day helpers,
+comparison charts, polar charts, and the specialized Sankey definition.
+Feature components retain financial data, server-formatted money, filters,
+drill-down URLs, center content, and legends.
+
+`DonutChart` shares polar rendering and chart/list focus without rebuilding
+definitions on hover. Source pies use the same polar factory. Account and
+home net-worth charts share `useTimeSeriesInteraction`; callers own the local
+viewport, cancellation restores its origin, editable fields retain focus, and
+coarse pointers keep normal scrolling. Singleton date domains use the shared
+half-day padding without changing the source dates.
+
+The shared tooltip delegates layout/content/lifecycle to TanStack and applies
+design tokens. Pointer updates use `role="tooltip"` with announcements off;
+keyboard updates use `role="status"` with polite announcements. Authored forecast
+markers retain focus ownership so generic focus rings cannot hide risk colors.
+Dashboard reorder keys apply only when the section itself is focused, not when
+an embedded chart or control receives the key.
+
+These shared modules currently serve the SPA only. ERB/Stimulus charts and print
+rendering retain their existing implementations.
+
 ## Account charts
 
 The account SPA's `AccountChartCard` isolates chart-rendering failures behind a
