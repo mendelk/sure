@@ -55,7 +55,8 @@ ru:
         notes_placeholder: Введите заметку, которая будет применена к выбранным операциям
         overview: Обзор
         save: Сохранить
-        tags_label: Теги
+        tags_to_add_label: Теги для добавления
+        tags_to_remove_label: Теги для удаления
         transactions_section: Операции
     categorizes:
       create:

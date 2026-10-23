@@ -17,7 +17,8 @@ es:
         notes_placeholder: Introduce una nota que se aplicará a las transacciones seleccionadas
         overview: Resumen
         save: Guardar
-        tags_label: Etiquetas
+        tags_to_add_label: Etiquetas para añadir
+        tags_to_remove_label: Etiquetas para eliminar
         transactions_section: Transacciones
     unknown_name: Transacción desconocida
     selection_bar:

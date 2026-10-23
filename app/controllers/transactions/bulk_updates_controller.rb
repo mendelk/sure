@@ -21,7 +21,6 @@ class Transactions::BulkUpdatesController < ApplicationController
     entries = transfer_account ? selected_entries : selected_entries.excluding_split_parents
     updated = entries.preload(:entryable).bulk_update!(
       bulk_update_params,
-      update_tags: tags_provided?,
       transfer_account: transfer_account
     )
 
@@ -58,13 +57,6 @@ class Transactions::BulkUpdatesController < ApplicationController
 
     def bulk_update_params
       params.require(:bulk_update)
-            .permit(:date, :notes, :name, :category_id, :merchant_id, :transfer_account_id, entry_ids: [], tag_ids: [])
-    end
-
-    # Check if tag_ids was explicitly provided in the request.
-    # This distinguishes between "user wants to update tags" vs "user didn't touch tags field".
-    def tags_provided?
-      bulk_update = params[:bulk_update]
-      bulk_update.respond_to?(:key?) && bulk_update.key?(:tag_ids)
+            .permit(:date, :notes, :name, :category_id, :merchant_id, :transfer_account_id, entry_ids: [], tag_ids_to_add: [], tag_ids_to_remove: [])
     end
 end

@@ -56,7 +56,8 @@ pl:
           transakcji
         overview: Podsumowanie
         save: Zapisz
-        tags_label: Tagi
+        tags_to_add_label: Tagi do dodania
+        tags_to_remove_label: Tagi do usunięcia
         transactions_section: Transakcje
     categorizes:
       create:

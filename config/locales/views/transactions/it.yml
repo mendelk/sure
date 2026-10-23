@@ -17,7 +17,8 @@ it:
         notes_placeholder: Inserisci una nota da applicare alle transazioni selezionate
         overview: Panoramica
         save: Salva
-        tags_label: Etichette
+        tags_to_add_label: Etichette da aggiungere
+        tags_to_remove_label: Etichette da rimuovere
         transactions_section: Transazioni
     unknown_name: Transazione sconosciuta
     selection_bar:

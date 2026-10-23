@@ -92,8 +92,8 @@ export function BulkUpdateDrawer({
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<CategoryId | "">("");
   const [merchantId, setMerchantId] = useState<MerchantId | "">("");
-  const [tagIds, setTagIds] = useState<TagId[]>([]);
-  const [tagsTouched, setTagsTouched] = useState(false);
+  const [tagIdsToAdd, setTagIdsToAdd] = useState<TagId[]>([]);
+  const [tagIdsToRemove, setTagIdsToRemove] = useState<TagId[]>([]);
   const [notes, setNotes] = useState("");
   const [transferAccountId, setTransferAccountId] = useState<AccountId | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -148,10 +148,9 @@ export function BulkUpdateDrawer({
       if (categoryId !== "") formData.set("bulk_update[category_id]", categoryId);
       if (merchantId !== "") formData.set("bulk_update[merchant_id]", merchantId);
       if (notes.trim().length > 0) formData.set("bulk_update[notes]", notes.trim());
-      if (tagsTouched) {
-        if (tagIds.length === 0) formData.append("bulk_update[tag_ids][]", "");
-        else for (const tagId of tagIds) formData.append("bulk_update[tag_ids][]", tagId);
-      }
+      for (const tagId of tagIdsToAdd) formData.append("bulk_update[tag_ids_to_add][]", tagId);
+      for (const tagId of tagIdsToRemove)
+        formData.append("bulk_update[tag_ids_to_remove][]", tagId);
 
       const response = await fetch(bootstrap.railsPaths.bulkUpdate, {
         method: "POST",
@@ -331,23 +330,40 @@ export function BulkUpdateDrawer({
                 />
               </div>
 
-              <div className="space-y-1">
-                <label
-                  className="block text-xs font-medium text-secondary"
-                  htmlFor="bulk-update-tags"
-                >
-                  {text.tags_label}
-                </label>
+              <fieldset className="space-y-1">
+                <legend className="text-xs font-medium text-secondary">
+                  {text.tags_to_add_label}
+                </legend>
                 <TagSelect
                   bootstrap={bootstrap}
+                  disabled={isSubmitting || referenceQuery.isPending}
                   onSelect={(ids) => {
-                    setTagIds(ids);
-                    setTagsTouched(true);
+                    setTagIdsToAdd(ids);
+                    setTagIdsToRemove((current) => current.filter((id) => !ids.includes(id)));
                   }}
-                  selectedTagIds={tagIds}
+                  selectedTagIds={tagIdsToAdd}
                   tags={tags}
+                  triggerLabel={text.tags_to_add_label}
                 />
-              </div>
+              </fieldset>
+
+              <fieldset className="space-y-1">
+                <legend className="text-xs font-medium text-secondary">
+                  {text.tags_to_remove_label}
+                </legend>
+                <TagSelect
+                  allowCreate={false}
+                  bootstrap={bootstrap}
+                  disabled={isSubmitting || referenceQuery.isPending}
+                  onSelect={(ids) => {
+                    setTagIdsToRemove(ids);
+                    setTagIdsToAdd((current) => current.filter((id) => !ids.includes(id)));
+                  }}
+                  selectedTagIds={tagIdsToRemove}
+                  tags={tags}
+                  triggerLabel={text.tags_to_remove_label}
+                />
+              </fieldset>
 
               <FormField
                 as="textarea"

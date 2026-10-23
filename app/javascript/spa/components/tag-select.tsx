@@ -7,6 +7,7 @@ import type { TagId } from "../ids";
 import { SearchablePicker, type PickerOption } from "./searchable-picker";
 
 export function TagSelect({
+  allowCreate = true,
   bootstrap,
   disabled,
   error,
@@ -21,6 +22,7 @@ export function TagSelect({
   portal = true,
   onSelectSingle,
 }: {
+  allowCreate?: boolean;
   bootstrap: Pick<SpaBootstrap, "apiPaths" | "railsPaths">;
   disabled?: boolean;
   error?: string;
@@ -60,6 +62,7 @@ export function TagSelect({
   const loading = tags === undefined && reference.isPending;
   const referenceError = tags === undefined ? reference.error?.message : undefined;
   const canCreate =
+    allowCreate &&
     !loading &&
     referenceError === undefined &&
     trimmedQuery.length > 0 &&

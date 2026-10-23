@@ -17,7 +17,8 @@ vi:
         notes_placeholder: Nhập ghi chú sẽ được áp dụng cho các giao dịch đã chọn
         overview: Tổng quan
         save: Lưu
-        tags_label: Nhãn
+        tags_to_add_label: Nhãn cần thêm
+        tags_to_remove_label: Nhãn cần xóa
         transactions_section: Giao dịch
     unknown_name: Giao dịch không xác định
     selection_bar:

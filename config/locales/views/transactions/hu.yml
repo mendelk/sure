@@ -17,7 +17,8 @@ hu:
         notes_placeholder: Add meg a kiválasztott tranzakciókra alkalmazandó megjegyzést
         overview: Áttekintés
         save: Mentés
-        tags_label: Címkék
+        tags_to_add_label: Hozzáadandó címkék
+        tags_to_remove_label: Eltávolítandó címkék
         transactions_section: Tranzakciók
     unknown_name: Ismeretlen tranzakció
     selection_bar:
