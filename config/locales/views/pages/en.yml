@@ -106,12 +106,14 @@ en:
         add_transaction: "Add transaction"
       cash_forecast:
         title: "Cash Forecast"
+        balance: "Projected balance"
+        instructions: "Use the left and right arrow keys to explore daily balances and scheduled activity."
         starting: "Starting balance"
         ending: "In 30 days"
         low: "Projected low"
+        first_negative: "First negative balance"
         below_zero: "Projected to dip below zero in the next 30 days"
         no_activity: "No upcoming recurring activity"
-        upcoming: "Upcoming"
       no_accounts:
         title: "No accounts yet"
         description: "Add accounts to display net worth data"
