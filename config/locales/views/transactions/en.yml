@@ -22,7 +22,8 @@ en:
         notes_placeholder: Enter a note that will be applied to selected transactions
         overview: Overview
         save: Save
-        tags_label: Tags
+        tags_to_add_label: Tags to add
+        tags_to_remove_label: Tags to remove
         transfer_label: Transfer counterpart account
         transfer_unchanged: No change
         transfer_description: Creates a new opposite transaction in this account for every selected transaction. Existing imported transactions are not matched.

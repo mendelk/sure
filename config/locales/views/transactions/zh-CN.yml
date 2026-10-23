@@ -17,7 +17,8 @@ zh-CN:
         notes_placeholder: 输入将应用于所选交易的备注
         overview: 概览
         save: 保存
-        tags_label: 标签
+        tags_to_add_label: 要添加的标签
+        tags_to_remove_label: 要移除的标签
         transactions_section: 交易
     unknown_name: 未知交易
     selection_bar:

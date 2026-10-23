@@ -53,7 +53,8 @@ ca:
         notes_placeholder: Introdueix una nota que s'aplicarà a les transaccions seleccionades
         overview: Resum
         save: Desa
-        tags_label: Etiquetes
+        tags_to_add_label: Etiquetes per afegir
+        tags_to_remove_label: Etiquetes per eliminar
         transactions_section: Transaccions
     categorizes:
       create:

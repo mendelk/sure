@@ -280,7 +280,8 @@ de:
         notes_placeholder: Notiz, die für die gewählten Transaktionen gilt
         overview: Übersicht
         save: Speichern
-        tags_label: Tags
+        tags_to_add_label: Tags hinzufügen
+        tags_to_remove_label: Tags entfernen
         transactions_section: Transaktionen
     categorizes:
       create:

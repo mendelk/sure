@@ -561,18 +561,12 @@ class Entry < ApplicationRecord
 
     # Bulk update entries with the given parameters.
     #
-    # Tags are handled separately from other entryable attributes because they use
-    # a join table (taggings) rather than a direct column. This means:
-    # - category_id: nil means "no category" (column value)
-    # - tag_ids: [] means "delete all taggings" (join table operation)
-    #
-    # To avoid accidentally clearing tags when only updating other fields,
-    # tags are only modified when explicitly requested via update_tags: true.
+    # Tag changes are incremental: preserve unrelated tags and let removal win
+    # if the same tag is submitted in both lists. Empty lists leave tags unchanged.
     #
     # @param bulk_update_params [Hash] The parameters to update
-    # @param update_tags [Boolean] Whether to update tags (default: false)
     # @param transfer_account [Account, nil] Create a confirmed counterpart for each selected transaction
-    def bulk_update!(bulk_update_params, update_tags: false, transfer_account: nil)
+    def bulk_update!(bulk_update_params, transfer_account: nil)
       bulk_attributes = {
         date: bulk_update_params[:date],
         notes: bulk_update_params[:notes],
@@ -583,7 +577,9 @@ class Entry < ApplicationRecord
         }.compact_blank
       }.compact_blank
 
-      tag_ids = Array.wrap(bulk_update_params[:tag_ids]).reject(&:blank?)
+      tag_ids_to_add = Array.wrap(bulk_update_params[:tag_ids_to_add]).reject(&:blank?)
+      tag_ids_to_remove = Array.wrap(bulk_update_params[:tag_ids_to_remove]).reject(&:blank?)
+      update_tags = tag_ids_to_add.present? || tag_ids_to_remove.present?
       has_updates = bulk_attributes.present? || update_tags || transfer_account.present?
 
       return 0 unless has_updates
@@ -635,11 +631,10 @@ class Entry < ApplicationRecord
             end
           end
 
-          # Handle tags separately - only when explicitly requested
           if update_tags && entry.transaction?
-            entry.transaction.tag_ids = tag_ids
+            entry.transaction.tag_ids = (entry.transaction.tag_ids | tag_ids_to_add) - tag_ids_to_remove
             entry.transaction.save!
-            entry.entryable.lock_attr!(:tag_ids) if entry.transaction.tags.any?
+            entry.entryable.lock_attr!(:tag_ids)
             changed = true
           end
 

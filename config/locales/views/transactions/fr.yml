@@ -49,7 +49,8 @@ fr:
         notes_placeholder: Saisissez une note qui sera appliquée aux transactions sélectionnées
         overview: Aperçu
         save: Enregistrer
-        tags_label: Balises
+        tags_to_add_label: Étiquettes à ajouter
+        tags_to_remove_label: Étiquettes à retirer
         transactions_section: Opérations
     categorizes:
       create:

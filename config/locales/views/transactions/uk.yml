@@ -16,7 +16,8 @@ uk:
         notes_placeholder: Введіть нотатку, яка буде застосована до вибраних транзакцій
         overview: Огляд
         save: Зберегти
-        tags_label: Теги
+        tags_to_add_label: Теги для додавання
+        tags_to_remove_label: Теги для видалення
         transactions_section: Транзакції
     unknown_name: Невідома транзакція
     selection_bar:

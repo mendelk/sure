@@ -53,7 +53,8 @@ tr:
         notes_placeholder: Seçilen işlemlere uygulanacak bir not girin
         overview: Genel Bakış
         save: Kaydet
-        tags_label: Etiketler
+        tags_to_add_label: Eklenecek etiketler
+        tags_to_remove_label: Kaldırılacak etiketler
         transactions_section: İşlemler
     categorizes:
       create:

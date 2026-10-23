@@ -17,7 +17,8 @@ class Transactions::BulkUpdatesControllerTest < ActionDispatch::IntegrationTest
           date: 1.day.ago.to_date,
           category_id: Category.second.id,
           merchant_id: Merchant.second.id,
-          tag_ids: [ Tag.first.id, Tag.second.id ],
+          tag_ids_to_add: [ Tag.first.id, Tag.second.id ],
+          tag_ids_to_remove: [ Tag.third.id ],
           notes: "Updated note"
         }
       }
@@ -53,13 +54,12 @@ class Transactions::BulkUpdatesControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
-  test "bulk update preserves tags when tag_ids not provided" do
+  test "bulk update preserves tags when no tag changes are provided" do
     transaction_entry = @user.family.entries.transactions.first
     original_tags = [ Tag.first, Tag.second ]
     transaction_entry.transaction.tags = original_tags
     transaction_entry.transaction.save!
 
-    # Update only the category, without providing tag_ids
     post transactions_bulk_update_url, params: {
       bulk_update: {
         entry_ids: [ transaction_entry.id ],
@@ -71,70 +71,82 @@ class Transactions::BulkUpdatesControllerTest < ActionDispatch::IntegrationTest
 
     transaction_entry.reload
     assert_equal Category.second, transaction_entry.transaction.category
-    # Tags should be preserved since tag_ids was not in the request
     assert_equal original_tags.map(&:id).sort, transaction_entry.transaction.tag_ids.sort
   end
 
-  test "bulk update clears tags when tag_ids is blank string array (web multi-select None)" do
-    transaction_entry = @user.family.entries.transactions.first
-    original_tags = [ Tag.first, Tag.second ]
-    transaction_entry.transaction.tags = original_tags
-    transaction_entry.transaction.save!
+  test "bulk update adds tags without replacing each transaction's existing tags" do
+    first = create_transaction(account: accounts(:depository))
+    second = create_transaction(account: accounts(:depository))
+    first.transaction.tags = [ tags(:one) ]
+    second.transaction.tags = [ tags(:three) ]
 
-    # For a multiple select, choosing the blank ("None") option submits a blank value.
+    2.times do
+      post transactions_bulk_update_url, params: {
+        bulk_update: {
+          entry_ids: [ first.id, second.id ],
+          tag_ids_to_add: [ tags(:two).id, tags(:two).id, "" ]
+        }
+      }, as: :json
+
+      assert_response :success
+      assert_equal [ tags(:one).id, tags(:two).id ].sort, first.reload.transaction.tag_ids.sort
+      assert_equal [ tags(:three).id, tags(:two).id ].sort, second.reload.transaction.tag_ids.sort
+    end
+  end
+
+  test "bulk update removes only selected tags including the last tag" do
+    first = create_transaction(account: accounts(:depository))
+    second = create_transaction(account: accounts(:depository))
+    first.transaction.tags = [ tags(:one), tags(:two) ]
+    second.transaction.tags = [ tags(:one) ]
+
     post transactions_bulk_update_url, params: {
       bulk_update: {
-        entry_ids: [ transaction_entry.id ],
-        category_id: Category.second.id,
-        tag_ids: [ "" ]
+        entry_ids: [ first.id, second.id ],
+        tag_ids_to_remove: [ tags(:one).id, tags(:three).id ]
       }
     }
 
     assert_redirected_to transactions_url
-
-    transaction_entry.reload
-    assert_equal Category.second, transaction_entry.transaction.category
-    assert_empty transaction_entry.transaction.tags
+    assert_equal [ tags(:two).id ], first.reload.transaction.tag_ids
+    assert_empty second.reload.transaction.tag_ids
+    assert second.transaction.locked_attributes.key?("tag_ids")
   end
 
-  test "bulk update clears tags when empty tag_ids explicitly provided (JSON)" do
-    transaction_entry = @user.family.entries.transactions.first
-    transaction_entry.transaction.tags = [ Tag.first, Tag.second ]
-    transaction_entry.transaction.save!
-
-    post transactions_bulk_update_url,
-         params: {
-           bulk_update: {
-             entry_ids: [ transaction_entry.id ],
-             category_id: Category.second.id,
-             tag_ids: []
-           }
-         },
-         as: :json
-
-    transaction_entry.reload
-    assert_equal Category.second, transaction_entry.transaction.category
-    assert_empty transaction_entry.transaction.tags
-  end
-
-  test "bulk update replaces tags when tag_ids explicitly provided" do
-    transaction_entry = @user.family.entries.transactions.first
-    transaction_entry.transaction.tags = [ Tag.first ]
-    transaction_entry.transaction.save!
-
-    new_tag = Tag.second
+  test "bulk update combines tag additions and removals with removal taking precedence" do
+    entry = create_transaction(account: accounts(:depository))
+    entry.transaction.tags = [ tags(:one), tags(:three) ]
 
     post transactions_bulk_update_url, params: {
       bulk_update: {
-        entry_ids: [ transaction_entry.id ],
-        tag_ids: [ new_tag.id ]
+        entry_ids: [ entry.id ],
+        tag_ids_to_add: [ tags(:two).id, tags(:one).id ],
+        tag_ids_to_remove: [ tags(:one).id ]
       }
-    }
+    }, as: :json
 
-    assert_redirected_to transactions_url
+    assert_response :success
+    assert_equal [ tags(:two).id, tags(:three).id ].sort, entry.reload.transaction.tag_ids.sort
+  end
 
-    transaction_entry.reload
-    assert_equal [ new_tag.id ], transaction_entry.transaction.tag_ids
+  test "empty tag selections leave existing tags unchanged" do
+    entry = create_transaction(account: accounts(:depository))
+    entry.transaction.tags = [ tags(:one) ]
+
+    [ [], [ "" ] ].each do |empty_selection|
+      post transactions_bulk_update_url, params: {
+        bulk_update: {
+          entry_ids: [ entry.id ],
+          tag_ids_to_add: empty_selection,
+          tag_ids_to_remove: empty_selection,
+          notes: "Updated annotation"
+        }
+      }, as: :json
+
+      assert_response :success
+      assert_equal [ tags(:one).id ], entry.reload.transaction.tag_ids
+      assert_equal "Updated annotation", entry.notes
+    end
   end
 
   test "annotation only bulk edits preserve structural fields and reject mixed writes" do

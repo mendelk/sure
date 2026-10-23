@@ -36,6 +36,16 @@ and properties retain their specialized `/loans/:id/edit` and
 `/properties/:id/edit` SPA editors. Keep account-list navigation consistent with
 the account-detail actions so SPA-only settings remain reachable.
 
+## Bulk transaction tags
+
+The bulk-edit drawer on Transactions and account activity has separate **Tags to
+add** and **Tags to remove** pickers. Changes are incremental for each selected
+transaction; unrelated tags and empty selections stay unchanged. Choosing a tag
+in one picker clears it from the other. The server accepts `tag_ids_to_add` and
+`tag_ids_to_remove`, with removal taking precedence if a request includes both.
+The removal picker only selects existing tags. Explicit tag changes lock the tag
+attribute against enrichment, including when the last tag is removed.
+
 ## SPA charts
 
 SPA charts use TanStack's native marks, scales, focus, and responsive hosts.

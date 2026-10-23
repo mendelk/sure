@@ -17,7 +17,8 @@ zh-TW:
         notes_placeholder: 輸入要套用到所選交易的備註
         overview: 概覽
         save: 儲存
-        tags_label: 標籤
+        tags_to_add_label: 要新增的標籤
+        tags_to_remove_label: 要移除的標籤
         transactions_section: 交易紀錄
     unknown_name: 未知交易
     selection_bar:
