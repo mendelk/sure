@@ -86,6 +86,7 @@ class Account::PageData
           annual_fee: accountable.annual_fee&.to_f,
           expiration_date: accountable.expiration_date&.iso8601,
           payment_due_day: accountable.payment_due_day,
+          minimum_payment_only: accountable.minimum_payment_only,
           payment_due_day_source: accountable.payment_schedule.due_day_source,
           statement_gap_days: CreditCard::PaymentSchedule::STATEMENT_GAP_DAYS)
       when Property

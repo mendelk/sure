@@ -383,6 +383,9 @@ function SupportedEditForm({
   );
   const [expirationDate, setExpirationDate] = useState(str(accountable?.expiration_date));
   const [paymentDueDay, setPaymentDueDay] = useState(num(accountable?.payment_due_day));
+  const [minimumPaymentOnly, setMinimumPaymentOnly] = useState(
+    accountable?.minimum_payment_only ?? false,
+  );
   const [taxTreatment, setTaxTreatment] = useState(str(accountable?.tax_treatment));
   const [institutionName, setInstitutionName] = useState(str(account.institution_name));
   const [institutionDomain, setInstitutionDomain] = useState(str(account.institution_domain));
@@ -424,6 +427,7 @@ function SupportedEditForm({
         if (annualFee.trim().length > 0) nested.annual_fee = annualFee.trim();
         if (expirationDate.trim().length > 0) nested.expiration_date = expirationDate;
         nested.payment_due_day = paymentDueDay.trim().length > 0 ? Number(paymentDueDay) : null;
+        nested.minimum_payment_only = minimumPaymentOnly;
       }
       if (type === "crypto" && taxTreatment.trim().length > 0) nested.tax_treatment = taxTreatment;
       if (Object.keys(nested).length > 0) payload.accountable = nested;
@@ -622,6 +626,20 @@ function SupportedEditForm({
               />
               <p className="text-xs text-secondary">
                 {text.accountable_credit_payment_due_day_hint}
+              </p>
+              <label className="flex items-center gap-2 text-sm text-primary">
+                <input
+                  checked={minimumPaymentOnly}
+                  className="checkbox checkbox--light"
+                  onChange={(e) => {
+                    setMinimumPaymentOnly(e.target.checked);
+                  }}
+                  type="checkbox"
+                />
+                <span>{text.accountable_credit_minimum_payment_only}</span>
+              </label>
+              <p className="text-xs text-secondary">
+                {text.accountable_credit_minimum_payment_only_hint}
               </p>
               <div className="flex items-center gap-2">
                 <FormField
@@ -1343,6 +1361,7 @@ function SupportedNewForm({
   const [annualFee, setAnnualFee] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
   const [paymentDueDay, setPaymentDueDay] = useState("");
+  const [minimumPaymentOnly, setMinimumPaymentOnly] = useState(false);
   const [taxTreatment, setTaxTreatment] = useState("");
   const [loanInitialBalance, setLoanInitialBalance] = useState("");
   const [loanInterestRate, setLoanInterestRate] = useState("");
@@ -1377,6 +1396,7 @@ function SupportedNewForm({
         if (annualFee.trim().length > 0) nested.annual_fee = annualFee.trim();
         if (expirationDate.trim().length > 0) nested.expiration_date = expirationDate;
         nested.payment_due_day = paymentDueDay.trim().length > 0 ? Number(paymentDueDay) : null;
+        nested.minimum_payment_only = minimumPaymentOnly;
       }
       if (accountType === "crypto" && taxTreatment.trim().length > 0)
         nested.tax_treatment = taxTreatment;
@@ -1647,6 +1667,20 @@ function SupportedNewForm({
                 />
                 <p className="text-xs text-secondary">
                   {labels.accountable_credit_payment_due_day_hint}
+                </p>
+                <label className="flex items-center gap-2 text-sm text-primary">
+                  <input
+                    checked={minimumPaymentOnly}
+                    className="checkbox checkbox--light"
+                    onChange={(e) => {
+                      setMinimumPaymentOnly(e.target.checked);
+                    }}
+                    type="checkbox"
+                  />
+                  <span>{labels.accountable_credit_minimum_payment_only}</span>
+                </label>
+                <p className="text-xs text-secondary">
+                  {labels.accountable_credit_minimum_payment_only_hint}
                 </p>
                 <div className="flex items-center gap-2">
                   <FormField

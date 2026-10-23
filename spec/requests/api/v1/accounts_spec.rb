@@ -109,6 +109,7 @@ RSpec.describe 'API V1 Accounts', type: :request do
     end
 
     post 'Create a manual account' do
+      description 'Creates manual accounts. Credit cards default to full statement estimates. Set accountable.minimum_payment_only to true for the requested Citi 1% approximation, without separately modeling issuer floors, interest or fees. A payment_due_day is required to enable payment estimates; bank autopay instructions are unchanged.'
       tags 'Accounts'
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'
@@ -132,6 +133,21 @@ RSpec.describe 'API V1 Accounts', type: :request do
 
       response '201', 'account created' do
         schema '$ref' => '#/components/schemas/AccountDetail'
+
+        run_test!
+      end
+
+      response '201', 'credit card created with minimum payment estimates' do
+        schema '$ref' => '#/components/schemas/AccountDetail'
+
+        let(:body) do
+          {
+            account: {
+              name: 'Minimum payment card', balance: 1000, currency: 'USD', account_type: 'credit_card',
+              accountable: { payment_due_day: 20, minimum_payment_only: true }
+            }
+          }
+        end
 
         run_test!
       end
@@ -203,7 +219,7 @@ RSpec.describe 'API V1 Accounts', type: :request do
     end
 
     patch 'Update an account' do
-      description 'Updates manual and linked accounts. Credit cards accept accountable.payment_due_day (1–31), or null to disable automatic statement payments. An explicit due day configures the automatic read-only card payment series.'
+      description 'Updates manual and linked accounts. Credit cards accept accountable.payment_due_day (1–31), or null to disable statement payment estimates. Set accountable.minimum_payment_only to true for the requested Citi 1% approximation or false for full statement payments (the default). This changes expected payments, not the full statement balance, without separately modeling issuer floors, interest or fees. Existing minimum_payment currency metadata is not used. Bank autopay instructions are unchanged.'
       tags 'Accounts'
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'
@@ -226,6 +242,26 @@ RSpec.describe 'API V1 Accounts', type: :request do
 
       response '200', 'account updated' do
         schema '$ref' => '#/components/schemas/AccountDetail'
+
+        run_test!
+      end
+
+      response '200', 'credit card minimum payment estimates enabled' do
+        schema '$ref' => '#/components/schemas/AccountDetail'
+
+        let(:id) { credit_card.id }
+        let(:body) do
+          { account: { accountable: { payment_due_day: 20, minimum_payment_only: true } } }
+        end
+
+        run_test!
+      end
+
+      response '200', 'credit card full statement payments selected' do
+        schema '$ref' => '#/components/schemas/AccountDetail'
+
+        let(:id) { credit_card.id }
+        let(:body) { { account: { accountable: { minimum_payment_only: false } } } }
 
         run_test!
       end

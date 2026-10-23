@@ -1127,6 +1127,15 @@ components:
             automatic statement payments; short months clamp to their last day. Changes
             recalculate unpaid estimated statements due today or later, preserving
             past statements and recorded payments.'
+        minimum_payment_only:
+          type: boolean
+          default: false
+          description: 'Credit cards only: estimate minimum payments using the requested
+            Citi 1% approximation instead of the default full statement payment. This
+            is not an issuer-accurate formula: no additional issuer floors, interest
+            or fees are modeled. Existing minimum_payment currency metadata is not
+            used, and the full statement balance is unchanged. A payment_due_day is
+            still required to enable estimates. Bank autopay instructions are unchanged.'
         apr:
           type: number
         annual_fee:
@@ -1262,6 +1271,8 @@ components:
           minimum: 1
           maximum: 31
           nullable: true
+        minimum_payment_only:
+          type: boolean
         payment_due_day_source:
           type: string
           nullable: true
@@ -7115,6 +7126,11 @@ paths:
                 "$ref": "#/components/schemas/AccountCollection"
     post:
       summary: Create a manual account
+      description: Creates manual accounts. Credit cards default to full statement
+        estimates. Set accountable.minimum_payment_only to true for the requested
+        Citi 1% approximation, without separately modeling issuer floors, interest
+        or fees. A payment_due_day is required to enable payment estimates; bank autopay
+        instructions are unchanged.
       tags:
       - Accounts
       security:
@@ -7122,7 +7138,7 @@ paths:
       parameters: []
       responses:
         '201':
-          description: account created
+          description: credit card created with minimum payment estimates
           content:
             application/json:
               schema:
@@ -7195,8 +7211,12 @@ paths:
     patch:
       summary: Update an account
       description: Updates manual and linked accounts. Credit cards accept accountable.payment_due_day
-        (1–31), or null to disable automatic statement payments. An explicit due day
-        configures the automatic read-only card payment series.
+        (1–31), or null to disable statement payment estimates. Set accountable.minimum_payment_only
+        to true for the requested Citi 1% approximation or false for full statement
+        payments (the default). This changes expected payments, not the full statement
+        balance, without separately modeling issuer floors, interest or fees. Existing
+        minimum_payment currency metadata is not used. Bank autopay instructions are
+        unchanged.
       tags:
       - Accounts
       security:
@@ -7204,7 +7224,7 @@ paths:
       parameters: []
       responses:
         '200':
-          description: account updated
+          description: credit card full statement payments selected
           content:
             application/json:
               schema:

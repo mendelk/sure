@@ -1,7 +1,10 @@
 class CreditCard < ApplicationRecord
   include Accountable
 
+  MINIMUM_PAYMENT_PERCENTAGE = 1
+
   validates :payment_due_day, numericality: { only_integer: true, in: 1..31 }, allow_nil: true
+  validates :minimum_payment_only, inclusion: { in: [ true, false ] }
   after_update_commit :refresh_payment_schedule
 
   def payment_schedule

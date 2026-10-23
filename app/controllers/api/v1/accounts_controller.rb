@@ -14,7 +14,7 @@ class Api::V1::AccountsController < Api::V1::BaseController
     "Property" => %i[subtype year_built area_unit area_value],
     "Vehicle" => %i[subtype make model year mileage_value mileage_unit],
     "OtherAsset" => %i[subtype],
-    "CreditCard" => %i[subtype available_credit minimum_payment payment_due_day apr annual_fee expiration_date],
+    "CreditCard" => %i[subtype available_credit minimum_payment payment_due_day minimum_payment_only apr annual_fee expiration_date],
     "Loan" => %i[subtype rate_type interest_rate term_months initial_balance start_date
       down_payment insurance_rate insurance_rate_type rate_changes],
     "OtherLiability" => %i[subtype]
@@ -211,7 +211,7 @@ class Api::V1::AccountsController < Api::V1::BaseController
         accountable: [
           :subtype, :tax_treatment, :year_built, :area_unit, :area_value,
           :make, :model, :year, :mileage_value, :mileage_unit,
-          :available_credit, :minimum_payment, :payment_due_day, :apr, :annual_fee, :expiration_date,
+          :available_credit, :minimum_payment, :payment_due_day, :minimum_payment_only, :apr, :annual_fee, :expiration_date,
           :rate_type, :interest_rate, :term_months, :initial_balance,
           :start_date, :down_payment, :insurance_rate, :insurance_rate_type,
           { rate_changes: %i[effective_date rate] },
