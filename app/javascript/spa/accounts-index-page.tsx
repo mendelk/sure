@@ -281,6 +281,12 @@ function ConfirmationDialog({
   );
 }
 
+function accountEditRoute(accountableType: string) {
+  if (accountableType === "Loan") return "/loans/$accountId/edit";
+  if (accountableType === "Property") return "/properties/$accountId/edit";
+  return "/accounts/$accountId/edit";
+}
+
 function AccountRowMenu({
   row,
   onConfirm,
@@ -306,7 +312,17 @@ function AccountRowMenu({
         portal
       >
         {editable.map((action) =>
-          action.key === "simplefin_history_audit" ? (
+          action.key === "edit" ? (
+            <MenuItem key={action.key}>
+              <Link
+                className="block w-full px-4 py-2 text-left text-sm text-primary data-focus:bg-container-hover"
+                params={{ accountId: row.id }}
+                to={accountEditRoute(row.accountable_type)}
+              >
+                {action.label}
+              </Link>
+            </MenuItem>
+          ) : action.key === "simplefin_history_audit" ? (
             <MenuItem key={action.key}>
               <Link
                 className="block w-full px-4 py-2 text-left text-sm text-primary data-focus:bg-container-hover"
@@ -364,6 +380,7 @@ function AccountRowView({
   row: AccountListRow;
   onConfirm: (action: SpaAction) => void;
 }) {
+  const navigate = useNavigate();
   return (
     <li className="relative flex items-center justify-between gap-3 p-4 hover:bg-surface-hover">
       <div className="flex min-w-0 items-center gap-3">
@@ -425,8 +442,12 @@ function AccountRowView({
           <Button
             onClick={() => {
               const setup = row.actions.find((action) => action.key === "complete_setup");
-              if (setup !== undefined && (setup.method ?? "get") === "get")
-                window.location.assign(setup.href);
+              if (setup !== undefined && (setup.method ?? "get") === "get") {
+                void navigate({
+                  to: accountEditRoute(row.accountable_type),
+                  params: { accountId: row.id },
+                });
+              }
             }}
             size="sm"
             variant="secondary"
