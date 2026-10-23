@@ -64,6 +64,14 @@ savings (including mortgage escrow), other depository subtypes, and ordinary
 transfers stay excluded. The forecast is unavailable without an eligible checking
 account.
 
+The TanStack forecast chart shares scales across its axes, balance line, and
+daily tooltip, with UTC date labels and theme-aware colors. Hover or use the
+left/right arrow keys to inspect a day's server-formatted balance and scheduled
+inflows/outflows. The red marker identifies the projected low; the amber marker
+identifies the first daily balance strictly below zero, including today when
+already negative. Coincident markers remain visible as concentric circles, and
+the tooltip identifies both. Empty forecasts show an activity message.
+
 Leaving a credit card's **Payment due day** blank disables automatic statement
 payments; history is not used to infer a day. Changing the setting recalculates
 unpaid estimates due today or later, including dates, statement boundaries, and
