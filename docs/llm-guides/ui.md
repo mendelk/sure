@@ -27,6 +27,15 @@ impose the obsolete `ButtonComponent`/`DialogComponent` examples on this design
 system. Partials use an underscore prefix; shared partials live in
 `app/views/shared/`, context-specific partials under their controller's views.
 
+## Account editing
+
+The SPA Accounts list's **Edit** menu action and draft-account **Complete setup**
+button use TanStack navigation, not the server-provided legacy edit URL.
+Credit cards and other generic account types open `/accounts/:id/edit`; loans
+and properties retain their specialized `/loans/:id/edit` and
+`/properties/:id/edit` SPA editors. Keep account-list navigation consistent with
+the account-detail actions so SPA-only settings remain reachable.
+
 ## Account charts
 
 The account SPA's `AccountChartCard` isolates chart-rendering failures behind a
