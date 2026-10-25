@@ -39,6 +39,7 @@ import {
   type TagId,
 } from "./ids";
 import type { SpaBootstrap } from "./bootstrap";
+import { fuzzyFilter } from "./fuzzy";
 
 export type Bootstrap = Pick<SpaBootstrap, "apiPaths" | "railsPaths">;
 
@@ -355,20 +356,17 @@ export function CategorySelect({
     : (categories.find((category) => category.id === selectedCategoryId) ??
       (initialCategory?.id === selectedCategoryId ? initialCategory : undefined));
   const trimmedQuery = query.trim();
-  const lowerQuery = trimmedQuery.toLowerCase();
   const options: PickerOption[] = [
     { value: "", label: "(uncategorized)" },
-    ...categories
-      .filter((category) => category.name.toLowerCase().includes(lowerQuery))
-      .map((category) => ({
-        value: category.id,
-        label: category.name,
-        content: <CategoryPill color={category.color} icon={category.icon} name={category.name} />,
-      })),
+    ...fuzzyFilter(categories, trimmedQuery, (category) => category.name).map((category) => ({
+      content: <CategoryPill color={category.color} icon={category.icon} name={category.name} />,
+      label: category.name,
+      value: category.id,
+    })),
   ];
   if (
     trimmedQuery.length > 0 &&
-    !categories.some((category) => category.name.toLowerCase() === lowerQuery)
+    !categories.some((category) => category.name.toLowerCase() === trimmedQuery.toLowerCase())
   )
     options.push({ value: "__create", label: `Create "${trimmedQuery}"` });
 
@@ -479,25 +477,22 @@ export function MerchantSelect({
         }
       : undefined);
   const trimmedQuery = query.trim();
-  const lowerQuery = trimmedQuery.toLowerCase();
   const options: PickerOption[] = [
     { value: "", label: "No merchant" },
-    ...merchants
-      .filter((merchant) => merchant.name.toLowerCase().includes(lowerQuery))
-      .map((merchant) => ({
-        value: merchant.id,
-        label: merchant.name,
-        content: (
-          <>
-            <MerchantAvatar logoUrl={merchant.logoUrl} name={merchant.name} />
-            <span className="truncate">{merchant.name}</span>
-          </>
-        ),
-      })),
+    ...fuzzyFilter(merchants, trimmedQuery, (merchant) => merchant.name).map((merchant) => ({
+      content: (
+        <>
+          <MerchantAvatar logoUrl={merchant.logoUrl} name={merchant.name} />
+          <span className="truncate">{merchant.name}</span>
+        </>
+      ),
+      label: merchant.name,
+      value: merchant.id,
+    })),
   ];
   if (
     trimmedQuery.length > 0 &&
-    !merchants.some((merchant) => merchant.name.toLowerCase() === lowerQuery)
+    !merchants.some((merchant) => merchant.name.toLowerCase() === trimmedQuery.toLowerCase())
   )
     options.push({ value: "__create", label: `Create "${trimmedQuery}"` });
 

@@ -29,6 +29,7 @@ import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { SearchablePicker, type PickerOption } from "./components/searchable-picker";
 import { Modal } from "./modal";
+import { fuzzyFilter } from "./fuzzy";
 
 // Inline English parity strings (ERB renders translated labels server-side;
 // the SPA ships English copies the way accounts-index ROW_TEXT does).
@@ -295,11 +296,7 @@ function CategoryFormDialog({
   const showColorSection = parentId === "";
   const effectiveColor = showColorSection ? color : initial.category.color;
   const contrastWarning = showColorSection && poorContrast(color);
-  const lowerIconQuery = iconQuery.trim().toLowerCase();
-  const visibleIcons =
-    lowerIconQuery.length === 0
-      ? initial.icons
-      : initial.icons.filter((code) => code.toLowerCase().includes(lowerIconQuery));
+  const visibleIcons = fuzzyFilter(initial.icons, iconQuery, (code) => code);
 
   function handleSubmit(event: { preventDefault: () => void }): void {
     event.preventDefault();
@@ -624,10 +621,11 @@ export function DeleteDialog({
 
   const allRows = data.groups.flatMap((group) => [group.root, ...group.subcategories]);
   const candidates = allRows.filter((candidate) => candidate.id !== row.id);
-  const lowerQuery = query.trim().toLowerCase();
-  const options: PickerOption[] = candidates
-    .filter((candidate) => candidate.display_name_with_parent.toLowerCase().includes(lowerQuery))
-    .map((candidate) => ({ label: candidate.display_name_with_parent, value: candidate.id }));
+  const options: PickerOption[] = fuzzyFilter(
+    candidates,
+    query,
+    (candidate) => candidate.display_name_with_parent,
+  ).map((candidate) => ({ label: candidate.display_name_with_parent, value: candidate.id }));
   const selected = candidates.find((candidate) => candidate.id === replacementId);
 
   function handleDelete(): void {
@@ -737,15 +735,13 @@ export function MergeDialog({
   const [merging, setMerging] = useState(false);
 
   const allRows = data.groups.flatMap((group) => [group.root, ...group.subcategories]);
-  const lowerTargetQuery = targetQuery.trim().toLowerCase();
-  const targetOptions: PickerOption[] = allRows
-    .filter((row) => row.display_name_with_parent.toLowerCase().includes(lowerTargetQuery))
-    .map((row) => ({ label: row.display_name_with_parent, value: row.id }));
+  const targetOptions: PickerOption[] = fuzzyFilter(
+    allRows,
+    targetQuery,
+    (row) => row.display_name_with_parent,
+  ).map((row) => ({ label: row.display_name_with_parent, value: row.id }));
   const selectedTarget = allRows.find((row) => row.id === targetId);
-  const lowerSourceQuery = sourceQuery.trim().toLowerCase();
-  const visibleSources = allRows.filter((row) =>
-    row.display_name_with_parent.toLowerCase().includes(lowerSourceQuery),
-  );
+  const visibleSources = fuzzyFilter(allRows, sourceQuery, (row) => row.display_name_with_parent);
 
   function toggleSource(id: string, checked: boolean): void {
     setSelectedSources((previous) =>

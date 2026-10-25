@@ -26,6 +26,7 @@ import {
   type MerchantsIndex,
   type MerchantsSearch,
 } from "./api/merchants";
+import { fuzzyFilter } from "./fuzzy";
 
 export const MERCHANTS_INDEX_PATH = "/family_merchants.json";
 export const MERCHANTS_PATH = "/family_merchants.json";
@@ -526,8 +527,7 @@ function MergeDialog({ onClose, onMerged }: { onClose: () => void; onMerged: () 
   });
 
   const candidates = query.data?.merchants ?? [];
-  const queryText = search.trim().toLowerCase();
-  const filtered = candidates.filter((merchant) => merchant.name.toLowerCase().includes(queryText));
+  const filtered = fuzzyFilter(candidates, search, (merchant) => merchant.name);
   const options = filtered.map((merchant) => ({
     value: merchant.id,
     label: merchant.name,

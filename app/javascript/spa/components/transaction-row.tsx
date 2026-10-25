@@ -22,6 +22,7 @@ import { IconButton } from "./icon-button";
 import { TagPill, TagSelect } from "./tag-select";
 import { SearchablePicker, type PickerOption } from "./searchable-picker";
 import { BrandLogo } from "./brand-logo";
+import { fuzzyFilter } from "../fuzzy";
 const transactionGridClass =
   "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:grid-cols-12";
 const transferKinds: Partial<Record<string, true>> = {
@@ -517,7 +518,16 @@ function CategoryMenu({
     },
   });
   const groups = useMemo(() => categoryGroups(categories), [categories]);
-  const lowerQuery = query.trim().toLowerCase();
+  const trimmedQuery = query.trim();
+  const matchedCategoryIds = useMemo(
+    () =>
+      new Set(
+        fuzzyFilter(categories, trimmedQuery, (category) => category.name).map(
+          (category) => category.id,
+        ),
+      ),
+    [categories, trimmedQuery],
+  );
   const options: PickerOption[] = [];
   const counterparts = (candidatesQuery.data?.candidates ?? []).map((candidate) => ({
     candidate,
@@ -532,13 +542,10 @@ function CategoryMenu({
       label: "Back to categories",
       keepOpen: true,
     });
-    for (const counterpart of counterparts) {
-      if (
-        !`${counterpart.transaction.name} ${counterpart.transaction.account.name}`
-          .toLowerCase()
-          .includes(lowerQuery)
-      )
-        continue;
+    for (const counterpart of fuzzyFilter(counterparts, trimmedQuery, (entry) => [
+      entry.transaction.name,
+      entry.transaction.account.name,
+    ])) {
       options.push({
         value: counterpart.transaction.id,
         label: counterpart.transaction.name,
@@ -557,7 +564,7 @@ function CategoryMenu({
       });
     }
   } else {
-    if (lowerQuery.length === 0) {
+    if (trimmedQuery.length === 0) {
       for (const recent of recentQuery.data ?? []) {
         if (recent.id === transaction.category?.id) continue;
         options.push({
@@ -570,8 +577,8 @@ function CategoryMenu({
       }
     }
     for (const group of groups) {
-      const parentMatches = group.category.name.toLowerCase().includes(lowerQuery);
-      if ((group.subcategories.length === 0 || lowerQuery.length > 0) && parentMatches) {
+      const parentMatches = matchedCategoryIds.has(group.category.id);
+      if ((group.subcategories.length === 0 || trimmedQuery.length > 0) && parentMatches) {
         options.push({
           value: group.category.id,
           label: group.category.name,
@@ -580,7 +587,7 @@ function CategoryMenu({
         });
       }
       for (const category of group.subcategories) {
-        if (!parentMatches && !category.name.toLowerCase().includes(lowerQuery)) continue;
+        if (!parentMatches && !matchedCategoryIds.has(category.id)) continue;
         options.push({
           value: category.id,
           label: category.name,

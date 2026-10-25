@@ -3,6 +3,7 @@ import { Icon } from "./icon";
 import { useDismiss } from "./use-dismiss";
 import type { Dashboard } from "./dashboard-storage";
 import type { DashboardId } from "./ids";
+import { fuzzyFilter } from "./fuzzy";
 
 export function DashboardSwitcher({
   activeDashboardId,
@@ -33,10 +34,7 @@ export function DashboardSwitcher({
   }, [isOpen]);
 
   const activeDashboard = dashboards.find((dashboard) => dashboard.id === activeDashboardId);
-  const lowerQuery = query.trim().toLowerCase();
-  const filtered = dashboards.filter((dashboard) =>
-    dashboard.name.toLowerCase().includes(lowerQuery),
-  );
+  const filtered = fuzzyFilter(dashboards, query, (dashboard) => dashboard.name);
 
   return (
     <div className="relative" ref={containerRef}>

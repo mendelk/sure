@@ -20,6 +20,7 @@ import {
 } from "./api/transactions";
 import { AccountIdSchema, TransactionIdSchema, type AccountId, type TransactionId } from "./ids";
 
+import { fuzzyFilter } from "./fuzzy";
 type Candidate = TransferMatchCandidates["candidates"][number];
 
 function counterpartFor(candidate: Candidate, transactionId: TransactionId) {
@@ -42,31 +43,28 @@ function CandidateSelect({
   transactionId: TransactionId;
 }) {
   const [query, setQuery] = useState("");
-  const lowerQuery = query.trim().toLowerCase();
   const selected =
     candidates.find((candidate) => counterpartFor(candidate, transactionId).id === selectedId) ??
     null;
-  const options = candidates
-    .filter((candidate) => {
-      const counterpart = counterpartFor(candidate, transactionId);
-      return `${counterpart.name} ${counterpart.account.name}`.toLowerCase().includes(lowerQuery);
-    })
-    .map((candidate) => {
-      const counterpart = counterpartFor(candidate, transactionId);
-      return {
-        value: counterpart.id,
-        label: counterpart.name,
-        content: (
-          <span className="min-w-0">
-            <span className="block truncate font-medium">{counterpart.name}</span>
-            <span className="block truncate text-xs text-secondary">
-              {counterpart.account.name} · {counterpart.date} · {counterpart.amount}
-              {candidate.date_diff > 0 ? ` · ${candidate.date_diff}d apart` : ""}
-            </span>
+  const options = fuzzyFilter(candidates, query, (candidate) => {
+    const counterpart = counterpartFor(candidate, transactionId);
+    return [counterpart.name, counterpart.account.name];
+  }).map((candidate) => {
+    const counterpart = counterpartFor(candidate, transactionId);
+    return {
+      value: counterpart.id,
+      label: counterpart.name,
+      content: (
+        <span className="min-w-0">
+          <span className="block truncate font-medium">{counterpart.name}</span>
+          <span className="block truncate text-xs text-secondary">
+            {counterpart.account.name} · {counterpart.date} · {counterpart.amount}
+            {candidate.date_diff > 0 ? ` · ${candidate.date_diff}d apart` : ""}
           </span>
-        ),
-      };
-    });
+        </span>
+      ),
+    };
+  });
 
   return (
     <SearchablePicker
@@ -112,12 +110,12 @@ function TargetAccountSelect({
   selectedId: AccountId | "";
 }) {
   const [query, setQuery] = useState("");
-  const lowerQuery = query.trim().toLowerCase();
   const selectable = accounts.filter((account) => account.id !== excludeAccountId);
   const selected = selectable.find((account) => account.id === selectedId);
-  const options = selectable
-    .filter((account) => account.name.toLowerCase().includes(lowerQuery))
-    .map((account) => ({ value: account.id, label: account.name }));
+  const options = fuzzyFilter(selectable, query, (account) => account.name).map((account) => ({
+    label: account.name,
+    value: account.id,
+  }));
 
   return (
     <SearchablePicker

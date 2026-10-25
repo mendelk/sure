@@ -22,6 +22,7 @@ import { BrandLogo } from "./components/brand-logo";
 import { Icon, type IconName } from "./icon";
 import { useDismiss } from "./use-dismiss";
 import { TransactionSearchBox } from "./components/transaction-search-box";
+import { fuzzyFilter } from "./fuzzy";
 import {
   AccountIdSchema,
   type AccountId,
@@ -1523,9 +1524,7 @@ function FilterCheckboxes<TValue extends string>({
   selected: TValue[];
 }) {
   const [query, setQuery] = useState("");
-  const visible = options.filter((option) =>
-    option.name.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const visible = fuzzyFilter(options, query, (option) => option.name);
 
   return (
     <div>
