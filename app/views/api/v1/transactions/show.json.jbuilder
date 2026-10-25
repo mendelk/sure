@@ -1,13 +1,22 @@
 # frozen_string_literal: true
 
 json.partial! "api/v1/transactions/transaction", transaction: @transaction
+json.splittable @transaction.splittable?
+json.split_annotation_support true
 
 # Split context for the drawer (mirrors the legacy transactions/show
-# SPLIT ENTRIES / split-child sections). Children carry their category,
-# transfer account and formatted amount; the parent is a name/date/amount summary.
+# SPLIT ENTRIES / split-child sections). Children carry their annotations,
+# category, transfer account and formatted amount; the parent is a name/date/amount summary.
 json.split_children @split_children do |child|
   json.entry_id child.id
+  json.transaction_id child.entryable_id
   json.name child.name
+  json.notes child.notes
+  json.tags child.entryable.tags do |tag|
+    json.id tag.id
+    json.name tag.name
+    json.color tag.color
+  end
   json.amount child.amount_money.format
   json.category_id child.entryable.try(:category_id)
   json.category_name child.entryable.try(:category)&.name

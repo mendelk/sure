@@ -46,6 +46,19 @@ in one picker clears it from the other. The server accepts `tag_ids_to_add` and
 The removal picker only selects existing tags. Explicit tag changes lock the tag
 attribute against enrichment, including when the last tag is removed.
 
+## Split transaction tags
+
+The SPA split editor uses the shared multi-select tag picker for each child.
+New rows start untagged; editing prefills each child's own tags. Saving resubmits
+the selected `tag_ids` for every row, and `[]` explicitly clears that child's
+tags. Tags do not propagate to the parent, siblings, or transfer counterparts.
+
+Split detail responses expose child `tags` and nullable `notes`. The editor
+carries existing string notes and `transfer_account_id` through replacement
+updates so a tag-only edit does not erase annotations or transfer links. Child
+tag IDs must belong to the current family, and split writes require full account
+write access. Parent annotations and child annotations are saved atomically.
+
 ## SPA charts
 
 SPA charts use TanStack's native marks, scales, focus, and responsive hosts.

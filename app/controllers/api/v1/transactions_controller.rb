@@ -306,6 +306,7 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       @split_children = if @entry.split_parent?
         @entry.child_entries.includes(entryable: [
           :category,
+          :tags,
           { transfer_as_inflow: { outflow_transaction: :entry },
             transfer_as_outflow: { inflow_transaction: :entry } }
         ]).order(:created_at)

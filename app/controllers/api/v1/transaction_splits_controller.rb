@@ -3,6 +3,7 @@
 class Api::V1::TransactionSplitsController < Api::V1::BaseController
   before_action :ensure_write_scope
   before_action :set_entry
+  before_action :validate_annotations
 
   def create
     unless @entry.transaction.splittable?
@@ -36,7 +37,10 @@ class Api::V1::TransactionSplitsController < Api::V1::BaseController
       end
     end
 
-    @children = @entry.split!(splits)
+    Entry.transaction do
+      apply_parent_annotations!(@entry)
+      @children = @entry.split!(splits)
+    end
     @entry.sync_account_later
     splits.filter_map { |split| split[:transfer_account] }.uniq.each(&:sync_later)
 
@@ -94,6 +98,7 @@ class Api::V1::TransactionSplitsController < Api::V1::BaseController
 
     Entry.transaction do
       entry.unsplit!
+      apply_parent_annotations!(entry)
       @children = entry.split!(splits)
     end
     @entry = entry
@@ -139,12 +144,55 @@ class Api::V1::TransactionSplitsController < Api::V1::BaseController
           category_id: split[:category_id].presence,
           excluded: split[:excluded],
           transfer_account_id: split[:transfer_account_id].presence
-        }
+        }.merge(split.slice(:notes, :tag_ids).to_h.symbolize_keys)
       end
     end
 
     def split_params
-      params.require(:split).permit(splits: %i[name amount category_id excluded transfer_account_id])
+      params.require(:split).permit(
+        splits: [ :name, :amount, :category_id, :excluded, :transfer_account_id, :notes, { tag_ids: [] } ],
+        parent: [ :notes, { tag_ids: [] } ]
+      )
+    end
+
+    # Check the raw shape before strong parameters can silently discard malformed
+    # annotations. Resolve every tag before any split, unsplit or annotation write.
+    def validate_annotations
+      input = params.require(:split)
+      parent = input[:parent]
+      if input.key?(:parent) && !parent.is_a?(ActionController::Parameters)
+        return render_validation_error("Parent annotations must be an object")
+      end
+
+      children = input[:splits]
+      children = children.values if children.respond_to?(:values)
+      annotations = [ parent, *Array.wrap(children) ].compact
+      tag_ids = []
+      annotations.each do |annotation|
+        next unless annotation.is_a?(ActionController::Parameters)
+
+        if annotation.key?(:notes) && !annotation[:notes].is_a?(String)
+          return render_validation_error("Notes must be a string")
+        end
+        next unless annotation.key?(:tag_ids)
+
+        ids = annotation[:tag_ids]
+        unless ids.is_a?(Array) && ids.all? { |id| id.is_a?(String) && valid_uuid?(id) }
+          return render_validation_error("Tag IDs must be an array of valid UUIDs")
+        end
+        tag_ids.concat(ids)
+      end
+
+      invalid_tag_ids = tag_ids.uniq - family.tags.where(id: tag_ids.uniq).pluck(:id)
+      render_validation_error("Tags must belong to your family") if invalid_tag_ids.any?
+    end
+
+    def apply_parent_annotations!(entry)
+      annotations = split_params[:parent]
+      return unless annotations
+
+      entry.update!(notes: annotations[:notes]) if annotations.key?(:notes)
+      entry.transaction.update!(tag_ids: annotations[:tag_ids]) if annotations.key?(:tag_ids)
     end
 
     def family

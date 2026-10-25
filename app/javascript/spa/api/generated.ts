@@ -76,6 +76,8 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "splittable": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Detail-only structural eligibility for splitting. Account permissions.can_edit is separately required.')),
+  "split_annotation_support": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.literal(true)).check(/*#__PURE__*/ zod.describe('Detail-only capability for atomic parent/child notes and tags on split create/update; not a permission grant.')),
   "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
@@ -130,8 +132,15 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
 }),/*#__PURE__*/ zod.null()])),
   "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Child transaction ID for fetching its complete, non-localized transaction details.')),
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
+  "notes": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Child notes. Preserve string values when replacing a split; omit null notes from the request.')),
+  "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Tags belonging only to this child. Resubmit their IDs when replacing a split to preserve them.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
   "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
@@ -249,6 +258,8 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "splittable": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Detail-only structural eligibility for splitting. Account permissions.can_edit is separately required.')),
+  "split_annotation_support": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.literal(true)).check(/*#__PURE__*/ zod.describe('Detail-only capability for atomic parent/child notes and tags on split create/update; not a permission grant.')),
   "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
@@ -303,8 +314,15 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
 }),/*#__PURE__*/ zod.null()])),
   "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Child transaction ID for fetching its complete, non-localized transaction details.')),
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
+  "notes": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Child notes. Preserve string values when replacing a split; omit null notes from the request.')),
+  "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Tags belonging only to this child. Resubmit their IDs when replacing a split to preserve them.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
   "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
@@ -367,6 +385,8 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "splittable": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Detail-only structural eligibility for splitting. Account permissions.can_edit is separately required.')),
+  "split_annotation_support": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.literal(true)).check(/*#__PURE__*/ zod.describe('Detail-only capability for atomic parent/child notes and tags on split create/update; not a permission grant.')),
   "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
@@ -421,8 +441,15 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
 }),/*#__PURE__*/ zod.null()])),
   "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Child transaction ID for fetching its complete, non-localized transaction details.')),
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
+  "notes": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Child notes. Preserve string values when replacing a split; omit null notes from the request.')),
+  "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Tags belonging only to this child. Resubmit their IDs when replacing a split to preserve them.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
   "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
@@ -503,6 +530,8 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "splittable": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Detail-only structural eligibility for splitting. Account permissions.can_edit is separately required.')),
+  "split_annotation_support": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.literal(true)).check(/*#__PURE__*/ zod.describe('Detail-only capability for atomic parent/child notes and tags on split create/update; not a permission grant.')),
   "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
@@ -557,8 +586,15 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
 }),/*#__PURE__*/ zod.null()])),
   "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Child transaction ID for fetching its complete, non-localized transaction details.')),
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
+  "notes": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Child notes. Preserve string values when replacing a split; omit null notes from the request.')),
+  "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Tags belonging only to this child. Resubmit their IDs when replacing a split to preserve them.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
   "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
@@ -658,6 +694,8 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "splittable": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Detail-only structural eligibility for splitting. Account permissions.can_edit is separately required.')),
+  "split_annotation_support": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.literal(true)).check(/*#__PURE__*/ zod.describe('Detail-only capability for atomic parent/child notes and tags on split create/update; not a permission grant.')),
   "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
@@ -712,8 +750,15 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
 }),/*#__PURE__*/ zod.null()])),
   "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Child transaction ID for fetching its complete, non-localized transaction details.')),
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
+  "notes": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Child notes. Preserve string values when replacing a split; omit null notes from the request.')),
+  "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Tags belonging only to this child. Resubmit their IDs when replacing a split to preserve them.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
   "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
@@ -1011,21 +1056,29 @@ export const PatchApiV1TransfersId422Response = /*#__PURE__*/ zod.strictObject({
 
 
 /**
+ * Creates children and applies optional parent/child notes and family-scoped tags atomically. Child tags are independent of parent, sibling and transfer-counterpart tags. Transaction detail exposes each split child with full tags and nullable notes for subsequent editing. Requires write scope and full financial edit access to the source and any transfer accounts. Check split_annotation_support on transaction detail before relying on annotations; it is a capability, not permission.
  * @summary Split a transaction
  */
 export const PostApiV1TransactionsTransactionIdSplitParams = /*#__PURE__*/ zod.object({
   "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Parent transaction ID'))
 }).brand("PostApiV1TransactionsTransactionIdSplitParams")
 
+export const postApiV1TransactionsTransactionIdSplitBodySplitSplitsItemAmountTwoRegExp = new RegExp('^-?[0-9]+(\\.[0-9]+)?$');
 
 
 
 export const PostApiV1TransactionsTransactionIdSplitBody = /*#__PURE__*/ zod.object({
   "split": /*#__PURE__*/ zod.object({
+  "parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.object({
+  "notes": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema))).check(/*#__PURE__*/ zod.describe('Replacement tag IDs; every tag must belong to the current family.'))
+})).check(/*#__PURE__*/ zod.describe('Optional parent annotations applied atomically with split creation/replacement. Omitted fields are unchanged; an empty tag_ids array clears tags. No parent financial or category changes are accepted.')),
   "splits": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.object({
   "name": /*#__PURE__*/ zod.string(),
-  "amount": /*#__PURE__*/ zod.number().check(/*#__PURE__*/ zod.describe('User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.')),
+  "amount": /*#__PURE__*/ zod.union([/*#__PURE__*/ zod.number(),/*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.regex(postApiV1TransactionsTransactionIdSplitBodySplitSplitsItemAmountTwoRegExp))]).check(/*#__PURE__*/ zod.describe('Cash-flow amount in major units (exact decimal strings supported): expenses/outflows are negative and income/inflows positive. Values must sum to the parent cash-flow amount.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "notes": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Notes for this child. Existing transfer counterpart note inheritance is unchanged.')),
+  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema))).check(/*#__PURE__*/ zod.describe('Replacement tags for this child only, never the parent, siblings or transfer counterpart. Every tag must belong to the current family. An empty array clears tags; resubmit existing child tag IDs when replacing a split to preserve them.')),
   "excluded": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.'))
 })).check(/*#__PURE__*/ zod.minLength(1))
@@ -1058,6 +1111,8 @@ export const PostApiV1TransactionsTransactionIdSplit201Response = /*#__PURE__*/ 
   "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "splittable": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Detail-only structural eligibility for splitting. Account permissions.can_edit is separately required.')),
+  "split_annotation_support": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.literal(true)).check(/*#__PURE__*/ zod.describe('Detail-only capability for atomic parent/child notes and tags on split create/update; not a permission grant.')),
   "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
@@ -1112,8 +1167,15 @@ export const PostApiV1TransactionsTransactionIdSplit201Response = /*#__PURE__*/ 
 }),/*#__PURE__*/ zod.null()])),
   "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Child transaction ID for fetching its complete, non-localized transaction details.')),
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
+  "notes": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Child notes. Preserve string values when replacing a split; omit null notes from the request.')),
+  "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Tags belonging only to this child. Resubmit their IDs when replacing a split to preserve them.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
   "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
@@ -1191,21 +1253,29 @@ export const PostApiV1TransactionsTransactionIdSplit422Response = /*#__PURE__*/ 
 
 
 /**
+ * Atomically replaces all children and optionally updates parent notes/tags. Preserve each existing child by resubmitting its tag IDs, string notes, category and transfer_account_id from transaction detail; omit null child notes. An empty child tag_ids array clears only that child. Omitted parent annotations remain unchanged; empty parent notes/tag_ids clear those fields. Invalid tags or failed child creation leave the original split and annotations intact.
  * @summary Update a transaction split
  */
 export const PatchApiV1TransactionsTransactionIdSplitParams = /*#__PURE__*/ zod.object({
   "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Parent transaction ID'))
 }).brand("PatchApiV1TransactionsTransactionIdSplitParams")
 
+export const patchApiV1TransactionsTransactionIdSplitBodySplitSplitsItemAmountTwoRegExp = new RegExp('^-?[0-9]+(\\.[0-9]+)?$');
 
 
 
 export const PatchApiV1TransactionsTransactionIdSplitBody = /*#__PURE__*/ zod.object({
   "split": /*#__PURE__*/ zod.object({
+  "parent": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.object({
+  "notes": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema))).check(/*#__PURE__*/ zod.describe('Replacement tag IDs; every tag must belong to the current family.'))
+})).check(/*#__PURE__*/ zod.describe('Optional parent annotations applied atomically with split creation/replacement. Omitted fields are unchanged; an empty tag_ids array clears tags. No parent financial or category changes are accepted.')),
   "splits": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.object({
   "name": /*#__PURE__*/ zod.string(),
-  "amount": /*#__PURE__*/ zod.number().check(/*#__PURE__*/ zod.describe('User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.')),
+  "amount": /*#__PURE__*/ zod.union([/*#__PURE__*/ zod.number(),/*#__PURE__*/ zod.string().check(/*#__PURE__*/ zod.regex(patchApiV1TransactionsTransactionIdSplitBodySplitSplitsItemAmountTwoRegExp))]).check(/*#__PURE__*/ zod.describe('Cash-flow amount in major units (exact decimal strings supported): expenses/outflows are negative and income/inflows positive. Values must sum to the parent cash-flow amount.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
+  "notes": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Notes for this child. Existing transfer counterpart note inheritance is unchanged.')),
+  "tag_ids": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema))).check(/*#__PURE__*/ zod.describe('Replacement tags for this child only, never the parent, siblings or transfer counterpart. Every tag must belong to the current family. An empty array clears tags; resubmit existing child tag IDs when replacing a split to preserve them.')),
   "excluded": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
   "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.'))
 })).check(/*#__PURE__*/ zod.minLength(1))
@@ -1238,6 +1308,8 @@ export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/
   "kind": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['standard', 'funds_movement', 'cc_payment', 'loan_payment', 'one_time', 'investment_contribution'])).check(/*#__PURE__*/ zod.describe('Transaction kind for budget classification.')),
   "pending": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is still pending at a provider (present in list responses).')),
   "excluded": /*#__PURE__*/ zod.boolean().check(/*#__PURE__*/ zod.describe('Whether the transaction is excluded from reports (present in list responses).')),
+  "splittable": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Detail-only structural eligibility for splitting. Account permissions.can_edit is separately required.')),
+  "split_annotation_support": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.literal(true)).check(/*#__PURE__*/ zod.describe('Detail-only capability for atomic parent/child notes and tags on split create/update; not a permission grant.')),
   "recurring_exists": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether a manual recurring transaction already exists for this pattern (present in detail responses).')),
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
@@ -1292,8 +1364,15 @@ export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/
 }),/*#__PURE__*/ zod.null()])),
   "split_children": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
   "entry_id": /*#__PURE__*/ zod.pipe(zod.uuid(), EntryIdSchema),
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Child transaction ID for fetching its complete, non-localized transaction details.')),
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
+  "notes": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Child notes. Preserve string values when replacing a split; omit null notes from the request.')),
+  "tags": /*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TagIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "color": /*#__PURE__*/ zod.string()
+})).check(/*#__PURE__*/ zod.describe('Tags belonging only to this child. Resubmit their IDs when replacing a split to preserve them.')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
   "category_name": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "transfer_account_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema)).check(/*#__PURE__*/ zod.describe('Counterpart account for a linked transfer, in either direction; null for non-transfer splits. Preserve this value when editing a split.'))
@@ -1333,6 +1412,24 @@ export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/
 }))
 }).brand("PatchApiV1TransactionsTransactionIdSplit200Response")
 
+export const PatchApiV1TransactionsTransactionIdSplit401Response = /*#__PURE__*/ zod.strictObject({
+  "error": /*#__PURE__*/ zod.string(),
+  "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "details": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),/*#__PURE__*/ zod.looseObject({
+
+})])),
+  "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
+}).brand("PatchApiV1TransactionsTransactionIdSplit401Response")
+
+export const PatchApiV1TransactionsTransactionIdSplit403Response = /*#__PURE__*/ zod.strictObject({
+  "error": /*#__PURE__*/ zod.string(),
+  "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "details": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),/*#__PURE__*/ zod.looseObject({
+
+})])),
+  "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
+}).brand("PatchApiV1TransactionsTransactionIdSplit403Response")
+
 export const PatchApiV1TransactionsTransactionIdSplit404Response = /*#__PURE__*/ zod.strictObject({
   "error": /*#__PURE__*/ zod.string(),
   "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
@@ -1341,3 +1438,12 @@ export const PatchApiV1TransactionsTransactionIdSplit404Response = /*#__PURE__*/
 })])),
   "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
 }).brand("PatchApiV1TransactionsTransactionIdSplit404Response")
+
+export const PatchApiV1TransactionsTransactionIdSplit422Response = /*#__PURE__*/ zod.strictObject({
+  "error": /*#__PURE__*/ zod.string(),
+  "message": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "details": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.union([/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string()),/*#__PURE__*/ zod.looseObject({
+
+})])),
+  "errors": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.string())).check(/*#__PURE__*/ zod.describe('Validation error messages (alternative to details used by trades, valuations, etc.)'))
+}).brand("PatchApiV1TransactionsTransactionIdSplit422Response")

@@ -8,6 +8,7 @@ import { Alert } from "./components/alert";
 import { Button } from "./components/button";
 import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
+import { TagSelect } from "./components/tag-select";
 import { Modal } from "./modal";
 import {
   readCsrfToken,
@@ -20,9 +21,11 @@ import { SearchablePicker, type PickerOption } from "./components/searchable-pic
 import {
   AccountIdSchema,
   CategoryIdSchema,
+  TagIdSchema,
   TransactionIdSchema,
   type AccountId,
   type CategoryId,
+  type TagId,
   type TransactionId,
 } from "./ids";
 type SplitRow = {
@@ -31,20 +34,25 @@ type SplitRow = {
   amount: string;
   categoryId: CategoryId | "";
   categoryName?: string | null;
+  initialTags?: ReferenceOption<TagId>[];
+  notes?: string | null;
+  tagIds: TagId[];
   transferAccountId: AccountId | "";
 };
 
 function newRow(key: number, name: string, amount: string): SplitRow {
-  return { key, amount, categoryId: "", name, transferAccountId: "" };
+  return { key, amount, categoryId: "", name, tagIds: [], transferAccountId: "" };
 }
 
 function TransferAccountSelect({
   accounts,
+  disabled,
   excludeAccountId,
   onSelect,
   selectedAccountId,
 }: {
   accounts: ReferenceOption<AccountId>[];
+  disabled?: boolean;
   excludeAccountId?: string;
   onSelect: (accountId: AccountId | "") => void;
   selectedAccountId: AccountId | "";
@@ -64,6 +72,7 @@ function TransferAccountSelect({
 
   return (
     <SearchablePicker
+      disabled={disabled}
       label="Transfer to"
       onQueryChange={setQuery}
       onSelect={(value) => {
@@ -99,6 +108,8 @@ async function submitSplit(
     amount: number;
     category_id: string | null;
     name: string;
+    notes?: string;
+    tag_ids: TagId[];
     transfer_account_id: string | null;
   }[],
 ): Promise<void> {
@@ -109,6 +120,8 @@ async function submitSplit(
           amount: row.amount,
           category_id: row.category_id,
           name: row.name,
+          ...(typeof row.notes === "string" ? { notes: row.notes } : {}),
+          tag_ids: row.tag_ids,
           transfer_account_id: row.transfer_account_id,
         })),
       },
@@ -162,11 +175,11 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
   );
   const categories: ReferenceOption<CategoryId>[] = referenceQuery.data?.categories ?? [];
   const accounts = referenceQuery.data?.accounts ?? [];
+  const tags = referenceQuery.data?.tags ?? [];
 
   // Parent total in cash-flow terms, matching the API contract (negative =
   // outflow). Prefill existing children in edit mode once loaded.
   const [rows, setRows] = useState<SplitRow[] | null>(null);
-  const [keyCounter, setKeyCounter] = useState(2);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const parentAmount = detail ? detail.signed_amount_cents / 100 : 0;
@@ -178,8 +191,11 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
       ? detail.split_children.map((child, index) => ({
           amount: String(Math.abs(Number(child.amount.replaceAll(/[^0-9.-]/gu, "")) || 0)),
           categoryId: child.category_id ?? "",
+          initialTags: child.tags,
           key: index,
           name: child.name,
+          notes: child.notes,
+          tagIds: child.tags.map((tag) => tag.id),
           transferAccountId: child.transfer_account_id ?? "",
         }))
       : [newRow(0, detail?.name ?? "", ""), newRow(1, "", "")]);
@@ -206,8 +222,8 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
   }
 
   function addRow() {
-    setRows([...activeRows, newRow(keyCounter, "", "")]);
-    setKeyCounter((counter) => counter + 1);
+    const nextKey = activeRows.reduce((maxKey, row) => Math.max(maxKey, row.key), -1) + 1;
+    setRows([...activeRows, newRow(nextKey, "", "")]);
   }
 
   function removeRow(key: number) {
@@ -246,6 +262,8 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
               ? null
               : CategoryIdSchema.parse(row.categoryId),
           name: row.name.trim(),
+          ...(typeof row.notes === "string" ? { notes: row.notes } : {}),
+          tag_ids: row.tagIds,
           transfer_account_id:
             row.transferAccountId === "" ? null : AccountIdSchema.parse(row.transferAccountId),
         })),
@@ -293,7 +311,9 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
 
   return (
     <Modal
-      onClose={close}
+      onClose={() => {
+        if (!mutation.isPending) close();
+      }}
       open
       panelClassName="w-full max-w-xl overflow-hidden rounded-xl bg-container shadow-lg"
     >
@@ -312,7 +332,7 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
             <span className="privacy-sensitive text-lg font-medium tabular-nums text-primary">
               {detail.amount}
             </span>
-            <IconButton icon="x" label="Close" onClick={close} />
+            <IconButton disabled={mutation.isPending} icon="x" label="Close" onClick={close} />
           </div>
         </div>
 
@@ -336,6 +356,7 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
               <div className="flex flex-wrap items-end gap-2">
                 <div className="min-w-0 flex-1 basis-48">
                   <FormField
+                    disabled={mutation.isPending}
                     id={`split-name-${row.key}`}
                     label="Name"
                     onChange={(event) => {
@@ -348,6 +369,7 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
                 </div>
                 <div className="min-w-28 max-w-36 flex-1 basis-28">
                   <FormField
+                    disabled={mutation.isPending}
                     id={`split-amount-${row.key}`}
                     label="Amount"
                     onChange={(event) => {
@@ -365,7 +387,7 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
                   <CategorySelect
                     bootstrap={bootstrap}
                     categories={categories}
-                    disabled={referenceQuery.isPending}
+                    disabled={referenceQuery.isPending || mutation.isPending}
                     initialCategory={null}
                     notApplicableLabel={
                       isFundsMovement(row)
@@ -381,6 +403,7 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
                 <div className="min-w-0 flex-1 basis-48">
                   <TransferAccountSelect
                     accounts={accounts}
+                    disabled={referenceQuery.isPending || mutation.isPending}
                     excludeAccountId={detail.account.id}
                     onSelect={(accountId) => {
                       updateRow(row.key, { transferAccountId: accountId });
@@ -391,6 +414,7 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
                 {activeRows.length > 1 ? (
                   <Button
                     aria-label="Remove split row"
+                    disabled={mutation.isPending}
                     onClick={() => {
                       removeRow(row.key);
                     }}
@@ -400,11 +424,22 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
                   </Button>
                 ) : null}
               </div>
+              <TagSelect
+                bootstrap={bootstrap}
+                disabled={referenceQuery.isPending || mutation.isPending}
+                initialTags={row.initialTags}
+                onSelect={(tagIds) => {
+                  updateRow(row.key, { tagIds });
+                }}
+                selectedTagIds={row.tagIds}
+                tags={tags}
+              />
             </div>
           ))}
 
           <Button
             className="border-dashed"
+            disabled={mutation.isPending}
             fullWidth
             iconProps={{ name: "plus", size: "sm" }}
             onClick={addRow}
@@ -433,7 +468,7 @@ export function SplitTransactionPage({ mode }: { mode: "create" | "update" }) {
         </div>
 
         <div className="flex justify-end gap-3 border-t border-tertiary p-4">
-          <Button onClick={close} variant="secondary">
+          <Button disabled={mutation.isPending} onClick={close} variant="secondary">
             Cancel
           </Button>
           <Button
@@ -461,6 +496,8 @@ export const SplitFormSchema = z.object({
       amount: z.number(),
       category_id: z.nullish(z.string()),
       name: z.string(),
+      notes: z.optional(z.string()),
+      tag_ids: z.array(TagIdSchema),
       transfer_account_id: z.nullish(z.string()),
     }),
   ),
