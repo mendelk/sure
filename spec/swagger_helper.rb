@@ -1789,7 +1789,18 @@ RSpec.configure do |config|
               transaction_id: { type: :string, format: :uuid },
               name: { type: :string },
               amount: { type: :string },
-              account_name: { type: :string }
+              account_name: { type: :string },
+              merchant: {
+                type: :object,
+                required: %w[id name],
+                nullable: true,
+                description: "Parent merchant, inherited by split children; null when unassigned.",
+                properties: {
+                  id: { type: :string, format: :uuid },
+                  name: { type: :string },
+                  logo_url: { type: :string, nullable: true }
+                }
+              }
             }
           },
           SplitAnnotations: {

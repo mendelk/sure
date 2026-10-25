@@ -3380,6 +3380,22 @@ components:
           type: string
         account_name:
           type: string
+        merchant:
+          type: object
+          required:
+          - id
+          - name
+          nullable: true
+          description: Parent merchant, inherited by split children; null when unassigned.
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            logo_url:
+              type: string
+              nullable: true
     SplitAnnotations:
       type: object
       description: Optional parent annotations applied atomically with split creation/replacement.

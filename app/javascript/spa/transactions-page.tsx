@@ -2,7 +2,7 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
-import { Fragment, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   readCsrfToken,
   referenceDataQueryOptions,
@@ -557,27 +557,34 @@ export function TransactionsPage() {
                               transaction={row.transaction}
                             />
                           ) : (
-                            <Fragment key={`split-${row.children[0]?.id ?? row.parent?.entry_id}`}>
+                            <li
+                              className="border-l-2 border-secondary"
+                              key={`split-${row.children[0]?.id ?? row.parent?.entry_id}`}
+                            >
                               <SplitParentHeader parent={row.parent} />
-                              {row.children.map((child) => (
-                                <TransactionRow
-                                  categories={reference.categories}
-                                  columns={columns}
-                                  indent
-                                  key={child.id}
-                                  onAddMerchantFilter={addMerchantFilter}
-                                  selection={{
-                                    selected: selected.has(child.id),
-                                    disabled: false,
-                                    onChange: (checked) => {
-                                      select([child.id], checked);
-                                    },
-                                    label: `Select ${child.name}`,
-                                  }}
-                                  transaction={child}
-                                />
-                              ))}
-                            </Fragment>
+                              <ul
+                                aria-label={`Split parts of ${row.parent?.name ?? "transaction"}`}
+                              >
+                                {row.children.map((child) => (
+                                  <TransactionRow
+                                    categories={reference.categories}
+                                    columns={columns}
+                                    indent
+                                    key={child.id}
+                                    onAddMerchantFilter={addMerchantFilter}
+                                    selection={{
+                                      selected: selected.has(child.id),
+                                      disabled: false,
+                                      onChange: (checked) => {
+                                        select([child.id], checked);
+                                      },
+                                      label: `Select ${child.name}`,
+                                    }}
+                                    transaction={child}
+                                  />
+                                ))}
+                              </ul>
+                            </li>
                           ),
                         )}
                       </ul>
@@ -957,16 +964,27 @@ function groupUpcomingByDate(
 }
 function SplitParentHeader({ parent }: { parent: SplitParent | null }) {
   if (parent === null) return null;
+  const subtitle =
+    parent.merchant?.name === undefined
+      ? parent.account_name
+      : `${parent.merchant.name} · ${parent.account_name}`;
   return (
-    <li className="opacity-70 transition-colors hover:bg-container-hover">
+    <div className="opacity-70 transition-colors hover:bg-container-hover">
       <Link
         className="focus-ring flex items-center gap-3 px-4 py-3"
         params={{ transactionId: parent.transaction_id }}
         search={true}
         to="/transactions/$transactionId/split/edit"
       >
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-secondary">
-          {parent.name}
+        <BrandLogo
+          className="size-10 shrink-0 rounded-full bg-container-inset text-sm font-semibold text-secondary"
+          src={parent.merchant?.logo_url ?? undefined}
+        >
+          {parent.name.slice(0, 1).toUpperCase()}
+        </BrandLogo>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-secondary">{parent.name}</span>
+          <span className="block truncate text-xs font-normal text-secondary">{subtitle}</span>
         </span>
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-container-inset px-2 py-0.5 text-[11px] font-medium text-secondary">
           <Icon name="split" size="sm" />
@@ -976,7 +994,7 @@ function SplitParentHeader({ parent }: { parent: SplitParent | null }) {
           {parent.amount}
         </span>
       </Link>
-    </li>
+    </div>
   );
 }
 

@@ -183,7 +183,12 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
   "name": /*#__PURE__*/ zod.string(),
   "amount": /*#__PURE__*/ zod.string(),
-  "account_name": /*#__PURE__*/ zod.string()
+  "account_name": /*#__PURE__*/ zod.string(),
+  "merchant": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema),
+  "name": /*#__PURE__*/ zod.string(),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
+})).check(/*#__PURE__*/ zod.describe('Parent merchant, inherited by split children; null when unassigned.'))
 }))).check(/*#__PURE__*/ zod.describe('Split parent entries for grouped headers; children carry parent_entry_id.')),
   "pagination": /*#__PURE__*/ zod.strictObject({
   "page": /*#__PURE__*/ zod.int().check(/*#__PURE__*/ zod.gte(1)),
