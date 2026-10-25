@@ -445,7 +445,7 @@ class Entry < ApplicationRecord
 
   # Splits this entry into child entries. Marks parent as excluded.
   #
-  # @param splits [Array<Hash>] array of { name:, amount:, category_id:, excluded:, transfer_account:, transfer_account_id: } hashes.
+  # @param splits [Array<Hash>] array of { name:, amount:, category_id:, notes:, tag_ids:, excluded:, transfer_account:, transfer_account_id: } hashes.
   #   When transfer_account (Account) or transfer_account_id is present, that child becomes one leg of a
   #   Transfer with its counterpart in the given account.
   # @return [Array<Entry>] the created child entries (in the parent account)
@@ -479,7 +479,7 @@ class Entry < ApplicationRecord
         category_id: attrs[:category_id].presence,
         excluded: TRUTHY_VALUES.include?(attrs[:excluded]),
         transfer_account: transfer_account
-      }
+      }.merge(attrs.slice(:tag_ids).symbolize_keys)
     end
 
     self.class.transaction do
@@ -493,7 +493,9 @@ class Entry < ApplicationRecord
             category_id: split_attrs[:category_id],
             merchant_id: entryable.try(:merchant_id),
             kind: entryable.try(:kind)
-          )
+          ).tap do |transaction|
+            transaction.tag_ids = split_attrs[:tag_ids] if split_attrs.key?(:tag_ids)
+          end
 
           child_entries.create!(
             account: account,
@@ -734,6 +736,7 @@ class Entry < ApplicationRecord
         merchant_id: entryable.try(:merchant_id),
         kind: child_kind
       )
+      child_transaction.tag_ids = split_attrs[:tag_ids] if split_attrs.key?(:tag_ids)
 
       child_entry = child_entries.create!(
         account: account,

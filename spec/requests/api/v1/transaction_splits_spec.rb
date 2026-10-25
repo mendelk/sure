@@ -39,6 +39,7 @@ RSpec.describe 'API V1 Transaction Splits', type: :request do
   end
 
   let(:category) { family.categories.create!(name: 'Groceries', color: '#4CAF50') }
+  let(:tag) { family.tags.create!(name: 'ai-categorized') }
 
   let(:transaction) do
     account.entries.create!(
@@ -55,6 +56,7 @@ RSpec.describe 'API V1 Transaction Splits', type: :request do
               schema: { type: :string, format: :uuid }
 
     post 'Split a transaction' do
+      description 'Creates children and applies optional parent/child notes and family-scoped tags atomically. Child tags are independent of parent, sibling and transfer-counterpart tags. Transaction detail exposes each split child with full tags and nullable notes for subsequent editing. Requires write scope and full financial edit access to the source and any transfer accounts. Check split_annotation_support on transaction detail before relying on annotations; it is a capability, not permission.'
       tags 'Transactions'
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'
@@ -66,9 +68,10 @@ RSpec.describe 'API V1 Transaction Splits', type: :request do
       let(:body) do
         {
           split: {
+            parent: { notes: 'Personal note; Amazon split', tag_ids: [ tag.id ] },
             splits: [
-              { name: 'Groceries', amount: -70, category_id: category.id },
-              { name: 'Household', amount: -30, excluded: false }
+              { name: 'Groceries', amount: '-70.00', category_id: category.id, notes: 'Order groceries', tag_ids: [ tag.id ] },
+              { name: 'Household', amount: '-30.00', excluded: false, notes: 'Order household', tag_ids: [ tag.id ] }
             ]
           }
         }
@@ -104,7 +107,7 @@ RSpec.describe 'API V1 Transaction Splits', type: :request do
         run_test!
       end
 
-      response '422', 'split amounts do not match parent' do
+      response '422', 'invalid split amounts, annotations, category IDs or transfer accounts' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
         let(:body) do
@@ -116,6 +119,7 @@ RSpec.describe 'API V1 Transaction Splits', type: :request do
     end
 
     patch 'Update a transaction split' do
+      description 'Atomically replaces all children and optionally updates parent notes/tags. Preserve each existing child by resubmitting its tag IDs, string notes, category and transfer_account_id from transaction detail; omit null child notes. An empty child tag_ids array clears only that child. Omitted parent annotations remain unchanged; empty parent notes/tag_ids clear those fields. Invalid tags or failed child creation leave the original split and annotations intact.'
       tags 'Transactions'
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'
@@ -126,16 +130,17 @@ RSpec.describe 'API V1 Transaction Splits', type: :request do
       let(:transaction_id) { transaction.id }
       before do
         transaction.entry.split!([
-          { name: 'Groceries', amount: -70, category_id: category.id },
-          { name: 'Household', amount: -30 }
+          { name: 'Groceries', amount: 70, category_id: category.id },
+          { name: 'Household', amount: 30 }
         ])
       end
       let(:body) do
         {
           split: {
+            parent: { notes: 'Updated split notes', tag_ids: [ tag.id ] },
             splits: [
-              { name: 'Groceries', amount: -60, category_id: category.id },
-              { name: 'Household', amount: -40, excluded: false }
+              { name: 'Groceries', amount: '-60.00', category_id: category.id, notes: 'Updated groceries', tag_ids: [ tag.id ] },
+              { name: 'Household', amount: '-40.00', excluded: false, notes: '', tag_ids: [] }
             ]
           }
         }
@@ -144,6 +149,31 @@ RSpec.describe 'API V1 Transaction Splits', type: :request do
       response '200', 'transaction split updated' do
         schema '$ref' => '#/components/schemas/TransactionSplit'
 
+        run_test!
+      end
+
+      response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:'X-Api-Key') { nil }
+        run_test!
+      end
+
+      response '403', 'insufficient scope' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:'X-Api-Key') { read_only_api_key.plain_key }
+        run_test!
+      end
+
+      response '422', 'invalid annotation tags; original split is retained' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:body) do
+          {
+            split: {
+              parent: { tag_ids: [ SecureRandom.uuid ] },
+              splits: [ { name: 'Groceries', amount: '-60.00' }, { name: 'Household', amount: '-40.00' } ]
+            }
+          }
+        end
         run_test!
       end
 

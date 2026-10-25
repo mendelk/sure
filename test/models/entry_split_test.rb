@@ -27,6 +27,59 @@ class EntrySplitTest < ActiveSupport::TestCase
     assert @entry.split_parent?
   end
 
+  test "split! assigns independent child notes and tags without copying parent annotations" do
+    tag = @entry.account.family.tags.create!(name: "ai-categorized")
+    personal_tag = @entry.account.family.tags.create!(name: "Personal")
+    @entry.update!(notes: "Parent notes")
+    @entry.transaction.update!(tag_ids: [ personal_tag.id ])
+
+    children = @entry.split!([
+      { name: "Groceries", amount: 70, notes: "Order groceries", tag_ids: [ tag.id ] },
+      { name: "Household", amount: 30 }
+    ])
+
+    assert_equal "Order groceries", children.first.reload.notes
+    assert_equal [ tag.id ], children.first.transaction.reload.tag_ids
+    assert_nil children.last.reload.notes
+    assert_empty children.last.transaction.tags
+    assert_equal "Parent notes", @entry.reload.notes
+    assert_equal [ personal_tag.id ], @entry.transaction.reload.tag_ids
+  end
+
+  test "split! applies child tags on either transfer direction without tagging counterparts" do
+    tag = @entry.account.family.tags.create!(name: "ai-categorized")
+    destination = accounts(:credit_card)
+
+    children = @entry.split!([
+      { name: "Outgoing", amount: 130, notes: "Outgoing notes", tag_ids: [ tag.id ], transfer_account: destination },
+      { name: "Incoming", amount: -30, notes: "Incoming notes", tag_ids: [ tag.id ], transfer_account: destination }
+    ])
+
+    children.each do |child|
+      assert_equal [ tag.id ], child.transaction.reload.tag_ids
+      transfer = child.transaction.transfer
+      counterpart = child.amount.positive? ? transfer.inflow_transaction.entry : transfer.outflow_transaction.entry
+      assert_empty counterpart.transaction.tags
+      assert_equal child.notes, counterpart.notes
+    end
+  end
+
+  test "split! rolls back saved child taggings when a later child is invalid" do
+    tag = @entry.account.family.tags.create!(name: "ai-categorized")
+
+    assert_no_difference [ -> { Entry.count }, -> { Transaction.count }, -> { Tagging.count } ] do
+      assert_raises ActiveRecord::RecordInvalid do
+        @entry.split!([
+          { name: "Groceries", amount: 70, tag_ids: [ tag.id ] },
+          { name: "", amount: 30, tag_ids: [ tag.id ] }
+        ])
+      end
+    end
+
+    refute @entry.reload.excluded?
+    refute @entry.split_parent?
+  end
+
   test "split! rejects when amounts don't sum to parent" do
     splits = [
       { name: "Part 1", amount: 60, category_id: nil },

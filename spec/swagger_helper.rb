@@ -1653,6 +1653,8 @@ RSpec.configure do |config|
               kind: { type: :string, enum: %w[standard funds_movement cc_payment loan_payment one_time investment_contribution], description: 'Transaction kind for budget classification.' },
               pending: { type: :boolean, description: 'Whether the transaction is still pending at a provider (present in list responses).' },
               excluded: { type: :boolean, description: 'Whether the transaction is excluded from reports (present in list responses).' },
+              splittable: { type: :boolean, description: 'Detail-only structural eligibility for splitting. Account permissions.can_edit is separately required.' },
+              split_annotation_support: { type: :boolean, enum: [ true ], description: 'Detail-only capability for atomic parent/child notes and tags on split create/update; not a permission grant.' },
               recurring_exists: { type: :boolean, description: 'Whether a manual recurring transaction already exists for this pattern (present in detail responses).' },
               account: { '$ref' => '#/components/schemas/Account' },
               permissions: { '$ref' => '#/components/schemas/AccountPermissions' },
@@ -1732,11 +1734,18 @@ RSpec.configure do |config|
           },
           SplitChild: {
             type: :object,
-            required: %w[entry_id name amount],
+            required: %w[entry_id transaction_id name amount notes tags],
             properties: {
               entry_id: { type: :string, format: :uuid },
+              transaction_id: { type: :string, format: :uuid, description: 'Child transaction ID for fetching its complete, non-localized transaction details.' },
               name: { type: :string },
               amount: { type: :string },
+              notes: { type: :string, nullable: true, description: 'Child notes. Preserve string values when replacing a split; omit null notes from the request.' },
+              tags: {
+                type: :array,
+                items: { '$ref' => '#/components/schemas/Tag' },
+                description: 'Tags belonging only to this child. Resubmit their IDs when replacing a split to preserve them.'
+              },
               category_id: { type: :string, format: :uuid, nullable: true },
               category_name: { type: :string, nullable: true },
               transfer_account_id: {
@@ -1783,6 +1792,18 @@ RSpec.configure do |config|
               account_name: { type: :string }
             }
           },
+          SplitAnnotations: {
+            type: :object,
+            description: 'Optional parent annotations applied atomically with split creation/replacement. Omitted fields are unchanged; an empty tag_ids array clears tags. No parent financial or category changes are accepted.',
+            properties: {
+              notes: { type: :string },
+              tag_ids: {
+                type: :array,
+                items: { type: :string, format: :uuid },
+                description: 'Replacement tag IDs; every tag must belong to the current family.'
+              }
+            }
+          },
           TransactionSplitRequest: {
             type: :object,
             required: %w[split],
@@ -1791,6 +1812,7 @@ RSpec.configure do |config|
                 type: :object,
                 required: %w[splits],
                 properties: {
+                  parent: { '$ref' => '#/components/schemas/SplitAnnotations' },
                   splits: {
                     type: :array,
                     minItems: 1,
@@ -1800,10 +1822,16 @@ RSpec.configure do |config|
                       properties: {
                         name: { type: :string },
                         amount: {
-                          type: :number,
-                          description: 'User-facing cash-flow amount: expenses/outflows are negative and income/inflows are positive. Values must sum to the parent transaction cash-flow amount.'
+                          oneOf: [ { type: :number }, { type: :string, pattern: '^-?[0-9]+(\.[0-9]+)?$' } ],
+                          description: 'Cash-flow amount in major units (exact decimal strings supported): expenses/outflows are negative and income/inflows positive. Values must sum to the parent cash-flow amount.'
                         },
                         category_id: { type: :string, format: :uuid, nullable: true },
+                        notes: { type: :string, description: 'Notes for this child. Existing transfer counterpart note inheritance is unchanged.' },
+                        tag_ids: {
+                          type: :array,
+                          items: { type: :string, format: :uuid },
+                          description: 'Replacement tags for this child only, never the parent, siblings or transfer counterpart. Every tag must belong to the current family. An empty array clears tags; resubmit existing child tag IDs when replacing a split to preserve them.'
+                        },
                         excluded: { type: :boolean },
                         transfer_account_id: { type: :string, format: :uuid, nullable: true, description: 'Optional destination/source account for this split leg. When present, a Transfer counterpart is created in the given account.' }
                       }
