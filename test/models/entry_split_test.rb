@@ -12,6 +12,59 @@ class EntrySplitTest < ActiveSupport::TestCase
     )
   end
 
+  test "assigning a merchant after split propagates to children and matches the merchant filter" do
+    children = @entry.split!([
+      { name: "Groceries", amount: 70 },
+      { name: "Household", amount: 30 }
+    ])
+    merchant = merchants(:netflix)
+
+    @entry.transaction.update!(merchant: merchant)
+
+    assert_equal [ merchant.id, merchant.id ],
+      children.map { |child| child.transaction.reload.merchant_id }
+    search = Transaction::Search.new(
+      @entry.account.family,
+      filters: { merchants: [ merchant.name ] }
+    )
+    assert_equal children.map(&:entryable_id).sort,
+      search.transactions_scope.where(id: children.map(&:entryable_id)).pluck(:id).sort
+    assert_equal 2, search.transactions_scope.where(id: children.map(&:entryable_id)).count
+  end
+
+  test "assigning a merchant after split does not overwrite a child with its own merchant" do
+    children = @entry.split!([
+      { name: "Groceries", amount: 70 },
+      { name: "Household", amount: 30 }
+    ])
+    own = merchants(:amazon)
+    other = merchants(:netflix)
+    children.first.transaction.update!(merchant: own)
+
+    @entry.transaction.update!(merchant: other)
+
+    assert_equal own.id, children.first.transaction.reload.merchant_id
+    assert_equal other.id, children.last.transaction.reload.merchant_id
+  end
+
+  test "assigning a merchant after split skips transfer legs and locked children" do
+    destination = accounts(:credit_card)
+    children = @entry.split!([
+      { name: "Groceries", amount: 70 },
+      { name: "Transfer", amount: 30, transfer_account: destination }
+    ])
+    transfer_child = children.find { |child| child.transaction.transfer? }
+    locked_child = (children - [ transfer_child ]).first
+    locked_child.transaction.lock_attr!(:merchant_id)
+    merchant = merchants(:netflix)
+
+    @entry.transaction.update!(merchant: merchant)
+
+    assert_nil transfer_child.transaction.reload.merchant_id
+    assert_nil locked_child.transaction.reload.merchant_id
+    assert_equal merchant.id, @entry.transaction.reload.merchant_id
+  end
+
   test "split! creates child entries with correct amounts and marks parent excluded" do
     splits = [
       { name: "Groceries", amount: 70, category_id: categories(:food_and_drink).id },

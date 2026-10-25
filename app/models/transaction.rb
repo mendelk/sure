@@ -27,9 +27,8 @@ class Transaction < ApplicationRecord
   validate :validate_attachments, if: -> { attachments.attached? }
 
   accepts_nested_attributes_for :taggings, allow_destroy: true
-
   after_save :clear_merchant_unlinked_association, if: :merchant_id_previously_changed?
-
+  after_update :propagate_merchant_to_split_children, if: :saved_change_to_merchant_id?
   # Accessors for exchange_rate stored in extra jsonb field
   def exchange_rate
     extra&.dig("exchange_rate")
@@ -477,5 +476,31 @@ class Transaction < ApplicationRecord
       return unless family
 
       FamilyMerchantAssociation.where(family: family, merchant: merchant).delete_all
+    end
+
+    # Split children inherit the parent merchant at split time (Entry#split!),
+    # but the merchant filter matches each child's own merchant_id while the
+    # list scope excludes split parents. A merchant assigned after the split
+    # would land on the parent only and stay invisible to the filter, so push
+    # it down to children that still carry the previous merchant (nil or the
+    # old one). Transfer legs keep their own (nil) merchant: they belong to
+    # two accounts, not to the purchase. after_update (not after_save) so it
+    # fires on existing parents only, never during split creation itself.
+    def propagate_merchant_to_split_children
+      return unless entry&.split_parent?
+
+      previous_merchant_id, new_merchant_id = saved_change_to_merchant_id
+      entry.child_entries
+        .joins("INNER JOIN transactions ON transactions.id = entries.entryable_id AND entries.entryable_type = 'Transaction'")
+        .merge(Transaction.enrichable(:merchant_id))
+        .where(transactions: { merchant_id: previous_merchant_id, kind: "standard" })
+        .includes(:entryable)
+        .each do |child|
+          child.transaction.update!(merchant_id: new_merchant_id)
+          # Same post-edit protection the controllers apply to the parent:
+          # lock the propagated value and shield it from provider sync.
+          child.lock_saved_attributes!
+          child.mark_user_modified!
+        end
     end
 end
