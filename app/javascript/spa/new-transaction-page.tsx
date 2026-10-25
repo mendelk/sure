@@ -13,6 +13,7 @@ import { IconButton } from "./components/icon-button";
 import { Icon } from "./icon";
 import { Modal } from "./modal";
 import { useDismiss } from "./use-dismiss";
+import { fuzzyFilter } from "./fuzzy";
 import {
   AccountIdSchema,
   TransactionIdSchema,
@@ -927,9 +928,7 @@ function AccountSelect({
   }, [isOpen]);
 
   const selected = accounts.find((account) => account.id === selectedAccountId);
-  const filtered = accounts.filter((account) =>
-    account.name.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const filtered = fuzzyFilter(accounts, query, (account) => account.name);
 
   /* eslint-disable react/no-unstable-nested-components -- FormField receives a render callback, not a component type. */
   return (

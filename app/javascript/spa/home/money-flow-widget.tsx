@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Widget composes chart definition, filters, account picker, and actions. */
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import { useSpaPaths } from "../api/paths";
 import { Icon } from "../icon";
 import { Button } from "../components/button";
 import { HomeApiError } from "./home-api";
+import { fuzzyFilter } from "../fuzzy";
 
 const HomeMoneySchema = z.object({
   amount: z.string(),
@@ -217,11 +219,10 @@ export function MoneyFlowWidget({
   }, [accountIds, data, accessibleIds]);
   const allSelected = selectedIds.length === accessibleIds.length && accessibleIds.length > 0;
 
-  const filteredAccounts = useMemo(() => {
-    const needle = accountSearch.trim().toLowerCase();
-    if (needle.length === 0) return eligibleAccounts;
-    return eligibleAccounts.filter((account) => account.name.toLowerCase().includes(needle));
-  }, [eligibleAccounts, accountSearch]);
+  const filteredAccounts = useMemo(
+    () => fuzzyFilter(eligibleAccounts, accountSearch, (account) => account.name),
+    [eligibleAccounts, accountSearch],
+  );
 
   const monthOptions = useMemo(() => lastTwelveMonths(), []);
 

@@ -5,6 +5,7 @@ import type { SpaBootstrap } from "../bootstrap";
 import { Icon } from "../icon";
 import type { TagId } from "../ids";
 import { SearchablePicker, type PickerOption } from "./searchable-picker";
+import { fuzzyFilter } from "../fuzzy";
 
 export function TagSelect({
   allowCreate = true,
@@ -57,8 +58,7 @@ export function TagSelect({
       initialTags?.find((tag) => tag.id === id) ?? { id, name: id },
   );
   const trimmedQuery = query.trim();
-  const lowerQuery = trimmedQuery.toLowerCase();
-  const filteredTags = availableTags.filter((tag) => tag.name.toLowerCase().includes(lowerQuery));
+  const filteredTags = fuzzyFilter(availableTags, trimmedQuery, (tag) => tag.name);
   const loading = tags === undefined && reference.isPending;
   const referenceError = tags === undefined ? reference.error?.message : undefined;
   const canCreate =
@@ -66,7 +66,7 @@ export function TagSelect({
     !loading &&
     referenceError === undefined &&
     trimmedQuery.length > 0 &&
-    !availableTags.some((tag) => tag.name.toLowerCase() === lowerQuery);
+    !availableTags.some((tag) => tag.name.toLowerCase() === trimmedQuery.toLowerCase());
   const errorMessage = createError ?? referenceError ?? error;
 
   async function handleCreate() {

@@ -4,6 +4,7 @@ import { Icon } from "../icon";
 import { useSearchShortcut } from "../use-search-shortcut";
 import type { AccountId, CategoryId, MerchantId, TagId } from "../ids";
 import type { ReferenceOption } from "../api/transactions";
+import { fuzzyFilter } from "../fuzzy";
 
 export type SearchFilters = {
   search?: string;
@@ -247,15 +248,12 @@ function optionsFor(
   query: string,
   routeSearch: SearchFilters,
 ): { key?: string; label: string; value: string }[] {
-  const needle = query.trim().toLowerCase();
   if (definition.kind === "branch") {
-    return definition.options
-      .filter((option) => option.label.toLowerCase().includes(needle))
-      .map((option) => ({
-        key: option.key,
-        label: option.label,
-        value: option.label,
-      }));
+    return fuzzyFilter(definition.options, query, (option) => option.label).map((option) => ({
+      key: option.key,
+      label: option.label,
+      value: option.label,
+    }));
   }
   if (definition.kind === "value") {
     const value = query.trim();
@@ -284,10 +282,11 @@ function optionsFor(
     if (value === "__untagged__") selected.add("Untagged");
     if (value === "Untagged") selected.add("__untagged__");
   }
-  return definition.options
-    .filter((option) => !selected.has(option.value))
-    .filter((option) => option.label.toLowerCase().includes(needle))
-    .slice(0, 30);
+  return fuzzyFilter(
+    definition.options.filter((option) => !selected.has(option.value)),
+    query,
+    (option) => option.label,
+  ).slice(0, 30);
 }
 
 function applyValueFilter(

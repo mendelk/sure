@@ -61,6 +61,7 @@
     "@tanstack/react-router": "^1.170.36",
     "@tanstack/react-table": "^9.2.4",
     "d3-shape": "3.2.0",
+    "fuse.js": "^7.5.0",
     "lucide-react": "^1.47.0",
     "mdast-util-from-markdown": "^2.1.0",
     "micromark-util-symbol": "^2.0.1",

@@ -28,6 +28,7 @@ import {
   type TagId,
   type TransactionId,
 } from "./ids";
+import { fuzzyFilter } from "./fuzzy";
 type SplitRow = {
   key: number;
   name: string;
@@ -62,12 +63,12 @@ function TransferAccountSelect({
     (account) => account.id !== excludeAccountId && account.permissions?.can_edit === true,
   );
   const selected = selectable.find((account) => account.id === selectedAccountId);
-  const lowerQuery = query.trim().toLowerCase();
   const options: PickerOption[] = [
     { value: "", label: "No transfer" },
-    ...selectable
-      .filter((account) => account.name.toLowerCase().includes(lowerQuery))
-      .map((account) => ({ value: account.id, label: account.name })),
+    ...fuzzyFilter(selectable, query, (account) => account.name).map((account) => ({
+      label: account.name,
+      value: account.id,
+    })),
   ];
 
   return (
