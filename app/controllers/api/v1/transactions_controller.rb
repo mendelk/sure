@@ -48,7 +48,10 @@ class Api::V1::TransactionsController < Api::V1::BaseController
     # sibling; the split parent records go to @split_parents for headers.
     @transactions = @search.with_missing_siblings(@transactions.to_a)
     @split_parents = @search.split_parents_for(@transactions)
-
+    ActiveRecord::Associations::Preloader.new(
+      records: @split_parents.values.map(&:entryable).compact,
+      associations: [ :merchant ]
+    ).call if @split_parents.any?
     Transaction::ActivitySecurityPreloader.new(@transactions).preload
 
     # Make per_page available to the template

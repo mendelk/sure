@@ -1269,7 +1269,9 @@ end
     end
 
     test "index exposes parent_entry_id and split_parents for grouped headers" do
-      parent_entry = create_transaction(amount: 56, name: "Delta Airlines", account: @account)
+      parent_entry = create_transaction(
+        amount: 56, name: "Delta Airlines", account: @account, merchant: merchants(:netflix)
+      )
       parent_entry.split!([
         { name: "Whatever", amount: 46, category_id: nil },
         { name: "Delta Airlines", amount: 10, category_id: nil }
@@ -1286,6 +1288,9 @@ end
       header = parents.find { |p| p["entry_id"] == parent_entry.id }
       assert_not_nil header, "expected split_parents to include the parent entry"
       assert_equal "Delta Airlines", header["name"]
+      assert_not_nil header["merchant"], "expected split_parents header to expose the parent merchant"
+      assert_equal merchants(:netflix).name, header["merchant"]["name"]
+      assert_equal merchants(:netflix).logo_url, header["merchant"]["logo_url"]
     end
 
     test "index keeps split groups intact across page boundaries" do

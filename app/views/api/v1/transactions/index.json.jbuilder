@@ -12,6 +12,16 @@ json.split_parents @split_parents do |parent_id, parent|
   json.name parent.name
   json.amount parent.amount_money.format
   json.account_name parent.account.name
+  merchant = parent.entryable.try(:merchant)
+  if merchant.present?
+    json.merchant do
+      json.id merchant.id
+      json.name merchant.name
+      json.logo_url Setting.transform_brand_fetch_url(merchant.logo_url)
+    end
+  else
+    json.merchant nil
+  end
 end
 
 json.pagination do
