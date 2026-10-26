@@ -1545,6 +1545,8 @@ components:
       properties:
         account_types:
           type: array
+          description: All account picker types, including Property, which uses its
+            own form-options endpoint.
           items:
             type: object
             required:
@@ -1569,6 +1571,8 @@ components:
                 type: string
         subtypes:
           type: object
+          description: Subtype options for generic account forms; Property options
+            are served by /api/v1/properties/form_options.
           properties:
             depository:
               "$ref": "#/components/schemas/AccountSubtypeOptions"
@@ -7158,6 +7162,8 @@ paths:
       summary: Retrieve account form options
       tags:
       - Accounts
+      description: Account picker metadata includes Property. Property subtype and
+        address options are served by /api/v1/properties/form_options.
       security:
       - apiKeyAuth: []
       parameters:

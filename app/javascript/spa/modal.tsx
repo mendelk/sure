@@ -1,5 +1,5 @@
 import { Dialog, DialogPanel } from "@headlessui/react";
-import type { ReactNode } from "react";
+import type { KeyboardEventHandler, ReactNode } from "react";
 
 type ModalPlacement = "center" | "drawer";
 type ModalLayer = "default" | "above";
@@ -10,6 +10,7 @@ export function Modal({
   id,
   layer = "default",
   onClose,
+  onKeyDown,
   open,
   panelClassName,
   placement = "center",
@@ -19,6 +20,7 @@ export function Modal({
   id?: string;
   layer?: ModalLayer;
   onClose: () => void;
+  onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
   open: boolean;
   panelClassName: string;
   placement?: ModalPlacement;
@@ -33,6 +35,7 @@ export function Modal({
       aria-labelledby={ariaLabelledby}
       className={layer === "above" ? "relative z-50" : "relative z-40"}
       onClose={onClose}
+      onKeyDown={onKeyDown}
       open={open}
     >
       <div aria-hidden="true" className="fixed inset-0 bg-overlay" />

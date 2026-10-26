@@ -27,6 +27,21 @@ impose the obsolete `ButtonComponent`/`DialogComponent` examples on this design
 system. Partials use an underscore prefix; shared partials live in
 `app/views/shared/`, context-specific partials under their controller's views.
 
+## Adding accounts
+
+The SPA `/accounts/new` type picker uses the shared `Modal`, `IconButton`, and
+`FilledIcon` components in a centered, content-sized dialog, matching the ERB
+picker's order, spacing, and account colors. `FilledIcon` mirrors the default
+medium `DS::FilledIcon`; its glyph inherits the supplied color rather than
+`Icon`'s neutral default.
+
+The account-form-options API includes Property as picker metadata, but Property
+still opens `/properties/new` and obtains subtype/address options from its own
+endpoint. Classification filters and `return_to` apply to Property too; a
+`return_to` flow omits Import. Arrow keys and j/k navigate and wrap from the
+dialog's initial focus; Enter selects and Escape dismisses. Short screens scroll
+the dialog, and keyboard hints are hidden below the medium breakpoint.
+
 ## Account editing
 
 The SPA Accounts list's **Edit** menu action and draft-account **Complete setup**

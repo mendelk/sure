@@ -56,18 +56,18 @@ class Api::V1::AccountFormOptionsControllerTest < ActionDispatch::IntegrationTes
     end
   end
 
-  test "should list the eight non-property account types with icon and color" do
+  test "should offer every account type including the specialized property wizard" do
     get "/api/v1/account_form_options", headers: api_headers(@api_key)
 
     assert_response :success
     types = JSON.parse(response.body).fetch("account_types")
     values = types.map { |option| option["value"] }
 
-    assert_equal %w[depository investment crypto vehicle other_asset credit_card loan other_liability], values
-    types.each do |option|
-      assert option["icon"].present?, "expected icon for #{option["value"]}"
-      assert option["color"].present?, "expected color for #{option["value"]}"
-    end
+    assert_equal %w[depository investment crypto property vehicle other_asset credit_card loan other_liability], values
+    property = types.find { |option| option["value"] == "property" }
+    assert_equal "asset", property.fetch("classification")
+    assert_equal Property.icon, property.fetch("icon")
+    assert_equal Property.color, property.fetch("color")
   end
 
   test "should include subtype options per type with investment groups" do

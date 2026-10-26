@@ -9,6 +9,7 @@ import { readCsrfToken } from "./api/transactions";
 import type { SpaBootstrap } from "./bootstrap";
 import { Alert } from "./components/alert";
 import { Button } from "./components/button";
+import { FilledIcon } from "./components/filled-icon";
 import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Icon, ICON_KEYS, type IconName } from "./icon";
@@ -783,8 +784,7 @@ function SupportedEditForm({
 
 /* ---------- new drawers ---------- */
 
-// ERB order for the add-account picker: API order with property inserted
-// after crypto (see `accounts/_account_type` rendering order).
+// Match the ERB add-account order, including the specialized property wizard.
 const PICKER_ORDER = [
   "depository",
   "investment",
@@ -834,12 +834,13 @@ export function AccountableTypePickerDrawer() {
   );
   const linkRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const focusRow = (index: number) => {
-    const count = linkRefs.current.length;
+    const count = rows.length + (search.return_to === undefined ? 1 : 0);
     if (count === 0) return;
     const next = ((index % count) + count) % count;
     linkRefs.current[next]?.focus();
   };
-  const onRowKeyDown = (event: KeyboardEvent<HTMLAnchorElement>, index: number) => {
+  const onPickerKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const index = linkRefs.current.findIndex((link) => link === document.activeElement);
     if (
       event.key === "ArrowDown" ||
       event.key === "ArrowRight" ||
@@ -855,7 +856,7 @@ export function AccountableTypePickerDrawer() {
       event.key === "K"
     ) {
       event.preventDefault();
-      focusRow(index - 1);
+      focusRow(index < 0 ? -1 : index - 1);
     }
   };
   const passthrough = search.return_to === undefined ? {} : { return_to: search.return_to };
@@ -880,18 +881,15 @@ export function AccountableTypePickerDrawer() {
   return (
     <Modal
       onClose={goBack}
+      onKeyDown={onPickerKeyDown}
       open
-      panelClassName="relative flex size-full flex-col overflow-hidden rounded-xl bg-surface p-0 shadow-border-xs lg:w-[550px]"
-      placement="drawer"
+      panelClassName="relative flex max-h-full w-full flex-col overflow-y-auto rounded-xl bg-container py-4 shadow-border-xs lg:max-w-[550px]"
     >
-      <div className="flex grow flex-col gap-4 overflow-y-auto p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <DialogTitle className="text-lg font-medium text-primary">
-              {pickLabel(["accountable_type_label", "accountable_title_new"], "New account")}
-            </DialogTitle>
-            <p className="mt-0.5 text-sm text-secondary">{labels.accountable_subtitle_new}</p>
-          </div>
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between gap-2 border-b border-tertiary px-4 pb-4 md:border-transparent">
+          <DialogTitle className="text-base font-normal text-primary">
+            {pickLabel(["accountable_type_label", "accountable_title_new"], "New account")}
+          </DialogTitle>
           <IconButton
             className="shrink-0"
             icon="x"
@@ -900,125 +898,74 @@ export function AccountableTypePickerDrawer() {
           />
         </div>
 
-        {optionsQuery.isPending ? (
-          <output aria-busy="true" className="block h-40 animate-pulse rounded-xl bg-container" />
-        ) : null}
-        {optionsQuery.isError ? (
-          <Alert live="alert" title={labels.accountable_options_error} variant="error">
-            <p>{labels.accountable_options_error}</p>
-          </Alert>
-        ) : null}
-
-        <ul className="space-y-1">
-          {rows.map((t, index) =>
-            t.value === "property" ? (
-              <li key={t.value}>
-                <Link
-                  to="/properties/new"
-                  search={search.return_to === undefined ? {} : { return_to: search.return_to }}
-                  ref={setRowRef(index)}
-                  onKeyDown={(event) => {
-                    onRowKeyDown(event, index);
-                  }}
-                  className="group flex w-full items-center gap-4 rounded-lg border border-transparent p-2 text-center text-primary hover:bg-surface-hover focus:bg-surface-hover"
-                >
-                  <span
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg"
-                    style={{
-                      color: t.color,
-                      backgroundColor: `color-mix(in oklab, ${t.color} 10%, transparent)`,
-                    }}
-                    aria-hidden="true"
-                  >
-                    <Icon name={isIconName(t.icon) ? t.icon : "shapes"} size="sm" />
-                  </span>
-                  <span className="flex min-w-0 grow items-center gap-2 text-sm font-medium">
-                    {t.label}
-                  </span>
-                  <Icon
-                    name="chevron-right"
-                    size="sm"
-                    className="ml-auto shrink-0 text-subdued transition-colors group-hover:text-secondary"
-                  />
-                </Link>
-              </li>
-            ) : (
-              <li key={t.value}>
-                <Link
-                  to="/accounts/new/$accountType"
-                  params={{ accountType: t.value }}
-                  search={passthrough}
-                  ref={setRowRef(index)}
-                  onKeyDown={(event) => {
-                    onRowKeyDown(event, index);
-                  }}
-                  className="group flex w-full items-center gap-4 rounded-lg border border-transparent p-2 text-center text-primary hover:bg-surface-hover focus:bg-surface-hover"
-                >
-                  <span
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg"
-                    style={{
-                      color: t.color,
-                      backgroundColor: `color-mix(in oklab, ${t.color} 10%, transparent)`,
-                    }}
-                    aria-hidden="true"
-                  >
-                    <Icon name={isIconName(t.icon) ? t.icon : "shapes"} size="sm" />
-                  </span>
-                  <span className="flex min-w-0 grow items-center gap-2 text-sm font-medium">
-                    {t.label}
-                  </span>
-                  <Icon
-                    name="chevron-right"
-                    size="sm"
-                    className="ml-auto shrink-0 text-subdued transition-colors group-hover:text-secondary"
-                  />
-                </Link>
-              </li>
-            ),
-          )}
-          {search.return_to === undefined ? (
-            <li>
-              <a
-                href={bootstrap.railsPaths.newImport}
-                ref={setRowRef(rows.length)}
-                onKeyDown={(event) => {
-                  onRowKeyDown(event, rows.length);
-                }}
-                className="group flex w-full items-center gap-4 rounded-lg border border-transparent p-2 text-center text-primary hover:bg-surface-hover focus:bg-surface-hover"
-              >
-                <span
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-container text-secondary"
-                  aria-hidden="true"
-                >
-                  <Icon name="download" size="sm" />
-                </span>
-                <span className="flex min-w-0 grow items-center gap-2 text-sm font-medium">
-                  {importLabel}
-                </span>
-                <Icon
-                  name="chevron-right"
-                  size="sm"
-                  className="ml-auto shrink-0 text-subdued transition-colors group-hover:text-secondary"
-                />
-              </a>
-            </li>
+        <div className="p-2">
+          {optionsQuery.isPending ? (
+            <output aria-busy="true" className="block h-40 animate-pulse rounded-xl bg-surface" />
           ) : null}
-        </ul>
+          {optionsQuery.isError ? (
+            <Alert live="alert" title={labels.accountable_options_error} variant="error">
+              <p>{labels.accountable_options_error}</p>
+            </Alert>
+          ) : null}
 
-        <div className="mt-auto hidden justify-between border-t border-tertiary px-4 pt-4 text-sm text-secondary md:flex">
+          <ul>
+            {rows.map((t, index) => {
+              const destination =
+                t.value === "property"
+                  ? { to: "/properties/new" as const }
+                  : {
+                      to: "/accounts/new/$accountType" as const,
+                      params: { accountType: t.value },
+                    };
+
+              return (
+                <li key={t.value}>
+                  <Link
+                    {...destination}
+                    search={passthrough}
+                    ref={setRowRef(index)}
+                    className="group flex w-full items-center gap-4 rounded-lg border border-transparent p-2 text-primary hover:bg-surface-hover focus:bg-surface-hover"
+                  >
+                    <FilledIcon color={t.color} icon={isIconName(t.icon) ? t.icon : "shapes"} />
+                    <span className="min-w-0 grow text-sm">{t.label}</span>
+                    <Icon
+                      name="chevron-right"
+                      size="sm"
+                      className="ml-auto shrink-0 text-subdued transition-colors group-hover:text-secondary"
+                    />
+                  </Link>
+                </li>
+              );
+            })}
+            {search.return_to === undefined ? (
+              <li>
+                <a
+                  href={bootstrap.railsPaths.newImport}
+                  ref={setRowRef(rows.length)}
+                  className="group flex w-full items-center gap-4 rounded-lg border border-transparent p-2 text-primary hover:bg-surface-hover focus:bg-surface-hover"
+                >
+                  <FilledIcon color="var(--color-warning)" icon="download" />
+                  <span className="min-w-0 grow text-sm">{importLabel}</span>
+                </a>
+              </li>
+            ) : null}
+          </ul>
+        </div>
+
+        <div className="hidden justify-between px-4 pt-4 text-sm text-secondary md:flex">
           <div className="flex space-x-5">
             <div className="flex items-center space-x-2">
               <span>{selectLabel}</span>
-              <kbd className="flex size-5 shrink-0 grow-0 items-center justify-center rounded-md bg-container p-1 shadow-[inset_0_-1px_0_0_rgba(0,0,0,0.1)]">
+              <kbd className="flex size-5 shrink-0 grow-0 items-center justify-center rounded-md bg-surface p-1">
                 <Icon name="corner-down-left" size="sm" />
               </kbd>
             </div>
             <div className="flex items-center space-x-2">
               <span>{navigateLabel}</span>
-              <kbd className="flex size-5 shrink-0 grow-0 items-center justify-center rounded-md bg-container p-1 shadow-[inset_0_-1px_0_0_rgba(0,0,0,0.1)]">
+              <kbd className="flex size-5 shrink-0 grow-0 items-center justify-center rounded-md bg-surface p-1">
                 <Icon name="arrow-up" size="sm" />
               </kbd>
-              <kbd className="flex size-5 shrink-0 grow-0 items-center justify-center rounded-md bg-container p-1 shadow-[inset_0_-1px_0_0_rgba(0,0,0,0.1)]">
+              <kbd className="flex size-5 shrink-0 grow-0 items-center justify-center rounded-md bg-surface p-1">
                 <Icon name="arrow-down" size="sm" />
               </kbd>
             </div>
@@ -1027,7 +974,7 @@ export function AccountableTypePickerDrawer() {
             <button onClick={goBack} type="button">
               {closeLabel}
             </button>
-            <kbd className="flex h-5 w-8 shrink-0 grow-0 items-center justify-center rounded-md bg-container p-1 text-xs shadow-[inset_0_-1px_0_0_rgba(0,0,0,0.1)]">
+            <kbd className="flex h-5 w-8 shrink-0 grow-0 items-center justify-center rounded-md bg-surface p-1 text-xs">
               ESC
             </kbd>
           </div>

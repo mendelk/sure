@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 
-# Option lists for the SPA manual-account create/edit forms. Covers every
-# accountable type except Property, whose wizard serves its own subtypes and
-# address/area data. Read-only reference data: labels are translated
-# server-side so the SPA never hardcodes option lists.
+# Option lists for the SPA account picker and manual-account create/edit forms.
+# Property appears in the picker; its wizard serves its own subtypes and
+# address/area data. Labels are translated server-side.
 class Api::V1::AccountFormOptionsController < Api::V1::BaseController
-  # Property is excluded here by agreement with the property wizard endpoint.
+  # Types handled by the generic account form, excluding the property wizard.
   ACCOUNT_TYPES = %w[depository investment crypto vehicle other_asset credit_card loan other_liability].freeze
 
   ACCOUNTABLE_CLASS = {
     "depository" => Depository,
     "investment" => Investment,
     "crypto" => Crypto,
+    "property" => Property,
     "vehicle" => Vehicle,
     "other_asset" => OtherAsset,
     "credit_card" => CreditCard,
@@ -37,8 +37,7 @@ class Api::V1::AccountFormOptionsController < Api::V1::BaseController
 
   private
     def account_type_options
-      ACCOUNT_TYPES.map do |type|
-        klass = ACCOUNTABLE_CLASS.fetch(type)
+      ACCOUNTABLE_CLASS.map do |type, klass|
         { value: type, label: klass.singular_display_name, classification: klass.classification, icon: klass.icon, color: klass.color }
       end
     end

@@ -50,6 +50,7 @@ RSpec.describe 'API V1 Account Form Options', type: :request do
   path '/api/v1/account_form_options' do
     get 'Retrieve account form options' do
       tags 'Accounts'
+      description 'Account picker metadata includes Property. Property subtype and address options are served by /api/v1/properties/form_options.'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
       parameter name: :currency, in: :query, type: :string, required: false,

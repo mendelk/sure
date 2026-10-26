@@ -878,6 +878,7 @@ RSpec.configure do |config|
             properties: {
               account_types: {
                 type: :array,
+                description: 'All account picker types, including Property, which uses its own form-options endpoint.',
                 items: {
                   type: :object,
                   required: %w[value label classification icon color],
@@ -892,6 +893,7 @@ RSpec.configure do |config|
               },
               subtypes: {
                 type: :object,
+                description: 'Subtype options for generic account forms; Property options are served by /api/v1/properties/form_options.',
                 properties: {
                   depository: { '$ref' => '#/components/schemas/AccountSubtypeOptions' },
                   investment: { '$ref' => '#/components/schemas/AccountSubtypeOptions' },
