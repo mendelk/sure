@@ -517,15 +517,14 @@ function CategoryMenu({
       ]);
     },
   });
-  const groups = useMemo(() => categoryGroups(categories), [categories]);
   const trimmedQuery = query.trim();
-  const matchedCategoryIds = useMemo(
+  const visibleCategories = useMemo(
     () =>
-      new Set(
-        fuzzyFilter(categories, trimmedQuery, (category) => category.name).map(
-          (category) => category.id,
-        ),
-      ),
+      trimmedQuery.length > 0
+        ? fuzzyFilter(categories, trimmedQuery, (category) => category.name)
+        : categoryGroups(categories).flatMap((group) =>
+            group.subcategories.length > 0 ? group.subcategories : [group.category],
+          ),
     [categories, trimmedQuery],
   );
   const options: PickerOption[] = [];
@@ -576,30 +575,20 @@ function CategoryMenu({
         });
       }
     }
-    for (const group of groups) {
-      const parentMatches = matchedCategoryIds.has(group.category.id);
-      if ((group.subcategories.length === 0 || trimmedQuery.length > 0) && parentMatches) {
-        options.push({
-          value: group.category.id,
-          label: group.category.name,
-          group: "Categories",
-          content: <CategoryBadge category={group.category} />,
-        });
-      }
-      for (const category of group.subcategories) {
-        if (!parentMatches && !matchedCategoryIds.has(category.id)) continue;
-        options.push({
-          value: category.id,
-          label: category.name,
-          group: "Categories",
-          content: (
-            <>
+    for (const category of visibleCategories) {
+      options.push({
+        value: category.id,
+        label: category.name,
+        group: "Categories",
+        content: (
+          <>
+            {(category.parentName ?? "").length > 0 ? (
               <Icon name="corner-down-right" size="sm" />
-              <CategoryBadge category={category} />
-            </>
-          ),
-        });
-      }
+            ) : null}
+            <CategoryBadge category={category} />
+          </>
+        ),
+      });
     }
     if (transaction.category)
       options.push({ value: "__clear", label: "Clear category", group: "Actions" });

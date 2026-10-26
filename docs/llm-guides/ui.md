@@ -36,6 +36,14 @@ and properties retain their specialized `/loans/:id/edit` and
 `/properties/:id/edit` SPA editors. Keep account-list navigation consistent with
 the account-detail actions so SPA-only settings remain reachable.
 
+## Transaction category search
+
+The transaction-row category picker keeps recent categories and the alphabetical
+parent/child hierarchy when the query is blank. Nonblank queries show matching
+categories in the shared fuzzy matcher's relevance order, retaining the child
+indicator for subcategories. Do not reduce ranked results to membership checks
+against the alphabetical hierarchy.
+
 ## Bulk transaction tags
 
 The bulk-edit drawer on Transactions and account activity has separate **Tags to
