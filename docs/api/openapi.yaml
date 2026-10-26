@@ -186,6 +186,7 @@ components:
             - transaction_id
             - possible_matches
             - status
+            - import_token
             properties:
               simplefin_account_id:
                 type: string
@@ -232,6 +233,12 @@ components:
                 - pending
                 - invalid
                 - identity_conflict
+              import_token:
+                type: string
+                nullable: true
+                description: One-hour, account/feed-bound authorization for an explicit
+                  import/link decision. Present only for missing or possible_match;
+                  audit remains read-only.
         summary:
           type: object
           required:
@@ -290,6 +297,57 @@ components:
           nullable: true
           description: Revisit this partial page without losing the next-page cursor.
             Stop on provider errors or quota warnings and retry later.
+    SimplefinHistoryAuditImportRequest:
+      type: object
+      required:
+      - decisions
+      properties:
+        decisions:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required:
+            - token
+            - entry_id
+            properties:
+              token:
+                type: string
+                description: Unexpired import_token from a missing/possible_match
+                  audit row
+              entry_id:
+                type: string
+                format: uuid
+                nullable: true
+                description: Explicit null imports a separate transaction; a reviewed
+                  candidate UUID only adds a protected provider alias without changing
+                  the entry.
+    SimplefinHistoryAuditImport:
+      type: object
+      required:
+      - transactions
+      properties:
+        transactions:
+          type: array
+          items:
+            type: object
+            required:
+            - simplefin_account_id
+            - provider_transaction_id
+            - entry_id
+            - transaction_id
+            properties:
+              simplefin_account_id:
+                type: string
+                format: uuid
+              provider_transaction_id:
+                type: string
+              entry_id:
+                type: string
+                format: uuid
+              transaction_id:
+                type: string
+                format: uuid
     ProviderReplacementAccount:
       type: object
       required:
@@ -12672,6 +12730,74 @@ paths:
           application/json:
             schema:
               "$ref": "#/components/schemas/SimplefinHistoryAuditRequest"
+  "/api/v1/accounts/{account_id}/simplefin_history_audit/import":
+    parameters:
+    - name: account_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Import or link explicitly reviewed SimpleFIN history transactions
+      description: 'Requires an administrator, account write permission, and read_write
+        scope. Submit one-hour import tokens from missing/possible_match rows with
+        an explicit entry_id: null imports separately, while a reviewed candidate
+        UUID creates an alias without changing manual, CSV, split or transfer data.
+        The batch is atomic and rechecks feed mappings, candidate eligibility and
+        tombstones under ingestion locks. Repeating an unchanged decision is idempotent;
+        changed decisions conflict. No provider request, balance adoption, payload-cache
+        or provider sync-timestamp update occurs. New imports schedule account recalculation.'
+      tags:
+      - Accounts
+      security:
+      - apiKeyAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: explicit decisions applied or replayed without additional provider
+            requests
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SimplefinHistoryAuditImport"
+        '401':
+          description: authentication required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '403':
+          description: administrator, account write permission, and read_write scope
+            required
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '404':
+          description: account not accessible
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '409':
+          description: feeds/candidates changed, identity was deleted, or a different
+            decision was already applied
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '422':
+          description: invalid/expired/wrong-account token or malformed decisions
+            without explicit entry_id
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/SimplefinHistoryAuditImportRequest"
   "/api/v1/syncs":
     get:
       summary: Lists sync history

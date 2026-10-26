@@ -114,7 +114,7 @@ RSpec.configure do |config|
               transactions: {
                 type: :array, items: {
                   type: :object,
-                  required: %w[simplefin_account_id provider_transaction_id external_id date name amount currency entry_id transaction_id possible_matches status],
+                  required: %w[simplefin_account_id provider_transaction_id external_id date name amount currency entry_id transaction_id possible_matches status import_token],
                   properties: {
                     simplefin_account_id: { type: :string, format: :uuid },
                     provider_transaction_id: { type: :string, nullable: true },
@@ -126,7 +126,8 @@ RSpec.configure do |config|
                     entry_id: { type: :string, format: :uuid, nullable: true },
                     transaction_id: { type: :string, format: :uuid, nullable: true },
                     possible_matches: { type: :array, items: { '$ref' => '#/components/schemas/SimplefinHistoryAuditCandidate' } },
-                    status: { type: :string, enum: %w[recorded intentionally_deleted possible_match missing pending invalid identity_conflict] }
+                    status: { type: :string, enum: %w[recorded intentionally_deleted possible_match missing pending invalid identity_conflict] },
+                    import_token: { type: :string, nullable: true, description: 'One-hour, account/feed-bound authorization for an explicit import/link decision. Present only for missing or possible_match; audit remains read-only.' }
                   }
                 }
               },
@@ -147,6 +148,38 @@ RSpec.configure do |config|
               },
               next_cursor: { type: :string, nullable: true, description: 'Next connection/window, even after an empty or partial page. Null means the requested range was traversed, not that bank history is complete.' },
               retry_cursor: { type: :string, nullable: true, description: 'Revisit this partial page without losing the next-page cursor. Stop on provider errors or quota warnings and retry later.' }
+            }
+          },
+          SimplefinHistoryAuditImportRequest: {
+            type: :object, required: %w[decisions],
+            properties: {
+              decisions: {
+                type: :array, minItems: 1,
+                items: {
+                  type: :object, required: %w[token entry_id],
+                  properties: {
+                    token: { type: :string, description: 'Unexpired import_token from a missing/possible_match audit row' },
+                    entry_id: { type: :string, format: :uuid, nullable: true, description: 'Explicit null imports a separate transaction; a reviewed candidate UUID only adds a protected provider alias without changing the entry.' }
+                  }
+                }
+              }
+            }
+          },
+          SimplefinHistoryAuditImport: {
+            type: :object, required: %w[transactions],
+            properties: {
+              transactions: {
+                type: :array,
+                items: {
+                  type: :object, required: %w[simplefin_account_id provider_transaction_id entry_id transaction_id],
+                  properties: {
+                    simplefin_account_id: { type: :string, format: :uuid },
+                    provider_transaction_id: { type: :string },
+                    entry_id: { type: :string, format: :uuid },
+                    transaction_id: { type: :string, format: :uuid }
+                  }
+                }
+              }
             }
           },
           ProviderReplacementAccount: {
