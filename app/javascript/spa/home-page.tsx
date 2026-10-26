@@ -3,7 +3,12 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./icon";
-import { HOME_PERIOD_OPTIONS, currentMonthStart, type HomeSearch } from "./home/home-search";
+import {
+  HOME_PERIOD_OPTIONS,
+  currentMonthStart,
+  homePeriodFromSearch,
+  type HomeSearch,
+} from "./home/home-search";
 import { NoAccountsPlaceholder, resolveNoAccountsText } from "./home/no-accounts-placeholder";
 import { BalanceSheetWidget } from "./home/balance-sheet-widget";
 import { NetWorthWidget } from "./home/net-worth-widget";
@@ -24,6 +29,7 @@ import {
 } from "./home/investment-summary-widget";
 import {
   HomeApiError,
+  homePathForPeriod,
   homeWidgetsQueryOptions,
   type HomeBalanceSheet,
   type HomeCashForecast,
@@ -48,6 +54,7 @@ const SECTION_TITLES: Record<string, string> = {
 };
 
 type WidgetPayload = {
+  period: { start_date: string; end_date: string };
   balance_sheet: HomeBalanceSheet;
   net_worth: HomeNetWorth;
   cashflow_sankey: HomeSankey;
@@ -255,7 +262,13 @@ function HomeWidgetBody({
         />
       );
     case "cashflow_sankey":
-      return <CashflowSankeyWidget sankey={payload.cashflow_sankey} />;
+      return (
+        <CashflowSankeyWidget
+          sankey={payload.cashflow_sankey}
+          startDate={payload.period.start_date}
+          endDate={payload.period.end_date}
+        />
+      );
     case "money_flow": {
       const month = search.money_flow_month ?? currentMonthStart();
       return (
@@ -332,7 +345,9 @@ export function HomePage() {
   const search = useSearch({ from: "/" });
   const homePath = bootstrap.apiPaths.home;
   const widgets = useQuery({
-    ...homeWidgetsQueryOptions(homePath),
+    ...homeWidgetsQueryOptions(
+      homePathForPeriod(homePath, { period: "last_30_days", ...homePeriodFromSearch(search) }),
+    ),
     retry: (failureCount, error) =>
       !(error instanceof HomeApiError && error.status < 500) && failureCount < 2,
   });

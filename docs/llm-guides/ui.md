@@ -108,6 +108,12 @@ an embedded chart or control receives the key.
 These shared modules currently serve the SPA only. ERB/Stimulus charts and print
 rendering retain their existing implementations.
 
+The home dashboard's time-period picker drives the home widget request URL and
+query-cache key, including custom `start_date`/`end_date` ranges. With no URL
+selection, request `last_30_days` explicitly to match the picker rather than
+inheriting a different saved server period. Sankey category drill-downs use the
+resolved dates from the same response, including in the expanded chart.
+
 ## Account charts
 
 The account SPA's `AccountChartCard` isolates chart-rendering failures behind a

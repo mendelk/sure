@@ -160,6 +160,10 @@ const HomeCashForecastSchema = z.object({
 });
 
 const HomeResponseSchema = z.object({
+  period: z.object({
+    start_date: z.string(),
+    end_date: z.string(),
+  }),
   balance_sheet: HomeBalanceSheetSchema,
   net_worth: HomeNetWorthSchema,
   cashflow_sankey: HomeSankeySchema,
