@@ -33,6 +33,7 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     assert_equal "2026-09-15", transaction.fetch("date")
     assert_equal "USD", transaction.fetch("currency")
     assert_equal "Card payment - AUTOPAY", transaction.fetch("name")
+    assert transaction.fetch("import_token").present?
     assert_equal 30, response.parsed_body.dig("coverage", "period_days")
     assert_equal "2026-09-01", response.parsed_body.dig("coverage", "window_start_date")
     assert_equal "2026-09-30", response.parsed_body.dig("coverage", "window_end_date")
@@ -80,6 +81,8 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     assert_equal existing.id, retired_row.fetch("entry_id")
     assert_equal "possible_match", current_row.fetch("status"), "The old feed's alias must not claim a new feed's same ID"
     assert_equal "intentionally_deleted", rows.find { |row| row["provider_transaction_id"] == "deleted" }.fetch("status")
+    assert_nil retired_row.fetch("import_token")
+    assert_nil rows.find { |row| row["provider_transaction_id"] == "deleted" }.fetch("import_token")
     assert_equal [ old.id, @provider.id ].sort, response.parsed_body.fetch("feeds").map { |feed| feed.fetch("simplefin_account_id") }.sort
   end
 
@@ -169,6 +172,7 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     assert_equal 2, body.dig("summary", "invalid")
     assert_equal 1, body.dig("summary", "pending")
     assert_equal 0, body.dig("summary", "missing")
+    assert body.fetch("transactions").all? { |row| row.fetch("import_token").nil? }
     assert_equal %w[provider_errors feed_unavailable unresolved_transactions], body.fetch("warnings").map { |warning| warning.fetch("code") }
     refute body.fetch("feeds").find { |feed| feed["simplefin_account_id"] == old.id }.fetch("returned")
     assert body.fetch("retry_cursor")
@@ -245,6 +249,8 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     assert_equal 1, response.parsed_body.dig("summary", "missing")
     assert_equal 1, response.parsed_body.dig("summary", "invalid")
     refute response.parsed_body.dig("coverage", "page_complete")
+    assert response.parsed_body.fetch("transactions").find { |row| row["status"] == "missing" }.fetch("import_token").present?
+    assert_nil response.parsed_body.fetch("transactions").find { |row| row["status"] == "invalid" }.fetch("import_token")
   end
 
   test "selected periods page backward without gaps and retries stay anchored across midnight" do
@@ -375,9 +381,314 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
     assert_response :forbidden
   end
 
+  test "explicit import handles current and retired feeds with colliding IDs without adopting provider state" do
+    old = make_provider("old-card", retired_at: Time.current, retired_account: @account)
+    raw = raw_transaction("shared").merge(currency: "EUR", memo: "Historical memo", extra: { "reference" => "kept" })
+    stub_history([ raw ], { old.account_id => [ raw ] })
+    audit
+    rows = response.parsed_body.fetch("transactions")
+    before = [ @account.reload.attributes, @provider.reload.attributes, old.reload.attributes, @item.reload.attributes, @item.last_synced_at ]
+    Provider::Simplefin.any_instance.expects(:get_accounts).never
+    Account.any_instance.expects(:sync_later).with(window_start_date: Date.new(2026, 9, 15)).once
+
+    assert_difference [ "Entry.count", "Transaction.count", "SimplefinTransactionIdentity.count" ], 2 do
+      apply_decisions(rows.map { |row| { token: row.fetch("import_token"), entry_id: nil } })
+      assert_response :success
+    end
+    result = response.parsed_body.fetch("transactions")
+    assert_equal [ old.id, @provider.id ].sort, result.map { |row| row.fetch("simplefin_account_id") }.sort
+    assert_equal 2, result.map { |row| row.fetch("entry_id") }.uniq.size
+    result.each do |row|
+      entry = Entry.find(row.fetch("entry_id"))
+      assert_equal row.fetch("transaction_id"), entry.entryable_id
+      assert_equal "simplefin", entry.source
+      assert_includes entry.external_id, row.fetch("simplefin_account_id")
+      assert_equal BigDecimal("144.81"), entry.amount
+      assert_equal "EUR", entry.currency
+      assert_equal "Historical memo", entry.transaction.extra.dig("simplefin", "memo")
+      assert_equal "kept", entry.transaction.extra.dig("simplefin", "extra", "reference")
+      assert_equal "EUR", entry.transaction.extra.dig("simplefin", "fx_from")
+      assert_equal "2026-09-15", entry.transaction.extra.dig("simplefin", "fx_date")
+      assert_equal false, entry.transaction.extra.dig("simplefin", "pending")
+      refute SimplefinTransactionIdentity.find_by!(entry: entry).duplicate?
+    end
+    assert_equal before, [ @account.reload.attributes, @provider.reload.attributes, old.reload.attributes, @item.reload.attributes, @item.last_synced_at ]
+  end
+
+  test "linking aliases preserves manual CSV splits transfers and future processor replay" do
+    old = make_provider("old-card", retired_at: Time.current, retired_account: @account)
+    parent = make_entry(source: "mfs_v2", external_id: "csv-parent", notes: "User notes", user_modified: true, import_locked: true)
+    parent.split!([ { amount: 100, name: "Transfer part" }, { amount: 44.81, name: "Spending part" } ])
+    child = parent.child_entries.find_by!(amount: 100)
+    child.transaction.update!(kind: "funds_movement", extra: { "manual" => { "preserve" => true } })
+    checking = @family.accounts.create!(owner: @user, name: "Checking", currency: "USD", balance: 0, accountable: Depository.new)
+    counterpart = checking.entries.create!(date: child.date, name: "Counterpart", amount: -100, currency: "USD",
+      entryable: Transaction.new(kind: "funds_movement"))
+    transfer = Transfer.create!(inflow_transaction: counterpart.transaction, outflow_transaction: child.transaction, status: "confirmed")
+    manual = make_entry(amount: 20, notes: "Manual repair")
+    stub_history([ raw_transaction("parent"), raw_transaction("manual", amount: "-20") ],
+      { old.account_id => [ raw_transaction("child", amount: "-100") ] })
+    audit
+    rows = response.parsed_body.fetch("transactions").index_by { |row| row.fetch("provider_transaction_id") }
+    snapshots = [ parent, child, counterpart, manual, parent.transaction, child.transaction, manual.transaction, transfer ].map { |record| record.reload.attributes }
+    Account.any_instance.expects(:sync_later).never
+    decisions = { "parent" => parent, "child" => child, "manual" => manual }.map do |id, entry|
+      assert_nil rows.fetch(id).fetch("entry_id"), "Candidates must never be selected automatically"
+      { token: rows.fetch(id).fetch("import_token"), entry_id: entry.id }
+    end
+
+    assert_no_difference [ "Entry.count", "Transaction.count", "Transfer.count" ] do
+      assert_difference "SimplefinTransactionIdentity.count", 3 do
+        apply_decisions(decisions)
+        assert_response :success
+      end
+      result = response.parsed_body
+      apply_decisions(decisions)
+      assert_response :success
+      assert_equal result, response.parsed_body
+      SimplefinEntry::Processor.new(raw_transaction("parent"), simplefin_account: @provider).process
+    end
+    assert_equal snapshots, [ parent, child, counterpart, manual, parent.transaction, child.transaction, manual.transaction, transfer ].map { |record| record.reload.attributes }
+    assert SimplefinTransactionIdentity.where(entry: [ parent, child, manual ]).all?(&:duplicate?)
+
+    apply_decisions([ { token: rows.fetch("manual").fetch("import_token"), entry_id: nil } ])
+    assert_response :conflict
+    assert_equal "import_conflict", response.parsed_body.fetch("error")
+  end
+
+  test "keep separate is explicit and never heuristically claims manual or pending transactions" do
+    manual = make_entry
+    pending = make_entry(source: "simplefin", external_id: "simplefin_pending",
+      entryable: Transaction.new(extra: { "simplefin" => { "pending" => true } }))
+    before = [ manual.attributes, pending.attributes, pending.transaction.attributes ]
+    stub_history([ raw_transaction("separate") ])
+    audit
+    row = response.parsed_body.fetch("transactions").sole
+    assert_equal "possible_match", row.fetch("status")
+    assert_equal [ manual.id ], row.fetch("possible_matches").map { |candidate| candidate.fetch("entry_id") }
+    Account.any_instance.expects(:sync_later).with(window_start_date: Date.new(2026, 9, 15)).once
+    apply_decisions([ { token: row.fetch("import_token") } ])
+    assert_response :unprocessable_entity
+    assert_equal "invalid_decisions", response.parsed_body.fetch("error")
+
+    decisions = [ { token: row.fetch("import_token"), entry_id: nil } ]
+    assert_difference [ "Entry.count", "Transaction.count", "SimplefinTransactionIdentity.count" ], 1 do
+      apply_decisions(decisions)
+      assert_response :success
+    end
+    result = response.parsed_body
+    refute_includes [ manual.id, pending.id ], result.fetch("transactions").sole.fetch("entry_id")
+    assert_no_difference [ "Entry.count", "Transaction.count", "SimplefinTransactionIdentity.count" ] do
+      apply_decisions(decisions)
+      assert_response :success
+      assert_equal result, response.parsed_body
+    end
+    assert_equal before, [ manual.reload.attributes, pending.reload.attributes, pending.transaction.reload.attributes ]
+    apply_decisions([ { token: row.fetch("import_token"), entry_id: manual.id } ])
+    assert_response :conflict
+    Entry.find(result.fetch("transactions").sole.fetch("entry_id")).destroy!
+    assert_no_difference [ "Entry.count", "Transaction.count", "SimplefinTransactionIdentity.count" ] do
+      apply_decisions(decisions)
+      assert_response :conflict
+      assert_equal "import_conflict", response.parsed_body.fetch("error")
+    end
+  end
+
+  test "import rejects tampering expiry wrong account and audit cursors without provider requests" do
+    stub_history([ raw_transaction("missing") ])
+    audit
+    token = response.parsed_body.fetch("transactions").sole.fetch("import_token")
+    cursor = response.parsed_body.fetch("next_cursor")
+    another = @family.accounts.create!(owner: @user, name: "Other", currency: "USD", balance: 0, accountable: CreditCard.new)
+    AccountProvider.create!(account: another, provider: make_provider("other-card"))
+    Provider::Simplefin.any_instance.expects(:get_accounts).never
+    assert_no_difference [ "Entry.count", "SimplefinTransactionIdentity.count" ] do
+      [ token + "tampered", cursor ].each do |invalid|
+        apply_decisions([ { token: invalid, entry_id: nil } ])
+        assert_response :unprocessable_entity
+        assert_equal "invalid_import_token", response.parsed_body.fetch("error")
+      end
+      post import_api_v1_account_simplefin_history_audit_path(another),
+        params: { decisions: [ { token: token, entry_id: nil } ] }, headers: api_headers(@key), as: :json
+      assert_response :unprocessable_entity
+      travel 61.minutes
+      apply_decisions([ { token: token, entry_id: nil } ])
+      assert_response :unprocessable_entity
+      assert_equal "invalid_import_token", response.parsed_body.fetch("error")
+    end
+  end
+
+  test "import reloads feed mappings and authorization before applying a reviewed token" do
+    stub_history([ raw_transaction("missing") ])
+    audit
+    token = response.parsed_body.fetch("transactions").sole.fetch("import_token")
+    Provider::Simplefin.any_instance.expects(:get_accounts).never
+    Account.any_instance.expects(:sync_later).never
+    assert_no_difference [ "Entry.count", "SimplefinTransactionIdentity.count" ] do
+      @provider.update!(account_id: "remapped")
+      apply_decisions([ { token: token, entry_id: nil } ])
+      assert_response :conflict
+      assert_equal "stale_import", response.parsed_body.fetch("error")
+      @provider.update!(account_id: "new-card")
+      @account.update!(currency: "EUR")
+      apply_decisions([ { token: token, entry_id: nil } ])
+      assert_response :conflict
+      @account.update!(currency: "USD")
+      @account.account_providers.destroy_all
+      apply_decisions([ { token: token, entry_id: nil } ])
+      assert_response :conflict
+      assert_equal "stale_import", response.parsed_body.fetch("error")
+    end
+  end
+
+  test "candidate links are restricted to reviewed account type amount currency date and posted state" do
+    candidate = make_entry
+    stub_history([ raw_transaction("link") ])
+    audit
+    token = response.parsed_body.fetch("transactions").sole.fetch("import_token")
+    unreviewed = make_entry
+    other = @family.accounts.create!(owner: @user, name: "Other", currency: "USD", balance: 0, accountable: Depository.new)
+    foreign_entry = other.entries.create!(date: candidate.date, amount: candidate.amount, currency: "USD", name: "Other", entryable: Transaction.new)
+    Account.any_instance.expects(:sync_later).never
+    assert_no_difference "SimplefinTransactionIdentity.count" do
+      [ unreviewed.id, foreign_entry.id ].each do |id|
+        apply_decisions([ { token: token, entry_id: id } ])
+        assert_response :conflict
+        assert_equal "stale_import", response.parsed_body.fetch("error")
+      end
+      [ { amount: -144.81 }, { currency: "EUR" }, { date: Date.new(2026, 9, 10) },
+        { entryable: Valuation.new }, { entryable: Transaction.new(extra: { "simplefin" => { "pending" => true } }) } ].each do |attrs|
+        before = candidate.attributes
+        candidate.update!(attrs)
+        apply_decisions([ { token: token, entry_id: candidate.id } ])
+        assert_response :conflict
+        candidate.update!(before.except("id", "created_at", "updated_at"))
+      end
+    end
+  end
+
+  test "tombstones and changed decisions roll back the entire batch" do
+    candidate = make_entry
+    stub_history([ raw_transaction("first"), raw_transaction("deleted") ])
+    audit
+    rows = response.parsed_body.fetch("transactions").index_by { |row| row.fetch("provider_transaction_id") }
+    identity = SimplefinTransactionIdentity.create!(simplefin_account: @provider, external_id: "simplefin_deleted", entry: nil)
+    Account.any_instance.expects(:sync_later).never
+    assert_no_difference [ "Entry.count", "Transaction.count", "SimplefinTransactionIdentity.count" ] do
+      apply_decisions([ { token: rows.fetch("first").fetch("import_token"), entry_id: nil },
+        { token: rows.fetch("deleted").fetch("import_token"), entry_id: candidate.id } ])
+      assert_response :conflict
+      assert_equal "import_conflict", response.parsed_body.fetch("error")
+    end
+    assert_nil identity.reload.entry_id
+  end
+
+  test "single feed legacy and normal sync races do not duplicate reviewed activity" do
+    stub_history([ raw_transaction("legacy-race"), raw_transaction("normal-race") ])
+    audit
+    rows = response.parsed_body.fetch("transactions")
+    legacy = make_entry(source: "simplefin", external_id: "simplefin_legacy-race")
+    normal = SimplefinEntry::Processor.new(raw_transaction("normal-race"), simplefin_account: @provider).process
+    Account.any_instance.expects(:sync_later).never
+    assert_no_difference [ "Entry.count", "Transaction.count" ] do
+      assert_difference "SimplefinTransactionIdentity.count", 1 do
+        apply_decisions(rows.map { |row| { token: row.fetch("import_token"), entry_id: nil } })
+        assert_response :success
+      end
+    end
+    assert_equal [ legacy.id, normal.id ].sort, response.parsed_body.fetch("transactions").map { |row| row.fetch("entry_id") }.sort
+  end
+
+  test "identity conflicts cannot issue import tokens" do
+    other = @family.accounts.create!(owner: @user, name: "Other", currency: "USD", balance: 0, accountable: Depository.new)
+    entry = other.entries.create!(date: Date.new(2026, 9, 15), amount: 144.81, name: "Other transaction", currency: "USD", entryable: Transaction.new)
+    SimplefinTransactionIdentity.create!(simplefin_account: @provider, external_id: "simplefin_conflict", entry: entry)
+    stub_history([ raw_transaction("conflict") ])
+    audit
+    assert_response :success
+    row = response.parsed_body.fetch("transactions").sole
+    assert_equal "identity_conflict", row.fetch("status")
+    assert_nil row.fetch("import_token")
+  end
+
+  test "import failures roll back and record credential free support diagnostics" do
+    stub_history([ raw_transaction("missing") ])
+    audit
+    token = response.parsed_body.fetch("transactions").sole.fetch("import_token")
+    Account::ProviderImportAdapter.any_instance.expects(:import_transaction).raises(ArgumentError, "secret provider payload")
+    Account.any_instance.expects(:sync_later).never
+    assert_no_difference [ "Entry.count", "Transaction.count", "SimplefinTransactionIdentity.count" ] do
+      apply_decisions([ { token: token, entry_id: nil } ])
+      assert_response :conflict
+    end
+    diagnostic = DebugLogEntry.where(account: @account, category: "simplefin_history_audit").sole
+    assert_equal "import_failed", diagnostic.metadata.fetch("code")
+    assert_equal "ArgumentError", diagnostic.metadata.fetch("error_class")
+    assert_not_includes diagnostic.metadata.to_json, "secret"
+    assert_not_includes diagnostic.metadata.to_json, token
+    assert_not_includes response.body, "secret"
+  end
+
+  test "malformed decisions and repeated provider identities do not write" do
+    stub_history([ raw_transaction("missing") ])
+    audit
+    token = response.parsed_body.fetch("transactions").sole.fetch("import_token")
+    invalid = [ nil, {}, [], [ nil ], [ "token" ], [ { token: token } ], [ { token: token, entry_id: false } ],
+      [ { token: {}, entry_id: nil } ], [ { token: token, entry_id: "bad-id" } ],
+      [ { token: token, entry_id: nil }, { token: token, entry_id: nil } ] ]
+    assert_no_difference [ "Entry.count", "SimplefinTransactionIdentity.count" ] do
+      invalid.each do |decisions|
+        apply_decisions(decisions)
+        assert_response :unprocessable_entity
+        assert_equal "invalid_decisions", response.parsed_body.fetch("error")
+      end
+    end
+  end
+
+  test "import requires authentication read write administrator writable account and family access" do
+    Provider::Simplefin.any_instance.expects(:get_accounts).never
+    body = { decisions: [ { token: "not-reviewed", entry_id: nil } ] }
+    post import_api_v1_account_simplefin_history_audit_path(@account), params: body, as: :json
+    assert_response :unauthorized
+    post import_api_v1_account_simplefin_history_audit_path(@account), params: body, headers: api_headers(@read_key), as: :json
+    assert_response :forbidden
+    @user.update!(role: "member")
+    apply_decisions(body[:decisions])
+    assert_response :forbidden
+    @user.update!(role: "admin")
+    @account.update!(owner: users(:family_member))
+    @account.account_shares.create!(user: @user, permission: "read_only")
+    apply_decisions(body[:decisions])
+    assert_response :forbidden
+    private_account = Family.create!(name: "Private family", currency: "USD").accounts.create!(
+      name: "Private", currency: "USD", balance: 0, accountable: CreditCard.new)
+    post import_api_v1_account_simplefin_history_audit_path(private_account), params: body, headers: api_headers(@key), as: :json
+    assert_response :not_found
+    post import_api_v1_account_simplefin_history_audit_path("invalid-id"), params: body, headers: api_headers(@key), as: :json
+    assert_response :not_found
+  end
+
+  test "browser session imports retain CSRF protection" do
+    sign_in @user
+    original = ActionController::Base.allow_forgery_protection
+    ActionController::Base.allow_forgery_protection = true
+    assert_no_difference [ "Entry.count", "SimplefinTransactionIdentity.count" ] do
+      post import_api_v1_account_simplefin_history_audit_path(@account),
+        params: { decisions: [ { token: "not-reviewed", entry_id: nil } ] }, as: :json
+      assert_response :unprocessable_content
+    end
+  ensure
+    ActionController::Base.allow_forgery_protection = original
+  end
+
   private
     def audit(params = {})
       post api_v1_account_simplefin_history_audit_path(@account), params: params, headers: api_headers(@key), as: :json
+    end
+
+    def apply_decisions(decisions)
+      post import_api_v1_account_simplefin_history_audit_path(@account),
+        params: { decisions: decisions }, headers: api_headers(@key), as: :json
     end
 
     def make_provider(id, **attrs)

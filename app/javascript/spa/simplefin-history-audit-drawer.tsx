@@ -1,13 +1,15 @@
 /* eslint-disable import/max-dependencies -- History audit composes routing, API access, shared controls, coverage, and transaction review. */
 import { DialogTitle } from "@headlessui/react";
-import { useQuery } from "@tanstack/react-query";
-import { useParams, useRouteContext } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useBlocker, useParams, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   AUDIT_STATUSES,
   fetchHistoryAuditPage,
   historyAuditMetadataQueryOptions,
   HistoryAuditApiError,
+  importHistoryAuditTransactions,
+  type AuditImportDecision,
   type AuditMetadata,
   type AuditPage,
   type AuditRequest,
@@ -35,6 +37,17 @@ const ATTENTION = new Set<AuditTransaction["status"]>([
 type RequestMode = "start" | "next" | "retry";
 type ReviewRow = AuditTransaction & { key: string; feedName: string; retired: boolean };
 
+function identityKey(row: {
+  simplefin_account_id: string;
+  provider_transaction_id: string | null;
+}): string {
+  return JSON.stringify([row.simplefin_account_id, row.provider_transaction_id]);
+}
+
+function canReview(row: AuditTransaction): boolean {
+  return row.import_token !== null && (row.status === "missing" || row.status === "possible_match");
+}
+
 function pageKey(page: AuditPage): string {
   const coverage = page.coverage;
   return `${coverage.simplefin_item_id}:${coverage.window_start_date}:${coverage.window_end_date}`;
@@ -48,9 +61,11 @@ function reviewRows(pages: AuditPage[]): ReviewRow[] {
       const key =
         row.provider_transaction_id === null
           ? `${pageKey(page)}:${row.simplefin_account_id}:invalid:${index}`
-          : `${row.simplefin_account_id}:${row.provider_transaction_id}`;
+          : identityKey(row);
       const feed = feeds.get(row.simplefin_account_id);
-      if (!rows.has(key))
+      const existing = rows.get(key);
+      // An overlapping page must not make an ineligible identity importable again.
+      if (existing === undefined || (canReview(existing) && !canReview(row)))
         rows.set(key, { ...row, key, feedName: feed?.name ?? "", retired: feed?.retired ?? false });
     }
   }
@@ -67,16 +82,27 @@ export function SimplefinHistoryAuditDrawer() {
   const fallback = bootstrap.accountDetailText;
   const close = useDialogClose("/accounts");
   const query = useQuery(historyAuditMetadataQueryOptions(accountId));
+  const [pending, setPending] = useState(false);
+  useBlocker({ shouldBlockFn: () => pending, enableBeforeUnload: pending });
+  function requestClose() {
+    if (!pending) close();
+  }
   return (
     <Modal
       ariaLabelledby="history-audit-title"
-      onClose={close}
+      onClose={requestClose}
       open
       placement="drawer"
       panelClassName="flex h-full w-full max-w-2xl flex-col overflow-hidden bg-container shadow-border-lg lg:rounded-2xl"
     >
       {query.data ? (
-        <AuditReview key={accountId} metadata={query.data} onClose={close} />
+        <AuditReview
+          key={accountId}
+          metadata={query.data}
+          onClose={requestClose}
+          pending={pending}
+          setPending={setPending}
+        />
       ) : (
         <div className="space-y-4 p-6" aria-busy={query.isPending}>
           <DialogTitle id="history-audit-title" className="text-lg font-medium text-primary">
@@ -101,7 +127,7 @@ export function SimplefinHistoryAuditDrawer() {
               </Button>
             </Alert>
           )}
-          <Button variant="secondary" onClick={close}>
+          <Button variant="secondary" onClick={requestClose}>
             {fallback.close}
           </Button>
         </div>
@@ -110,13 +136,28 @@ export function SimplefinHistoryAuditDrawer() {
   );
 }
 
-function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: () => void }) {
+function AuditReview({
+  metadata,
+  onClose,
+  pending,
+  setPending,
+}: {
+  metadata: AuditMetadata;
+  onClose: () => void;
+  pending: boolean;
+  setPending: (pending: boolean) => void;
+}) {
   const { account, text } = metadata;
+  const queryClient = useQueryClient();
   const [periodDays, setPeriodDays] = useState(String(metadata.default_period_days));
   const [pages, setPages] = useState<AuditPage[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [filter, setFilter] = useState("attention");
-  const [pending, setPending] = useState(false);
+  const [decisions, setDecisions] = useState<Partial<Record<string, AuditImportDecision>>>({});
+  const [applyError, setApplyError] = useState<unknown>(null);
+  const [applying, setApplying] = useState(false);
+  const [appliedCount, setAppliedCount] = useState(0);
+  const [reviewReset, setReviewReset] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [failedRequest, setFailedRequest] = useState<{
     body: AuditRequest;
@@ -135,6 +176,34 @@ function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: 
       filter === "all" ||
       (filter === "attention" ? ATTENTION.has(row.status) : row.status === filter),
   );
+  const selected = rows.flatMap((row) => {
+    const decision = decisions[row.key];
+    return canReview(row) &&
+      decision !== undefined &&
+      decision.token === row.import_token &&
+      (decision.entry_id === null ||
+        row.possible_matches.some((candidate) => candidate.entry_id === decision.entry_id))
+      ? [decision]
+      : [];
+  });
+  const missing = rows.filter(
+    (row) => row.status === "missing" && canReview(row) && decisions[row.key] === undefined,
+  );
+  const reviewBlocked =
+    applyError instanceof HistoryAuditApiError &&
+    ["invalid_import_token", "stale_import", "import_conflict", "mapping_conflict"].includes(
+      applyError.code,
+    );
+  const applyErrorMessage =
+    applyError instanceof HistoryAuditApiError && applyError.code === "invalid_import_token"
+      ? text.import_expired
+      : reviewBlocked
+        ? text.import_stale
+        : applyError instanceof HistoryAuditApiError &&
+            applyError.status < 500 &&
+            applyError.message
+          ? applyError.message
+          : text.import_failed;
   const providerErrors = pages.some((page) =>
     page.warnings.some((warning) => warning.code === "provider_errors"),
   );
@@ -156,9 +225,26 @@ function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: 
     setPending(true);
     setError(null);
     setFailedRequest(null);
+    setAppliedCount(0);
     try {
       const page = await fetchHistoryAuditPage(account.id, body, controller.signal);
       if (controller.signal.aborted) return;
+      // Refetched rows have new review tokens and candidates: never reuse their old choices.
+      const refreshed = new Set(page.transactions.map(identityKey));
+      if (mode === "retry") {
+        const previous = pages.find((item) => pageKey(item) === pageKey(page));
+        for (const row of previous?.transactions ?? []) refreshed.add(identityKey(row));
+      }
+      if (
+        mode === "start" ||
+        rows.some((row) => refreshed.has(identityKey(row)) && decisions[row.key] !== undefined)
+      )
+        setReviewReset(mode !== "start");
+      setDecisions((previous) =>
+        mode === "start"
+          ? {}
+          : Object.fromEntries(Object.entries(previous).filter(([key]) => !refreshed.has(key))),
+      );
       setPages((previous) => {
         if (mode === "start") return [page];
         const existing = previous.some((item) => pageKey(item) === pageKey(page));
@@ -181,6 +267,54 @@ function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: 
     }
   }
 
+  async function applyReviewedChoices() {
+    if (inFlight.current || selected.length === 0 || reviewBlocked) return;
+    const controller = new AbortController();
+    inFlight.current = controller;
+    setPending(true);
+    setApplying(true);
+    setApplyError(null);
+    setAppliedCount(0);
+    try {
+      const result = await importHistoryAuditTransactions(account.id, selected, controller.signal);
+      if (controller.signal.aborted) return;
+      const recorded = new Map(
+        result.transactions.map((transaction) => [identityKey(transaction), transaction]),
+      );
+      setPages((previous) =>
+        previous.map((page) => ({
+          ...page,
+          transactions: page.transactions.map((row) => {
+            const transaction = recorded.get(identityKey(row));
+            return transaction
+              ? {
+                  ...row,
+                  status: "recorded" as const,
+                  entry_id: transaction.entry_id,
+                  transaction_id: transaction.transaction_id,
+                  import_token: null,
+                  possible_matches: [],
+                }
+              : row;
+          }),
+        })),
+      );
+      setDecisions({});
+      setReviewReset(false);
+      setAppliedCount(result.transactions.length);
+      // Ledger changes affect account activity, balances, charts, summaries and transactions.
+      await queryClient.invalidateQueries({ queryKey: ["spa"] });
+    } catch (caught) {
+      if (!controller.signal.aborted) setApplyError(caught);
+    } finally {
+      if (!controller.signal.aborted) {
+        inFlight.current = null;
+        setApplying(false);
+        setPending(false);
+      }
+    }
+  }
+
   return (
     <>
       <header className="flex shrink-0 items-start justify-between gap-4 border-b border-primary p-6">
@@ -190,7 +324,7 @@ function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: 
           </DialogTitle>
           <p className="truncate text-sm text-secondary">{account.name}</p>
         </div>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" disabled={pending} onClick={onClose}>
           {text.close}
         </Button>
       </header>
@@ -242,6 +376,10 @@ function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: 
                   setError(null);
                   setFailedRequest(null);
                   setFilter("attention");
+                  setDecisions({});
+                  setApplyError(null);
+                  setAppliedCount(0);
+                  setReviewReset(false);
                 }}
               >
                 {text.restart}
@@ -320,12 +458,65 @@ function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: 
               ))}
             </FormField>
             <p className="text-xs text-secondary">{text.amount_hint}</p>
+            <Alert variant="info">
+              <p>{text.review_hint}</p>
+            </Alert>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="secondary"
+                disabled={pending || reviewBlocked || missing.length === 0}
+                onClick={() => {
+                  setDecisions((previous) => {
+                    const updated = { ...previous };
+                    for (const row of missing) {
+                      if (row.import_token !== null)
+                        updated[row.key] = { token: row.import_token, entry_id: null };
+                    }
+                    return updated;
+                  });
+                  setAppliedCount(0);
+                }}
+              >
+                {text.select_missing} ({missing.length})
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={pending || selected.length === 0}
+                onClick={() => {
+                  setDecisions({});
+                }}
+              >
+                {text.clear_choices}
+              </Button>
+            </div>
+            {reviewReset ? (
+              <Alert variant="warning" live="status">
+                <p>{text.review_reset}</p>
+              </Alert>
+            ) : null}
             {filtered.length === 0 ? (
               <output className="block py-4 text-sm text-secondary">{text.empty}</output>
             ) : (
               <ul className="space-y-3">
                 {filtered.map((row) => (
-                  <AuditTransactionRow key={row.key} row={row} accountId={account.id} text={text} />
+                  <AuditTransactionRow
+                    key={row.key}
+                    row={row}
+                    accountId={account.id}
+                    text={text}
+                    decision={decisions[row.key]}
+                    disabled={pending || reviewBlocked}
+                    onDecision={(entryId) => {
+                      setDecisions((previous) => {
+                        const updated = { ...previous };
+                        if (entryId === undefined) delete updated[row.key];
+                        else if (row.import_token !== null)
+                          updated[row.key] = { token: row.import_token, entry_id: entryId };
+                        return updated;
+                      });
+                      setAppliedCount(0);
+                    }}
+                  />
                 ))}
               </ul>
             )}
@@ -339,10 +530,12 @@ function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: 
                   void load({ cursor: nextCursor }, "next");
                 }}
                 iconProps={
-                  pending ? { name: "loader-circle", className: "animate-spin" } : undefined
+                  pending && !applying
+                    ? { name: "loader-circle", className: "animate-spin" }
+                    : undefined
                 }
               >
-                {pending
+                {pending && !applying
                   ? text.loading
                   : pages.at(-1)?.coverage.has_more_connections === true
                     ? text.continue_period
@@ -368,6 +561,30 @@ function AuditReview({ metadata, onClose }: { metadata: AuditMetadata; onClose: 
           </Alert>
         ) : null}
       </div>
+      {pages.length > 0 ? (
+        <footer className="shrink-0 space-y-2 border-t border-primary p-6">
+          {applyError !== null ? (
+            <Alert variant="error" live="alert">
+              <p>{applyErrorMessage}</p>
+            </Alert>
+          ) : null}
+          {appliedCount > 0 ? (
+            <Alert variant="success" live="status">
+              <p>{text.import_success.replace("%{count}", String(appliedCount))}</p>
+            </Alert>
+          ) : null}
+          <Button
+            disabled={pending || reviewBlocked || selected.length === 0}
+            onClick={() => {
+              void applyReviewedChoices();
+            }}
+            iconProps={applying ? { name: "loader-circle", className: "animate-spin" } : undefined}
+          >
+            {applying ? text.applying : `${text.apply_choices} (${selected.length})`}
+          </Button>
+          <p className="text-xs text-secondary">{text.apply_hint}</p>
+        </footer>
+      ) : null}
     </>
   );
 }
@@ -376,10 +593,16 @@ function AuditTransactionRow({
   row,
   accountId,
   text,
+  decision,
+  disabled,
+  onDecision,
 }: {
   row: ReviewRow;
   accountId: string;
   text: Record<string, string>;
+  decision: AuditImportDecision | undefined;
+  disabled: boolean;
+  onDecision: (entryId: string | null | undefined) => void;
 }) {
   function href(transactionId: string): string {
     return `/accounts/${encodeURIComponent(accountId)}/transactions/${encodeURIComponent(transactionId)}`;
@@ -437,6 +660,34 @@ function AuditTransactionRow({
             ))}
           </ul>
         </div>
+      ) : null}
+      {canReview(row) ? (
+        <FormField
+          as="select"
+          id={`audit-decision-${row.key}`}
+          label={text.decision}
+          value={
+            decision === undefined
+              ? ""
+              : decision.entry_id === null
+                ? "import"
+                : `link:${decision.entry_id}`
+          }
+          disabled={disabled}
+          onChange={(event) => {
+            const value = event.target.value;
+            onDecision(value === "" ? undefined : value === "import" ? null : value.slice(5));
+          }}
+        >
+          <option value="">{text.skip}</option>
+          <option value="import">{text.import_new}</option>
+          {row.possible_matches.map((candidate) => (
+            <option key={candidate.entry_id} value={`link:${candidate.entry_id}`}>
+              {text.link_existing} · {candidate.name} · {candidate.date} · {candidate.currency}{" "}
+              {candidate.amount}
+            </option>
+          ))}
+        </FormField>
       ) : null}
     </li>
   );

@@ -33,6 +33,7 @@ const TransactionSchema = z.object({
   currency: NullableString,
   entry_id: NullableString,
   transaction_id: NullableString,
+  import_token: NullableString,
   possible_matches: z.array(CandidateSchema),
   status: z.enum(AUDIT_STATUSES),
 });
@@ -77,11 +78,23 @@ const MetadataSchema = z.object({
   text: z.record(z.string(), z.string()),
 });
 const ErrorSchema = z.object({ error: z.string(), message: z.string() });
+const ImportResultSchema = z.object({
+  transactions: z.array(
+    z.object({
+      simplefin_account_id: z.string(),
+      provider_transaction_id: z.string(),
+      entry_id: z.string(),
+      transaction_id: z.string(),
+    }),
+  ),
+});
 
 export type AuditPage = z.infer<typeof AuditPageSchema>;
 export type AuditTransaction = z.infer<typeof TransactionSchema>;
 export type AuditMetadata = z.infer<typeof MetadataSchema>;
 export type AuditRequest = { period_days?: number; cursor?: string };
+export type AuditImportDecision = { token: string; entry_id: string | null };
+type AuditImportRequest = { decisions: AuditImportDecision[] };
 
 export class HistoryAuditApiError extends Error {
   constructor(
@@ -94,7 +107,11 @@ export class HistoryAuditApiError extends Error {
   }
 }
 
-async function request(path: string, signal: AbortSignal, body?: AuditRequest): Promise<unknown> {
+async function request(
+  path: string,
+  signal: AbortSignal,
+  body?: AuditRequest | AuditImportRequest,
+): Promise<unknown> {
   const response = await fetch(path, {
     method: body === undefined ? "GET" : "POST",
     credentials: "same-origin",
@@ -144,6 +161,20 @@ export async function fetchHistoryAuditPage(
       `/api/v1/accounts/${encodeURIComponent(accountId)}/simplefin_history_audit`,
       signal,
       body,
+    ),
+  );
+}
+
+export async function importHistoryAuditTransactions(
+  accountId: string,
+  decisions: AuditImportDecision[],
+  signal: AbortSignal,
+) {
+  return ImportResultSchema.parse(
+    await request(
+      `/api/v1/accounts/${encodeURIComponent(accountId)}/simplefin_history_audit/import`,
+      signal,
+      { decisions },
     ),
   );
 }

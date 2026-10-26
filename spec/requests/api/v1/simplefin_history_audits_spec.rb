@@ -83,4 +83,58 @@ RSpec.describe "API V1 SimpleFIN History Audit", type: :request do
       end
     end
   end
+
+  path "/api/v1/accounts/{account_id}/simplefin_history_audit/import" do
+    parameter name: :account_id, in: :path, type: :string, required: true
+
+    post "Import or link explicitly reviewed SimpleFIN history transactions" do
+      description "Requires an administrator, account write permission, and read_write scope. Submit one-hour import tokens from missing/possible_match rows with an explicit entry_id: null imports separately, while a reviewed candidate UUID creates an alias without changing manual, CSV, split or transfer data. The batch is atomic and rechecks feed mappings, candidate eligibility and tombstones under ingestion locks. Repeating an unchanged decision is idempotent; changed decisions conflict. No provider request, balance adoption, payload-cache or provider sync-timestamp update occurs. New imports schedule account recalculation."
+      tags "Accounts"
+      security [ { apiKeyAuth: [] } ]
+      consumes "application/json"
+      produces "application/json"
+      parameter name: :import_request, in: :body, schema: { "$ref" => "#/components/schemas/SimplefinHistoryAuditImportRequest" }
+      let(:import_token) do
+        raw = { id: "historical", posted: Time.current.to_i, amount: "-12.34", description: "Historical purchase" }
+        allow_any_instance_of(Provider::Simplefin).to receive(:get_accounts).and_return(
+          { errors: [], accounts: [ { id: provider.account_id, transactions: [ raw ] } ] })
+        Account::SimplefinHistoryAudit.new(account: account, user: user).call.fetch(:transactions).sole.fetch(:import_token)
+      end
+      let(:import_request) { { decisions: [ { token: import_token, entry_id: nil } ] } }
+
+      response "200", "explicit decisions applied or replayed without additional provider requests" do
+        schema "$ref" => "#/components/schemas/SimplefinHistoryAuditImport"
+        run_test!
+      end
+      response "401", "authentication required" do
+        let(:'X-Api-Key') { nil }
+        schema "$ref" => "#/components/schemas/ErrorResponse"
+        run_test!
+      end
+      response "403", "administrator, account write permission, and read_write scope required" do
+        let(:scopes) { %w[read] }
+        schema "$ref" => "#/components/schemas/ErrorResponse"
+        run_test!
+      end
+      response "404", "account not accessible" do
+        let(:account_id) { SecureRandom.uuid }
+        schema "$ref" => "#/components/schemas/ErrorResponse"
+        run_test!
+      end
+      response "409", "feeds/candidates changed, identity was deleted, or a different decision was already applied" do
+        let(:import_request) do
+          token = import_token
+          provider.update!(account_id: "changed-feed")
+          { decisions: [ { token: token, entry_id: nil } ] }
+        end
+        schema "$ref" => "#/components/schemas/ErrorResponse"
+        run_test!
+      end
+      response "422", "invalid/expired/wrong-account token or malformed decisions without explicit entry_id" do
+        let(:import_request) { { decisions: [ { token: "invalid", entry_id: nil } ] } }
+        schema "$ref" => "#/components/schemas/ErrorResponse"
+        run_test!
+      end
+    end
+  end
 end

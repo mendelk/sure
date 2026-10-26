@@ -166,6 +166,35 @@ page; `next_cursor` can continue other windows/connections without erasing the
 partial coverage. Do not infer that Sure-only historical entries are errors
 when the provider no longer exposes their dates.
 
+### Explicitly importing reviewed history
+
+`POST /api/v1/accounts/:account_id/simplefin_history_audit/import` calls
+`Account::SimplefinHistoryAudit#import!` with explicit
+`decisions: [{ token:, entry_id: }]`. Only finalized `missing` and
+`possible_match` rows receive an `import_token`. Tokens expire after one hour,
+bind the family/account and normalization/feed fingerprint, and authenticate the
+normalized attributes and reviewed candidate IDs. Never trust financial
+attributes submitted separately by a client or refetch the provider during apply.
+
+The drawer defaults every row to Skip. Its bulk action selects only unreviewed
+missing rows; possible matches require an individual decision. Explicit null
+`entry_id` imports separately with heuristic matching disabled and a
+provider-scoped external ID. An existing candidate ID creates a `duplicate: true`
+identity alias without mutating the entry, its metadata, splits or transfers.
+Validate candidate tenancy, type, signed amount, currency, date and nonpending
+state again under lock.
+
+Import requires the same administrator/account-write authorization and
+`read_write` scope as checking; browser writes retain CSRF. Lock the family
+before the account, matching ingestion/replacement order. Retired feeds are
+supported explicitly; `SimplefinAccount#with_ingestion_lock` skips them and
+must not be used to wrap this workflow. Apply the batch atomically, rechecking
+authorization, mappings and identities. Same-choice replay is idempotent;
+changed decisions, tombstones and conflicting identities cannot resurrect or
+overwrite an entry. Newly imported entries schedule account recalculation;
+alias-only links do not. No provider balances, cached payloads or normal sync
+timestamps are adopted.
+
 ## Pending transactions and FX metadata
 
 Store provider metadata on `Transaction#extra` under the provider namespace.

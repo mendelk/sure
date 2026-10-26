@@ -173,14 +173,14 @@ explicit duplicate pairs, and a stable idempotency key; see the
 [OpenAPI reference](api/openapi.yaml).
 
 **SimpleFIN missing-transaction audit.** On **Accounts**, open a linked SimpleFIN
-account's menu and choose **Check for missing transactions**. The read-only React
-drawer is available to administrators with account write permission. Opening it
-does not fetch bank history; choose optional date bounds and select **Start audit**.
+account's menu and choose **Check for missing transactions**. The React drawer
+is available to administrators with account write permission. Opening it does not
+fetch bank history; choose **Period (days)** and select **Start audit**.
 Results default to **Needs review**, with other statuses available through
 **Show results**, sorted newest first. Existing-transaction links open in a new
 tab so the audit stays intact.
 
-Use **Check older history** to fetch one more page. **Periods checked** preserves
+Use **Older** (or **Continue this period** for another connection) to fetch one more page. **Periods checked** preserves
 coverage warnings and lets you retry incomplete periods without losing earlier
 results or rewinding the scan. Provider errors and rate limits pause continuation.
 Closing the drawer restores its opening URL; reloading the drawer starts with
@@ -226,6 +226,34 @@ reviewed instead of imported again. Nothing is linked or repaired automatically.
 Unavailable feeds and invalid/partial responses set `coverage.page_complete`
 to false and provide a `retry_cursor`; retain these unresolved pages even when
 continuing with `next_cursor`. Provider failures return sanitized errors.
+
+Eligible missing and possible-match rows have a **Review choice** control,
+initially **Skip — make no changes**. Choose **Import as a new transaction**,
+or link a reviewed existing candidate without changing its amount, annotations,
+splits or transfers. **Select all unreviewed missing for import** selects only
+missing rows, never possible matches. Check your choices, then select
+**Apply reviewed choices**. Successfully imported or linked rows become
+**Already recorded**. Pending, intentionally deleted, invalid and conflicting
+rows cannot be imported. Checking remains read-only until you apply.
+
+API clients submit the returned `import_token` for each explicit decision:
+
+```sh
+curl --request POST \
+  "$SURE_URL/api/v1/accounts/$ACCOUNT_ID/simplefin_history_audit/import" \
+  --header "X-Api-Key: $SURE_API_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{"decisions":[{"token":"<import_token>","entry_id":null}]}'
+```
+
+An explicit `entry_id: null` imports separately, even if possible matches exist.
+To link instead, send one of that row's `possible_matches[].entry_id` values.
+The batch is atomic; omitted rows remain unchanged. Applying consumes no
+additional SimpleFIN request, adopts no bank balance, and changes no provider
+cache or normal sync timestamp. Replaying the same choice does not insert it
+again; a changed choice or intentional deletion conflicts. Tokens expire after
+one hour and are bound to the account and feed mappings. Invalid/expired tokens,
+changed mappings or changed candidates require a fresh audit and review.
 
 Transaction controls follow the viewer's **account permission**, not their family
 role. A member can split transactions when they own the account or have full

@@ -26,7 +26,7 @@ en:
       sharing: Sharing
     simplefin_history_audit:
       title: Check for missing transactions
-      description: Compare fresh SimpleFIN history with this account, including its retired feeds. Nothing will be imported, merged, deleted, or changed.
+      description: Compare fresh SimpleFIN history with this account, including its retired feeds. Checking makes no changes. Transactions are only imported or linked when you explicitly apply your reviewed choices.
       limits: Each check requests the selected number of days from one connection, up to 45 days. SimpleFIN recommends no more than 24 requests per day; history availability depends on your bank.
       period_days: Period (days)
       period_hint: Choose 1–45 days. The first period ends today. Older checks the immediately preceding period of the same length.
@@ -69,6 +69,21 @@ en:
       new_tab: Opens in a new tab
       amount_hint: Amounts use ledger signs — positive for outflows, negative for inflows.
       no_guarantee: An empty response is not proof of complete history. Your bank may no longer expose older transactions.
+      review_hint: Every transaction starts on Skip. Review possible matches before choosing to import separately or link an existing transaction. Pending, deleted, invalid and conflicting transactions cannot be imported.
+      decision: Review choice
+      skip: Skip — make no changes
+      import_new: Import as a new transaction
+      link_existing: Link existing transaction
+      select_missing: Select all unreviewed missing for import
+      clear_choices: Clear choices
+      apply_choices: Apply reviewed choices
+      applying: Applying reviewed choices…
+      apply_hint: Only selected choices are applied. Linking keeps the existing transaction and its metadata unchanged. Applying does not request SimpleFIN again.
+      review_reset: Choices for refreshed transactions were cleared. Review those rows again before applying.
+      import_failed: Could not apply your choices. Your selections are preserved; retry applying them.
+      import_expired: Your review authorization expired or is no longer valid. No choices were applied. Start a new audit and review the fresh results before applying.
+      import_stale: The feed, transaction identity or candidate changed since this review. No choices were applied. Start a new audit and review the fresh results before applying.
+      import_success: "Reviewed choices applied: %{count}. Imported and linked transactions are now recorded."
     chart:
       data_not_available: Data not available for the selected period
     create:

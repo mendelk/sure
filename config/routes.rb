@@ -814,7 +814,9 @@ Rails.application.routes.draw do
         post :avm_confirm, on: :collection
       end
       resources :accounts, only: [ :index, :show, :create, :update ] do
-        resource :simplefin_history_audit, only: :create
+        resource :simplefin_history_audit, only: :create do
+          post :import
+        end
         resource :provider_replacement, only: :show, controller: "provider_replacements" do
           post :preview
           post :apply

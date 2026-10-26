@@ -11,4 +11,17 @@ class Api::V1::SimplefinHistoryAuditsController < Api::V1::BaseController
   rescue Account::SimplefinHistoryAudit::Error => error
     render json: { error: error.code, message: error.message }, status: error.status
   end
+
+  def import
+    account = Current.family.accounts.accessible_by(Current.user).find(params[:account_id])
+    decisions = params[:decisions]
+    if decisions.is_a?(Array)
+      decisions = decisions.map do |decision|
+        decision.is_a?(ActionController::Parameters) ? decision.permit(:token, :entry_id).to_h : decision
+      end
+    end
+    render json: Account::SimplefinHistoryAudit.new(account: account, user: Current.user).import!(decisions: decisions)
+  rescue Account::SimplefinHistoryAudit::Error => error
+    render json: { error: error.code, message: error.message }, status: error.status
+  end
 end

@@ -48,6 +48,35 @@ class Account::SimplefinHistoryAudit
     }
   end
 
+  def import!(decisions:)
+    authorize!
+    decisions = normalize_decisions(decisions)
+    imported_dates = []
+    result = Account.transaction do
+      # Match ingestion/replacement lock order, but do not skip retired feeds.
+      Family.where(id: account.family_id).lock.pick(:id)
+      Account.where(id: account.id).lock.pick(:id)
+      account.reload
+      user.reload
+      authorize!
+      load_import_providers!
+      reviewed = decisions.map { |decision| [ verify_import_token(decision[:token]), decision[:entry_id] ] }
+      identities = reviewed.map { |payload, _| [ payload.fetch("simplefin_account_id"), payload.fetch("external_id") ] }
+      if identities.uniq.size != identities.size
+        raise Error.new("Send each provider transaction only once", code: "invalid_decisions")
+      end
+      transactions = reviewed.map do |payload, entry_id|
+        apply_decision!(payload, entry_id, imported_dates)
+      end
+      { transactions: transactions }
+    end
+    account.sync_later(window_start_date: imported_dates.min) if imported_dates.any?
+    result
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique, ArgumentError => error
+    capture_diagnostic("import_failed", error_class: error.class.name)
+    raise Error.new("Unable to import the reviewed transactions; refresh the audit and try again", code: "import_conflict", status: :conflict)
+  end
+
   private
     attr_reader :account, :user, :providers
 
@@ -72,7 +101,11 @@ class Account::SimplefinHistoryAudit
         raise Error.new("SimpleFIN mappings changed; resolve the conflicting account links first", code: "mapping_conflict", status: :conflict)
       end
       @groups = providers.group_by(&:simplefin_item_id)
-      @fingerprint = Digest::SHA256.hexdigest(providers.map { |provider| [ provider.id, provider.simplefin_item_id, provider.account_id, provider.retired_at ] }.to_json)
+      state = providers.map do |provider|
+        [ provider.id, provider.simplefin_item_id, provider.account_id, provider.retired_at, provider.retired_account_id,
+          provider.account&.id, provider.linked_account&.id, provider.account_type, provider.currency ]
+      end
+      @fingerprint = Digest::SHA256.hexdigest([ account.currency, account.accountable_type, state ].to_json)
     end
 
     def load_page!(period_days, cursor)
@@ -107,6 +140,91 @@ class Account::SimplefinHistoryAudit
         raise Error, "period_days must be a whole number between 1 and #{MAX_PERIOD_DAYS}"
       end
       value
+    end
+
+    def normalize_decisions(decisions)
+      unless decisions.is_a?(Array) && decisions.any?
+        raise Error.new("decisions must be a nonempty array", code: "invalid_decisions")
+      end
+      decisions.map do |decision|
+        unless decision.is_a?(Hash)
+          raise Error.new("Each decision must contain a token and an explicit entry_id", code: "invalid_decisions")
+        end
+        decision = decision.to_h.with_indifferent_access
+        unless decision[:token].is_a?(String) && decision[:token].present? && decision.key?(:entry_id) &&
+            (decision[:entry_id].nil? || UuidFormat.valid?(decision[:entry_id]))
+          raise Error.new("Each decision needs a token and entry_id (null imports a separate transaction)", code: "invalid_decisions")
+        end
+        { token: decision[:token], entry_id: decision[:entry_id]&.downcase }
+      end
+    end
+
+    def load_import_providers!
+      load_providers!
+    rescue Error => error
+      raise unless error.code == "simplefin_unavailable"
+      raise Error.new("SimpleFIN feeds changed; restart the audit", code: "stale_import", status: :conflict)
+    end
+
+    def verify_import_token(token)
+      payload = verifier.verify(token, purpose: import_purpose)
+      unless payload.fetch("fingerprint") == @fingerprint &&
+          providers.any? { |provider| provider.id == payload.fetch("simplefin_account_id") }
+        raise Error.new("SimpleFIN feeds changed; restart the audit", code: "stale_import", status: :conflict)
+      end
+      payload
+    rescue ActiveSupport::MessageVerifier::InvalidSignature, KeyError, TypeError
+      raise Error.new("The import token is invalid or expired; restart the audit", code: "invalid_import_token")
+    end
+
+    def apply_decision!(payload, entry_id, imported_dates)
+      provider = providers.find { |feed| feed.id == payload.fetch("simplefin_account_id") }
+      external_id = payload.fetch("external_id")
+      identity = SimplefinTransactionIdentity.find_by(simplefin_account: provider, external_id: external_id)
+      if identity
+        entry = identity.entry
+        unless entry && entry.account_id == account.id && entry.transaction? &&
+            identity.duplicate? == entry_id.present? && (entry_id.nil? || entry.id == entry_id)
+          raise Error.new("This provider transaction was deleted or reviewed differently", code: "import_conflict", status: :conflict)
+        end
+        reviewed_candidate!(payload, entry_id) if entry_id
+      elsif entry_id
+        entry = reviewed_candidate!(payload, entry_id)
+        SimplefinTransactionIdentity.create!(simplefin_account: provider, external_id: external_id, entry: entry, duplicate: true)
+      else
+        # A legacy single-feed sync may have recorded the row after review.
+        entry = providers.one? && account.entries.find_by(source: "simplefin", external_id: external_id)
+        if entry && !entry.transaction?
+          raise Error.new("This provider identity conflicts with another entry", code: "import_conflict", status: :conflict)
+        end
+        unless entry
+          attrs = payload.fetch("attributes").symbolize_keys
+          attrs[:amount] = BigDecimal(attrs.fetch(:amount))
+          attrs[:date] = Date.iso8601(attrs.fetch(:date))
+          # Always scope new ledger IDs, even when no collision exists yet.
+          import_id = "simplefin_#{provider.id}_#{Digest::SHA256.hexdigest(external_id)}"
+          if account.entries.exists?(source: "simplefin", external_id: import_id)
+            raise Error.new("The imported entry lost its provider identity; review it again", code: "import_conflict", status: :conflict)
+          end
+          entry = Account::ProviderImportAdapter.new(account).import_transaction(**attrs, external_id: import_id,
+            source: "simplefin", allow_heuristic_matching: false, notification_activity: false)
+          imported_dates << entry.date
+        end
+        SimplefinTransactionIdentity.create!(simplefin_account: provider, external_id: external_id, entry: entry)
+      end
+      { simplefin_account_id: provider.id, provider_transaction_id: payload.fetch("provider_transaction_id"),
+        entry_id: entry.id, transaction_id: entry.entryable_id }
+    end
+
+    def reviewed_candidate!(payload, entry_id)
+      attrs = payload.fetch("attributes")
+      entry = account.entries.lock.find_by(id: entry_id, entryable_type: "Transaction")
+      unless payload.fetch("candidate_entry_ids").include?(entry_id) && entry &&
+          entry.amount == BigDecimal(attrs.fetch("amount")) && entry.currency == attrs.fetch("currency") && entry.date &&
+          (entry.date - Date.iso8601(attrs.fetch("date"))).abs <= 4 && entry.transaction && !entry.transaction.pending?
+        raise Error.new("The selected transaction changed or was not a reviewed candidate; restart the audit", code: "stale_import", status: :conflict)
+      end
+      entry
     end
 
     def fetch_page
@@ -214,6 +332,18 @@ class Account::SimplefinHistoryAudit
         end
         transaction.delete(:pending)
       end
+      # Conflicting duplicate rows can change an earlier result to invalid.
+      # Issue tokens only after every row's final comparison status is known.
+      result.each do |transaction|
+        attrs = transaction.delete(:import_attributes)
+        transaction[:import_token] = if %w[missing possible_match].include?(transaction[:status])
+          verifier.generate({ "fingerprint" => @fingerprint, "simplefin_account_id" => provider.id,
+            "provider_transaction_id" => transaction[:provider_transaction_id], "external_id" => transaction[:external_id],
+            "candidate_entry_ids" => transaction[:possible_matches].map { |candidate| candidate[:entry_id] },
+            "attributes" => attrs.merge(amount: attrs[:amount].to_s("F"), date: attrs[:date].iso8601).deep_stringify_keys },
+            purpose: import_purpose, expires_in: 1.hour)
+        end
+      end
       result
     end
 
@@ -228,7 +358,7 @@ class Account::SimplefinHistoryAudit
       return transaction unless (raw[:amount].is_a?(String) || raw[:amount].is_a?(Numeric)) && BigDecimal(raw[:amount].to_s).finite?
       attrs = SimplefinEntry::Processor.new(raw, simplefin_account: provider, normalization_account: account).import_attributes
       transaction.merge(date: attrs[:date].iso8601, name: attrs[:name], amount: attrs[:amount].to_s("F"), currency: attrs[:currency],
-        pending: SimplefinEntry::Processor.pending?(raw), status: nil)
+        pending: SimplefinEntry::Processor.pending?(raw), import_attributes: attrs, status: nil)
     rescue ArgumentError, TypeError
       transaction
     end
@@ -259,6 +389,10 @@ class Account::SimplefinHistoryAudit
 
     def cursor_purpose
       "simplefin-history-audit/#{account.family_id}/#{account.id}"
+    end
+
+    def import_purpose
+      "simplefin-history-audit-import/#{account.family_id}/#{account.id}"
     end
 
     # Keep explanations, not arbitrary provider payloads. SimpleFIN v1 uses
