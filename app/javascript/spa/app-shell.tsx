@@ -229,11 +229,10 @@ function AccountGroup({
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   if (accounts.length === 0) return null;
-
   return (
     <section aria-label={label} className="mb-4">
-      <details open={label === "Assets"}>
-        <summary className="group flex cursor-pointer list-none items-center gap-3 rounded-lg focus-ring [&::-webkit-details-marker]:hidden">
+      <details open={label === "Assets"} className="group">
+        <summary className="flex cursor-pointer list-none items-center gap-3 rounded-lg focus-ring [&::-webkit-details-marker]:hidden">
           <Icon name="chevron-right" className="transition-transform group-open:rotate-90" />
           <span className="text-sm font-medium text-primary">{label}</span>
           <span className="ml-auto grow text-right text-sm font-medium text-primary privacy-sensitive">
