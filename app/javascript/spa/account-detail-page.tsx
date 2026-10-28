@@ -18,7 +18,7 @@ import {
   useRouteContext,
   useSearch,
 } from "@tanstack/react-router";
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   accountDetailQueryOptions,
   type AccountActivity,
@@ -32,13 +32,11 @@ import {
   AccountActionControl,
   AccountActionMenu,
   ConfirmSubmit,
-  CsrfFields,
 } from "./components/account-actions";
 import { AccountChartCard } from "./components/account-chart";
 import { AccountSectionView } from "./components/account-sections";
 import { Button } from "./components/button";
 import { BulkActionsBar } from "./components/bulk-actions-bar";
-import { FormField } from "./components/form-field";
 import { Alert } from "./components/alert";
 import { BulkUpdateDrawer } from "./bulk-update-drawer";
 import { TransactionRow, TransactionRowHeader } from "./components/transaction-row";
@@ -46,6 +44,9 @@ import { TablePaginationBar } from "./components/table";
 import { BrandLogo } from "./components/brand-logo";
 import { TransactionSearchBox } from "./components/transaction-search-box";
 import { currentReturnTo } from "./return-to";
+import { EntryRow } from "./components/entry-row";
+import { InvestmentActivityBadge } from "./components/investment-activity-badge";
+import { AccountActivityGroup } from "./components/account-activity-group";
 
 function arrayValue(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String).filter((item) => item.length > 0);
@@ -341,56 +342,6 @@ export function AccountDetailPage() {
 }
 
 type ActivityEntry = AccountActivity["groups"][number]["entries"][number];
-function ActivityEntryExtras({
-  entry,
-  accountId,
-  search,
-  text,
-}: {
-  entry: ActivityEntry;
-  accountId: AccountId;
-  search: AccountSearch;
-  text: Record<string, string>;
-}) {
-  const id = useId();
-  const edit = entry.activity_edit;
-  return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1">
-      {edit ? (
-        <form action={edit.href} method="post">
-          <CsrfFields method={edit.method} />
-          <FormField
-            as="select"
-            id={id}
-            aria-label={entry.description ?? entry.name}
-            name={edit.param}
-            defaultValue={edit.value}
-            onChange={(event) => {
-              event.currentTarget.form?.requestSubmit();
-            }}
-          >
-            {entry.activity_options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </FormField>
-        </form>
-      ) : entry.description !== null && entry.description !== "" ? (
-        <span className="text-xs text-secondary">{entry.description}</span>
-      ) : null}
-      {entry.actions.map((action) => (
-        <AccountActionControl
-          key={action.key}
-          action={action}
-          accountId={accountId}
-          search={search}
-          text={text}
-        />
-      ))}
-    </div>
-  );
-}
 function EntryBadges({ entry }: { entry: ActivityEntry }) {
   return (
     <>
@@ -619,56 +570,48 @@ function AccountActivityView({
         {activity.groups.length === 0 ? (
           <p className="py-10 text-center text-secondary">{text.no_entries}</p>
         ) : (
-          <div aria-live="polite" className="divide-y divide-tertiary">
+          <div aria-live="polite" className="space-y-4 p-3 lg:p-4">
             {activity.groups.map((group) => {
               const groupIds = group.entries
                 .filter((entry) => entry.selectable)
                 .map((entry) => entry.id);
               return (
-                <div key={group.date}>
-                  <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-container-inset px-4 py-2.5 md:top-10">
-                    <div className="flex items-center gap-3">
-                      {groupIds.length > 0 ? (
-                        <input
-                          type="checkbox"
-                          className="checkbox checkbox--light"
-                          aria-label={`${text.select_all}: ${group.label}`}
-                          checked={groupIds.length > 0 && groupIds.every((id) => selected.has(id))}
-                          disabled={groupIds.length === 0}
-                          onChange={(event) => {
-                            select(groupIds, event.target.checked);
-                          }}
-                        />
-                      ) : null}
-                      <h2 className="text-xs font-medium uppercase tracking-wide text-secondary">
-                        {group.label} <span className="mx-1">&middot;</span> {group.entries.length}
-                      </h2>
-                    </div>
-                    {group.balance !== null && group.balance !== "" ? (
-                      <span className="privacy-sensitive text-xs font-medium tabular-nums text-secondary">
-                        {group.balance}
-                      </span>
-                    ) : null}
-                  </div>
-                  <ul className="divide-y divide-tertiary">
-                    {group.entries.map((entry, index) => (
-                      <ActivityEntryView
-                        key={entry.id}
-                        entry={entry}
-                        previousParentId={group.entries[index - 1]?.split_parent?.id}
-                        accountId={accountId}
-                        search={search}
-                        text={text}
-                        columns={columns}
-                        categories={reference.categories}
-                        selected={selected.has(entry.id)}
-                        onSelect={(value) => {
-                          select([entry.id], value);
+                <AccountActivityGroup
+                  key={group.date}
+                  group={group}
+                  text={text}
+                  selection={
+                    groupIds.length > 0 ? (
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox--light"
+                        aria-label={`${text.select_all}: ${group.label}`}
+                        checked={groupIds.length > 0 && groupIds.every((id) => selected.has(id))}
+                        disabled={groupIds.length === 0}
+                        onChange={(event) => {
+                          select(groupIds, event.target.checked);
                         }}
                       />
-                    ))}
-                  </ul>
-                </div>
+                    ) : null
+                  }
+                >
+                  {group.entries.map((entry, index) => (
+                    <ActivityEntryView
+                      key={entry.id}
+                      entry={entry}
+                      previousParentId={group.entries[index - 1]?.split_parent?.id}
+                      accountId={accountId}
+                      search={search}
+                      text={text}
+                      columns={columns}
+                      categories={reference.categories}
+                      selected={selected.has(entry.id)}
+                      onSelect={(value) => {
+                        select([entry.id], value);
+                      }}
+                    />
+                  ))}
+                </AccountActivityGroup>
               );
             })}
           </div>
@@ -804,11 +747,9 @@ function ActivityEntryView({
   selected: boolean;
   onSelect: (value: boolean) => void;
 }) {
-  const extras =
-    entry.activity_edit !== null ||
-    entry.actions.length > 0 ||
-    (entry.description !== null && entry.description !== "") ? (
-      <ActivityEntryExtras entry={entry} accountId={accountId} search={search} text={text} />
+  const activity =
+    entry.activity_label !== null ? (
+      <InvestmentActivityBadge entry={entry} text={text} />
     ) : undefined;
   const selection = {
     selected,
@@ -838,7 +779,7 @@ function ActivityEntryView({
         positive={entry.positive}
         logoUrl={entry.logo_url}
         categories={categories}
-        category={extras}
+        category={activity}
         badges={<EntryBadges entry={entry} />}
       />
     );
@@ -852,9 +793,14 @@ function ActivityEntryView({
   return (
     <>
       {parent}
-      <li
-        id={`entry_${entry.id}`}
-        className={`flex items-center gap-3 px-4 py-3 ${entry.excluded ? "opacity-50" : ""} ${entry.split_parent ? "pl-8" : ""}`}
+      <EntryRow
+        id={entry.id}
+        excluded={entry.excluded}
+        indent={Boolean(entry.split_parent)}
+        showTags={columns.tags}
+        category={activity}
+        amount={entry.amount}
+        positive={entry.type !== "valuation" && entry.positive}
       >
         <input
           type="checkbox"
@@ -866,13 +812,21 @@ function ActivityEntryView({
             onSelect(event.target.checked);
           }}
         />
-        <BrandLogo className="size-10 rounded-full bg-container-inset" src={entry.logo_url}>
-          <Icon name={entry.type === "trade" ? "arrow-left-right" : "chart-bar"} />
+        <BrandLogo
+          className="size-9 shrink-0 rounded-full bg-container-inset text-sm font-medium text-secondary"
+          src={entry.logo_url}
+        >
+          {entry.type === "trade" ? (
+            entry.name.slice(0, 1).toUpperCase()
+          ) : (
+            <Icon name="chart-bar" />
+          )}
         </BrandLogo>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             {entry.type === "valuation" ? (
               <Link
+                data-entry-link
                 to="/accounts/$accountId/valuations/$valuationId"
                 params={{ accountId, valuationId: entry.id }}
                 search={() => ({ ...search, return_to: currentReturnTo() })}
@@ -882,6 +836,7 @@ function ActivityEntryView({
               </Link>
             ) : (
               <a
+                data-entry-link
                 href={entry.href}
                 className="truncate text-sm font-medium text-primary hover:underline"
               >
@@ -890,14 +845,9 @@ function ActivityEntryView({
             )}
             <EntryBadges entry={entry} />
           </div>
-          {extras}
+          <div className="md:hidden">{activity}</div>
         </div>
-        <span
-          className={`privacy-sensitive whitespace-nowrap text-sm font-medium tabular-nums ${entry.type === "valuation" ? "text-primary" : entry.positive ? "text-success" : "text-primary"}`}
-        >
-          {entry.amount}
-        </span>
-      </li>
+      </EntryRow>
     </>
   );
 }

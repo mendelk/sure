@@ -174,7 +174,7 @@ en:
         loading: Loading account details…
         disabled_account: Disabled
         cancel: Cancel
-        convert_to_trade: Convert to trade
+        activity_save_error: Could not update the activity type.
         creation_loading: Loading transaction…
         creation_reference_error: Transaction options are unavailable.
         creation_source_error: This transaction cannot be duplicated.

@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { AccountIdSchema, EntryIdSchema, type AccountId } from "../ids";
 import { GetApiV1Transactions200Response, GetApiV1TransactionsId200Response } from "./generated";
+import { readCsrfToken } from "./transactions";
 
 export type AccountSearch = {
   tab?: string;
@@ -165,6 +166,7 @@ export const AccountActivitySchema = z.object({
           excluded: z.boolean(),
           notes: NullableStringSchema,
           description: NullableStringSchema,
+          activity_label: NullableStringSchema,
           selectable: z.boolean(),
           transaction: z.nullable(GetApiV1TransactionsId200Response),
           split_parent: z.nullable(
@@ -177,15 +179,13 @@ export const AccountActivitySchema = z.object({
               icon: NullableStringSchema,
             }),
           ),
-          actions: z.array(AccountActionSchema),
           logo_url: NullableStringSchema,
           activity_options: z.array(z.object({ label: z.string(), value: z.string() })),
           activity_edit: z.nullable(
             z.object({
               href: z.string(),
-              method: z.literal("patch"),
-              param: z.string(),
-              value: z.string(),
+              entryable_id: z.uuid(),
+              convert_href: NullableStringSchema,
             }),
           ),
         }),
@@ -298,6 +298,35 @@ export class AccountApiError extends Error {
     super(`Account request failed (${status})`);
     this.name = "AccountApiError";
   }
+}
+
+export async function updateAccountActivity({
+  edit,
+  label,
+}: {
+  edit: NonNullable<AccountActivity["groups"][number]["entries"][number]["activity_edit"]>;
+  label: string;
+}): Promise<void> {
+  const response = await fetch(edit.href, {
+    method: "PATCH",
+    credentials: "same-origin",
+    headers: {
+      Accept: "text/html",
+      "Content-Type": "application/json",
+      "X-CSRF-Token": readCsrfToken(),
+    },
+    body: JSON.stringify({
+      entry: {
+        entryable_attributes: {
+          id: edit.entryable_id,
+          investment_activity_label: label === "" ? null : label,
+        },
+      },
+    }),
+    redirect: "manual",
+  });
+  if (!response.ok && response.type !== "opaqueredirect")
+    throw new AccountApiError(response.status);
 }
 export function accountDetailQueryOptions(id: AccountId, input: AccountSearch) {
   return queryOptions({

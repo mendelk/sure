@@ -5,6 +5,9 @@ import { Icon } from "../icon";
 export function DisclosureSection({
   title,
   children,
+  leading,
+  footer,
+  variant = "card",
   id,
   defaultOpen = false,
   className,
@@ -14,6 +17,9 @@ export function DisclosureSection({
 }: {
   title: ReactNode;
   children: ReactNode;
+  leading?: ReactNode;
+  footer?: ReactNode;
+  variant?: "card" | "inset";
   id?: string;
   defaultOpen?: boolean;
   className?: string;
@@ -32,7 +38,7 @@ export function DisclosureSection({
         // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Drag targets supplement the panel's keyboard-accessible field controls.
         <section
           aria-labelledby={buttonId}
-          className={`rounded-xl border bg-container p-4 ${className ?? "border-primary"}`}
+          className={`${variant === "inset" ? "rounded-xl bg-container-inset p-1" : "rounded-xl border bg-container p-4"} ${className ?? (variant === "card" ? "border-primary" : "")}`}
           onDragOver={
             onDragOver === undefined
               ? undefined
@@ -44,21 +50,32 @@ export function DisclosureSection({
           onDragLeave={onDragLeave}
           onDrop={onDrop}
         >
-          <DisclosureButton
-            id={buttonId}
-            ref={button}
-            className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-sm text-left font-semibold text-primary focus-ring"
+          <div
+            className={
+              variant === "inset" ? "flex items-center gap-4 px-4 py-2" : "flex items-center gap-3"
+            }
           >
-            <span className="min-w-0 flex-1">{title}</span>
-            <Icon
-              name="chevron-right"
-              size="sm"
-              className={`motion-safe:transition-transform motion-safe:duration-150 ${open ? "rotate-90" : ""}`}
-            />
-          </DisclosureButton>
-          <DisclosurePanel unmount={false} className="mt-3 space-y-3">
+            {leading}
+            <DisclosureButton
+              id={buttonId}
+              ref={button}
+              className={`focus-ring flex min-w-0 w-full cursor-pointer items-center justify-between gap-3 rounded-sm text-left ${variant === "inset" ? "text-xs font-medium text-secondary" : "font-semibold text-primary"}`}
+            >
+              <span className="min-w-0 flex-1">{title}</span>
+              <Icon
+                name={variant === "inset" ? "chevron-down" : "chevron-right"}
+                size="sm"
+                className={`motion-safe:transition-transform motion-safe:duration-150 ${open ? (variant === "inset" ? "rotate-180" : "rotate-90") : ""}`}
+              />
+            </DisclosureButton>
+          </div>
+          <DisclosurePanel
+            unmount={false}
+            className={variant === "inset" ? "space-y-3 p-4" : "mt-3 space-y-3"}
+          >
             {children}
           </DisclosurePanel>
+          {footer}
         </section>
       )}
     </Disclosure>

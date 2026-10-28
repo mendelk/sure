@@ -23,8 +23,7 @@ import { TagPill, TagSelect } from "./tag-select";
 import { SearchablePicker, type PickerOption } from "./searchable-picker";
 import { BrandLogo } from "./brand-logo";
 import { fuzzyFilter } from "../fuzzy";
-const transactionGridClass =
-  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:grid-cols-12";
+import { EntryRow, entryRowGridClass } from "./entry-row";
 const transferKinds: Partial<Record<string, true>> = {
   funds_movement: true,
   cc_payment: true,
@@ -54,7 +53,7 @@ export function TransactionRowHeader({
 }) {
   return (
     <div
-      className={`${transactionGridClass} bg-container-inset px-4 py-3 text-xs font-medium uppercase text-secondary`}
+      className={`${entryRowGridClass} bg-container-inset px-4 py-3 text-xs font-medium uppercase text-secondary`}
     >
       <div
         className={`flex min-w-0 items-center gap-3 ${showTags ? "md:col-span-5" : "md:col-span-7"}`}
@@ -116,186 +115,170 @@ export function TransactionRow({
   const isGlobalTransfer = !accountId && isTransferKind;
 
   return (
-    <li
-      className={`group ${transactionGridClass} px-4 py-3 transition-colors hover:bg-container-hover ${
-        transaction.excluded ? "opacity-50" : ""
-      }`}
-      id={`entry_${transaction.entry_id}`}
-    >
-      <div
-        className={`flex min-w-0 items-center gap-3 ${columns.tags ? "md:col-span-5" : "md:col-span-7"} ${indent ? "pl-4" : ""}`}
-      >
-        {selection && !selection.disabled && transaction.permissions.can_annotate ? (
-          <input
-            aria-label={selection.label}
-            checked={selection.selected}
-            className="checkbox checkbox--light shrink-0"
-            onChange={(event) => {
-              selection.onChange(event.currentTarget.checked);
-            }}
-            type="checkbox"
-          />
-        ) : null}
-        {isTransferKind ? (
-          <div
-            aria-hidden="true"
-            className="flex size-10 shrink-0 items-center justify-center rounded-full"
-            style={{
-              backgroundColor: "color-mix(in srgb, #444CE7 15%, transparent)",
-              color: "#444CE7",
-            }}
-          >
-            <Icon name="arrow-left-right" size="md" />
-          </div>
-        ) : (
-          <BrandLogo
-            className="size-10 rounded-full bg-container-inset text-sm font-semibold text-secondary"
-            src={logoUrl ?? transaction.logo_url ?? transaction.merchant?.logo_url}
-          >
-            {transaction.name.slice(0, 1).toUpperCase()}
-          </BrandLogo>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            {isConfirmedTransfer && transaction.transfer ? (
-              <Link
-                className="truncate text-sm font-medium text-primary hover:underline"
-                params={
-                  accountId
-                    ? { accountId, transferId: transaction.transfer.id }
-                    : { transferId: transaction.transfer.id }
-                }
-                resetScroll={false}
-                search={(previous) => previous}
-                to={
-                  accountId
-                    ? "/accounts/$accountId/transfers/$transferId"
-                    : "/transactions/transfers/$transferId"
-                }
-              >
-                {transaction.name}
-              </Link>
-            ) : (
-              <Link
-                className="truncate text-sm font-medium text-primary hover:underline"
-                params={
-                  accountId
-                    ? { accountId, transactionId: transaction.id }
-                    : { transactionId: transaction.id }
-                }
-                resetScroll={false}
-                search={(previous) => previous}
-                to={
-                  accountId
-                    ? "/accounts/$accountId/transactions/$transactionId"
-                    : "/transactions/$transactionId"
-                }
-              >
-                {transaction.name}
-              </Link>
-            )}
-            {transaction.pending ? (
-              <span className="rounded-full bg-container-inset px-2 py-0.5 text-[11px] font-medium text-secondary">
-                Pending
-              </span>
-            ) : null}
-            {transaction.transfer ? (
-              <TransactionTransferMatch bootstrap={bootstrap} transfer={transaction.transfer} />
-            ) : null}
-            {badges}
-            {columns.tags && transaction.tags.length > 0 ? (
-              <span className="min-w-0 max-w-1/2 md:hidden">
-                <TransactionTags transaction={transaction} bootstrap={bootstrap} />
-              </span>
-            ) : null}
-          </div>
-          {isTransfer ? (
-            <p className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-xs text-secondary">
-              <span>{transferPrefix} •</span>
-              <Link
-                className="truncate hover:underline"
-                params={{ accountId: transaction.account.id }}
-                to="/accounts/$accountId"
-              >
-                {transaction.account.name}
-              </Link>
-              {transaction.transfer?.other_account ? (
-                <>
-                  <span>{transaction.classification === "expense" ? "→" : "←"}</span>
-                  <Link
-                    className="truncate hover:underline"
-                    params={{ accountId: transaction.transfer.other_account.id }}
-                    to="/accounts/$accountId"
-                  >
-                    {transaction.transfer.other_account.name}
-                  </Link>
-                </>
-              ) : null}
-            </p>
-          ) : (
-            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-secondary">
-              {transaction.merchant && columns.merchant ? (
-                transaction.permissions.can_annotate &&
-                (transaction.parent_entry_id ?? null) === null ? (
-                  <MerchantMenu
-                    categoryId={transaction.category?.id}
-                    categoryName={transaction.category?.name}
-                    merchantId={transaction.merchant.id}
-                    merchantName={transaction.merchant.name}
-                    onAddFilter={onAddMerchantFilter}
-                    transactionId={transaction.id}
-                  />
-                ) : (
-                  <span className="truncate">{transaction.merchant.name}</span>
-                )
-              ) : null}
-              <Link
-                className="truncate hover:underline"
-                params={{ accountId: transaction.account.id }}
-                to="/accounts/$accountId"
-              >
-                {transaction.account.name}
-              </Link>
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="hidden min-w-0 items-center gap-2 md:col-span-3 md:flex">
-        {category ??
-          (!transaction.category_editable ? (
-            <CategoryBadge category={displayCategory ?? { name: categoryName }} />
-          ) : categories !== undefined &&
-            transaction.permissions.can_annotate &&
-            (transaction.parent_entry_id ?? null) === null ? (
-            <CategoryMenu bootstrap={bootstrap} categories={categories} transaction={transaction} />
-          ) : (
-            <CategoryBadge
-              category={displayCategory ?? transaction.category ?? { name: categoryName }}
-            />
-          ))}
-      </div>
-
-      {columns.tags ? (
-        <div className="hidden min-w-0 md:col-span-2 md:block">
-          <TransactionTags transaction={transaction} bootstrap={bootstrap} />
-        </div>
-      ) : null}
-
-      <p
-        className={`privacy-sensitive text-right text-sm font-medium tabular-nums md:col-span-2 ${
-          isGlobalTransfer
-            ? "text-primary"
-            : (positive ?? transaction.signed_amount_cents > 0)
-              ? "text-success"
-              : "text-primary"
-        }`}
-      >
-        {isGlobalTransfer
+    <EntryRow
+      id={transaction.entry_id}
+      excluded={transaction.excluded}
+      indent={indent}
+      showTags={columns.tags}
+      positive={!isGlobalTransfer && (positive ?? transaction.signed_amount_cents > 0)}
+      amount={
+        isGlobalTransfer
           ? `+/- ${(amount ?? transaction.amount).replace(/^[+-]\s*/u, "")}`
-          : (amount ?? transaction.amount)}
-      </p>
-    </li>
+          : (amount ?? transaction.amount)
+      }
+      category={
+        category ??
+        (!transaction.category_editable ? (
+          <CategoryBadge category={displayCategory ?? { name: categoryName }} />
+        ) : categories !== undefined &&
+          transaction.permissions.can_annotate &&
+          (transaction.parent_entry_id ?? null) === null ? (
+          <CategoryMenu bootstrap={bootstrap} categories={categories} transaction={transaction} />
+        ) : (
+          <CategoryBadge
+            category={displayCategory ?? transaction.category ?? { name: categoryName }}
+          />
+        ))
+      }
+      tags={<TransactionTags transaction={transaction} bootstrap={bootstrap} />}
+    >
+      {selection && !selection.disabled && transaction.permissions.can_annotate ? (
+        <input
+          aria-label={selection.label}
+          checked={selection.selected}
+          className="checkbox checkbox--light shrink-0"
+          onChange={(event) => {
+            selection.onChange(event.currentTarget.checked);
+          }}
+          type="checkbox"
+        />
+      ) : null}
+      {isTransferKind ? (
+        <div
+          aria-hidden="true"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full"
+          style={{
+            backgroundColor: "color-mix(in srgb, #444CE7 15%, transparent)",
+            color: "#444CE7",
+          }}
+        >
+          <Icon name="arrow-left-right" size="md" />
+        </div>
+      ) : (
+        <BrandLogo
+          className="size-10 rounded-full bg-container-inset text-sm font-semibold text-secondary"
+          src={logoUrl ?? transaction.logo_url ?? transaction.merchant?.logo_url}
+        >
+          {transaction.name.slice(0, 1).toUpperCase()}
+        </BrandLogo>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          {isConfirmedTransfer && transaction.transfer ? (
+            <Link
+              data-entry-link
+              className="truncate text-sm font-medium text-primary hover:underline"
+              params={
+                accountId
+                  ? { accountId, transferId: transaction.transfer.id }
+                  : { transferId: transaction.transfer.id }
+              }
+              resetScroll={false}
+              search={(previous) => previous}
+              to={
+                accountId
+                  ? "/accounts/$accountId/transfers/$transferId"
+                  : "/transactions/transfers/$transferId"
+              }
+            >
+              {transaction.name}
+            </Link>
+          ) : (
+            <Link
+              data-entry-link
+              className="truncate text-sm font-medium text-primary hover:underline"
+              params={
+                accountId
+                  ? { accountId, transactionId: transaction.id }
+                  : { transactionId: transaction.id }
+              }
+              resetScroll={false}
+              search={(previous) => previous}
+              to={
+                accountId
+                  ? "/accounts/$accountId/transactions/$transactionId"
+                  : "/transactions/$transactionId"
+              }
+            >
+              {transaction.name}
+            </Link>
+          )}
+          {transaction.pending ? (
+            <span className="rounded-full bg-container-inset px-2 py-0.5 text-[11px] font-medium text-secondary">
+              Pending
+            </span>
+          ) : null}
+          {transaction.transfer ? (
+            <TransactionTransferMatch bootstrap={bootstrap} transfer={transaction.transfer} />
+          ) : null}
+          {badges}
+          {columns.tags && transaction.tags.length > 0 ? (
+            <span className="min-w-0 max-w-1/2 md:hidden">
+              <TransactionTags transaction={transaction} bootstrap={bootstrap} />
+            </span>
+          ) : null}
+        </div>
+        {isTransfer ? (
+          <p className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-xs text-secondary">
+            <span>{transferPrefix} •</span>
+            <Link
+              className="truncate hover:underline"
+              params={{ accountId: transaction.account.id }}
+              to="/accounts/$accountId"
+            >
+              {transaction.account.name}
+            </Link>
+            {transaction.transfer?.other_account ? (
+              <>
+                <span>{transaction.classification === "expense" ? "→" : "←"}</span>
+                <Link
+                  className="truncate hover:underline"
+                  params={{ accountId: transaction.transfer.other_account.id }}
+                  to="/accounts/$accountId"
+                >
+                  {transaction.transfer.other_account.name}
+                </Link>
+              </>
+            ) : null}
+          </p>
+        ) : (
+          <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-secondary">
+            {transaction.merchant && columns.merchant ? (
+              transaction.permissions.can_annotate &&
+              (transaction.parent_entry_id ?? null) === null ? (
+                <MerchantMenu
+                  categoryId={transaction.category?.id}
+                  categoryName={transaction.category?.name}
+                  merchantId={transaction.merchant.id}
+                  merchantName={transaction.merchant.name}
+                  onAddFilter={onAddMerchantFilter}
+                  transactionId={transaction.id}
+                />
+              ) : (
+                <span className="truncate">{transaction.merchant.name}</span>
+              )
+            ) : null}
+            <Link
+              className="truncate hover:underline"
+              params={{ accountId: transaction.account.id }}
+              to="/accounts/$accountId"
+            >
+              {transaction.account.name}
+            </Link>
+          </p>
+        )}
+      </div>
+    </EntryRow>
   );
 }
 

@@ -259,7 +259,8 @@ class Account::PageData
       parent = @feed.split_parents[entry.parent_entry_id]
       amount = entry.valuation? ? entry.amount_money : -entry.amount_money
       label = entryable.respond_to?(:investment_activity_label) ? entryable.investment_activity_label : nil
-      editable_activity = managed? && account.supports_trades? && !entry.valuation? && !(entry.trade? && label.in?(%w[Dividend Interest]))
+      show_activity = account.supports_trades? && !entry.valuation? && !transaction&.transfer?
+      editable_activity = managed? && show_activity && !(entry.trade? && label.in?(%w[Dividend Interest]))
       badges = []
       badges << { label: t("entries.protection.tooltip"), tooltip: t("entries.protection.tooltip"), icon: "lock" } if entry.protected_from_sync?
       if transaction&.has_potential_duplicate?
@@ -268,21 +269,22 @@ class Account::PageData
       if entry.valuation? && entry.valuation.kind == "opening_anchor"
         badges << { label: t("valuations.show.opening_balance"), tooltip: nil, icon: "circle-dollar-sign" }
       end
-      actions = []
-      if transaction && managed? && account.investment?
-        actions << action(:convert, t("accounts.show.spa.convert_to_trade"), view.convert_to_trade_transaction_path(transaction), "arrow-left-right")
-      end
       {
         id: entry.id, type: entry.entryable_type.underscore, name: entry.name,
         href: entry.valuation? ? view.valuation_path(entry, return_to: valuation_return_to) : view.entry_path(entry, grouped: parent.present? ? true : nil), amount: amount.format,
         positive: amount.amount.positive?, excluded: entry.excluded?, notes: entry.notes,
-        description: label.present? ? t("transactions.activity_labels.#{label.parameterize(separator: '_')}", default: label) : nil,
+        description: show_activity && label.present? ? t("transactions.activity_labels.#{label.parameterize(separator: '_')}", default: label) : nil,
+        activity_label: show_activity ? label.to_s : nil,
         selectable: managed? && !(transaction && transaction.transfer.present?),
         transaction: transaction ? transaction_data(transaction) : nil,
         split_parent: parent ? { id: parent.id, name: parent.name, amount: (-parent.amount_money).format } : nil,
-        badges: badges, actions: actions,
+        badges: badges,
         activity_options: editable_activity ? (entry.trade? ? Trade::ACTIVITY_LABELS : Transaction::ACTIVITY_LABELS).map { |option| { label: t("transactions.activity_labels.#{option.parameterize(separator: '_')}", default: option), value: option } } : [],
-        activity_edit: editable_activity ? { href: entry.trade? ? view.trade_path(entry) : view.transaction_path(entry), method: "patch", param: "entry[entryable_attributes][investment_activity_label]", value: label.to_s } : nil,
+        activity_edit: editable_activity ? {
+          href: entry.trade? ? view.trade_path(entry) : view.transaction_path(entry),
+          entryable_id: entry.entryable_id,
+          convert_href: transaction && account.investment? ? view.convert_to_trade_transaction_path(transaction) : nil
+        } : nil,
         logo_url: entry.trade? ? entryable.security.display_logo_url : transaction&.display_logo_url
       }
     end
@@ -458,6 +460,13 @@ class Account::PageData
         else
           t("accounts.show.spa.#{key}")
         end
-      end
+      end.merge(
+        activity_type: t("transactions.show.activity_type"),
+        activity_none: t("transactions.form.none"),
+        activity_search: t("helpers.select.search_placeholder"),
+        activity_save_error: t("accounts.show.spa.activity_save_error"),
+        balance_tooltip: t("UI.account.activity_date.balance_tooltip"),
+        no_balance_data: t("UI.account.activity_date.no_balance_data")
+      )
     end
 end

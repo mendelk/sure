@@ -51,6 +51,28 @@ and properties retain their specialized `/loans/:id/edit` and
 `/properties/:id/edit` SPA editors. Keep account-list navigation consistent with
 the account-detail actions so SPA-only settings remain reachable.
 
+## Investment account activity
+
+Account activity uses the shared `EntryRow` grid for cash transactions, trades,
+and valuations. Investment activity appears as a compact colored badge through
+the shared `SearchablePicker`, aligned with the category column on desktop.
+Unlabelled entries display “Activity Type”; clearing a label sends JSON `null`
+so both transactions and trades can be cleared. Changes update in place and
+preserve the entryable ID. Read-only accounts and Dividend/Interest trades keep
+non-editable badges.
+
+Transfer kinds retain the shared transaction category controls, not investment
+activity editing. Cash-transaction Buy/Sell choices open the existing trade
+conversion form with `activity_label` preselected; relabeling an existing trade
+updates its label directly. There is no separate inline conversion action.
+
+Date groups use the shared `DisclosureSection` inset variant: the group checkbox
+is outside the disclosure button, reconciliation expands independently, and entry
+rows remain visible when it is collapsed. Balance values and reconciliation
+lines come from the server. Whole-row click delegation ignores interactive
+controls and portaled picker events, leaving their navigation and mutations
+independent of the primary entry link.
+
 ## Transaction category search
 
 The transaction-row category picker keeps recent categories and the alphabetical

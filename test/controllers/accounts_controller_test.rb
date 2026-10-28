@@ -267,6 +267,63 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to accounts_url
   end
 
+  test "investment transfers retain category controls instead of activity editing" do
+    investment = accounts(:investment)
+    cash = create_transaction(account: investment, name: "Cash contribution",
+      entryable: Transaction.new(investment_activity_label: "Contribution"))
+    transfer = create_transaction(account: investment, name: "Transfer contribution",
+      entryable: Transaction.new(kind: "investment_contribution", investment_activity_label: "Contribution"))
+
+    get account_url(investment, format: :json)
+
+    assert_response :success
+    rows = response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }.index_by { |row| row["id"] }
+    assert_not_nil rows[cash.id]["activity_edit"]
+    assert_includes rows[cash.id]["activity_options"].map { |option| option["value"] }, "Sell"
+    assert_nil rows[transfer.id]["activity_edit"]
+    assert_nil rows[transfer.id]["activity_label"]
+    assert_nil rows[transfer.id]["description"]
+    assert_empty rows[transfer.id]["activity_options"]
+  end
+
+  test "income trades keep their activity labels without exposing relabeling" do
+    trade = entries(:trade)
+    %w[Buy Dividend Interest].each do |label|
+      trade.entryable.update!(investment_activity_label: label)
+
+      get account_url(trade.account, format: :json)
+
+      assert_response :success
+      row = response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }.find { |item| item["id"] == trade.id }
+      assert_equal label, row["activity_label"]
+      if label == "Buy"
+        assert_not_nil row["activity_edit"]
+      else
+        assert_nil row["activity_edit"]
+        assert_empty row["activity_options"]
+      end
+    end
+  end
+
+  test "read only account activity keeps labels but cannot edit them" do
+    investment = accounts(:investment)
+    investment.update!(owner: @user)
+    investment.account_shares.destroy_all
+    member = users(:family_member)
+    investment.account_shares.create!(user: member, permission: "read_only")
+    entry = create_transaction(account: investment, name: "Readonly dividend",
+      entryable: Transaction.new(investment_activity_label: "Dividend"))
+    sign_in member
+
+    get account_url(investment, format: :json)
+
+    assert_response :success
+    row = response.parsed_body.dig("activity", "groups").flat_map { |group| group["entries"] }.find { |item| item["id"] == entry.id }
+    assert_equal "Dividend", row["activity_label"]
+    assert_nil row["activity_edit"]
+    assert_empty row["activity_options"]
+  end
+
   test "show serializes mixed activity with account-context movement signs and excludes split parents" do
     investment = accounts(:investment)
     trade = entries(:trade)
