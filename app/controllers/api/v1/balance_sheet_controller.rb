@@ -8,11 +8,10 @@ class Api::V1::BalanceSheetController < Api::V1::BaseController
 
   # GET /api/v1/balance_sheet
   # Returns net worth, total assets, and total liabilities as Money objects,
-  # the net worth series, and a row per accessible account.
+  # the net worth series, and a row per visible (draft + active) accessible account.
   def show
     family = current_resource_owner.family
     balance_sheet = family.balance_sheet
-
     render json: {
       currency: family.currency,
       net_worth: balance_sheet.net_worth_money.as_json,
@@ -36,12 +35,14 @@ class Api::V1::BalanceSheetController < Api::V1::BaseController
     end
 
     # Every account the user can see, with its current balance already
-    # normalized to the family currency.
+    # normalized to the family currency. Matches the Rails sidebar scope
+    # (`Account.visible`): draft + active only, so disabled and
+    # pending-deletion accounts never appear as sidebar rows.
     # `logo_url` mirrors the Rails sidebar (`accounts/_logo`): Brandfetch
     # institution icon first, then provider logo, then attached logo.
     # Associations are eager-loaded so per-row resolution issues no queries.
     def account_rows
-      current_resource_owner.accessible_accounts.includes(account_providers: :provider).with_attached_logo.map do |account|
+      current_resource_owner.accessible_accounts.visible.includes(account_providers: :provider).with_attached_logo.map do |account|
         {
           id: account.id,
           name: account.name,

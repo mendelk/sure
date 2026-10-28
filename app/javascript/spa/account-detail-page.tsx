@@ -226,6 +226,11 @@ export function AccountDetailPage() {
                   {data.tax_treatment}
                 </span>
               ) : null}
+              {data.disabled ? (
+                <span className="rounded-full bg-container-inset px-2 py-1 text-xs font-medium text-warning">
+                  {text.disabled_account}
+                </span>
+              ) : null}
             </div>
             {data.subtitle !== null && data.subtitle !== "" ? (
               <p className="text-sm text-secondary">{data.subtitle}</p>

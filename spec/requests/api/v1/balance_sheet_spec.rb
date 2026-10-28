@@ -37,7 +37,7 @@ RSpec.describe 'API V1 Balance Sheet', type: :request do
     get 'Show balance sheet' do
       tags 'Balance Sheet'
       description 'Returns the family balance sheet including net worth, total assets, total liabilities, ' \
-                  'the net worth time series, and a row per accessible account ' \
+                  'the net worth time series, and a row per visible (draft + active) accessible account ' \
                   'with amounts converted to the family\'s primary currency. Account rows use the API credential owner, ' \
                   'not another signed-in browser identity.'
       security [ { apiKeyAuth: [] }, { cookieSession: [] } ]

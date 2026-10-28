@@ -172,6 +172,7 @@ en:
         unavailable: Account details are unavailable.
         year: Year
         loading: Loading account details…
+        disabled_account: Disabled
         cancel: Cancel
         convert_to_trade: Convert to trade
         creation_loading: Loading transaction…

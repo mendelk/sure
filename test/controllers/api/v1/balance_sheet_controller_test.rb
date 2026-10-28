@@ -74,6 +74,17 @@ class Api::V1::BalanceSheetControllerTest < ActionDispatch::IntegrationTest
     assert_includes row.fetch("logo_url"), "cdn.brandfetch.io/example.com"
   end
 
+  test "account rows exclude disabled accounts like the Rails sidebar" do
+    disabled = @family.accounts.visible.first
+    disabled.disable!
+
+    get "/api/v1/balance_sheet", headers: api_headers(@auth)
+
+    assert_response :success
+    account_ids = response.parsed_body.fetch("accounts").map { |account| account.fetch("id") }
+    refute_includes account_ids, disabled.id
+  end
+
   test "API credentials scope account rows independently of the browser session" do
     own = @family.accounts.create!(
       name: "API account", owner: @user, currency: "USD", balance: 10, accountable: Depository.new

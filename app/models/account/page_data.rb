@@ -29,7 +29,7 @@ class Account::PageData
       color: account.accountable.color, syncing: account.syncing?, shared: account.shared?,
       owner_name: account.owned_by?(Current.user) ? nil : account.owner&.display_name,
       tax_treatment: account.tax_treatment.present? ? t("accounts.tax_treatments.#{account.tax_treatment}") : nil,
-      draft: account.draft?, actions: header_actions, sync_action: sync_action,
+      draft: account.draft?, disabled: account.disabled?, actions: header_actions, sync_action: sync_action,
       tabs: @tabs.map { |tab| { id: tab.to_s, label: t("accounts.show.tabs.#{tab}") } },
       active_tab: @active_tab, chart: chart_data, fx_warning: fx_warning,
       activity: @active_tab == "activity" ? activity_data : nil,

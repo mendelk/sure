@@ -209,6 +209,7 @@ export const AccountDetailSchema = z.object({
   owner_name: NullableStringSchema,
   tax_treatment: NullableStringSchema,
   draft: z.boolean(),
+  disabled: z.boolean(),
   actions: z.array(AccountActionSchema),
   sync_action: z.nullable(AccountActionSchema),
   tabs: z.array(
