@@ -37,13 +37,17 @@ class Api::V1::BalanceSheetController < Api::V1::BaseController
 
     # Every account the user can see, with its current balance already
     # normalized to the family currency.
+    # `logo_url` mirrors the Rails sidebar (`accounts/_logo`): Brandfetch
+    # institution icon first, then provider logo, then attached logo.
+    # Associations are eager-loaded so per-row resolution issues no queries.
     def account_rows
-      current_resource_owner.accessible_accounts.map do |account|
+      current_resource_owner.accessible_accounts.includes(account_providers: :provider).with_attached_logo.map do |account|
         {
           id: account.id,
           name: account.name,
           classification: account.classification,
           account_type: account.accountable_type.underscore,
+          logo_url: account.logo_url,
           balance: account.balance_money.as_json,
           currency: account.currency,
           path: account_path(account)

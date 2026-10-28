@@ -19,6 +19,7 @@ const BalanceSheetAccountSchema = z.object({
   name: z.string(),
   classification: z.enum(["asset", "liability"]),
   account_type: z.string(),
+  logo_url: z.nullable(z.string()),
   balance: MoneySchema,
   currency: z.string(),
   path: z.string(),
@@ -45,6 +46,7 @@ export type Summary = {
     name: string;
     classification: "asset" | "liability";
     account_type: string;
+    logo_url: string | null;
     balance: string;
     balance_amount: number;
     currency: string;
@@ -89,6 +91,7 @@ async function requestSummary(path: string, signal?: AbortSignal): Promise<Summa
       name: account.name,
       classification: account.classification,
       account_type: account.account_type,
+      logo_url: account.logo_url,
       balance: account.balance.formatted,
       balance_amount: Number(account.balance.amount),
       currency: account.currency,

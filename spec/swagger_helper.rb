@@ -2822,6 +2822,7 @@ RSpec.configure do |config|
               name: { type: :string },
               classification: { type: :string, enum: %w[asset liability] },
               account_type: { type: :string },
+              logo_url: { type: :string, nullable: true },
               balance: { '$ref' => '#/components/schemas/Money' },
               currency: { type: :string },
               path: { type: :string, nullable: true }

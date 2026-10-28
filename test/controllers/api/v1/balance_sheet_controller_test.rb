@@ -54,9 +54,24 @@ class Api::V1::BalanceSheetControllerTest < ActionDispatch::IntegrationTest
       assert account.key?("id")
       assert account.key?("name")
       assert account.key?("classification")
+      assert account.key?("logo_url"), "account rows should expose the sidebar logo"
       assert account.key?("balance")
       assert account["balance"].key?("formatted")
     end
+  end
+
+  test "account rows resolve logo_url like the Rails sidebar" do
+    account = @family.accounts.visible.first
+    account.update!(institution_domain: "example.com")
+    Setting.stubs(:brand_fetch_client_id).returns("test-client-id")
+    Setting.stubs(:brand_fetch_logo_size).returns(40)
+
+    get "/api/v1/balance_sheet", headers: api_headers(@auth)
+
+    assert_response :success
+    row = response.parsed_body.fetch("accounts").find { |candidate| candidate.fetch("id") == account.id }
+    assert_equal account.reload.logo_url, row.fetch("logo_url")
+    assert_includes row.fetch("logo_url"), "cdn.brandfetch.io/example.com"
   end
 
   test "API credentials scope account rows independently of the browser session" do

@@ -7,12 +7,12 @@ import { type SummaryAccount, useSummaryQuery } from "./api/summary";
 import { readCsrfToken } from "./api/transactions";
 import type { SpaBootstrap } from "./bootstrap";
 import { Alert } from "./components/alert";
+import { BrandLogo } from "./components/brand-logo";
 import { Button } from "./components/button";
 import { IconButton } from "./components/icon-button";
 import { Icon, type IconName } from "./icon";
 import { GlobalSearchPalette } from "./global-search";
 import { useDismiss } from "./use-dismiss";
-
 // Navigation comes from the server (`navItems` in the SPA bootstrap), built
 // by the same composition the Rails sidebar uses — including preview gating
 // for Bills and the Plan/Budgets swap. The SPA only decides *how* to
@@ -200,21 +200,21 @@ function groupAccountsByType(accounts: SummaryAccount[]): AccountTypeGroup[] {
   return groups;
 }
 
-function Lettermark({ name, type }: { name: string; type: string }) {
-  const color = ACCOUNT_TYPE_COLORS[type] ?? "#737373";
+function AccountAvatar({ account }: { account: SummaryAccount }) {
+  const color = ACCOUNT_TYPE_COLORS[account.account_type] ?? "#737373";
 
   return (
-    <span
-      className="flex size-6 shrink-0 items-center justify-center rounded-full border text-center text-xs font-medium uppercase"
+    <BrandLogo
+      src={account.logo_url}
+      className="size-6 shrink-0 rounded-full border text-center text-xs font-medium uppercase"
       style={{
         color,
         backgroundColor: `color-mix(in oklab, ${color} 10%, transparent)`,
         borderColor: `color-mix(in oklab, ${color} 10%, transparent)`,
       }}
-      aria-hidden="true"
     >
-      {name.charAt(0).toUpperCase()}
-    </span>
+      {account.name.charAt(0).toUpperCase()}
+    </BrandLogo>
   );
 }
 
@@ -252,7 +252,7 @@ function AccountGroup({
                 aria-current={pathname.startsWith(`/accounts/${account.id}`) ? "page" : undefined}
                 title={account.name}
               >
-                <Lettermark name={account.name} type={account.account_type} />
+                <AccountAvatar account={account} />
                 <div className="min-w-0 grow">
                   <p className="truncate text-sm font-medium text-primary">{account.name}</p>
                   <p className="truncate text-sm text-secondary">
