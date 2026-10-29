@@ -74,12 +74,7 @@ class TradeRepublicItemsController < ApplicationController
       return
     end
 
-    invalidate_authentication!
-    result = @trade_republic_item.trade_republic_provider.initiate_login
-    @trade_republic_item.update!(
-      pending_login_state: result["pending_login_b64"],
-      status: :requires_update
-    )
+    result = @trade_republic_item.start_configuration_login!(pin: @trade_republic_item.pin)
 
     respond_to do |format|
       format.html { redirect_to settings_providers_path(anchor: "trade-republic"), notice: t(".verification_required", method: result["method"]) }
@@ -94,61 +89,29 @@ class TradeRepublicItemsController < ApplicationController
   # authenticator accounts submit their code here. Success replaces the stored
   # session blob and clears the pending login state.
   def complete_login
-    provider = @trade_republic_item.trade_republic_provider
-    unless provider && @trade_republic_item.pending_login_state.present?
-      redirect_to settings_providers_path(anchor: "trade-republic"), alert: t(".no_pending_login"), status: :see_other
-      return
-    end
-
-    result = provider.complete_login(
-      pending_login_b64: @trade_republic_item.pending_login_state,
-      code: trade_republic_login_params[:code]
-    )
-
-    if result.data["status"] == "pending"
-      @trade_republic_item.update!(pending_login_state: result.data.fetch("pending_login_b64")) if result.data["pending_login_b64"].present?
+    result = @trade_republic_item.complete_configuration_login!(code: trade_republic_login_params[:code])
+    if result["status"] == "pending"
       if turbo_panel_request?
         render_login_panel(notice: t(".approval_pending"))
       else
         redirect_to settings_providers_path(anchor: "trade-republic"), notice: t(".approval_pending")
       end
-    elsif duplicate_connection?(result)
-      discard_duplicate_connection!
-      if turbo_panel_request?
-        render_login_panel(alert: t("trade_republic_items.duplicate_connection"), whole_panel: true)
-      else
-        redirect_to settings_providers_path(anchor: "trade-republic"), alert: t("trade_republic_items.duplicate_connection"), status: :see_other
-      end
+    elsif turbo_panel_request?
+      render_login_panel(success: true)
     else
-      begin
-        ActiveRecord::Base.transaction do
-          @trade_republic_item.update!(
-            session_blob: result.data.fetch("session_txt"),
-            pending_login_state: nil,
-            status: :good,
-            brokerage_account_id: account_id_from(result)
-          )
-        end
-      rescue ActiveRecord::RecordNotUnique
-        discard_duplicate_connection!
-        if turbo_panel_request?
-          render_login_panel(alert: t("trade_republic_items.duplicate_connection"), whole_panel: true)
-        else
-          redirect_to settings_providers_path(anchor: "trade-republic"), alert: t("trade_republic_items.duplicate_connection"), status: :see_other
-        end
-        return
-      end
-      @trade_republic_item.sync_later unless @trade_republic_item.syncing?
-      if turbo_panel_request?
-        render_login_panel(success: true)
-      else
-        redirect_to settings_providers_path(anchor: "trade-republic"), notice: t(".success")
-      end
+      redirect_to settings_providers_path(anchor: "trade-republic"), notice: t(".success")
     end
-  rescue Provider::TradeRepublicClient::InvalidChallenge => e
-    redirect_to settings_providers_path(anchor: "trade-republic"), alert: e.message, status: :see_other
+  rescue TradeRepublicItem::Configuration::DuplicateConnection
+    if turbo_panel_request?
+      render_login_panel(alert: t("trade_republic_items.duplicate_connection"), whole_panel: true)
+    else
+      redirect_to settings_providers_path(anchor: "trade-republic"), alert: t("trade_republic_items.duplicate_connection"), status: :see_other
+    end
+  rescue TradeRepublicItem::Configuration::SupersededLogin
+    render_superseded_push_login
+  rescue ProviderConnection::Invalid
+    redirect_to settings_providers_path(anchor: "trade-republic"), alert: t(".no_pending_login"), status: :see_other
   rescue Provider::TradeRepublicClient::LoginExpired, Provider::TradeRepublicClient::AuthenticationRequired
-    @trade_republic_item.update!(pending_login_state: nil)
     redirect_to settings_providers_path(anchor: "trade-republic"), alert: t(".login_expired"), status: :see_other
   rescue Provider::TradeRepublicClient::Error => e
     redirect_to settings_providers_path(anchor: "trade-republic"), alert: e.message, status: :see_other
@@ -157,36 +120,20 @@ class TradeRepublicItemsController < ApplicationController
   # Push approvals are asynchronous. The browser polls this endpoint while
   # the user approves the login in the Trade Republic app (maximum two minutes).
   def poll_login
-    provider = @trade_republic_item.trade_republic_provider
-    pending = @trade_republic_item.pending_login_state
-    unless provider && pending.present?
-      return render_login_panel(alert: t(".no_pending_login"))
-    end
-
-    result = provider.complete_login(pending_login_b64: pending)
-    if result.data["status"] == "pending"
-      update_if_pending_login_current!(pending, pending_login_state: result.data.fetch("pending_login_b64")) if result.data["pending_login_b64"].present?
+    result = @trade_republic_item.complete_configuration_login!(poll: true)
+    if result["status"] == "pending"
       login_poll_response(:no_content) { render_login_panel }
-    elsif duplicate_connection?(result)
-      return render_superseded_push_login unless update_if_pending_login_current!(pending, pending_login_state: nil, status: :requires_update)
-
-      discard_duplicate_connection!
-      render_login_panel(alert: t("trade_republic_items.duplicate_connection"), whole_panel: true)
     else
-      begin
-        unless update_if_pending_login_current!(pending, session_blob: result.data.fetch("session_txt"), pending_login_state: nil, status: :good, brokerage_account_id: account_id_from(result))
-          return render_superseded_push_login
-        end
-      rescue ActiveRecord::RecordNotUnique
-        discard_duplicate_connection!
-        return render_login_panel(alert: t("trade_republic_items.duplicate_connection"), whole_panel: true)
-      end
-      @trade_republic_item.sync_later unless @trade_republic_item.syncing?
       render_login_panel(success: true)
     end
+  rescue TradeRepublicItem::Configuration::DuplicateConnection
+    render_login_panel(alert: t("trade_republic_items.duplicate_connection"), whole_panel: true)
+  rescue TradeRepublicItem::Configuration::SupersededLogin => e
+    capture_login_poll_error(e.cause, login: "push", retryable: false) if e.cause.is_a?(Provider::TradeRepublicClient::Error)
+    render_superseded_push_login
+  rescue ProviderConnection::Invalid
+    render_login_panel(alert: t(".no_pending_login"))
   rescue Provider::TradeRepublicClient::LoginExpired, Provider::TradeRepublicClient::AuthenticationRequired
-    return render_superseded_push_login unless update_if_pending_login_current!(pending, pending_login_state: nil)
-
     render_login_panel(alert: t(".login_expired"))
   rescue Provider::TradeRepublicClient::RateLimited => e
     capture_login_poll_error(e, login: "push", retryable: true)
@@ -197,73 +144,36 @@ class TradeRepublicItemsController < ApplicationController
     login_poll_response(:service_unavailable) { render_login_panel(alert: e.message) }
   rescue Provider::TradeRepublicClient::Error => e
     capture_login_poll_error(e, login: "push", retryable: false)
-    return render_superseded_push_login unless update_if_pending_login_current!(pending, pending_login_state: nil)
-
     render_login_panel(alert: e.message)
   end
 
   def initiate_qr_login
-    provider = @trade_republic_item.trade_republic_provider
-    raise Provider::TradeRepublicClient::ConfigurationError, t(".not_configured") unless provider
-
-    invalidate_authentication!
-    result = provider.initiate_qr_login
-    @trade_republic_item.update!(pending_login_state: result.data.fetch("pending_login_b64"), status: :requires_update)
-    response_data = result.data.except("pending_login_b64")
-    response_data["qr_code_svg"] = view_context.generate_mfa_qr_code(result.data["qr_code_payload"]) if result.data["qr_code_payload"].present?
+    response_data = @trade_republic_item.start_configuration_login!(qr: true)
+    response_data["qr_code_svg"] = view_context.generate_mfa_qr_code(response_data["qr_code_payload"]) if response_data["qr_code_payload"].present?
     render json: response_data, status: :accepted
-  rescue Provider::TradeRepublicClient::Error => e
+  rescue Provider::TradeRepublicClient::Error, ProviderConnection::Invalid => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def poll_qr_login
-    provider = @trade_republic_item.trade_republic_provider
-    pending = @trade_republic_item.pending_login_state
-    raise Provider::TradeRepublicClient::InvalidChallenge, t(".no_pending_login") if provider.blank? || pending.blank?
-
-    result = provider.poll_qr_login(pending_login_b64: pending)
-    if result.data["status"] == "pending"
-      unless update_if_pending_login_current!(pending, pending_login_state: result.data.fetch("pending_login_b64"))
-        return render_superseded_qr_login
-      end
-
-      response_data = result.data.except("pending_login_b64")
-      response_data["qr_code_svg"] = view_context.generate_mfa_qr_code(result.data["qr_code_payload"]) if result.data["qr_code_payload"].present?
-      render json: response_data
-    elsif duplicate_connection?(result)
-      return render_superseded_qr_login unless update_if_pending_login_current!(pending, pending_login_state: nil, status: :requires_update)
-
-      discard_duplicate_connection!
-      # The QR controller reloads the providers page for any non-pending
-      # status, where this alert is shown.
-      flash[:alert] = t("trade_republic_items.duplicate_connection")
-      render json: { status: "duplicate_connection" }
-    else
-      begin
-        unless update_if_pending_login_current!(pending, session_blob: result.data.fetch("session_txt"), pending_login_state: nil, status: :good, brokerage_account_id: account_id_from(result))
-          return render_superseded_qr_login
-        end
-      rescue ActiveRecord::RecordNotUnique
-        discard_duplicate_connection!
-        flash[:alert] = t("trade_republic_items.duplicate_connection")
-        return render json: { status: "duplicate_connection" }
-      end
-
-      @trade_republic_item.sync_later unless @trade_republic_item.syncing?
-      flash[:notice] = t(".success")
-      render json: result.data.except("session_txt")
-    end
-  rescue Provider::TradeRepublicClient::LoginExpired, Provider::TradeRepublicClient::AuthenticationRequired => e
-    return render_superseded_qr_login unless update_if_pending_login_current!(pending, pending_login_state: nil)
-
+    response_data = @trade_republic_item.complete_configuration_login!(qr: true, poll: true)
+    response_data["qr_code_svg"] = view_context.generate_mfa_qr_code(response_data["qr_code_payload"]) if response_data["qr_code_payload"].present?
+    flash[:notice] = t(".success") unless response_data["status"] == "pending"
+    render json: response_data
+  rescue TradeRepublicItem::Configuration::DuplicateConnection
+    flash[:alert] = t("trade_republic_items.duplicate_connection")
+    render json: { status: "duplicate_connection" }
+  rescue TradeRepublicItem::Configuration::SupersededLogin
+    render_superseded_qr_login
+  rescue Provider::TradeRepublicClient::LoginExpired, Provider::TradeRepublicClient::AuthenticationRequired, ProviderConnection::Invalid => e
     render json: { error: e.message }, status: :unprocessable_entity
   rescue Provider::TradeRepublicClient::RateLimited => e
-    render_qr_login_error(e, pending: pending, status: :too_many_requests, retryable: true)
+    render_qr_login_error(e, status: :too_many_requests, retryable: true)
   rescue Provider::TradeRepublicClient::Timeout,
          Provider::TradeRepublicClient::TransientProviderError => e
-    render_qr_login_error(e, pending: pending, status: :service_unavailable, retryable: true)
+    render_qr_login_error(e, status: :service_unavailable, retryable: true)
   rescue Provider::TradeRepublicClient::Error => e
-    render_qr_login_error(e, pending: pending)
+    render_qr_login_error(e)
   end
 
   def cancel_qr_login
@@ -518,9 +428,8 @@ class TradeRepublicItemsController < ApplicationController
   private
 
     def initiate_qr_login_for(item)
-      result = item.trade_republic_provider.initiate_qr_login
-      item.update!(pending_login_state: result.data.fetch("pending_login_b64"), status: :requires_update)
-      @qr_code_svg = view_context.generate_mfa_qr_code(result.data["qr_code_payload"]) if result.data["qr_code_payload"].present?
+      data = item.start_configuration_login!(qr: true)
+      @qr_code_svg = view_context.generate_mfa_qr_code(data["qr_code_payload"]) if data["qr_code_payload"].present?
     rescue Provider::TradeRepublicClient::Error => e
       @error_message = e.message
     end
@@ -544,12 +453,7 @@ class TradeRepublicItemsController < ApplicationController
     end
 
     def initiate_login_for(item, pin: nil)
-      item.update!(session_blob: nil, pending_login_state: nil, status: :requires_update)
-      provider = item.trade_republic_provider(pin: pin)
-      return unless provider
-
-      result = provider.initiate_login
-      item.update!(pending_login_state: result["pending_login_b64"], status: :requires_update)
+      item.start_configuration_login!(pin: pin)
     rescue Provider::TradeRepublicClient::Error => e
       @error_message = e.message
       DebugLogEntry.capture(
@@ -562,9 +466,6 @@ class TradeRepublicItemsController < ApplicationController
       )
     end
 
-    def invalidate_authentication!
-      @trade_republic_item.update!(session_blob: nil, pending_login_state: nil, status: :requires_update)
-    end
 
     def redirect_flash_options(success_message)
       @error_message.present? ? { alert: @error_message } : { notice: success_message }
@@ -607,41 +508,6 @@ class TradeRepublicItemsController < ApplicationController
       turbo_stream.replace("trade-republic-providers-panel", partial: "settings/providers/trade_republic_panel")
     end
 
-    # Connecting the same Trade Republic account through a second item would
-    # import its accounts twice.
-    def account_id_from(result)
-      result.data.dig("account", "brokerage_account_id").presence
-    end
-
-    def other_active_trade_republic_items
-      Current.family.trade_republic_items.active.where.not(id: @trade_republic_item.id)
-    end
-
-    # trade_republic_accounts rows only exist once the importer's first sync
-    # runs, so checking only those would let a second item finish login for
-    # the same account in the gap before that job runs (or truly
-    # concurrently). brokerage_account_id is written on the item itself the
-    # moment login succeeds and is backed by a unique index, so this is an
-    # early, user-facing check; the index (see discard_duplicate_connection!
-    # callers) is what actually closes the race.
-    def duplicate_connection?(result)
-      account_id = account_id_from(result)
-      return false if account_id.blank?
-
-      other_active_trade_republic_items.exists?(brokerage_account_id: account_id) ||
-        other_active_trade_republic_items
-          .joins(:trade_republic_accounts)
-          .where(trade_republic_accounts: { trade_republic_account_id: [ account_id, "cash:#{account_id}" ] })
-          .exists?
-    end
-
-    def discard_duplicate_connection!
-      # A failed unique-index write from the losing update! left brokerage_account_id
-      # dirty on the in-memory record with the other item's value; clear it
-      # explicitly or this update! would collide with the same index again.
-      @trade_republic_item.update!(session_blob: nil, pending_login_state: nil, status: :requires_update, brokerage_account_id: nil)
-      @trade_republic_item.destroy_later if @trade_republic_item.trade_republic_accounts.none?
-    end
 
     def turbo_panel_request?
       turbo_frame_request? || request.format.turbo_stream?
@@ -667,12 +533,9 @@ class TradeRepublicItemsController < ApplicationController
       end
     end
 
-    def render_qr_login_error(error, pending: nil, status: :unprocessable_entity, retryable: false)
+    def render_qr_login_error(error, status: :unprocessable_entity, retryable: false)
       capture_login_poll_error(error, login: "QR", retryable: retryable)
 
-      if pending.present? && error.respond_to?(:pending_login_b64) && error.pending_login_b64.present?
-        update_if_pending_login_current!(pending, pending_login_state: error.pending_login_b64)
-      end
 
       render json: { error: error.message, retryable: retryable }, status: status
     end
@@ -699,15 +562,6 @@ class TradeRepublicItemsController < ApplicationController
       )
     end
 
-    # Cancellation or a newer QR login can replace the state while a poll is
-    # in flight; only the poll that started from the current state may write.
-    def update_if_pending_login_current!(expected_pending, **attributes)
-      @trade_republic_item.with_lock do
-        current = @trade_republic_item.pending_login_state == expected_pending
-        @trade_republic_item.update!(attributes) if current
-        current
-      end
-    end
 
     # A newer login owns the card now; leave its state and poller alone.
     def render_superseded_push_login

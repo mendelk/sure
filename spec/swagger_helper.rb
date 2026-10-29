@@ -56,9 +56,2828 @@ RSpec.configure do |config|
             name: 'session_token',
             in: :cookie,
             description: 'Authenticated Sure browser session.'
+          },
+          csrfToken: {
+            type: :apiKey,
+            name: 'X-CSRF-Token',
+            in: :header,
+            description: 'Required for unsafe requests authenticated with a browser session; API-key and OAuth authentication do not require CSRF tokens.'
           }
         },
         schemas: {
+          AccountProviderLink: {
+            type: "object",
+            properties: {
+              id: {
+                type: "string",
+                format: "uuid",
+                nullable: true
+              },
+              provider_type: {
+                type: "string"
+              },
+              provider_id: {
+                type: "string",
+                format: "uuid"
+              },
+              provider_key: {
+                type: "string",
+                nullable: true
+              },
+              item_id: {
+                type: "string",
+                nullable: true
+              }
+            },
+            required: [ "id", "provider_type", "provider_id", "provider_key", "item_id" ]
+          },
+          AccountWorkspaceAction: {
+            type: "object",
+            properties: {
+              key: {
+                type: "string"
+              },
+              label: {
+                type: "string"
+              },
+              href: {
+                type: "string"
+              },
+              method: {
+                type: "string",
+                enum: [ "get", "post", "patch", "delete" ]
+              },
+              icon: {
+                type: "string"
+              },
+              params: {
+                type: "object",
+                additionalProperties: true
+              },
+              confirm: {
+                nullable: true,
+                oneOf: [
+                  {
+                    type: "string"
+                  },
+                  {
+                    type: "object",
+                    properties: {
+                      title: {
+                        type: "string"
+                      },
+                      body: {
+                        type: "string"
+                      },
+                      confirmText: {
+                        type: "string"
+                      },
+                      variant: {
+                        type: "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            required: [ "key", "label", "href" ]
+          },
+          AccountWorkspaceCard: {
+            type: "object",
+            properties: {
+              label: {
+                type: "string"
+              },
+              value: {
+                type: "string"
+              },
+              description: {
+                type: "string",
+                nullable: true
+              },
+              tone: {
+                type: "string"
+              }
+            },
+            required: [ "label", "value", "description", "tone" ]
+          },
+          AccountWorkspaceRow: {
+            type: "object",
+            properties: {
+              id: {
+                type: "string",
+                format: "uuid"
+              },
+              name: {
+                type: "string"
+              },
+              accountable_type: {
+                type: "string"
+              },
+              subtype_label: {
+                type: "string"
+              },
+              currency: {
+                type: "string"
+              },
+              balance: {
+                type: "string"
+              },
+              status: {
+                type: "string"
+              },
+              linked: {
+                type: "boolean"
+              },
+              provider_links: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/AccountProviderLink"
+                }
+              },
+              syncing: {
+                type: "boolean"
+              },
+              draft: {
+                type: "boolean"
+              },
+              pending_deletion: {
+                type: "boolean"
+              },
+              active: {
+                type: "boolean"
+              },
+              exclude_from_reports: {
+                type: "boolean"
+              },
+              shared: {
+                type: "boolean"
+              },
+              owned: {
+                type: "boolean"
+              },
+              owner_name: {
+                type: "string",
+                nullable: true
+              },
+              institution_name: {
+                type: "string",
+                nullable: true
+              },
+              logo_url: {
+                type: "string",
+                nullable: true
+              },
+              color: {
+                type: "string"
+              },
+              is_default: {
+                type: "boolean"
+              },
+              set_default_eligible: {
+                type: "boolean"
+              },
+              manageable: {
+                type: "boolean"
+              },
+              href: {
+                type: "string"
+              },
+              edit_href: {
+                type: "string"
+              },
+              sharing_href: {
+                type: "string"
+              },
+              actions: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/AccountWorkspaceAction"
+                }
+              }
+            },
+            required: [ "id", "name", "status", "manageable", "actions" ]
+          },
+          AccountWorkspaceGroup: {
+            type: "object",
+            properties: {
+              key: {
+                type: "string"
+              },
+              name: {
+                type: "string"
+              },
+              color: {
+                type: "string"
+              },
+              total: {
+                type: "string"
+              },
+              syncing: {
+                type: "boolean"
+              },
+              accounts: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/AccountWorkspaceRow"
+                }
+              }
+            },
+            required: [ "key", "name", "total", "accounts" ]
+          },
+          AccountsWorkspace: {
+            type: "object",
+            properties: {
+              sync: {
+                type: "object",
+                properties: {
+                  syncing: {
+                    type: "boolean"
+                  },
+                  sync_href: {
+                    type: "string"
+                  },
+                  cancel_path: {
+                    type: "string",
+                    nullable: true
+                  },
+                  syncing_label: {
+                    type: "string"
+                  },
+                  cancel_label: {
+                    type: "string"
+                  }
+                },
+                required: [ "syncing", "sync_href", "cancel_path", "syncing_label", "cancel_label" ]
+              },
+              new_account_path: {
+                type: "string"
+              },
+              items: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    kind: {
+                      type: "string"
+                    },
+                    provider_key: {
+                      type: "string"
+                    },
+                    id: {
+                      type: "string"
+                    },
+                    name: {
+                      type: "string"
+                    },
+                    logo_url: {
+                      type: "string",
+                      nullable: true
+                    },
+                    logo_text: {
+                      type: "string",
+                      nullable: true
+                    },
+                    logo_icon: {
+                      type: "string",
+                      nullable: true
+                    },
+                    logo_color: {
+                      type: "string",
+                      nullable: true
+                    },
+                    status: {
+                      type: "string"
+                    },
+                    status_label: {
+                      type: "string",
+                      nullable: true
+                    },
+                    syncing: {
+                      type: "boolean"
+                    },
+                    scheduled_for_deletion: {
+                      type: "boolean"
+                    },
+                    group: {
+                      type: "array",
+                      items: {
+                        "$ref" => "#/components/schemas/AccountWorkspaceGroup"
+                      },
+                      nullable: true
+                    },
+                    empty: {
+                      type: "object",
+                      properties: {
+                        title: {
+                          type: "string"
+                        },
+                        description: {
+                          type: "string"
+                        }
+                      },
+                      nullable: true
+                    },
+                    wallet: {
+                      type: "object",
+                      properties: {
+                        address_count: {
+                          type: "integer"
+                        },
+                        accounts: {
+                          type: "array",
+                          items: {
+                            "$ref" => "#/components/schemas/AccountWorkspaceRow"
+                          }
+                        },
+                        sync_href: {
+                          type: "string"
+                        },
+                        delete_href: {
+                          type: "string"
+                        }
+                      },
+                      nullable: true
+                    },
+                    manage_href: {
+                      type: "string",
+                      nullable: true
+                    },
+                    manage_label: {
+                      type: "string",
+                      nullable: true
+                    },
+                    setup_href: {
+                      type: "string",
+                      nullable: true
+                    },
+                    delete_href: {
+                      type: "string",
+                      nullable: true
+                    },
+                    confirm_delete: {
+                      type: "object",
+                      properties: {
+                        title: {
+                          type: "string"
+                        },
+                        body: {
+                          type: "string"
+                        },
+                        confirmText: {
+                          type: "string"
+                        },
+                        variant: {
+                          type: "string"
+                        }
+                      }
+                    },
+                    replacement_prompts: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          title: {
+                            type: "string"
+                          },
+                          description: {
+                            type: "string"
+                          },
+                          relink_label: {
+                            type: "string"
+                          },
+                          account_id: {
+                            type: "string",
+                            format: "uuid"
+                          },
+                          dismiss_label: {
+                            type: "string"
+                          },
+                          relink_href: {
+                            type: "string"
+                          },
+                          dismiss_href: {
+                            type: "string",
+                            nullable: true
+                          },
+                          dormant_sfa_id: {
+                            type: "string"
+                          },
+                          active_sfa_id: {
+                            type: "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  required: [ "kind", "provider_key", "id", "name", "status", "syncing", "group" ]
+                }
+              },
+              groups: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/AccountWorkspaceGroup"
+                }
+              }
+            },
+            required: [ "sync", "new_account_path", "items", "groups" ]
+          },
+          AccountWorkspace: {
+            type: "object",
+            properties: {
+              id: {
+                type: "string",
+                format: "uuid"
+              },
+              name: {
+                type: "string"
+              },
+              account_type: {
+                type: "string"
+              },
+              currency: {
+                type: "string"
+              },
+              subtitle: {
+                type: "string",
+                nullable: true
+              },
+              logo_url: {
+                type: "string",
+                nullable: true
+              },
+              color: {
+                type: "string"
+              },
+              syncing: {
+                type: "boolean"
+              },
+              shared: {
+                type: "boolean"
+              },
+              owner_name: {
+                type: "string",
+                nullable: true
+              },
+              tax_treatment: {
+                type: "string",
+                nullable: true
+              },
+              draft: {
+                type: "boolean"
+              },
+              disabled: {
+                type: "boolean"
+              },
+              linked: {
+                type: "boolean",
+                nullable: true
+              },
+              balance: {
+                type: "number",
+                nullable: true
+              },
+              subtype: {
+                type: "string",
+                nullable: true
+              },
+              institution_name: {
+                type: "string",
+                nullable: true
+              },
+              institution_domain: {
+                type: "string",
+                nullable: true
+              },
+              notes: {
+                type: "string",
+                nullable: true
+              },
+              exclude_from_reports: {
+                type: "boolean",
+                nullable: true
+              },
+              actions: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/AccountWorkspaceAction"
+                }
+              },
+              sync_action: {
+                nullable: true,
+                allOf: [
+                  {
+                    "$ref" => "#/components/schemas/AccountWorkspaceAction"
+                  }
+                ]
+              },
+              tabs: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: {
+                      type: "string",
+                      enum: [ "activity", "overview", "holdings", "schedule", "statements" ]
+                    },
+                    label: {
+                      type: "string"
+                    }
+                  }
+                }
+              },
+              active_tab: {
+                type: "string"
+              },
+              chart: {
+                type: "object",
+                properties: {
+                  title: {
+                    type: "string"
+                  },
+                  value: {
+                    type: "string"
+                  },
+                  converted_value: {
+                    type: "string",
+                    nullable: true
+                  },
+                  currency: {
+                    type: "string"
+                  },
+                  view: {
+                    type: "string"
+                  },
+                  views: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        key: {
+                          type: "string"
+                        },
+                        label: {
+                          type: "string"
+                        }
+                      }
+                    }
+                  },
+                  period: {
+                    type: "object",
+                    properties: {
+                      key: {
+                        type: "string",
+                        nullable: true
+                      },
+                      label: {
+                        type: "string"
+                      },
+                      start_date: {
+                        type: "string",
+                        format: "date"
+                      },
+                      end_date: {
+                        type: "string",
+                        format: "date"
+                      }
+                    }
+                  },
+                  periods: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        key: {
+                          type: "string"
+                        },
+                        label: {
+                          type: "string"
+                        }
+                      }
+                    }
+                  },
+                  trend: {
+                    type: "object",
+                    properties: {
+                      value: {
+                        type: "string"
+                      },
+                      percent: {
+                        type: "string"
+                      },
+                      direction: {
+                        type: "string",
+                        enum: [ "up", "down", "flat" ]
+                      },
+                      favorable: {
+                        type: "boolean"
+                      },
+                      comparison_label: {
+                        type: "string"
+                      }
+                    }
+                  },
+                  series: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        key: {
+                          type: "string"
+                        },
+                        label: {
+                          type: "string"
+                        },
+                        tone: {
+                          type: "string"
+                        },
+                        dashed: {
+                          type: "boolean"
+                        },
+                        points: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              date: {
+                                type: "string",
+                                format: "date"
+                              },
+                              value: {
+                                type: "number"
+                              },
+                              formatted: {
+                                type: "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  markers: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        date: {
+                          type: "string",
+                          format: "date"
+                        },
+                        label: {
+                          type: "string"
+                        }
+                      }
+                    }
+                  },
+                  aria_description: {
+                    type: "string",
+                    nullable: true
+                  },
+                  no_data_label: {
+                    type: "string"
+                  },
+                  cards: {
+                    type: "array",
+                    items: {
+                      "$ref" => "#/components/schemas/AccountWorkspaceCard"
+                    }
+                  },
+                  breakdown: {
+                    type: "array",
+                    items: {
+                      "$ref" => "#/components/schemas/AccountWorkspaceCard"
+                    }
+                  },
+                  notices: {
+                    type: "array",
+                    items: {
+                      type: "string"
+                    }
+                  }
+                },
+                required: [ "title", "value", "currency", "view", "period", "series" ]
+              },
+              fx_warning: {
+                type: "string",
+                nullable: true
+              },
+              activity: {
+                type: "object",
+                properties: {
+                  groups: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        date: {
+                          type: "string",
+                          format: "date"
+                        },
+                        label: {
+                          type: "string"
+                        },
+                        balance: {
+                          type: "string",
+                          nullable: true
+                        },
+                        reconciliation: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              label: {
+                                type: "string"
+                              },
+                              value: {
+                                type: "string"
+                              },
+                              tooltip: {
+                                type: "string"
+                              },
+                              style: {
+                                type: "string"
+                              }
+                            }
+                          }
+                        },
+                        entries: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: {
+                                type: "string",
+                                format: "uuid"
+                              },
+                              type: {
+                                type: "string",
+                                enum: [ "transaction", "trade", "valuation" ]
+                              },
+                              name: {
+                                type: "string"
+                              },
+                              href: {
+                                type: "string"
+                              },
+                              amount: {
+                                type: "string"
+                              },
+                              positive: {
+                                type: "boolean"
+                              },
+                              excluded: {
+                                type: "boolean"
+                              },
+                              notes: {
+                                type: "string",
+                                nullable: true
+                              },
+                              description: {
+                                type: "string",
+                                nullable: true
+                              },
+                              activity_label: {
+                                type: "string",
+                                nullable: true
+                              },
+                              selectable: {
+                                type: "boolean"
+                              },
+                              transaction: {
+                                nullable: true,
+                                allOf: [
+                                  {
+                                    "$ref" => "#/components/schemas/Transaction"
+                                  }
+                                ]
+                              },
+                              split_parent: {
+                                type: "object",
+                                properties: {
+                                  id: {
+                                    type: "string",
+                                    format: "uuid"
+                                  },
+                                  name: {
+                                    type: "string"
+                                  },
+                                  amount: {
+                                    type: "string"
+                                  }
+                                },
+                                nullable: true
+                              },
+                              badges: {
+                                type: "array",
+                                items: {
+                                  type: "object",
+                                  properties: {
+                                    label: {
+                                      type: "string"
+                                    },
+                                    tooltip: {
+                                      type: "string",
+                                      nullable: true
+                                    },
+                                    icon: {
+                                      type: "string",
+                                      nullable: true
+                                    }
+                                  }
+                                }
+                              },
+                              logo_url: {
+                                type: "string",
+                                nullable: true
+                              },
+                              activity_options: {
+                                type: "array",
+                                items: {
+                                  type: "object",
+                                  properties: {
+                                    label: {
+                                      type: "string"
+                                    },
+                                    value: {
+                                      type: "string"
+                                    }
+                                  }
+                                }
+                              },
+                              activity_edit: {
+                                type: "object",
+                                properties: {
+                                  href: {
+                                    type: "string"
+                                  },
+                                  entryable_id: {
+                                    type: "string",
+                                    format: "uuid"
+                                  },
+                                  convert_href: {
+                                    type: "string",
+                                    nullable: true
+                                  }
+                                },
+                                nullable: true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  pagination: {
+                    type: "object",
+                    properties: {
+                      page: {
+                        type: "integer"
+                      },
+                      per_page: {
+                        type: "integer"
+                      },
+                      total_count: {
+                        type: "integer"
+                      },
+                      total_pages: {
+                        type: "integer"
+                      }
+                    }
+                  },
+                  new_actions: {
+                    type: "array",
+                    items: {
+                      "$ref" => "#/components/schemas/AccountWorkspaceAction"
+                    }
+                  },
+                  bulk_actions: {
+                    type: "object",
+                    properties: {
+                      edit: {
+                        type: "string"
+                      },
+                      delete: {
+                        type: "string"
+                      },
+                      duplicate: {
+                        type: "string"
+                      }
+                    }
+                  }
+                },
+                nullable: true
+              },
+              sections: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    key: {
+                      type: "string"
+                    },
+                    title: {
+                      type: "string",
+                      nullable: true
+                    },
+                    description: {
+                      type: "string",
+                      nullable: true
+                    },
+                    cards: {
+                      type: "array",
+                      items: {
+                        "$ref" => "#/components/schemas/AccountWorkspaceCard"
+                      }
+                    },
+                    notices: {
+                      type: "array",
+                      items: {
+                        type: "string"
+                      }
+                    },
+                    fields: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          label: {
+                            type: "string"
+                          },
+                          value: {
+                            type: "string"
+                          },
+                          tooltip: {
+                            type: "string",
+                            nullable: true
+                          }
+                        }
+                      }
+                    },
+                    table: {
+                      type: "object",
+                      properties: {
+                        label: {
+                          type: "string"
+                        },
+                        columns: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              key: {
+                                type: "string"
+                              },
+                              label: {
+                                type: "string"
+                              },
+                              numeric: {
+                                type: "boolean"
+                              }
+                            }
+                          }
+                        },
+                        rows: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: {
+                                type: "string"
+                              },
+                              cells: {
+                                type: "object",
+                                additionalProperties: {
+                                  type: "object",
+                                  properties: {
+                                    text: {
+                                      type: "string"
+                                    },
+                                    secondary: {
+                                      type: "string",
+                                      nullable: true
+                                    },
+                                    href: {
+                                      type: "string",
+                                      nullable: true
+                                    },
+                                    tone: {
+                                      type: "string"
+                                    },
+                                    privacy: {
+                                      type: "boolean"
+                                    },
+                                    logo: {
+                                      type: "object",
+                                      properties: {
+                                        url: {
+                                          type: "string",
+                                          nullable: true
+                                        },
+                                        text: {
+                                          type: "string"
+                                        }
+                                      },
+                                      nullable: true
+                                    }
+                                  }
+                                }
+                              },
+                              actions: {
+                                type: "array",
+                                items: {
+                                  "$ref" => "#/components/schemas/AccountWorkspaceAction"
+                                }
+                              },
+                              past: {
+                                type: "boolean"
+                              }
+                            }
+                          }
+                        },
+                        empty_message: {
+                          type: "string"
+                        }
+                      },
+                      nullable: true
+                    },
+                    actions: {
+                      type: "array",
+                      items: {
+                        "$ref" => "#/components/schemas/AccountWorkspaceAction"
+                      }
+                    },
+                    progress: {
+                      type: "object",
+                      properties: {
+                        label: {
+                          type: "string"
+                        },
+                        percent: {
+                          type: "number"
+                        },
+                        description: {
+                          type: "string"
+                        }
+                      },
+                      nullable: true
+                    },
+                    coverage: {
+                      type: "object",
+                      properties: {
+                        years: {
+                          type: "array",
+                          items: {
+                            type: "integer"
+                          }
+                        },
+                        selected_year: {
+                          type: "integer"
+                        },
+                        range: {
+                          type: "string"
+                        },
+                        months: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              key: {
+                                type: "string"
+                              },
+                              label: {
+                                type: "string"
+                              },
+                              status: {
+                                type: "string"
+                              },
+                              status_label: {
+                                type: "string"
+                              },
+                              tone: {
+                                type: "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      nullable: true
+                    },
+                    upload: {
+                      type: "object",
+                      properties: {
+                        href: {
+                          type: "string"
+                        },
+                        account_id: {
+                          type: "string",
+                          format: "uuid"
+                        },
+                        accept: {
+                          type: "string"
+                        },
+                        label: {
+                          type: "string"
+                        },
+                        hint: {
+                          type: "string"
+                        },
+                        submit_label: {
+                          type: "string"
+                        }
+                      },
+                      nullable: true
+                    }
+                  },
+                  required: [ "key", "cards", "fields", "actions" ]
+                }
+              },
+              text: {
+                type: "object",
+                additionalProperties: {
+                  type: "string"
+                }
+              },
+              accountable: {
+                type: "object",
+                nullable: true,
+                additionalProperties: true
+              },
+              loan: {
+                type: "object",
+                nullable: true,
+                additionalProperties: true
+              }
+            },
+            required: [ "id", "name", "account_type", "currency", "disabled", "actions", "tabs", "active_tab", "chart", "activity", "sections", "text" ]
+          },
+          AccountSharing: {
+            type: "object",
+            properties: {
+              owned: {
+                type: "boolean"
+              },
+              owner: {
+                type: "object",
+                properties: {
+                  name: {
+                    type: "string"
+                  },
+                  initials: {
+                    type: "string"
+                  }
+                },
+                nullable: true
+              },
+              viewer_permission: {
+                type: "string",
+                nullable: true
+              },
+              member: {
+                type: "object",
+                properties: {
+                  include_in_finances: {
+                    type: "boolean"
+                  }
+                },
+                nullable: true
+              },
+              permissions: {
+                type: "object",
+                additionalProperties: {
+                  type: "string"
+                }
+              },
+              members: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: {
+                      type: "string",
+                      format: "uuid"
+                    },
+                    name: {
+                      type: "string"
+                    },
+                    initials: {
+                      type: "string"
+                    },
+                    shared: {
+                      type: "boolean"
+                    },
+                    permission: {
+                      type: "string"
+                    },
+                    include_in_finances: {
+                      type: "boolean",
+                      nullable: true
+                    }
+                  }
+                }
+              },
+              no_members: {
+                type: "boolean"
+              },
+              moniker: {
+                type: "string"
+              },
+              update_href: {
+                type: "string"
+              }
+            },
+            required: [ "owned", "owner", "viewer_permission", "member", "permissions", "members", "no_members", "moniker", "update_href" ]
+          },
+          AccountProviderOptions: {
+            type: "object",
+            properties: {
+              text: {
+                type: :object,
+                required: %w[title description no_providers],
+                properties: {
+                  title: { type: :string },
+                  description: { type: :string },
+                  no_providers: { type: :string }
+                }
+              },
+              providers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: {
+                      type: "string"
+                    },
+                    key: {
+                      type: "string"
+                    },
+                    description: {
+                      type: "string",
+                      nullable: true
+                    },
+                    path: {
+                      type: "string"
+                    }
+                  },
+                  required: [ "name", "key", "description", "path" ]
+                }
+              }
+            },
+            required: %w[providers text]
+          },
+          TransferFormOptions: {
+            type: "object",
+            required: [ "accounts", "tags", "default_date", "idempotency_key", "text" ],
+            properties: {
+              accounts: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: [ "id", "name", "currency" ],
+                  properties: {
+                    id: {
+                      type: "string",
+                      format: "uuid"
+                    },
+                    name: {
+                      type: "string"
+                    },
+                    currency: {
+                      type: "string"
+                    }
+                  }
+                }
+              },
+              tags: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/Tag"
+                }
+              },
+              default_date: {
+                type: "string",
+                format: "date"
+              },
+              idempotency_key: {
+                type: "string",
+                format: "uuid"
+              },
+              text: {
+                type: "object",
+                additionalProperties: {
+                  type: "string"
+                }
+              }
+            }
+          },
+          ValuationWorkspace: {
+            type: "object",
+            required: [ "accounts", "account_id", "entry", "permissions", "date_bounds", "text" ],
+            properties: {
+              accounts: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: [ "id", "name", "currency", "accountable_type", "linked" ],
+                  properties: {
+                    id: {
+                      type: "string",
+                      format: "uuid"
+                    },
+                    name: {
+                      type: "string"
+                    },
+                    currency: {
+                      type: "string"
+                    },
+                    accountable_type: {
+                      type: "string"
+                    },
+                    linked: {
+                      type: "boolean"
+                    }
+                  }
+                }
+              },
+              account_id: {
+                type: "string",
+                format: "uuid",
+                nullable: true
+              },
+              entry: {
+                type: "object",
+                required: [ "id", "name", "date", "amount", "currency", "notes", "kind", "formatted_amount", "date_label" ],
+                properties: {
+                  id: {
+                    type: "string",
+                    format: "uuid",
+                    nullable: true
+                  },
+                  name: {
+                    type: "string"
+                  },
+                  date: {
+                    type: "string",
+                    format: "date"
+                  },
+                  amount: {
+                    type: "string",
+                    description: "Unformatted decimal; empty for a new entry."
+                  },
+                  currency: {
+                    type: "string"
+                  },
+                  notes: {
+                    type: "string",
+                    nullable: true
+                  },
+                  kind: {
+                    type: "string",
+                    enum: [ "reconciliation", "opening_anchor", "current_anchor" ]
+                  },
+                  formatted_amount: {
+                    type: "string"
+                  },
+                  date_label: {
+                    type: "string"
+                  }
+                }
+              },
+              permissions: {
+                type: "object",
+                required: [ "can_edit", "can_annotate" ],
+                properties: {
+                  can_edit: {
+                    type: "boolean"
+                  },
+                  can_annotate: {
+                    type: "boolean"
+                  }
+                }
+              },
+              date_bounds: {
+                type: "object",
+                required: [ "min", "max" ],
+                properties: {
+                  min: {
+                    type: "string",
+                    format: "date"
+                  },
+                  max: {
+                    type: "string",
+                    format: "date"
+                  }
+                }
+              },
+              text: {
+                type: "object",
+                additionalProperties: {
+                  type: "string"
+                }
+              }
+            }
+          },
+          ValuationFormOptions: {
+            type: "object",
+            required: [ "workspace" ],
+            properties: {
+              workspace: {
+                "$ref" => "#/components/schemas/ValuationWorkspace"
+              }
+            }
+          },
+          ValuationWithWorkspace: {
+            allOf: [
+              {
+                "$ref" => "#/components/schemas/Valuation"
+              },
+              {
+                type: "object",
+                properties: {
+                  workspace: {
+                    "$ref" => "#/components/schemas/ValuationWorkspace"
+                  }
+                }
+              }
+            ]
+          },
+          ValuationConfirmation: {
+            type: "object",
+            required: [ "confirmation" ],
+            properties: {
+              confirmation: {
+                type: "object",
+                required: [ "description", "notice", "investment", "total_value", "holdings_value", "brokerage_cash", "brokerage_cash_negative" ],
+                properties: {
+                  description: {
+                    type: "string"
+                  },
+                  notice: {
+                    type: "string"
+                  },
+                  investment: {
+                    type: "boolean"
+                  },
+                  total_value: {
+                    type: "string"
+                  },
+                  holdings_value: {
+                    type: "string",
+                    nullable: true
+                  },
+                  brokerage_cash: {
+                    type: "string",
+                    nullable: true
+                  },
+                  brokerage_cash_negative: {
+                    type: "boolean"
+                  }
+                }
+              }
+            }
+          },
+          HomePreferencesRequest: {
+            type: "object",
+            required: [ "preferences" ],
+            properties: {
+              preferences: {
+                type: "object",
+                properties: {
+                  collapsed_sections: {
+                    type: "object",
+                    additionalProperties: {
+                      type: "boolean"
+                    }
+                  },
+                  section_order: {
+                    type: "array",
+                    items: {
+                      type: "string"
+                    }
+                  },
+                  dashboard_section_layout: {
+                    type: "object",
+                    additionalProperties: {
+                      type: "object",
+                      properties: {
+                        height: {
+                          type: "string",
+                          enum: [ "compact", "auto", "tall" ]
+                        },
+                        col_span: {
+                          type: "string",
+                          enum: [ "single", "full" ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          HomePreferencesResponse: {
+            type: "object",
+            required: [ "success" ],
+            properties: {
+              success: {
+                type: "boolean"
+              }
+            }
+          },
+          InsightAcknowledgeResponse: {
+            type: "object",
+            required: [ "insight" ],
+            properties: {
+              insight: {
+                "$ref" => "#/components/schemas/Insight"
+              }
+            }
+          },
+          ReportPageRequest: {
+            type: "object",
+            properties: {
+              limit: {
+                type: "integer",
+                minimum: 1,
+                default: 10,
+                description: "SureQL pages permit at most 100 rows; structured reports use their domain page limits."
+              },
+              offset: {
+                type: "integer",
+                minimum: 0,
+                default: 0
+              }
+            }
+          },
+          ReportPage: {
+            type: "object",
+            required: [ "limit", "offset", "hasNext" ],
+            properties: {
+              limit: {
+                type: "integer"
+              },
+              offset: {
+                type: "integer"
+              },
+              hasNext: {
+                type: "boolean"
+              }
+            }
+          },
+          ReportDimension: {
+            type: "object",
+            required: [ "id", "field" ],
+            properties: {
+              id: {
+                type: "string"
+              },
+              field: {
+                type: "string"
+              },
+              dateBucket: {
+                type: "string",
+                enum: [ "day", "week", "month", "quarter", "year" ]
+              }
+            }
+          },
+          ReportMeasure: {
+            type: "object",
+            required: [ "id", "field", "aggregation" ],
+            properties: {
+              id: {
+                type: "string"
+              },
+              field: {
+                type: "string"
+              },
+              aggregation: {
+                type: "string",
+                enum: [ "count", "count_distinct", "sum", "average", "minimum", "maximum" ]
+              }
+            }
+          },
+          ReportFilter: {
+            type: "object",
+            required: [ "field", "operator", "value" ],
+            properties: {
+              field: {
+                type: "string"
+              },
+              operator: {
+                type: "string",
+                enum: [ "equals", "not_equals", "last" ]
+              },
+              value: {
+                oneOf: [
+                  {
+                    type: "string"
+                  },
+                  {
+                    type: "integer"
+                  }
+                ]
+              },
+              unit: {
+                type: "string",
+                enum: [ "days" ]
+              }
+            }
+          },
+          StructuredReportDefinition: {
+            type: "object",
+            required: [ "version", "source", "mode", "columns", "filters", "sort" ],
+            description: "Versioned transaction report. Aggregate mode also requires rows and values; detail mode uses selected detail fields only and sorts only selected fields. Amounts retain signed ledger semantics. Account filters cannot widen user access.",
+            properties: {
+              version: {
+                type: "integer",
+                enum: [ 1 ]
+              },
+              source: {
+                type: "string",
+                enum: [ "transactions" ]
+              },
+              mode: {
+                type: "string",
+                enum: [ "aggregate", "detail" ]
+              },
+              rows: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/ReportDimension"
+                }
+              },
+              columns: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: [ "field" ],
+                  properties: {
+                    id: {
+                      type: "string"
+                    },
+                    field: {
+                      type: "string"
+                    },
+                    dateBucket: {
+                      type: "string",
+                      enum: [ "day", "week", "month", "quarter", "year" ]
+                    }
+                  }
+                }
+              },
+              values: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/ReportMeasure"
+                }
+              },
+              filters: {
+                type: "array",
+                maxItems: 20,
+                items: {
+                  "$ref" => "#/components/schemas/ReportFilter"
+                }
+              },
+              sort: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: [ "direction" ],
+                  properties: {
+                    axis: {
+                      type: "string",
+                      enum: [ "rows", "columns" ]
+                    },
+                    measure: {
+                      type: "string"
+                    },
+                    dimension: {
+                      type: "string"
+                    },
+                    field: {
+                      type: "string"
+                    },
+                    direction: {
+                      type: "string",
+                      enum: [ "asc", "desc" ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          PivotDefinition: {
+            type: "object",
+            required: [ "version", "category", "measures", "sort" ],
+            properties: {
+              version: {
+                type: "integer",
+                enum: [ 1 ]
+              },
+              category: {
+                type: "object",
+                required: [ "field" ],
+                properties: {
+                  field: {
+                    type: "string"
+                  },
+                  limit: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 24
+                  },
+                  dateBucket: {
+                    type: "string",
+                    enum: [ "day", "week", "month", "quarter", "year" ]
+                  }
+                }
+              },
+              series: {
+                type: "object",
+                properties: {
+                  field: {
+                    type: "string"
+                  },
+                  limit: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 12
+                  }
+                }
+              },
+              measures: {
+                type: "array",
+                minItems: 1,
+                maxItems: 3,
+                items: {
+                  type: "object",
+                  required: [ "aggregation" ],
+                  properties: {
+                    field: {
+                      type: "string"
+                    },
+                    aggregation: {
+                      type: "string",
+                      enum: [ "count", "count_distinct", "sum", "average", "minimum", "maximum" ]
+                    },
+                    label: {
+                      type: "string"
+                    }
+                  }
+                }
+              },
+              sort: {
+                type: "string",
+                enum: [ "category_asc", "category_desc", "value_asc", "value_desc" ]
+              },
+              chartType: {
+                type: "string",
+                enum: [ "line", "grouped_bar", "stacked_bar", "pie" ]
+              },
+              valueFormat: {
+                type: "string"
+              }
+            }
+          },
+          ReportExecutionRequest: {
+            type: "object",
+            description: "Supply one operation: source for SureQL; source+pivot for a chart pivot; report for a structured report; or catalog:true for catalog discovery. All operations are read-only and accept read scope. Pagination applies to SureQL and structured report execution. all_columns expands structured aggregate columns for chart consumers.",
+            properties: {
+              source: {
+                type: "string"
+              },
+              pivot: {
+                "$ref" => "#/components/schemas/PivotDefinition"
+              },
+              report: {
+                "$ref" => "#/components/schemas/StructuredReportDefinition"
+              },
+              catalog: {
+                type: "boolean",
+                enum: [ true ]
+              },
+              pagination: {
+                "$ref" => "#/components/schemas/ReportPageRequest"
+              },
+              all_columns: {
+                type: "boolean"
+              }
+            }
+          },
+          ReportCatalog: {
+            type: "object",
+            required: [ "source", "fields" ],
+            properties: {
+              source: {
+                type: "string",
+                enum: [ "transactions" ]
+              },
+              fields: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: [ "key", "label", "kind", "dimension", "detail", "aggregations", "dateBuckets", "operators", "options" ],
+                  properties: {
+                    key: {
+                      type: "string"
+                    },
+                    label: {
+                      type: "string"
+                    },
+                    kind: {
+                      type: "string",
+                      enum: [ "text", "date", "number", "currency" ]
+                    },
+                    dimension: {
+                      type: "boolean"
+                    },
+                    detail: {
+                      type: "boolean"
+                    },
+                    aggregations: {
+                      type: "array",
+                      items: {
+                        type: "string"
+                      }
+                    },
+                    dateBuckets: {
+                      type: "array",
+                      items: {
+                        type: "string"
+                      }
+                    },
+                    operators: {
+                      type: "array",
+                      items: {
+                        type: "string"
+                      }
+                    },
+                    options: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        required: [ "value", "label" ],
+                        properties: {
+                          value: {
+                            type: "string"
+                          },
+                          label: {
+                            type: "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          SureqlField: {
+            type: "object",
+            required: [ "name", "kind", "capabilities" ],
+            properties: {
+              name: {
+                type: "string"
+              },
+              db_type: {
+                type: "string",
+                nullable: true
+              },
+              kind: {
+                type: "string"
+              },
+              nullable: {
+                type: "boolean"
+              },
+              capabilities: {
+                type: "object",
+                properties: {
+                  category: {
+                    type: "boolean"
+                  },
+                  series: {
+                    type: "boolean"
+                  },
+                  measure: {
+                    type: "boolean"
+                  },
+                  aggregations: {
+                    type: "array",
+                    items: {
+                      type: "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          SureqlResult: {
+            type: "object",
+            required: [ "sql", "columns", "rows", "row_count", "truncated", "fields", "pagination" ],
+            properties: {
+              sql: {
+                type: "string"
+              },
+              columns: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              },
+              rows: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: true
+                }
+              },
+              row_count: {
+                type: "integer"
+              },
+              truncated: {
+                type: "boolean"
+              },
+              fields: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/SureqlField"
+                }
+              },
+              pagination: {
+                allOf: [
+                  {
+                    "$ref" => "#/components/schemas/ReportPage"
+                  }
+                ],
+                nullable: true
+              }
+            }
+          },
+          PivotResult: {
+            type: "object",
+            required: [ "sql", "categories", "series", "measures", "columns", "rows", "row_count", "truncated", "fields" ],
+            properties: {
+              sql: {
+                type: "string"
+              },
+              categories: {
+                type: "array",
+                items: {
+                  nullable: true
+                }
+              },
+              series: {
+                type: "array",
+                items: {
+                  nullable: true
+                }
+              },
+              measures: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: [ "aggregation" ],
+                  properties: {
+                    field: {
+                      type: "string"
+                    },
+                    aggregation: {
+                      type: "string"
+                    },
+                    label: {
+                      type: "string"
+                    }
+                  }
+                }
+              },
+              columns: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              },
+              rows: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: true
+                }
+              },
+              row_count: {
+                type: "integer"
+              },
+              truncated: {
+                type: "boolean"
+              },
+              fields: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/SureqlField"
+                }
+              }
+            }
+          },
+          StructuredReportResult: {
+            type: "object",
+            required: [ "mode", "sql", "result", "metadata", "truncated", "pagination" ],
+            properties: {
+              mode: {
+                type: "string",
+                enum: [ "aggregate", "detail" ]
+              },
+              sql: {
+                type: "string"
+              },
+              result: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: {
+                    oneOf: [
+                      {
+                        type: "string"
+                      },
+                      {
+                        type: "number"
+                      }
+                    ],
+                    nullable: true
+                  }
+                }
+              },
+              truncated: {
+                type: "boolean"
+              },
+              pagination: {
+                "$ref" => "#/components/schemas/ReportPage"
+              },
+              metadata: {
+                type: "object",
+                required: [ "fields", "rows" ],
+                properties: {
+                  fields: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      required: [ "key", "field", "label", "kind", "currency", "role" ],
+                      properties: {
+                        key: {
+                          type: "string"
+                        },
+                        field: {
+                          type: "string"
+                        },
+                        label: {
+                          type: "string"
+                        },
+                        kind: {
+                          type: "string"
+                        },
+                        currency: {
+                          type: "string",
+                          nullable: true
+                        },
+                        role: {
+                          type: "string",
+                          enum: [ "dimension", "value", "total", "detail" ]
+                        },
+                        measureId: {
+                          type: "string"
+                        },
+                        columnKey: {
+                          type: "string"
+                        },
+                        dateBucket: {
+                          type: "string"
+                        }
+                      }
+                    }
+                  },
+                  rows: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      required: [ "currency" ],
+                      properties: {
+                        id: {
+                          type: "string",
+                          description: "Detail entry identity"
+                        },
+                        key: {
+                          type: "string",
+                          description: "Aggregate row identity"
+                        },
+                        currency: {
+                          type: "string"
+                        },
+                        values: {
+                          type: "array",
+                          items: {
+                            nullable: true
+                          }
+                        },
+                        labels: {
+                          type: "array",
+                          items: {
+                            type: "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  columns: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      required: [ "key", "values", "labels" ],
+                      properties: {
+                        key: {
+                          type: "string"
+                        },
+                        values: {
+                          type: "array",
+                          items: {
+                            nullable: true
+                          }
+                        },
+                        labels: {
+                          type: "array",
+                          items: {
+                            type: "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  measures: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      required: [ "id", "label", "format", "currency" ],
+                      properties: {
+                        id: {
+                          type: "string"
+                        },
+                        label: {
+                          type: "string"
+                        },
+                        format: {
+                          type: "string",
+                          enum: [ "number", "currency" ]
+                        },
+                        currency: {
+                          type: "string",
+                          nullable: true
+                        }
+                      }
+                    }
+                  },
+                  grouping: {
+                    type: "object",
+                    required: [ "rows", "columns" ],
+                    properties: {
+                      rows: {
+                        type: "array",
+                        items: {
+                          "$ref" => "#/components/schemas/ReportDimension"
+                        }
+                      },
+                      columns: {
+                        type: "array",
+                        items: {
+                          "$ref" => "#/components/schemas/ReportDimension"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          ReportError: {
+            type: "object",
+            required: [ "error" ],
+            properties: {
+              error: {
+                type: "string"
+              },
+              field: {
+                type: "string",
+                description: "Invalid report/pivot field path, when applicable"
+              }
+            }
+          },
+          CategoryWorkspaceRow: {
+            type: "object",
+            required: [ "id", "name", "display_name", "display_name_with_parent", "color", "lucide_icon", "parent_id", "has_parent" ],
+            properties: {
+              id: {
+                type: "string",
+                format: "uuid",
+                nullable: true
+              },
+              name: {
+                type: "string",
+                nullable: true
+              },
+              display_name: {
+                type: "string",
+                nullable: true
+              },
+              display_name_with_parent: {
+                type: "string",
+                nullable: true
+              },
+              color: {
+                type: "string"
+              },
+              lucide_icon: {
+                type: "string"
+              },
+              parent_id: {
+                type: "string",
+                format: "uuid",
+                nullable: true
+              },
+              has_parent: {
+                type: "boolean"
+              }
+            }
+          },
+          CategoryWorkspace: {
+            type: "object",
+            required: [ "groups", "count", "has_transactions_by_id", "can_bootstrap", "empty", "colors", "icons" ],
+            properties: {
+              groups: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: [ "root", "subcategories" ],
+                  properties: {
+                    root: {
+                      "$ref" => "#/components/schemas/CategoryWorkspaceRow"
+                    },
+                    subcategories: {
+                      type: "array",
+                      items: {
+                        "$ref" => "#/components/schemas/CategoryWorkspaceRow"
+                      }
+                    }
+                  }
+                }
+              },
+              count: {
+                type: "integer"
+              },
+              has_transactions_by_id: {
+                type: "object",
+                additionalProperties: {
+                  type: "boolean"
+                }
+              },
+              can_bootstrap: {
+                type: "boolean"
+              },
+              empty: {
+                type: "boolean"
+              },
+              colors: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              },
+              icons: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              }
+            }
+          },
+          CategoryFormOptions: {
+            type: "object",
+            required: [ "category", "colors", "icons", "parent_options" ],
+            properties: {
+              category: {
+                allOf: [
+                  {
+                    "$ref" => "#/components/schemas/CategoryWorkspaceRow"
+                  },
+                  {
+                    type: "object",
+                    required: [ "is_parent", "can_assign_parent" ],
+                    properties: {
+                      is_parent: {
+                        type: "boolean"
+                      },
+                      can_assign_parent: {
+                        type: "boolean"
+                      }
+                    }
+                  }
+                ]
+              },
+              colors: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              },
+              icons: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              },
+              parent_options: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: [ "id", "display_name" ],
+                  properties: {
+                    id: {
+                      type: "string",
+                      format: "uuid"
+                    },
+                    display_name: {
+                      type: "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          TagWorkspace: {
+            type: "object",
+            required: [ "tags", "colors" ],
+            properties: {
+              tags: {
+                type: "array",
+                items: {
+                  allOf: [
+                    {
+                      "$ref" => "#/components/schemas/TagDetail"
+                    },
+                    {
+                      type: "object",
+                      required: [ "transactions_count" ],
+                      properties: {
+                        transactions_count: {
+                          type: "integer"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              colors: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              }
+            }
+          },
+          TagFormOptions: {
+            type: "object",
+            required: [ "tag", "colors" ],
+            properties: {
+              tag: {
+                type: "object",
+                required: [ "id", "name", "color" ],
+                properties: {
+                  id: {
+                    type: "string",
+                    format: "uuid",
+                    nullable: true
+                  },
+                  name: {
+                    type: "string",
+                    nullable: true
+                  },
+                  color: {
+                    type: "string",
+                    nullable: true
+                  }
+                }
+              },
+              colors: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              }
+            }
+          },
+          MerchantWorkspaceRow: {
+            type: "object",
+            required: [ "id", "name", "type", "color", "logo_url", "source", "transactions_href", "edit_href", "destroy_href" ],
+            properties: {
+              id: {
+                type: "string",
+                format: "uuid",
+                nullable: true
+              },
+              name: {
+                type: "string",
+                nullable: true
+              },
+              type: {
+                type: "string"
+              },
+              color: {
+                type: "string",
+                nullable: true
+              },
+              logo_url: {
+                type: "string",
+                nullable: true
+              },
+              source: {
+                type: "string",
+                nullable: true
+              },
+              transactions_href: {
+                type: "string"
+              },
+              edit_href: {
+                type: "string"
+              },
+              destroy_href: {
+                type: "string"
+              }
+            }
+          },
+          MerchantWorkspaceGroup: {
+            type: "object",
+            required: [ "items", "page", "per_page", "total_pages", "total_count", "item_count" ],
+            properties: {
+              items: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/MerchantWorkspaceRow"
+                }
+              },
+              page: {
+                type: "integer"
+              },
+              per_page: {
+                type: "integer"
+              },
+              total_pages: {
+                type: "integer"
+              },
+              total_count: {
+                type: "integer"
+              },
+              item_count: {
+                type: "integer"
+              }
+            }
+          },
+          MerchantWorkspace: {
+            type: "object",
+            required: [ "family_merchants", "provider_merchants", "unlinked", "counts", "enhance", "colors" ],
+            properties: {
+              family_merchants: {
+                "$ref" => "#/components/schemas/MerchantWorkspaceGroup"
+              },
+              provider_merchants: {
+                "$ref" => "#/components/schemas/MerchantWorkspaceGroup"
+              },
+              unlinked: {
+                type: "array",
+                items: {
+                  "$ref" => "#/components/schemas/MerchantWorkspaceRow"
+                }
+              },
+              counts: {
+                type: "object",
+                required: [ "family", "provider", "unlinked" ],
+                properties: {
+                  family: {
+                    type: "integer"
+                  },
+                  provider: {
+                    type: "integer"
+                  },
+                  unlinked: {
+                    type: "integer"
+                  }
+                }
+              },
+              enhance: {
+                type: "object",
+                required: [ "eligible_count", "llm_available" ],
+                properties: {
+                  eligible_count: {
+                    type: "integer"
+                  },
+                  llm_available: {
+                    type: "boolean"
+                  }
+                }
+              },
+              colors: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              }
+            }
+          },
+          MerchantFormOptions: {
+            type: "object",
+            required: [ "merchant", "colors" ],
+            properties: {
+              merchant: {
+                allOf: [
+                  {
+                    "$ref" => "#/components/schemas/MerchantWorkspaceRow"
+                  },
+                  {
+                    type: "object",
+                    required: [ "website_url" ],
+                    properties: {
+                      website_url: {
+                        type: "string",
+                        nullable: true
+                      }
+                    }
+                  }
+                ]
+              },
+              colors: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              }
+            }
+          },
+          MetadataMutationResult: {
+            type: "object",
+            required: [ "ok" ],
+            properties: {
+              ok: {
+                type: "boolean"
+              },
+              merged_count: {
+                type: "integer"
+              },
+              already_running: {
+                type: "boolean"
+              }
+            }
+          },
+          MetadataMergeRequest: {
+            type: "object",
+            required: [ "target_id", "source_ids" ],
+            properties: {
+              target_id: {
+                type: "string",
+                format: "uuid"
+              },
+              source_ids: {
+                type: "array",
+                minItems: 1,
+                items: {
+                  type: "string",
+                  format: "uuid"
+                }
+              }
+            }
+          },
+          RuleRegistry: {
+            type: :object, required: %w[filters executors], properties: {
+              filters: { type: :array, items: { type: :object, required: %w[type key label operators options number_step], properties: {
+                type: { type: :string }, key: { type: :string }, label: { type: :string },
+                operators: { type: :array, items: { type: :array, items: {} } },
+                options: { type: :array, nullable: true, items: { type: :array, items: {} } },
+                number_step: { nullable: true }
+              } } },
+              executors: { type: :array, items: { type: :object, required: %w[type key label options], properties: {
+                type: { type: :string }, key: { type: :string }, label: { type: :string },
+                options: { type: :array, nullable: true, items: { type: :array, items: {} } }
+              } } }
+            }
+          },
+          RuleBuilderCondition: {
+            type: :object, required: %w[id condition_type operator value sub_conditions], properties: {
+              id: { type: :string, format: :uuid, nullable: true }, condition_type: { type: :string }, operator: { type: :string }, value: { type: :string, nullable: true },
+              sub_conditions: { type: :array, items: { type: :object, required: %w[id condition_type operator value], properties: {
+                id: { type: :string, format: :uuid, nullable: true }, condition_type: { type: :string }, operator: { type: :string }, value: { type: :string, nullable: true }
+              } } }
+            }
+          },
+          RuleBuilderResource: {
+            type: :object, required: %w[id name resource_type active effective_date conditions actions], properties: {
+              id: { type: :string, format: :uuid, nullable: true }, name: { type: :string, nullable: true }, resource_type: { type: :string, enum: %w[transaction] },
+              active: { type: :boolean }, effective_date: { type: :string, format: :date, nullable: true },
+              conditions: { type: :array, items: { '$ref' => '#/components/schemas/RuleBuilderCondition' } },
+              actions: { type: :array, items: { type: :object, required: %w[id action_type value values], properties: {
+                id: { type: :string, format: :uuid, nullable: true }, action_type: { type: :string }, value: { type: :string, nullable: true }, values: { type: :array, items: { type: :string } }
+              } } }
+            }
+          },
+          RuleFormOptions: {
+            type: :object, required: %w[rule registry self_hosted], properties: {
+              rule: { '$ref' => '#/components/schemas/RuleBuilderResource' }, registry: { '$ref' => '#/components/schemas/RuleRegistry' }, self_hosted: { type: :boolean }
+            }
+          },
+          RuleAiEstimate: {
+            type: :object, nullable: true, required: %w[model estimated_cost], properties: {
+              model: { type: :string, nullable: true }, estimated_cost: { type: :number, nullable: true }
+            }
+          },
+          RulePreview: {
+            type: :object, required: %w[affected_count ai], properties: {
+              affected_count: { type: :integer }, ai: { '$ref' => '#/components/schemas/RuleAiEstimate' }
+            }
+          },
+          RuleBulkPreview: {
+            type: :object, required: %w[rule_count total_affected_count ai], properties: {
+              rule_count: { type: :integer }, total_affected_count: { type: :integer }, ai: { '$ref' => '#/components/schemas/RuleAiEstimate' }
+            }
+          },
+          RulesWorkspace: {
+            type: :object, required: %w[rules count sort_by direction self_hosted ai_actions_present recent_runs], properties: {
+              rules: { type: :array, items: { type: :object, required: %w[id name resource_type active summary updated_at], properties: {
+                id: { type: :string, format: :uuid }, name: { type: :string, nullable: true }, resource_type: { type: :string }, active: { type: :boolean }, updated_at: { type: :string, format: :'date-time' },
+                summary: { type: :object, required: %w[condition additional_conditions_count action additional_actions_count scope], properties: {
+                  condition: { type: :string }, additional_conditions_count: { type: :integer }, action: { type: :string }, additional_actions_count: { type: :integer }, scope: { type: :string }
+                } }
+              } } },
+              count: { type: :integer }, sort_by: { type: :string, enum: %w[name updated_at] }, direction: { type: :string, enum: %w[asc desc] },
+              self_hosted: { type: :boolean }, ai_actions_present: { type: :boolean },
+              recent_runs: { type: :object, required: %w[items page pages count per_page], properties: {
+                items: { type: :array, items: { type: :object, required: %w[id executed_at execution_type status rule_name queued processed modified blocked error_message], properties: {
+                  id: { type: :string, format: :uuid }, executed_at: { type: :string, format: :'date-time' }, execution_type: { type: :string }, status: { type: :string }, rule_name: { type: :string },
+                  queued: { type: :integer }, processed: { type: :integer }, modified: { type: :integer }, blocked: { type: :integer }, error_message: { type: :string, nullable: true }
+                } } },
+                page: { type: :integer }, pages: { type: :integer }, count: { type: :integer }, per_page: { type: :integer }
+              } }
+            }
+          },
+          RuleSubConditionInput: {
+            type: :object, properties: {
+              id: { type: :string, format: :uuid }, condition_type: { type: :string }, operator: { type: :string }, value: { type: :string, nullable: true }, _destroy: { type: :boolean }
+            }
+          },
+          RuleConditionInput: {
+            type: :object, properties: {
+              id: { type: :string, format: :uuid }, condition_type: { type: :string }, operator: { type: :string }, value: { type: :string, nullable: true }, _destroy: { type: :boolean },
+              sub_conditions_attributes: { oneOf: [
+                { type: :object, additionalProperties: { '$ref' => '#/components/schemas/RuleSubConditionInput' } },
+                { type: :array, items: { '$ref' => '#/components/schemas/RuleSubConditionInput' } }
+              ] }
+            }
+          },
+          RuleActionInput: {
+            type: :object, properties: {
+              id: { type: :string, format: :uuid }, action_type: { type: :string }, _destroy: { type: :boolean },
+              value: { nullable: true, oneOf: [ { type: :string }, { type: :array, items: { type: :string } } ] }
+            }
+          },
+          RuleInput: {
+            type: :object, required: %w[rule], properties: {
+              rule: { type: :object, properties: {
+                name: { type: :string, nullable: true }, resource_type: { type: :string, enum: %w[transaction] }, active: { type: :boolean }, effective_date: { type: :string, format: :date, nullable: true },
+                conditions_attributes: { oneOf: [
+                  { type: :object, additionalProperties: { '$ref' => '#/components/schemas/RuleConditionInput' } },
+                  { type: :array, items: { '$ref' => '#/components/schemas/RuleConditionInput' } }
+                ] },
+                actions_attributes: { oneOf: [
+                  { type: :object, additionalProperties: { '$ref' => '#/components/schemas/RuleActionInput' } },
+                  { type: :array, items: { '$ref' => '#/components/schemas/RuleActionInput' } }
+                ] }
+              } }
+            }
+          },
+          AccountStatement: {
+            type: :object,
+            required: %w[id filename content_type byte_size source upload_status review_status currency can_manage reconciliation_status reconciliation_checks],
+            properties: {
+              id: { type: :string, format: :uuid }, filename: { type: :string }, content_type: { type: :string }, byte_size: { type: :integer },
+              source: { type: :string, enum: %w[manual_upload] }, upload_status: { type: :string, enum: %w[stored failed] },
+              review_status: { type: :string, enum: %w[unmatched linked rejected] },
+              account_id: { type: :string, format: :uuid, nullable: true }, suggested_account_id: { type: :string, format: :uuid, nullable: true },
+              match_confidence: { type: :string, nullable: true }, institution_name_hint: { type: :string, nullable: true },
+              account_name_hint: { type: :string, nullable: true }, account_last4_hint: { type: :string, nullable: true },
+              period_start_on: { type: :string, format: :date, nullable: true }, period_end_on: { type: :string, format: :date, nullable: true },
+              opening_balance: { type: :string, nullable: true }, closing_balance: { type: :string, nullable: true }, currency: { type: :string },
+              can_manage: { type: :boolean }, reconciliation_status: { type: :string, enum: %w[matched mismatched unavailable] },
+              reconciliation_checks: { type: :array, items: { type: :object, properties: {
+                key: { type: :string }, status: { type: :string }, statement_amount: { type: :string }, ledger_amount: { type: :string }, difference: { type: :string }
+              } } }, download_url: { type: :string, nullable: true }, created_at: { type: :string, format: :'date-time' }
+            }
+          },
+          AccountStatementResponse: {
+            type: :object, required: %w[account_statement], properties: {
+              account_statement: { '$ref' => '#/components/schemas/AccountStatement' },
+              workspace: { '$ref' => '#/components/schemas/AccountStatementWorkspace' }
+            }
+          },
+          AccountStatementCollection: {
+            type: :object, required: %w[account_statements pagination], properties: {
+              account_statements: { type: :array, items: { '$ref' => '#/components/schemas/AccountStatement' } },
+              pagination: { type: :object, required: %w[page per_page total_count total_pages], properties: {
+                page: { type: :integer }, per_page: { type: :integer }, total_count: { type: :integer }, total_pages: { type: :integer }
+              } },
+              workspace: { type: :object, description: 'Present only with include=workspace; Statement Vault upload options and independently paginated unmatched/linked groups.', required: %w[upload storage_used unmatched linked], properties: {
+                upload: { type: :object, properties: { href: { type: :string }, accounts: { type: :array, items: { type: :object, properties: { id: { type: :string, format: :uuid }, name: { type: :string } } } }, accept: { type: :string }, max_size_mb: { type: :integer } } },
+                storage_used: { type: :string },
+                unmatched: { '$ref' => '#/components/schemas/AccountStatementWorkspaceGroup' }, linked: { '$ref' => '#/components/schemas/AccountStatementWorkspaceGroup' }
+              } }
+            }
+          },
+          AccountStatementWorkspaceGroup: {
+            type: :object, required: %w[count items page per_page total_pages], properties: {
+              count: { type: :integer }, page: { type: :integer }, per_page: { type: :integer }, total_pages: { type: :integer },
+              items: { type: :array, items: { type: :object, properties: {
+                id: { type: :string, format: :uuid }, filename: { type: :string }, size: { type: :string }, icon: { type: :string }, period: { type: :string }, review_status: { type: :string }, account: { type: :string, nullable: true },
+                suggestion: { type: :object, nullable: true, properties: { id: { type: :string, format: :uuid }, name: { type: :string }, confidence: { type: :string } } },
+                href: { type: :string }, download_href: { type: :string, nullable: true }, link_href: { type: :string, nullable: true }, reject_href: { type: :string, nullable: true }
+              } } }
+            }
+          },
+          AccountStatementWorkspace: {
+            type: :object, description: 'Present only with include=workspace; localized metadata, reconciliation checks and API action URLs.',
+            required: %w[id filename can_manage metadata reconciliation accounts actions], properties: {
+              id: { type: :string, format: :uuid }, filename: { type: :string }, can_manage: { type: :boolean }, status: { type: :string }, status_label: { type: :string }, size: { type: :string }, content_type: { type: :string },
+              download_href: { type: :string, nullable: true }, destroy_href: { type: :string },
+              confirm_delete: { type: :object, properties: { title: { type: :string }, body: { type: :string }, confirmText: { type: :string }, variant: { type: :string } } },
+              account: { type: :object, nullable: true, properties: { id: { type: :string, format: :uuid }, name: { type: :string } } },
+              suggested_account: { type: :object, nullable: true, properties: { id: { type: :string, format: :uuid }, name: { type: :string }, confidence: { type: :string } } },
+              period: { type: :string }, balances: { type: :object, properties: { opening: { type: :string }, closing: { type: :string } } },
+              metadata: { type: :object, properties: {
+                institution_name: { type: :string, nullable: true }, account_name: { type: :string, nullable: true }, account_last4: { type: :string, nullable: true }, currency: { type: :string },
+                period_start_on: { type: :string, format: :date, nullable: true }, period_end_on: { type: :string, format: :date, nullable: true }, opening_balance: { type: :string, nullable: true }, closing_balance: { type: :string, nullable: true }
+              } },
+              reconciliation: { type: :array, items: { type: :object, properties: { label: { type: :string }, status: { type: :string }, status_label: { type: :string }, amounts: { type: :object, properties: { statement: { type: :string }, ledger: { type: :string }, difference: { type: :string } } } } } },
+              actions: { type: :object, properties: { link_href: { type: :string }, unlink_href: { type: :string }, reject_href: { type: :string } } },
+              accounts: { type: :array, items: { type: :object, properties: { id: { type: :string, format: :uuid }, name: { type: :string } } } }
+            }
+          },
+          AccountStatementUploadResult: {
+            type: :object, required: %w[account_statements duplicates duplicate_count errors], properties: {
+              account_statements: { type: :array, items: { '$ref' => '#/components/schemas/AccountStatement' } },
+              duplicates: { type: :array, items: { '$ref' => '#/components/schemas/AccountStatement' }, description: 'Only duplicates the caller can view; inaccessible files yield generic upload errors.' },
+              duplicate_count: { type: :integer, description: 'Number of visible duplicates; equals duplicates.length.' }, errors: { type: :array, items: { type: :string } }
+            }
+          },
+          AccountStatementCoverage: {
+            type: :object, required: %w[account_id year available_years summary months], properties: {
+              account_id: { type: :string, format: :uuid }, year: { type: :integer }, available_years: { type: :array, items: { type: :integer } },
+              summary: { type: :object, additionalProperties: { type: :integer } },
+              months: { type: :array, items: { type: :object, required: %w[month status reconciliation_status statement_ids unconfirmed_statement_ids], properties: {
+                month: { type: :string }, status: { type: :string, enum: %w[covered mismatched missing ambiguous duplicate not_expected] }, reconciliation_status: { type: :string, nullable: true, enum: %w[matched mismatched unavailable] },
+                statement_ids: { type: :array, items: { type: :string, format: :uuid } }, unconfirmed_statement_ids: { type: :array, items: { type: :string, format: :uuid } }
+              } } }
+            }
+          },
+          ChatWorkspaceMetadata: {
+              type: :object,
+              required: %w[ai_enabled ai_available default_model worker_healthy demo_warning response_timeout_ms],
+              properties: {
+                ai_enabled: { type: :boolean },
+                ai_available: { type: :boolean },
+                default_model: { type: :string },
+                worker_healthy: { type: :boolean },
+                demo_warning: { type: :boolean },
+                response_timeout_ms: { type: :integer, minimum: 30000, description: 'Configured client watchdog timeout; the server independently enforces its own age floor.' }
+              }
+            },
+            ChatIndexWorkspace: {
+              allOf: [
+                { '$ref' => '#/components/schemas/ChatWorkspaceMetadata' },
+                { type: :object, required: %w[chats], properties: {
+                  chats: { type: :array, description: 'Complete owner-only chat list, empty until AI is enabled.', items: { '$ref' => '#/components/schemas/ChatSummary' } }
+                } }
+              ]
+            },
+            ChatDetailWorkspace: {
+              allOf: [
+                { '$ref' => '#/components/schemas/ChatWorkspaceMetadata' },
+                { type: :object, required: %w[debug_mode technical_error needs_response messages], properties: {
+                  debug_mode: { type: :boolean },
+                  technical_error: { type: :string, nullable: true, description: 'Only populated when AI debug mode is enabled.' },
+                  needs_response: { type: :boolean },
+                  messages: { type: :array, description: 'Complete ordered conversation excluding failed partial responses. Tool payloads are hidden unless AI debug mode is enabled.', items: { '$ref' => '#/components/schemas/Message' } }
+                } }
+              ]
+            },
+            ChatFormOptions: {
+              allOf: [
+                { '$ref' => '#/components/schemas/ChatWorkspaceMetadata' },
+                { type: :object, required: %w[chat], properties: {
+                  chat: { type: :object, required: %w[id title], properties: {
+                    id: { type: :string, nullable: true }, title: { type: :string }
+                  } }
+                } }
+              ]
+            },
           SimplefinHistoryAuditRequest: {
             type: :object,
             description: 'Choose a period of 1–45 days (default 45), initially ending today. Send cursor alone to visit remaining connections in that period, then the preceding period, down to 1970-01-01.',
@@ -426,6 +3245,9 @@ RSpec.configure do |config|
               role: { type: :string, enum: %w[user assistant] },
               content: { type: :string },
               model: { type: :string, nullable: true },
+              pending: { type: :boolean },
+              reasoning: { type: :boolean },
+              status: { type: :string, enum: %w[pending complete failed] },
               created_at: { type: :string, format: :'date-time' },
               updated_at: { type: :string, format: :'date-time' },
               tool_calls: {
@@ -480,6 +3302,7 @@ RSpec.configure do |config|
                 type: :object,
                 required: %w[messages],
                 properties: {
+                  workspace: { '$ref' => '#/components/schemas/ChatDetailWorkspace' },
                   messages: {
                     type: :array,
                     items: { '$ref' => '#/components/schemas/Message' }
@@ -496,6 +3319,7 @@ RSpec.configure do |config|
             type: :object,
             required: %w[chats pagination],
             properties: {
+              workspace: { '$ref' => '#/components/schemas/ChatIndexWorkspace' },
               chats: {
                 type: :array,
                 items: { '$ref' => '#/components/schemas/ChatSummary' }
@@ -573,6 +3397,8 @@ RSpec.configure do |config|
               name: { type: :string },
               account_type: { type: :string, nullable: true },
               status: { type: :string },
+              linked: { type: :boolean },
+              provider_links: { type: :array, items: { '$ref' => '#/components/schemas/AccountProviderLink' } },
               path: { type: :string, nullable: true, description: 'Web app URL for the account, present in transaction list responses.' }
             }
           },
@@ -580,6 +3406,9 @@ RSpec.configure do |config|
             type: :object,
             required: %w[id name balance balance_cents cash_balance cash_balance_cents currency classification account_type status permissions created_at updated_at],
             properties: {
+              workspace: { '$ref' => '#/components/schemas/AccountWorkspace' },
+              linked: { type: :boolean },
+              provider_links: { type: :array, items: { '$ref' => '#/components/schemas/AccountProviderLink' } },
               id: { type: :string, format: :uuid },
               name: { type: :string },
               balance: { type: :string },
@@ -607,6 +3436,7 @@ RSpec.configure do |config|
             type: :object,
             required: %w[accounts pagination],
             properties: {
+              workspace: { '$ref' => '#/components/schemas/AccountsWorkspace' },
               accounts: {
                 type: :array,
                 items: { '$ref' => '#/components/schemas/AccountDetail' }
@@ -1242,6 +4072,7 @@ RSpec.configure do |config|
             type: :object,
             required: %w[id name color icon subcategories_count created_at updated_at],
             properties: {
+              workspace: { '$ref' => '#/components/schemas/CategoryWorkspaceRow' },
               id: { type: :string, format: :uuid },
               name: { type: :string },
               color: { type: :string },
@@ -1256,6 +4087,7 @@ RSpec.configure do |config|
             type: :object,
             required: %w[categories pagination],
             properties: {
+              workspace: { '$ref' => '#/components/schemas/CategoryWorkspace' },
               categories: {
                 type: :array,
                 items: { '$ref' => '#/components/schemas/CategoryDetail' }
@@ -1267,6 +4099,7 @@ RSpec.configure do |config|
             type: :object,
             required: %w[category],
             properties: {
+              transaction_id: { type: :string, format: :uuid, description: 'Optionally assign the new category to an annotatable transaction atomically.' },
               category: {
                 type: :object,
                 required: %w[name],
@@ -1286,10 +4119,12 @@ RSpec.configure do |config|
               category: {
                 type: :object,
                 properties: {
+                  name: { type: :string, minLength: 1 },
+                  parent_id: { type: :string, format: :uuid, nullable: true },
                   color: { type: :string, pattern: '^#[0-9A-Fa-f]{6}$', description: 'Six-digit hex color. Subcategory updates inherit the parent color.' },
                   icon: { type: :string, minLength: 1, description: 'Lucide icon name (e.g. "building"). Cannot be blank.' }
                 },
-                description: 'Supply color, icon, or both. Omitted fields are preserved; name and hierarchy cannot be changed.'
+                description: 'Supply name, parent_id, color, or icon. Omitted fields are preserved; hierarchy supports two levels and must remain within the family.'
               }
             }
           },
@@ -1400,6 +4235,7 @@ RSpec.configure do |config|
               id: { type: :string, format: :uuid },
               action_type: { type: :string },
               value: { type: :string, nullable: true },
+              values: { type: :array, items: { type: :string } },
               created_at: { type: :string, format: :'date-time' },
               updated_at: { type: :string, format: :'date-time' }
             }
@@ -1445,13 +4281,15 @@ RSpec.configure do |config|
             type: :object,
             required: %w[data],
             properties: {
-              data: { '$ref' => '#/components/schemas/Rule' }
+              data: { '$ref' => '#/components/schemas/Rule' },
+              confirm: { '$ref' => '#/components/schemas/RulePreview' }
             }
           },
           RuleCollection: {
             type: :object,
             required: %w[data meta],
             properties: {
+              workspace: { '$ref' => '#/components/schemas/RulesWorkspace' },
               data: {
                 type: :array,
                 items: { '$ref' => '#/components/schemas/Rule' }
@@ -1738,11 +4576,12 @@ RSpec.configure do |config|
             type: :object,
             required: %w[id filename byte_size content_type created_at],
             properties: {
-              id: { type: :string, format: :uuid },
+              id: { type: :integer },
               filename: { type: :string },
               byte_size: { type: :integer },
-              content_type: { type: :string },
-              created_at: { type: :string, format: :'date-time' }
+              content_type: { type: :string, nullable: true },
+              created_at: { type: :string, format: :'date-time' },
+              url: { type: :string, description: 'Authorized attachment navigation endpoint; follows a redirect to the binary file.' }
             }
           },
           PotentialDuplicate: {
@@ -1916,7 +4755,9 @@ RSpec.configure do |config|
                 properties: {
                   id: { type: :string, format: :uuid },
                   name: { type: :string },
-                  account_type: { type: :string, nullable: true }
+                  account_type: { type: :string, nullable: true },
+                  logo_url: { type: :string, nullable: true },
+                  color: { type: :string, nullable: true }
                 }
               }
             }
@@ -1943,7 +4784,7 @@ RSpec.configure do |config|
               recurring_exists: { type: :boolean, nullable: true },
               source_fee_amount: { type: :string, nullable: true, description: 'Fee charged to the source account' },
               source_fee_currency: { type: :string, nullable: true },
-              destination_fee_amount: { type: :string, nullable: true, description: 'Fee deducted from the destination account' },
+              destination_fee_amount: { type: :string, nullable: true, description: 'Separate fee expense in the destination account; does not reduce the transfer principal.' },
               destination_fee_currency: { type: :string, nullable: true },
               inflow_transaction: { '$ref' => '#/components/schemas/TransferTransactionSide' },
               outflow_transaction: { '$ref' => '#/components/schemas/TransferTransactionSide' },
@@ -2600,14 +5441,6 @@ RSpec.configure do |config|
                   id: { type: :string, format: :uuid },
                   ticker: { type: :string },
                   name: { type: :string, nullable: true }
-                }
-              },
-              category: {
-                type: :object,
-                nullable: true,
-                properties: {
-                  id: { type: :string, format: :uuid },
-                  name: { type: :string }
                 }
               },
               created_at: { type: :string, format: :'date-time' },

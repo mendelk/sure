@@ -12,3 +12,5 @@ json.meta do
   json.total_count @pagy.count
   json.per_page @per_page
 end
+
+json.workspace @workspace if @workspace

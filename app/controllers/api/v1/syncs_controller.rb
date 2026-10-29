@@ -4,7 +4,8 @@ class Api::V1::SyncsController < Api::V1::BaseController
   include Pagy::Backend
 
   before_action :ensure_read_scope
-  before_action :set_sync, only: [ :show ]
+  before_action :ensure_write_scope, only: :cancel
+  before_action :set_sync, only: %i[show cancel]
 
   def index
     @per_page = safe_per_page_param
@@ -26,6 +27,16 @@ class Api::V1::SyncsController < Api::V1::BaseController
 
   def show
     render :show
+  end
+
+  def cancel
+    unless @sync.syncable.is_a?(Account) || @sync.syncable.is_a?(Family) || current_resource_owner.admin?
+      raise ActiveRecord::RecordNotFound
+    end
+    pending = @sync.pending?
+    accepted = @sync.request_cancel!
+    state = accepted ? (pending ? "cancelled_before_start" : "cancel_requested") : "not_cancellable"
+    render_json({ data: { id: @sync.id, status: state } }, status: :accepted)
   end
 
   private

@@ -442,6 +442,29 @@ class Transaction < ApplicationRecord
       .offset(offset)
   end
 
+  # Manual selection uses the same eligibility relation as the candidate list;
+  # suggestion creation and the destructive merge commit together.
+  def merge_with_posted_entry!(posted_entry_id)
+    return false unless pending?
+
+    merged = false
+    self.class.transaction do
+      entry.account.with_lock do
+        posted_entry = pending_duplicate_candidates(limit: nil).find_by(id: posted_entry_id)
+        if posted_entry
+          update!(extra: (extra || {}).merge("potential_posted_match" => {
+            "entry_id" => posted_entry.id, "reason" => "manual_match",
+            "posted_amount" => posted_entry.amount.to_s, "confidence" => "high",
+            "detected_at" => Date.current.to_s
+          }))
+          merged = merge_with_duplicate!
+          raise ActiveRecord::Rollback unless merged
+        end
+      end
+    end
+    merged
+  end
+
   private
 
     def validate_attachments

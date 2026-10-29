@@ -79,9 +79,12 @@ RSpec.describe 'API V1 Chats', type: :request do
       tags 'Chats'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
+      description 'Paginated canonical chats. include=workspace adds the complete owner list and AI consent, worker, demo and watchdog metadata. An AI-disabled workspace returns empty lists so the client can request consent; the base list remains AI-gated.'
+      parameter name: :include, in: :query, required: false, schema: { type: :string, enum: %w[workspace] }
 
       response '200', 'chats listed' do
         schema '$ref' => '#/components/schemas/ChatCollection'
+        let(:include) { 'workspace' }
 
         run_test!
       end
@@ -107,14 +110,16 @@ RSpec.describe 'API V1 Chats', type: :request do
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'
       produces 'application/json'
+      description 'Canonical root fields are title, message and model. Omit title to derive it from the initial message. The initial user turn schedules exactly one asynchronous assistant response.'
+      parameter name: :include, in: :query, required: false, schema: { type: :string, enum: %w[workspace] }
       parameter name: :chat_params, in: :body, required: true, schema: {
         type: :object,
+        anyOf: [ { required: %w[title] }, { required: %w[message] } ],
         properties: {
           title: { type: :string, example: 'Monthly budget review' },
           message: { type: :string, description: 'Optional initial message in the chat' },
-          model: { type: :string, description: 'Optional OpenAI model identifier' }
-        },
-        required: %w[title]
+          model: { type: :string, description: 'Optional provider model identifier; defaults to the configured chat model' }
+        }
       }
 
       let(:chat_params) do
@@ -127,6 +132,7 @@ RSpec.describe 'API V1 Chats', type: :request do
 
       response '201', 'chat created' do
         schema '$ref' => '#/components/schemas/ChatDetail'
+        let(:include) { 'workspace' }
 
         run_test!
       end
@@ -141,6 +147,26 @@ RSpec.describe 'API V1 Chats', type: :request do
     end
   end
 
+  path '/api/v1/chats/form_options' do
+    get 'Retrieve new-chat metadata' do
+      tags 'Chats'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      description 'Read-scoped metadata available before AI consent: default draft title and model, availability and enabled state, worker health, demo warning and configured response timeout.'
+
+      response '200', 'new chat metadata' do
+        schema '$ref' => '#/components/schemas/ChatFormOptions'
+        run_test!
+      end
+
+      response '401', 'authentication required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:'X-Api-Key') { nil }
+        run_test!
+      end
+    end
+  end
+
   path '/api/v1/chats/{id}' do
     parameter name: :id, in: :path, type: :string, required: true, description: 'Chat ID'
 
@@ -148,11 +174,14 @@ RSpec.describe 'API V1 Chats', type: :request do
       tags 'Chats'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
+      description 'include=workspace adds the complete ordered conversation, excludes failed partial responses and exposes polling, error and timeout metadata. Technical errors and workspace tool payloads are only populated in AI debug mode. The canonical messages field remains paginated.'
+      parameter name: :include, in: :query, required: false, schema: { type: :string, enum: %w[workspace] }
 
       let(:id) { chat.id }
 
       response '200', 'chat retrieved' do
         schema '$ref' => '#/components/schemas/ChatDetail'
+        let(:include) { 'workspace' }
 
         run_test!
       end
@@ -171,6 +200,7 @@ RSpec.describe 'API V1 Chats', type: :request do
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'
       produces 'application/json'
+      parameter name: :include, in: :query, required: false, schema: { type: :string, enum: %w[workspace] }
 
       let(:id) { chat.id }
 
@@ -185,6 +215,7 @@ RSpec.describe 'API V1 Chats', type: :request do
 
       response '200', 'chat updated' do
         schema '$ref' => '#/components/schemas/ChatDetail'
+        let(:include) { 'workspace' }
 
         run_test!
       end
@@ -220,6 +251,42 @@ RSpec.describe 'API V1 Chats', type: :request do
       response '404', 'chat not found' do
         let(:id) { SecureRandom.uuid }
 
+        run_test!
+      end
+    end
+  end
+
+  path '/api/v1/chats/{id}/view' do
+    parameter name: :id, in: :path, type: :string, required: true, description: 'Owner chat ID'
+
+    patch 'Record the last viewed chat' do
+      tags 'Chats'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      description 'Explicitly updates the last-viewed chat preference of the authenticated owner. Requires write scope and AI consent. Browser-session requests require CSRF. GET detail and polling remain side-effect free.'
+      let(:id) { chat.id }
+
+      response '204', 'view preference recorded' do
+        run_test!
+      end
+
+      response '401', 'authentication required' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:'X-Api-Key') { nil }
+        run_test!
+      end
+
+      response '403', 'AI disabled or read-only credential' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:api_key) do
+          ApiKey.create!(user: user, name: 'Read-only Docs Key', key: ApiKey.generate_secure_key, scopes: %w[read], source: 'web')
+        end
+        run_test!
+      end
+
+      response '404', 'chat not found or not owned' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:id) { SecureRandom.uuid }
         run_test!
       end
     end
@@ -283,15 +350,12 @@ RSpec.describe 'API V1 Chats', type: :request do
       tags 'Chat Messages'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
+      description 'Regenerates the latest user turn using its original model and clears the recorded error. Works after an undelivered/failed response or a completed assistant turn. A pending response cannot be retried concurrently.'
 
       let(:chat_id) { chat.id }
 
       response '202', 'retry started' do
         schema '$ref' => '#/components/schemas/RetryResponse'
-
-        before do
-          allow_any_instance_of(AssistantMessage).to receive(:valid?).and_return(true)
-        end
 
         run_test!
       end
@@ -304,7 +368,7 @@ RSpec.describe 'API V1 Chats', type: :request do
         run_test!
       end
 
-      response '422', 'no assistant message available' do
+      response '422', 'no user turn available or response already pending' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
 
         let(:chat) do
@@ -313,6 +377,50 @@ RSpec.describe 'API V1 Chats', type: :request do
 
         let(:chat_id) { chat.id }
 
+        run_test!
+      end
+    end
+  end
+
+  path '/api/v1/chats/{chat_id}/messages/{id}/report_timeout' do
+    parameter name: :chat_id, in: :path, type: :string, required: true, description: 'Owner chat ID'
+    parameter name: :id, in: :path, type: :string, required: true, description: 'Pending assistant message ID'
+
+    post 'Report an undelivered assistant response' do
+      tags 'Chat Messages'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      description 'Write-scoped, AI-gated watchdog report. Under a row lock the server checks pending state and its own minimum age. An accepted empty bubble is deleted; a partial response becomes failed, and a friendly chat error enables retry. Early/completed/user reports return 409 so polling can continue; missing or foreign resources return 404.'
+      let(:chat_id) { chat.id }
+      let(:id) { pending_message.id }
+      let(:pending_message) do
+        chat.messages.create!(type: 'AssistantMessage', content: '', ai_model: 'gpt-4',
+          status: :pending, created_at: (Chat.undelivered_response_timeout + 1.second).ago)
+      end
+
+      response '204', 'timeout recorded' do
+        run_test!
+      end
+
+      response '409', 'response is not eligible for timeout' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:pending_message) do
+          chat.messages.create!(type: 'AssistantMessage', content: '', ai_model: 'gpt-4', status: :pending)
+        end
+        run_test!
+      end
+
+      response '404', 'message or chat not found' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:id) { SecureRandom.uuid }
+        run_test!
+      end
+
+      response '403', 'AI disabled or read-only credential' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:api_key) do
+          ApiKey.create!(user: user, name: 'Read-only Docs Key', key: ApiKey.generate_secure_key, scopes: %w[read], source: 'web')
+        end
         run_test!
       end
     end

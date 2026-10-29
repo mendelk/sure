@@ -1,5 +1,5 @@
 class SessionsController < ApplicationController
-  extend SslConfigurable
+  include SessionLogout
 
   before_action :set_session, only: :destroy
   skip_authentication only: %i[index new create openid_connect failure post_logout mobile_sso_start desktop_sso_start desktop_exchange]
@@ -97,36 +97,12 @@ class SessionsController < ApplicationController
   end
 
   def destroy
-    user = Current.user
-    id_token = session[:id_token_hint]
-    login_provider = session[:sso_login_provider]
-
-    # Find the identity for the provider used during login, with fallback to first if session data lost
-    oidc_identity = if login_provider.present?
-      user.oidc_identities.find_by(provider: login_provider)
+    destination = logout_session(@session)
+    if destination == new_session_path
+      redirect_to destination, notice: t(".logout_successful")
     else
-      user.oidc_identities.first
+      redirect_to destination, allow_other_host: true
     end
-
-    # Destroy local session
-    @session.destroy
-    session.delete(:id_token_hint)
-    session.delete(:sso_login_provider)
-
-    # Check if we should redirect to IdP for federated logout
-    if oidc_identity && id_token.present?
-      idp_logout_url = build_idp_logout_url(oidc_identity, id_token)
-
-      if idp_logout_url
-        SsoAuditLog.log_logout_idp!(user: user, provider: oidc_identity.provider, request: request)
-        redirect_to idp_logout_url, allow_other_host: true
-        return
-      end
-    end
-
-    # Standard local logout
-    SsoAuditLog.log_logout!(user: user, request: request)
-    redirect_to new_session_path, notice: t(".logout_successful")
   end
 
   # Handle redirect back from IdP after federated logout
@@ -551,54 +527,5 @@ class SessionsController < ApplicationController
       return false unless demo.present? && demo["hosts"].present?
 
       demo["hosts"].include?(request.host)
-    end
-
-    def build_idp_logout_url(oidc_identity, id_token)
-      # Find the provider configuration using unified loader (supports both YAML and DB providers)
-      provider_config = ProviderLoader.load_providers.find do |p|
-        p[:name] == oidc_identity.provider
-      end
-
-      return nil unless provider_config
-
-      # For OIDC providers, fetch end_session_endpoint from discovery
-      if provider_config[:strategy] == "openid_connect" && provider_config[:issuer].present?
-        begin
-          discovery_url = discovery_url_for(provider_config[:issuer])
-          response = Faraday.new(ssl: self.class.faraday_ssl_options).get(discovery_url) do |req|
-            req.options.timeout = 5
-            req.options.open_timeout = 3
-          end
-
-          return nil unless response.success?
-
-          discovery = JSON.parse(response.body)
-          end_session_endpoint = discovery["end_session_endpoint"]
-
-          return nil unless end_session_endpoint.present?
-
-          # Build the logout URL with post_logout_redirect_uri
-          post_logout_redirect = "#{request.base_url}/auth/logout/callback"
-          params = {
-            id_token_hint: id_token,
-            post_logout_redirect_uri: post_logout_redirect
-          }
-
-          "#{end_session_endpoint}?#{params.to_query}"
-        rescue Faraday::Error, JSON::ParserError, StandardError => e
-          Rails.logger.warn("[SSO] Failed to fetch OIDC discovery for logout: #{e.message}")
-          nil
-        end
-      else
-        nil
-      end
-    end
-
-    def discovery_url_for(issuer)
-      if issuer.end_with?("/")
-        "#{issuer}.well-known/openid-configuration"
-      else
-        "#{issuer}/.well-known/openid-configuration"
-      end
     end
 end

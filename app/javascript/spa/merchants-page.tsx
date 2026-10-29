@@ -28,11 +28,11 @@ import {
 } from "./api/merchants";
 import { fuzzyFilter } from "./fuzzy";
 
-export const MERCHANTS_INDEX_PATH = "/family_merchants.json";
-export const MERCHANTS_PATH = "/family_merchants.json";
-export const MERGE_PATH = "/family_merchants/merge.json";
-export const PERFORM_MERGE_PATH = "/family_merchants/perform_merge.json";
-export const ENHANCE_PATH = "/family_merchants/enhance.json";
+export const MERCHANTS_INDEX_PATH = "/api/v1/merchants";
+export const MERCHANTS_PATH = "/api/v1/merchants";
+export const MERGE_PATH = "/api/v1/merchants/merge_candidates";
+export const PERFORM_MERGE_PATH = "/api/v1/merchants/merge";
+export const ENHANCE_PATH = "/api/v1/merchants/enhance";
 export const IMPORT_PATH = "/imports/new?type=MerchantImport";
 
 const MERCHANTS_TEXT = {
@@ -345,13 +345,9 @@ export function MerchantFormModal({
         ...(isProvider ? {} : { color }),
         website_url: trimmedWebsite === "" ? null : trimmedWebsite,
       };
-      if (editing && initial.id !== undefined) {
-        await updateMerchantRecord(
-          `/family_merchants/${initial.id}.json`,
-          isProvider ? "provider_merchant" : "family_merchant",
-          input,
-        );
-      } else await createMerchantRecord(MERCHANTS_PATH, input);
+      if (editing && initial.id !== undefined)
+        await updateMerchantRecord(`/api/v1/merchants/${initial.id}`, input);
+      else await createMerchantRecord(MERCHANTS_PATH, input);
       onSaved();
       onClose();
     } catch (caught) {
@@ -463,7 +459,7 @@ function DeleteConfirmModal({
     setDeleting(true);
     setError(null);
     try {
-      await destroyMerchantRecord(`/family_merchants/${row.id}.json`);
+      await destroyMerchantRecord(`/api/v1/merchants/${row.id}`);
       onDeleted();
       onClose();
     } catch (caught) {

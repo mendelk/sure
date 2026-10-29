@@ -289,7 +289,122 @@ class Api::V1::TransfersControllerTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "creates a domain transfer with fees tags and safe repeat submission" do
+    tag = @family.tags.create!(name: "Transfer trip")
+    key = SecureRandom.uuid
+    payload = create_payload.merge(source_fee_amount: "2.5", destination_fee_amount: "1.25", tag_ids: [ tag.id ], idempotency_key: key)
+    assert_difference "Transfer.count", 1 do
+      post api_v1_transfers_url, params: { transfer: payload }, headers: api_headers(write_key), as: :json
+      assert_response :created
+    end
+    created = Transfer.find(JSON.parse(response.body).fetch("id"))
+    assert_equal 125, created.outflow_transaction.entry.amount
+    assert_equal(-125, created.inflow_transaction.entry.amount)
+    assert_equal [ tag.id ], created.outflow_transaction.tag_ids
+    assert_equal [ tag.id ], created.inflow_transaction.tag_ids
+    assert_equal 2.5, created.derived_source_fee_amount
+    assert_equal 1.25, created.derived_destination_fee_amount
+    assert_no_difference [ "Transfer.count", "Entry.count" ] do
+      post api_v1_transfers_url, params: { transfer: payload }, headers: api_headers(write_key), as: :json
+      assert_response :created
+      assert_equal created.id, JSON.parse(response.body)["id"]
+    end
+    post api_v1_transfers_url, params: { transfer: payload.merge(amount: "126") }, headers: api_headers(write_key), as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "creates cross currency transfers using source currency and a dated custom rate" do
+    @destination_account.update!(currency: "EUR")
+    post api_v1_transfers_url,
+      params: { transfer: create_payload.merge(exchange_rate: "0.8", date: Date.tomorrow.iso8601) },
+      headers: api_headers(write_key), as: :json
+    assert_response :created
+    created = Transfer.find(JSON.parse(response.body).fetch("id"))
+    assert_equal 125, created.outflow_transaction.entry.amount
+    assert_equal "USD", created.outflow_transaction.entry.currency
+    assert_equal(-100, created.inflow_transaction.entry.amount)
+    assert_equal "EUR", created.inflow_transaction.entry.currency
+    assert_equal Date.tomorrow, created.date
+  end
+
+  test "create rejects invalid financial fields and dates without partial entries" do
+    [ { amount: "0" }, { amount: "-1" }, { from_account_id: @destination_account.id }, { date: "invalid" },
+      { source_fee_amount: "-1" }, { destination_fee_amount: "-1" }, { exchange_rate: "0" } ].each do |invalid|
+      assert_no_difference [ "Transfer.count", "Entry.count" ] do
+        post api_v1_transfers_url, params: { transfer: create_payload.merge(invalid) }, headers: api_headers(write_key), as: :json
+        assert_response :unprocessable_entity
+      end
+    end
+  end
+
+  test "create requires authentication write scope and access to both endpoint accounts" do
+    post api_v1_transfers_url, params: { transfer: create_payload }, as: :json
+    assert_response :unauthorized
+    post api_v1_transfers_url, params: { transfer: create_payload }, headers: api_headers(@api_key), as: :json
+    assert_response :forbidden
+    post api_v1_transfers_url, params: { transfer: create_payload.merge(to_account_id: @other_transfer.to_account.id) }, headers: api_headers(write_key), as: :json
+    assert_response :not_found
+    @destination_account.update!(owner: users(:family_member))
+    share = @destination_account.account_shares.create!(user: @user, permission: "read_only")
+    %w[read_only read_write].each do |permission|
+      share.update!(permission: permission)
+      assert_no_difference [ "Transfer.count", "Entry.count" ] do
+        post api_v1_transfers_url, params: { transfer: create_payload }, headers: api_headers(write_key), as: :json
+        assert_response :forbidden
+      end
+    end
+  end
+
+  test "form options contain only writable active accounts and family tags" do
+    @destination_account.update!(owner: users(:family_member))
+    @destination_account.account_shares.create!(user: @user, permission: "read_write")
+    get "/api/v1/transfers/form_options", headers: api_headers(@api_key)
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_includes body["accounts"].map { |account| account["id"] }, @account.id
+    assert_not_includes body["accounts"].map { |account| account["id"] }, @destination_account.id
+    assert_equal Date.current.iso8601, body["default_date"]
+    assert body["text"]["submit"].present?
+  end
+
+  test "transfer exchange rate preserves date and endpoint permissions" do
+    get "/api/v1/transfers/exchange_rate", params: { from_account_id: @account.id, to_account_id: @destination_account.id, date: Date.current.iso8601 }, headers: api_headers(@api_key)
+    assert_response :success
+    assert_equal 1, JSON.parse(response.body)["rate"].to_d
+    get "/api/v1/transfers/exchange_rate", params: { from_account_id: @account.id, to_account_id: @destination_account.id, date: "invalid" }, headers: api_headers(@api_key)
+    assert_response :unprocessable_entity
+    get "/api/v1/transfers/exchange_rate", params: { from_account_id: @account.id, to_account_id: @other_transfer.to_account.id }, headers: api_headers(@api_key)
+    assert_response :not_found
+  end
+
+  test "exchange rate lookup uses the selected date and reports unavailable rates" do
+    @destination_account.update!(currency: "EUR")
+    date = Date.new(2024, 1, 15)
+    ExchangeRate.expects(:find_or_fetch_rate).with(from: "USD", to: "EUR", date: date).returns(nil)
+    get "/api/v1/transfers/exchange_rate",
+      params: { from_account_id: @account.id, to_account_id: @destination_account.id, date: date.iso8601 },
+      headers: api_headers(@api_key)
+    assert_response :unprocessable_entity
+  end
+
+  test "create unavailable cross currency rate returns validation failure without partial entries" do
+    @destination_account.update!(currency: "EUR")
+    ExchangeRate.stubs(:find_or_fetch_rate).returns(nil)
+    assert_no_difference [ "Transfer.count", "Entry.count" ] do
+      post api_v1_transfers_url, params: { transfer: create_payload }, headers: api_headers(write_key), as: :json
+      assert_response :unprocessable_entity
+    end
+  end
+
   private
+
+    def write_key
+      @write_key ||= ApiKey.create!(user: @user, name: "Create transfer", scopes: [ "read_write" ], source: "web", display_key: "transfer_write_#{SecureRandom.hex(8)}")
+    end
+
+    def create_payload
+      { from_account_id: @account.id, to_account_id: @destination_account.id, amount: "125", date: Date.current.iso8601 }
+    end
 
     def create_transaction(account, amount:, date:, name:)
       entry = account.entries.create!(

@@ -116,48 +116,15 @@ class ValuationsController < ApplicationController
     end
 
     def prepare_reconciliation(account, existing_entry: nil)
-      amount = entry_params[:amount]
-      if amount.blank?
-        render_errors([ t("valuations.errors.amount_required") ])
-        return false
-      end
-
-      begin
-        balance = BigDecimal(amount.to_s)
-        raise ArgumentError unless balance.finite?
-      rescue ArgumentError, TypeError
-        render_errors([ t("valuations.errors.amount_invalid") ])
-        return false
-      end
-
-      begin
-        date = Date.iso8601(entry_params[:date].to_s)
-      rescue Date::Error
-        render_errors([ t("valuations.errors.date_invalid") ])
-        return false
-      end
-
-      unless date > Entry.min_supported_date && date <= Date.current
-        render_errors([ t("valuations.errors.date_out_of_range",
-          min: I18n.l(Entry.min_supported_date.next_day), max: I18n.l(Date.current)) ])
-        return false
-      end
-
-      candidate = existing_entry || account.entries.valuations.find_by(date: date) || account.entries.build(
-        name: Valuation.build_reconciliation_name(account.accountable_type), entryable: Valuation.new
+      input = Valuation::ReconciliationInput.new(
+        account: account, attributes: entry_params, existing_entry: existing_entry, max_date: Date.current
       )
-      original_attributes = candidate.attributes.slice("date", "amount", "currency")
-      candidate.assign_attributes(date: date, amount: balance, currency: account.currency)
-      valid = candidate.valid?
-      errors = candidate.errors.full_messages
-      # The manager needs the original date to resolve the pre-update balance.
-      candidate.assign_attributes(original_attributes)
-      unless valid
-        render_errors(errors)
+      unless input.valid?
+        render_errors(input.errors)
         return false
       end
 
-      @reconciliation_params = { balance: balance, date: date }
+      @reconciliation_params = input.to_h
       true
     end
 

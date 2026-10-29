@@ -33,6 +33,21 @@ class CoinstatsItem < ApplicationRecord
   scope :ordered, -> { order(created_at: :desc) }
   scope :needs_update, -> { where(status: :requires_update) }
 
+  def validate_api_key!
+    return true if api_key.blank?
+
+    response = Provider::Coinstats.new(api_key).get_blockchains
+    return true if response.success?
+
+    errors.add(:api_key, I18n.t("coinstats_items.create.errors.validation_failed", message: "The provider rejected these credentials"))
+    raise ActiveRecord::RecordInvalid, self
+  rescue ActiveRecord::RecordInvalid
+    raise
+  rescue StandardError
+    errors.add(:api_key, I18n.t("coinstats_items.create.errors.validation_failed", message: "Could not validate API key"))
+    raise ActiveRecord::RecordInvalid, self
+  end
+
   # Fetches latest wallet data from CoinStats API and updates local records.
   # @raise [StandardError] if provider is not configured or import fails
   def import_latest_coinstats_data

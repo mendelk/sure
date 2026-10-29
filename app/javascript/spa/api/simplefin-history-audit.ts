@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { AccountIdSchema } from "../ids";
-import { readCsrfToken } from "./transactions";
+import { apiFetch } from "./client";
 
 export const AUDIT_STATUSES = [
   "recorded",
@@ -112,15 +112,8 @@ async function request(
   signal: AbortSignal,
   body?: AuditRequest | AuditImportRequest,
 ): Promise<unknown> {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     method: body === undefined ? "GET" : "POST",
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      ...(body === undefined
-        ? {}
-        : { "Content-Type": "application/json", "X-CSRF-Token": readCsrfToken() }),
-    },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
@@ -142,7 +135,7 @@ export function historyAuditMetadataQueryOptions(accountId: string) {
     queryFn: async ({ signal }) =>
       MetadataSchema.parse(
         await request(
-          `/accounts/${encodeURIComponent(accountId)}/simplefin_history_audit.json`,
+          `/api/v1/accounts/${encodeURIComponent(accountId)}/simplefin_history_audit`,
           signal,
         ),
       ),

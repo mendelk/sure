@@ -160,11 +160,25 @@ Concept providers inherit from [Provider](../../app/models/provider.rb) and use
 converts failures into the response contract. See [provider guidance](providers.md)
 and [adding a securities provider](adding-a-securities-provider.md) for details.
 
-Web interaction uses Turbo/Stimulus with server-rendered views. External
-`/api/v1` endpoints support separate Doorkeeper OAuth and `X-Api-Key`
-authentication; API keys are opaque keys, not JWTs. The [API base controller](../../app/controllers/api/v1/base_controller.rb)
-sets current context, skips session CSRF checks and applies API-key rate limits.
-Preserve the existing authentication, scope and strong-parameter behavior. Follow
-the [API consistency guide](api-endpoint-consistency.md) for behavioral tests and
-documentation-only rswag specs; its API-key convention does not remove runtime
-OAuth support.
+The React SPA uses the same documented `/api/v1` contracts as external clients.
+Legacy ERB pages retain Turbo/Stimulus and server-rendered forms. SPA data requests
+must use [`apiFetch`](../../app/javascript/spa/api/client.ts): it restricts requests
+to the same-origin API, sets JSON negotiation and credentials, and rejects redirects.
+The lint request-boundary rule forbids direct transports and native form actions.
+
+API authentication supports browser sessions, Doorkeeper OAuth and `X-Api-Key`;
+API keys are opaque keys, not JWTs. The [API base controller](../../app/controllers/api/v1/base_controller.rb)
+sets current context, enforces scopes, and applies API-key rate limits. Unsafe
+browser-session requests require CSRF tokens; API-key/OAuth requests do not.
+Device-session logout and browser WebPush registration additionally require the
+current browser session; token credentials cannot select or delete browser sessions.
+
+Canonical resource responses remain available without presentation metadata.
+`include=workspace` adds the account, taxonomy, chat or rule presentation required
+by the SPA; `form_options` and preview operations expose form choices and validation
+without dispatching legacy controllers. Reuse domain writers and presenters for both
+interfaces. Dashboard/source/projection definitions and layouts remain browser-local
+temporarily; their server-backed queries still use the API.
+
+Follow the [API consistency guide](api-endpoint-consistency.md) for behavioral tests
+and documentation-only rswag specs, then regenerate `docs/api/openapi.yaml`.

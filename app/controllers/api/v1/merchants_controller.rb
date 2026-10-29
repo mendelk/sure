@@ -3,8 +3,8 @@
 module Api
   module V1
     class MerchantsController < BaseController
-      before_action -> { authorize_scope!(:read) }, only: %i[index show]
-      before_action -> { authorize_scope!(:write) }, only: %i[create update destroy import]
+      before_action -> { authorize_scope!(:read) }, only: %i[index show form_options merge_candidates]
+      before_action -> { authorize_scope!(:write) }, only: %i[create update destroy import merge enhance]
       before_action :set_merchant, only: %i[show update destroy]
 
       def index
@@ -24,7 +24,11 @@ module Api
           .distinct
           .alphabetically
 
-        render json: @merchants.map { |m| merchant_json(m) }
+        if params[:include].to_s.split(",").include?("workspace")
+          render json: { merchants: @merchants.map { |merchant| merchant_json(merchant) }, workspace: workspace.index(params) }
+        else
+          render json: @merchants.map { |merchant| merchant_json(merchant) }
+        end
       rescue StandardError => e
         Rails.logger.error("API Merchants Error: #{e.message}")
         render json: { error: "Failed to fetch merchants" }, status: :internal_server_error
@@ -48,6 +52,8 @@ module Api
         else
           render_validation_errors(merchant)
         end
+      rescue ActionController::ParameterMissing => error
+        handle_bad_request(error)
       rescue StandardError => e
         Rails.logger.error("API Merchant Create Error: #{e.message}")
         render json: { error: "internal_server_error", message: "An unexpected error occurred" },
@@ -55,15 +61,24 @@ module Api
       end
 
       def update
+        attrs = merchant_params
         merchant = if @merchant.is_a?(ProviderMerchant)
-          @merchant.convert_to_family_merchant_for(current_resource_owner.family, merchant_params)
+          if (attrs[:name].present? && attrs[:name] != @merchant.name) || attrs.key?(:logo_url)
+            @merchant.convert_to_family_merchant_for(current_resource_owner.family, attrs)
+          else
+            @merchant.update!(attrs.slice(:website_url))
+            @merchant.generate_logo_url_from_website!
+            @merchant
+          end
         else
-          @merchant.tap { |record| record.update!(merchant_params) }
+          @merchant.tap { |record| record.update!(attrs) }
         end
 
         render json: merchant_json(merchant)
       rescue ActiveRecord::RecordInvalid => e
         render_validation_errors(e.record)
+      rescue ActionController::ParameterMissing => error
+        handle_bad_request(error)
       rescue StandardError => e
         Rails.logger.error("API Merchant Update Error: #{e.message}")
         render json: { error: "internal_server_error", message: "An unexpected error occurred" },
@@ -88,7 +103,46 @@ module Api
         import_csv
       end
 
+
+      def form_options
+        merchant = params[:id].present? ? accessible_merchants.find(params[:id]) : current_resource_owner.family.merchants.new
+        render json: workspace.form(merchant)
+      end
+
+      def merge_candidates
+        render json: { merchants: accessible_merchants.alphabetically.map { |merchant| workspace.row(merchant) }, colors: FamilyMerchant::COLORS }
+      end
+
+      def merge
+        source_ids = Array(params[:source_ids]).map(&:to_s).uniq
+        if source_ids.empty? || source_ids.include?(params[:target_id].to_s)
+          return render json: { error: "unprocessable_entity", message: "Select source merchants different from the target" }, status: :unprocessable_entity
+        end
+        target = accessible_merchants.find(params[:target_id])
+        sources = source_ids.map { |id| accessible_merchants.find(id) }
+        merger = Merchant::Merger.new(family: current_resource_owner.family, target_merchant: target, source_merchants: sources)
+        merger.merge!
+        render json: { ok: true, merged_count: merger.merged_count }
+      rescue Merchant::Merger::UnauthorizedMerchantError => error
+        render json: { error: "unprocessable_entity", message: error.message }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotDestroyed => error
+        render json: { error: "unprocessable_entity", message: error.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
+      end
+
+      def enhance
+        family = current_resource_owner.family
+        cache_key = "enhance_provider_merchants:#{family.id}"
+        unless Rails.cache.write(cache_key, true, expires_in: 10.minutes, unless_exist: true)
+          return render json: { ok: false, already_running: true, message: "Merchant enhancement is already running" }, status: :unprocessable_entity
+        end
+        EnhanceProviderMerchantsJob.perform_later(family)
+        render json: { ok: true }
+      end
       private
+
+        def workspace
+          @api_workspace ||= Merchant::ApiWorkspace.new(family: current_resource_owner.family, user: current_resource_owner)
+        end
 
         def import_csv
           family = current_resource_owner.family
@@ -197,7 +251,7 @@ module Api
         end
 
         def merchant_json(merchant)
-          {
+          workspace.row(merchant).merge(
             id: merchant.id,
             name: merchant.name,
             type: merchant.type,
@@ -206,7 +260,7 @@ module Api
             logo_url: Setting.transform_brand_fetch_url(merchant.logo_url),
             created_at: merchant.created_at,
             updated_at: merchant.updated_at
-          }
+          )
         end
 
         def normalized_header(headers, *candidates)

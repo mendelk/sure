@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { AccountCard, AccountDataTable, AccountSearch, AccountSection } from "../api/accounts";
 import type { AccountId } from "../ids";
-import { AccountActionControl, CsrfFields } from "./account-actions";
-import { Button } from "./button";
+import { AccountActionControl } from "./account-actions";
+import { StatementUploadForm } from "./statement-upload-form";
 import { FormField } from "./form-field";
 import { Table, type ColumnStyle, type TableFeatures } from "./table";
 import { Alert } from "./alert";
@@ -269,32 +269,16 @@ export function AccountSectionView({
         </div>
       ) : null}
       {section.upload ? (
-        <form
-          action={section.upload.href}
-          method="post"
-          encType="multipart/form-data"
-          className="space-y-3 rounded-xl border border-primary p-4"
-        >
-          <CsrfFields />
-          <input
-            type="hidden"
-            name="account_statement[account_id]"
-            value={section.upload.account_id}
-          />
-          <FormField
-            id={`${section.key}-files`}
-            name="account_statement[files][]"
-            type="file"
-            multiple
-            required
+        <div className="rounded-xl border border-primary p-4">
+          <StatementUploadForm
+            id={section.key}
+            accountId={section.upload.account_id}
             accept={section.upload.accept}
             label={section.upload.label}
-            description={section.upload.hint}
+            hint={section.upload.hint}
+            submitLabel={section.upload.submit_label}
           />
-          <Button type="submit" size="sm">
-            {section.upload.submit_label}
-          </Button>
-        </form>
+        </div>
       ) : null}
       {section.table ? (
         <AccountSectionTable

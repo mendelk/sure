@@ -327,6 +327,103 @@ class Api::V1::MerchantsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "invalid_file_type", body["error"]
   end
 
+  test "workspace preserves searches pagination recently unlinked and provider color semantics" do
+    transaction = @user.family.transactions.first!
+    provider = ProviderMerchant.create!(name: "Workspace provider", source: :plaid)
+    transaction.update!(merchant: provider)
+    get "/api/v1/merchants", params: { include: "workspace", family_search: @merchant.name, per_page: 1 }, headers: api_headers(read_only_api_key)
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_kind_of Array, body["merchants"]
+    workspace = body["workspace"]
+    assert_equal 1, workspace.dig("family_merchants", "items").size
+    provider_row = workspace.dig("provider_merchants", "items").find { |row| row["id"] == provider.id }
+    assert_nil provider_row["color"]
+    assert_equal "/api/v1/merchants/#{provider.id}", provider_row["destroy_href"]
+    delete "/api/v1/merchants/#{provider.id}", headers: api_headers(read_write_api_key)
+    assert_response :no_content
+    get "/api/v1/merchants", params: { include: "workspace" }, headers: api_headers(read_only_api_key)
+    assert_response :success
+    assert_includes JSON.parse(response.body).dig("workspace", "unlinked").map { |row| row["id"] }, provider.id
+  end
+
+  test "provider website edits stay provider while name edits convert only this family and protect sync" do
+    transaction = @user.family.transactions.first!
+    provider = ProviderMerchant.create!(name: "Editable provider", source: :plaid)
+    transaction.update!(merchant: provider)
+    patch "/api/v1/merchants/#{provider.id}", params: { merchant: { name: provider.name, website_url: "https://example.com" } }, headers: api_headers(read_write_api_key)
+    assert_response :success
+    assert_equal "ProviderMerchant", JSON.parse(response.body)["type"]
+    assert_equal provider.id, transaction.reload.merchant_id
+    patch "/api/v1/merchants/#{provider.id}", params: { merchant: { name: "Converted API merchant", color: "#6471eb" } }, headers: api_headers(read_write_api_key)
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal "FamilyMerchant", body["type"]
+    assert_equal body["id"], transaction.reload.merchant_id
+    assert transaction.entry.reload.user_modified?
+    assert_equal "Editable provider", provider.reload.name
+  end
+
+  test "form options and merge candidates respect family and provider account accessibility" do
+    foreign = @other_family_user.family.merchants.create!(name: "Foreign options")
+    get "/api/v1/merchants/form_options", params: { id: foreign.id }, headers: api_headers(read_only_api_key)
+    assert_response :not_found
+    get "/api/v1/merchants/form_options", headers: api_headers(read_only_api_key)
+    assert_response :success
+    assert_nil JSON.parse(response.body).dig("merchant", "id")
+    get "/api/v1/merchants/merge_candidates", headers: api_headers(read_only_api_key)
+    assert_response :success
+    ids = JSON.parse(response.body)["merchants"].map { |row| row["id"] }
+    assert_includes ids, @merchant.id
+    assert_not_includes ids, foreign.id
+  end
+
+  test "merge rejects missing foreign or self sources atomically and moves valid transactions" do
+    source = @user.family.merchants.create!(name: "Merge source")
+    transaction = @user.family.transactions.first!
+    transaction.update!(merchant: source)
+    post "/api/v1/merchants/merge", params: { target_id: @merchant.id, source_ids: [ source.id ] }, headers: api_headers(read_only_api_key)
+    assert_response :forbidden
+    post "/api/v1/merchants/merge", params: { target_id: @merchant.id, source_ids: [ @merchant.id ] }, headers: api_headers(read_write_api_key)
+    assert_response :unprocessable_entity
+    post "/api/v1/merchants/merge", params: { target_id: @merchant.id, source_ids: [ source.id, SecureRandom.uuid ] }, headers: api_headers(read_write_api_key)
+    assert_response :not_found
+    assert Merchant.exists?(source.id)
+    post "/api/v1/merchants/merge", params: { target_id: @merchant.id, source_ids: [ source.id ] }, headers: api_headers(read_write_api_key)
+    assert_response :success
+    assert_equal 1, JSON.parse(response.body)["merged_count"]
+    assert_equal @merchant.id, transaction.reload.merchant_id
+    assert transaction.entry.reload.user_modified?
+    assert_not Merchant.exists?(source.id)
+  end
+
+  test "enhancement is write protected queued once and reports concurrent requests" do
+    post "/api/v1/merchants/enhance", headers: api_headers(read_only_api_key)
+    assert_response :forbidden
+    Rails.cache.stubs(:write).with("enhance_provider_merchants:#{@user.family_id}", true, expires_in: 10.minutes, unless_exist: true).returns(true)
+    assert_enqueued_with(job: EnhanceProviderMerchantsJob, args: [ @user.family ]) do
+      post "/api/v1/merchants/enhance", headers: api_headers(read_write_api_key)
+      assert_response :success
+    end
+    Rails.cache.stubs(:write).returns(false)
+    assert_no_enqueued_jobs do
+      post "/api/v1/merchants/enhance", headers: api_headers(read_write_api_key)
+      assert_response :unprocessable_entity
+      assert JSON.parse(response.body)["already_running"]
+    end
+  end
+
+  test "canonical merchant payload root is required and malformed input does not mutate records" do
+    assert_no_difference "Merchant.count" do
+      post "/api/v1/merchants", params: { family_merchant: { name: "Legacy root" } }, headers: api_headers(read_write_api_key), as: :json
+      assert_response :bad_request
+    end
+    original_name = @merchant.name
+    patch "/api/v1/merchants/#{@merchant.id}", params: {}, headers: api_headers(read_write_api_key), as: :json
+    assert_response :bad_request
+    assert_equal original_name, @merchant.reload.name
+  end
+
   private
 
     def read_write_api_key

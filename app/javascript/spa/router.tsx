@@ -32,6 +32,12 @@ import { validateNewTransactionSearch, NewTransactionPage } from "./new-transact
 import { BulkUpdateDrawer, validateBulkUpdateSearch } from "./bulk-update-drawer";
 import { SplitTransactionPage } from "./split-transaction-page";
 import { TransferMatchPage } from "./transfer-match-page";
+import { NewTransferPage, validateNewTransferSearch } from "./new-transfer-page";
+import {
+  TransactionConversionPage,
+  validateTransactionConversionSearch,
+} from "./transaction-conversion-page";
+import { ProviderConnectionDrawer } from "./provider-connection-drawer";
 import { TransactionDetailDrawer } from "./transaction-detail-page";
 import { TransferDetailDrawer } from "./transfer-detail-drawer";
 import { TransactionsPage, validateTransactionSearch } from "./transactions-page";
@@ -285,6 +291,81 @@ const standaloneTransferRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/transfers/$transferId",
   component: StandaloneTransferPage,
+});
+const newTransferRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/transfers/new",
+  validateSearch: validateNewTransferSearch,
+  component: NewTransferPage,
+});
+
+const transactionConversionRoute = createRoute({
+  getParentRoute: () => transactionDetailRoute,
+  path: "convert_to_trade",
+  validateSearch: validateTransactionConversionSearch,
+  component: TransactionConversionPage,
+});
+
+type ProviderSearch = {
+  account_id?: string;
+  accountable_type?: string;
+  region?: string;
+  return_to?: string;
+};
+
+function validateProviderSearch(input: Record<string, unknown>): ProviderSearch {
+  const result: ProviderSearch = {};
+  for (const key of ["account_id", "accountable_type", "region", "return_to"] as const)
+    if (typeof input[key] === "string") result[key] = input[key];
+
+  return result;
+}
+
+function ProviderConnectionRouteComponent({ mode }: { mode: "new" | "edit" | "setup" | "manage" }) {
+  const params = useParams({ strict: false });
+  const search = useSearch({ strict: false, select: validateProviderSearch });
+  const close = useDialogClose("/accounts");
+  if (typeof params.provider !== "string") return <AccountsIndexPage />;
+  return (
+    <>
+      <AccountsIndexPage />
+      <ProviderConnectionDrawer
+        key={`${params.provider}:${typeof params.connectionId === "string" ? params.connectionId : "new"}:${mode}:${search.account_id ?? ""}:${search.accountable_type ?? ""}:${search.region ?? ""}`}
+        provider={params.provider}
+        connectionId={typeof params.connectionId === "string" ? params.connectionId : undefined}
+        mode={mode}
+        accountId={search.account_id}
+        accountableType={search.accountable_type}
+        region={search.region}
+        onClose={close}
+      />
+    </>
+  );
+}
+
+const providerNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/provider_connections/$provider/new",
+  validateSearch: validateProviderSearch,
+  component: () => <ProviderConnectionRouteComponent mode="new" />,
+});
+const providerEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/provider_connections/$provider/$connectionId/edit",
+  validateSearch: validateProviderSearch,
+  component: () => <ProviderConnectionRouteComponent mode="edit" />,
+});
+const providerSetupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/provider_connections/$provider/$connectionId/setup",
+  validateSearch: validateProviderSearch,
+  component: () => <ProviderConnectionRouteComponent mode="setup" />,
+});
+const providerManageRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/provider_connections/$provider/$connectionId/manage",
+  validateSearch: validateProviderSearch,
+  component: () => <ProviderConnectionRouteComponent mode="manage" />,
 });
 
 function SplitNewPage() {
@@ -738,7 +819,9 @@ function MerchantEditRouteComponent() {
   );
   const formQuery = useQuery({
     ...merchantFormQueryOptions(
-      parsed.success ? `/family_merchants/${parsed.data}/edit.json` : "/family_merchants/new.json",
+      parsed.success
+        ? `/api/v1/merchants/form_options?id=${parsed.data}`
+        : "/api/v1/merchants/form_options",
       "edit",
     ),
     enabled: parsed.success,
@@ -796,12 +879,12 @@ function RulesIndexRouteComponent() {
   const navigate = useNavigate();
   return (
     <RulesIndexPage
-      indexPath="/rules.json"
+      indexPath="/api/v1/rules"
       newHref="/rules/new"
       onEdit={(ruleId) => {
         void navigate({ to: "/rules/$ruleId/edit", params: { ruleId } });
       }}
-      rulesPath="/rules"
+      rulesPath="/api/v1/rules"
     />
   );
 }
@@ -849,9 +932,9 @@ export function validateRuleNewSearch(input: Record<string, unknown>): RuleNewSe
 function RuleNewRouteComponent() {
   const { bootstrap } = useRouteContext({ from: "__root__" });
   const search = useSearch({ from: ruleNewRoute.id, shouldThrow: false }) ?? {};
-  const formPath = "/rules/new.json";
+  const formPath = "/api/v1/rules/form_options";
 
-  // The rule builder server (`rules_controller#new`) presets the rule name,
+  // The rule API presets the rule name,
   // its merchant condition, and the seeded action from these params; forward
   // them so a menu entry like "Always categorize" opens a prefilled form.
   const presetParams = new URLSearchParams();
@@ -869,8 +952,8 @@ function RuleNewRouteComponent() {
       formPath={presetQuery === "" ? formPath : `${formPath}?${presetQuery}`}
       mode="new"
       onDone={done}
-      rulesPath="/rules"
-      submitPath="/rules.json"
+      rulesPath="/api/v1/rules"
+      submitPath="/api/v1/rules"
     />
   );
 }
@@ -890,11 +973,11 @@ function RuleEditRouteComponent() {
   return (
     <RuleFormPage
       bootstrap={bootstrap}
-      formPath={`/rules/${encodeURIComponent(ruleId)}/edit.json`}
+      formPath={`/api/v1/rules/${encodeURIComponent(ruleId)}/form_options`}
       mode="edit"
       onDone={done}
-      rulesPath="/rules"
-      submitPath={`/rules/${encodeURIComponent(ruleId)}.json`}
+      rulesPath="/api/v1/rules"
+      submitPath={`/api/v1/rules/${encodeURIComponent(ruleId)}`}
     />
   );
 }
@@ -913,7 +996,7 @@ function RuleConfirmRouteComponent() {
   const back = useDialogClose("/rules");
   useEffect(() => {
     let cancelled = false;
-    fetchRuleConfirm(`/rules/${encodeURIComponent(ruleId)}/confirm.json`)
+    fetchRuleConfirm(`/api/v1/rules/${encodeURIComponent(ruleId)}/confirm`)
       .then((payload) => {
         if (!cancelled) setConfirm(payload);
       })
@@ -947,7 +1030,7 @@ function RuleConfirmRouteComponent() {
         <ApplyConfirmDialog
           confirm={confirm}
           onApply={() => {
-            applyRule(`/rules/${encodeURIComponent(ruleId)}/apply`)
+            applyRule(`/api/v1/rules/${encodeURIComponent(ruleId)}/apply`)
               .then(() => invalidateRulesQueries(queryClient))
               .then(back)
               .catch(() => {
@@ -975,7 +1058,7 @@ function RuleConfirmAllRouteComponent() {
   const back = useDialogClose("/rules");
   useEffect(() => {
     let cancelled = false;
-    fetchConfirmAll("/rules/confirm_all.json")
+    fetchConfirmAll("/api/v1/rules/confirm_all")
       .then((payload) => {
         if (!cancelled) setConfirm(payload);
       })
@@ -1009,7 +1092,7 @@ function RuleConfirmAllRouteComponent() {
         <ApplyAllDialog
           confirm={confirm}
           onApply={() => {
-            applyAllRules("/rules/apply_all")
+            applyAllRules("/api/v1/rules/apply_all")
               .then(() => invalidateRulesQueries(queryClient))
               .then(back)
               .catch(() => {
@@ -1061,13 +1144,19 @@ const chatDetailRoute = createRoute({
 });
 
 function ChatTitleEditRouteModal({ chatId, onClose }: { chatId: ChatId; onClose: () => void }) {
+  const queryClient = useQueryClient();
   const query = useQuery(chatDetailQueryOptions(chatId));
   if (!query.data) return null;
   return (
     <ChatTitleEditDialog
       chat={{ id: chatId, title: query.data.title }}
       onClose={onClose}
-      onSaved={onClose}
+      onSaved={() => {
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["spa", "chat", chatId] }),
+          queryClient.invalidateQueries({ queryKey: ["spa", "chats"] }),
+        ]).then(onClose);
+      }}
     />
   );
 }
@@ -1107,7 +1196,12 @@ const routeTree = rootRoute.addChildren([
     providerReplacementRoute,
   ]),
   transactionsRoute.addChildren([
-    transactionDetailRoute.addChildren([splitNewRoute, splitEditRoute, transferMatchRoute]),
+    transactionDetailRoute.addChildren([
+      splitNewRoute,
+      splitEditRoute,
+      transferMatchRoute,
+      transactionConversionRoute,
+    ]),
     transferDetailRoute,
     newTransactionRoute,
     bulkUpdateTransactionRoute,
@@ -1142,6 +1236,11 @@ const routeTree = rootRoute.addChildren([
   propertyAddressRoute,
   propertyEditRoute,
   standaloneTransferRoute,
+  newTransferRoute,
+  providerNewRoute,
+  providerEditRoute,
+  providerSetupRoute,
+  providerManageRoute,
   newValuationRoute,
   valuationRoute,
   lifetimeProjectionRoute,

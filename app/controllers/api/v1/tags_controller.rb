@@ -2,128 +2,83 @@
 
 module Api
   module V1
-    # API v1 endpoint for tags
-    # Provides full CRUD operations for family tags
-    #
-    # @example List all tags
-    #   GET /api/v1/tags
-    #
-    # @example Create a new tag
-    #   POST /api/v1/tags
-    #   { "tag": { "name": "WhiteHouse", "color": "#3b82f6" } }
-    #
     class TagsController < BaseController
-      before_action -> { authorize_scope!(:read) }, only: %i[index show]
-      before_action -> { authorize_scope!(:read_write) }, only: %i[create update destroy]
-      before_action :set_tag, only: %i[show update destroy]
+      before_action -> { authorize_scope!(:read) }, only: %i[index show form_options]
+      before_action -> { authorize_scope!(:read_write) }, except: %i[index show form_options]
+      before_action :set_tag, only: %i[show update destroy replacement]
 
-      # List all tags belonging to the family
-      #
-      # @return [Array<Hash>] JSON array of tag objects sorted alphabetically
+      rescue_from ActiveRecord::RecordInvalid, ActiveRecord::RecordNotDestroyed, with: :render_record_error
+
       def index
-        family = current_resource_owner.family
-        @tags = family.tags.alphabetically
-
-        render json: @tags.map { |t| tag_json(t) }
-      rescue StandardError => e
-        Rails.logger.error("API Tags Error: #{e.message}")
-        render json: { error: "Failed to fetch tags" }, status: :internal_server_error
+        tags = family.tags.alphabetically.to_a
+        if params[:include].to_s.split(",").include?("workspace")
+          counts = visible_transaction_counts(tags.map(&:id))
+          render json: { tags: tags.map { |tag| tag_json(tag) }, workspace: { tags: tags.map { |tag| tag_json(tag).merge(transactions_count: counts[tag.id] || 0) }, colors: Tag::COLORS } }
+        else
+          render json: tags.map { |tag| tag_json(tag) }
+        end
       end
 
-      # Get a specific tag by ID
-      #
-      # @param id [String] The tag ID
-      # @return [Hash] JSON tag object
       def show
         render json: tag_json(@tag)
-      rescue StandardError => e
-        Rails.logger.error("API Tag Show Error: #{e.message}")
-        render json: { error: "Failed to fetch tag" }, status: :internal_server_error
       end
 
-      # Create a new tag for the family
-      #
-      # @param name [String] Tag name (required)
-      # @param color [String] Hex color code (optional, auto-assigned if not provided)
-      # @return [Hash] JSON tag object with status 201
+      def form_options
+        tag = params[:id].present? ? family.tags.find(params[:id]) : family.tags.new(color: Tag::COLORS.sample)
+        render json: { tag: { id: tag.id, name: tag.name, color: tag.color }, colors: Tag::COLORS }
+      end
+
       def create
-        family = current_resource_owner.family
-        @tag = family.tags.new(tag_params)
-
-        # Assign random color if not provided
-        @tag.color ||= Tag::COLORS.sample
-
-        if @tag.save
-          render json: tag_json(@tag), status: :created
-        else
-          render json: { error: @tag.errors.full_messages.join(", ") }, status: :unprocessable_entity
-        end
-      rescue StandardError => e
-        Rails.logger.error("API Tag Create Error: #{e.message}")
-        render json: { error: "Failed to create tag" }, status: :internal_server_error
+        tag = family.tags.new(tag_params)
+        tag.color ||= Tag::COLORS.sample
+        tag.save!
+        render json: tag_json(tag).merge(transactions_count: 0), status: :created
       end
 
-      # Update an existing tag
-      #
-      # @param id [String] The tag ID
-      # @param name [String] New tag name (optional)
-      # @param color [String] New hex color code (optional)
-      # @return [Hash] JSON tag object
       def update
-        if @tag.update(tag_params)
-          render json: tag_json(@tag)
-        else
-          render json: { error: @tag.errors.full_messages.join(", ") }, status: :unprocessable_entity
-        end
-      rescue StandardError => e
-        Rails.logger.error("API Tag Update Error: #{e.message}")
-        render json: { error: "Failed to update tag" }, status: :internal_server_error
+        @tag.update!(tag_params)
+        render json: tag_json(@tag).merge(transactions_count: visible_transaction_counts([ @tag.id ])[@tag.id] || 0)
       end
-
-      # Delete a tag
-      #
-      # @param id [String] The tag ID
-      # @return [nil] Empty response with status 204
       def destroy
         @tag.destroy!
         head :no_content
-      rescue StandardError => e
-        Rails.logger.error("API Tag Destroy Error: #{e.message}")
-        render json: { error: "Failed to delete tag" }, status: :internal_server_error
+      end
+      def replacement
+        replacement = family.tags.find(params[:replacement_tag_id]) if params[:replacement_tag_id].present?
+        @tag.replace_and_destroy!(replacement)
+        render json: { ok: true }
+      end
+
+      def destroy_all
+        Tag.transaction { family.tags.each(&:destroy!) }
+        render json: { ok: true }
       end
 
       private
-
-        # Find and set the tag from params
-        #
-        # @raise [ActiveRecord::RecordNotFound] if tag not found
-        # @return [Tag] The found tag
-        def set_tag
-          family = current_resource_owner.family
-          @tag = family.tags.find(params[:id])
-        rescue ActiveRecord::RecordNotFound
-          render json: { error: "Tag not found" }, status: :not_found
+        def family
+          current_resource_owner.family
         end
 
-        # Strong parameters for tag creation/update
-        #
-        # @return [ActionController::Parameters] Permitted parameters
+        def set_tag
+          @tag = family.tags.find(params[:id])
+        end
+
         def tag_params
           params.require(:tag).permit(:name, :color)
         end
 
-        # Serialize a tag to JSON format
-        #
-        # @param tag [Tag] The tag to serialize
-        # @return [Hash] JSON-serializable hash
+        def visible_transaction_counts(tag_ids)
+          transactions = family.transactions.joins(:entry)
+            .where(entries: { account_id: family.accounts.accessible_by(current_resource_owner).select(:id) })
+          Tagging.where(tag_id: tag_ids, taggable_type: "Transaction", taggable_id: transactions.select(:id)).group(:tag_id).count
+        end
+
         def tag_json(tag)
-          {
-            id: tag.id,
-            name: tag.name,
-            color: tag.color,
-            created_at: tag.created_at,
-            updated_at: tag.updated_at
-          }
+          { id: tag.id, name: tag.name, color: tag.color, created_at: tag.created_at, updated_at: tag.updated_at }
+        end
+
+        def render_record_error(error)
+          render json: { error: "unprocessable_entity", message: error.record.errors.full_messages.to_sentence, errors: error.record.errors.full_messages }, status: :unprocessable_entity
         end
     end
   end

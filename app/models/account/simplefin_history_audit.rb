@@ -20,6 +20,16 @@ class Account::SimplefinHistoryAudit
     @account, @user = account, user
   end
 
+  def metadata
+    authorize!
+    {
+      account: account.slice(:id, :name, :currency),
+      default_period_days: MAX_PERIOD_DAYS,
+      max_period_days: MAX_PERIOD_DAYS,
+      text: I18n.t("accounts.simplefin_history_audit")
+    }
+  end
+
   def call(period_days: nil, cursor: nil)
     authorize!
     load_providers!

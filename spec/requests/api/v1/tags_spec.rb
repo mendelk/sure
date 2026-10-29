@@ -50,9 +50,17 @@ RSpec.describe 'API V1 Tags', type: :request do
       tags 'Tags'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
+      parameter name: :include, in: :query, required: false, schema: { type: :string, enum: [ 'workspace' ] },
+                description: 'Returns {tags, workspace: {tags with transactions_count, colors}} instead of the default array. All family taxonomy remains visible; counts include only transactions in accounts accessible to the authenticated user.'
 
       response '200', 'tags listed' do
-        schema '$ref' => '#/components/schemas/TagCollection'
+        schema oneOf: [
+          { '$ref' => '#/components/schemas/TagCollection' },
+          { type: :object, required: %w[tags workspace], properties: {
+            tags: { type: :array, items: { '$ref' => '#/components/schemas/TagDetail' } },
+            workspace: { '$ref' => '#/components/schemas/TagWorkspace' }
+          } }
+        ]
 
         run_test!
       end
@@ -208,6 +216,52 @@ RSpec.describe 'API V1 Tags', type: :request do
 
         run_test!
       end
+    end
+  end
+  path '/api/v1/tags/form_options' do
+    get 'Get tag editor options' do
+      tags 'Tags'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      parameter name: :id, in: :query, required: false, schema: { type: :string, format: :uuid }
+      response '200', 'tag form options' do
+        schema '$ref' => '#/components/schemas/TagFormOptions'
+        run_test! skip: 'Documentation only; behavior covered by Minitest'
+      end
+      response('404', 'tag outside family or missing') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+    end
+  end
+
+  path '/api/v1/tags/destroy_all' do
+    delete 'Delete every family tag' do
+      tags 'Tags'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      response '200', 'tags deleted' do
+        schema '$ref' => '#/components/schemas/MetadataMutationResult'
+        run_test! skip: 'Documentation only; behavior covered by Minitest'
+      end
+      response('403', 'read-only key') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+    end
+  end
+
+  path '/api/v1/tags/{id}/replacement' do
+    parameter name: :id, in: :path, required: true, schema: { type: :string, format: :uuid }
+    post 'Delete a tag and replace its assignments' do
+      tags 'Tags'
+      security [ { apiKeyAuth: [] } ]
+      consumes 'application/json'
+      produces 'application/json'
+      parameter name: :body, in: :body, required: false, schema: {
+        type: :object, properties: { replacement_tag_id: { type: :string, format: :uuid, nullable: true } }
+      }
+      response '200', 'tag replaced and deleted' do
+        schema '$ref' => '#/components/schemas/MetadataMutationResult'
+        run_test! skip: 'Documentation only; behavior covered by Minitest'
+      end
+      response('403', 'read-only key') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+      response('404', 'tag or replacement outside family') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+      response('422', 'self replacement is invalid') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
     end
   end
 end

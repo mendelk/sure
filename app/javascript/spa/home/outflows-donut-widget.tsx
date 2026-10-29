@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod/mini";
+import { apiFetch } from "../api/client";
 import { useSpaPaths } from "../api/paths";
 import { CategoryIcon } from "../icon";
 import { HomeApiError } from "./home-api";
@@ -45,9 +46,7 @@ function outflowsQueryOptions(basePath: string) {
   return {
     queryKey: ["spa", "home", "outflows", basePath] as const,
     queryFn: async ({ signal }: { signal?: AbortSignal }): Promise<OutflowsData> => {
-      const response = await fetch(basePath, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
+      const response = await apiFetch(basePath, {
         signal,
       });
       const payload: unknown = await response.json().catch(() => null);

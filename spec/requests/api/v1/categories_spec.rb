@@ -63,6 +63,8 @@ RSpec.describe 'API V1 Categories', type: :request do
       tags 'Categories'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
+      parameter name: :include, in: :query, required: false, schema: { type: :string, enum: [ 'workspace' ] },
+                description: 'Adds the complete hierarchy, transaction usage, colors and icons in workspace, independently of pagination.'
       parameter name: :page, in: :query, type: :integer, required: false,
                 description: 'Page number (default: 1)'
       parameter name: :per_page, in: :query, type: :integer, required: false,
@@ -120,6 +122,7 @@ RSpec.describe 'API V1 Categories', type: :request do
     end
 
     post 'Create category' do
+      description 'Creates a family category. Optional transaction_id atomically assigns it to an accessible annotatable transaction, records recent usage and locks the manual category assignment. Transfer-owned categories cannot be changed.'
       tags 'Categories'
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'
@@ -214,6 +217,7 @@ RSpec.describe 'API V1 Categories', type: :request do
       tags 'Categories'
       security [ { apiKeyAuth: [] } ]
       produces 'application/json'
+      parameter name: :include, in: :query, required: false, schema: { type: :string, enum: [ 'workspace' ] }
 
       let(:id) { parent_category.id }
 
@@ -240,13 +244,22 @@ RSpec.describe 'API V1 Categories', type: :request do
       end
     end
 
+    delete 'Delete a category without replacement' do
+      tags 'Categories'
+      security [ { apiKeyAuth: [] } ]
+      response('204', 'category deleted') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+      response('403', 'read-only key') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+      response('404', 'category not found') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+    end
+
     %i[patch put].each do |method|
       public_send(method, 'Update category metadata') do
         tags 'Categories'
-        description 'Requires read_write scope. Updates color and/or icon without changing the name or hierarchy. Omitted fields are preserved; subcategory updates inherit the parent color.'
+        description 'Requires read_write scope. Rename, reparent (parent_id null removes the parent), recolor or change icon. Enforces family tenancy and two-level hierarchy; subcategories inherit parent colors. include=workspace adds the display row.'
         security [ { apiKeyAuth: [] } ]
         consumes 'application/json'
         produces 'application/json'
+        parameter name: :include, in: :query, required: false, schema: { type: :string, enum: [ 'workspace' ] }
         parameter name: :body, in: :body, required: true, schema: {
           '$ref' => '#/components/schemas/CategoryUpdateRequest'
         }
@@ -309,6 +322,61 @@ RSpec.describe 'API V1 Categories', type: :request do
 
           run_test! skip: "Documentation only; behavior covered by Minitest"
         end
+      end
+    end
+  end
+  path '/api/v1/categories/form_options' do
+    get 'Get category editor options' do
+      tags 'Categories'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      parameter name: :id, in: :query, required: false, schema: { type: :string, format: :uuid },
+                description: 'Existing family category; omit for a new category and random default color.'
+      response '200', 'category options' do
+        schema '$ref' => '#/components/schemas/CategoryFormOptions'
+        run_test! skip: 'Documentation only; behavior covered by Minitest'
+      end
+      response('404', 'category outside family or missing') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+    end
+  end
+
+  path '/api/v1/categories/{id}/replacement' do
+    parameter name: :id, in: :path, required: true, schema: { type: :string, format: :uuid }
+    post 'Delete a category and replace its transaction assignments' do
+      tags 'Categories'
+      security [ { apiKeyAuth: [] } ]
+      consumes 'application/json'
+      produces 'application/json'
+      parameter name: :body, in: :body, required: false, schema: {
+        type: :object, properties: { replacement_category_id: { type: :string, format: :uuid, nullable: true } }
+      }
+      response '200', 'category replaced and deleted' do
+        schema '$ref' => '#/components/schemas/MetadataMutationResult'
+        run_test! skip: 'Documentation only; behavior covered by Minitest'
+      end
+      response('403', 'read-only key') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+      response('404', 'category or replacement outside family') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+      response('422', 'invalid replacement') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+    end
+  end
+
+  { '/api/v1/categories/destroy_all' => :delete, '/api/v1/categories/bootstrap' => :post, '/api/v1/categories/merge' => :post }.each do |route, method|
+    path route do
+      public_send(method, route.end_with?('bootstrap') ? 'Create missing default categories' : (method == :delete ? 'Delete every family category' : 'Merge categories')) do
+        tags 'Categories'
+        security [ { apiKeyAuth: [] } ]
+        produces 'application/json'
+        if route.end_with?('/merge')
+          consumes 'application/json'
+          parameter name: :body, in: :body, required: true, schema: { '$ref' => '#/components/schemas/MetadataMergeRequest' }
+        end
+        response '200', 'operation completed' do
+          schema '$ref' => '#/components/schemas/MetadataMutationResult'
+          run_test! skip: 'Documentation only; behavior covered by Minitest'
+        end
+        response('403', 'read-only key') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+        response('404', 'merge category outside family') { run_test! skip: 'Documentation only; behavior covered by Minitest' } if route.end_with?('/merge')
+        response('422', 'invalid operation or hierarchy') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
       end
     end
   end

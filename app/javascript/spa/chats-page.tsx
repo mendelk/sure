@@ -12,6 +12,7 @@ import {
   createMessageRequest,
   deleteChatRequest,
   enableAiRequest,
+  markChatViewedRequest,
   newChatQueryOptions,
   reportMessageTimeoutRequest,
   retryChatRequest,
@@ -59,6 +60,8 @@ const CHATS_TEXT = {
     "Ask questions about your finances, analyze spending trends, and get personalized insights.",
   enableAiButton: "Enable AI Chats",
   enableAiNote: "You can disable this at any time in your profile settings.",
+  aiUnavailable:
+    "AI is not available for your account. Configure an AI provider before enabling chats.",
   workerUnhealthy:
     "The background worker that delivers AI responses appears to be down or backed up. Responses may take longer than usual.",
   demoWarningTitle: "Demo Workspace",
@@ -88,26 +91,11 @@ export function AiAvatar() {
   );
 }
 
-function AiConsentCard({
-  userId,
-  onEnabled,
-}: {
-  userId?: string;
-  onEnabled: () => void;
-}) {
-  const [loading, setLoading] = useState(false);
-
-  const handleEnable = () => {
-    if (typeof userId !== "string" || userId.length === 0) return;
-    setLoading(true);
-    void enableAiRequest(userId)
-      .then(() => {
-        onEnabled();
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  };
+function AiConsentCard({ available, onEnabled }: { available: boolean; onEnabled: () => void }) {
+  const mutation = useMutation({
+    mutationFn: enableAiRequest,
+    onSuccess: onEnabled,
+  });
 
   return (
     <div className="mx-auto max-w-md rounded-xl bg-container p-6 shadow-border-xs text-center">
@@ -116,7 +104,15 @@ function AiConsentCard({
       </div>
       <h3 className="mb-2 text-base font-medium text-primary">{CHATS_TEXT.enableAiTitle}</h3>
       <p className="mb-6 text-sm text-secondary">{CHATS_TEXT.enableAiDesc}</p>
-      <Button disabled={loading} fullWidth onClick={handleEnable}>
+      {!available ? <Alert variant="warning">{CHATS_TEXT.aiUnavailable}</Alert> : null}
+      {mutation.isError ? <Alert variant="error">{mutation.error.message}</Alert> : null}
+      <Button
+        disabled={mutation.isPending || !available}
+        fullWidth
+        onClick={() => {
+          mutation.mutate();
+        }}
+      >
         {CHATS_TEXT.enableAiButton}
       </Button>
       <p className="mt-3 text-xs text-secondary">{CHATS_TEXT.enableAiNote}</p>
@@ -290,9 +286,7 @@ export function ChatTitleEditDialog({
           }}
           value={title}
         />
-        {mutation.isError ? (
-          <Alert variant="error">{mutation.error.message}</Alert>
-        ) : null}
+        {mutation.isError ? <Alert variant="error">{mutation.error.message}</Alert> : null}
         <div className="flex justify-end gap-2">
           <Button onClick={onClose} variant="secondary">
             {CHATS_TEXT.cancel}
@@ -323,7 +317,7 @@ export function ChatsIndexPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (content: string) => createChatRequest({ content }),
+    mutationFn: (content: string) => createChatRequest({ message: content }),
     onSuccess: (detail) => {
       void queryClient.invalidateQueries({ queryKey: ["spa", "chats"] });
       void navigate({ to: "/chats/$chatId", params: { chatId: detail.id } });
@@ -334,6 +328,7 @@ export function ChatsIndexPage() {
     return (
       <section className="p-4">
         <AiConsentCard
+          available={query.data.ai_available}
           onEnabled={() => {
             void query.refetch();
           }}
@@ -347,6 +342,13 @@ export function ChatsIndexPage() {
 
   return (
     <section className="flex h-full flex-col space-y-4">
+      {query.isError ? <Alert variant="error">{query.error.message}</Alert> : null}
+      {createMutation.isError ? (
+        <Alert variant="error">{createMutation.error.message}</Alert>
+      ) : null}
+      {deleteMutation.isError ? (
+        <Alert variant="error">{deleteMutation.error.message}</Alert>
+      ) : null}
       {data?.demo_warning === true ? (
         <Alert variant="warning">
           <strong>{CHATS_TEXT.demoWarningTitle}</strong> — {CHATS_TEXT.demoWarningMessage}
@@ -376,9 +378,7 @@ export function ChatsIndexPage() {
                 to="/chats/$chatId"
               >
                 <p className="truncate text-sm font-medium text-primary">{chat.title}</p>
-                <p className="mt-1 text-xs text-secondary">
-                  {formatRelativeTime(chat.updated_at)}
-                </p>
+                <p className="mt-1 text-xs text-secondary">{formatRelativeTime(chat.updated_at)}</p>
               </Link>
               <div className="flex items-center gap-1">
                 <IconButton
@@ -408,7 +408,7 @@ export function ChatsIndexPage() {
           />
           <div className="mt-auto px-2">
             <ChatInputBar
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || data?.ai_enabled !== true}
               initialContent={promptSeed}
               key={promptSeed}
               onSubmit={(content) => {
@@ -474,6 +474,7 @@ export function ChatDetailPage({ chatId }: { chatId: ChatId }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const viewedChatRef = useRef<ChatId | null>(null);
 
   const query = useQuery({
     ...chatDetailQueryOptions(chatId),
@@ -488,6 +489,14 @@ export function ChatDetailPage({ chatId }: { chatId: ChatId }) {
   const [editTitleOpen, setEditTitleOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const viewMutation = useMutation({ mutationFn: markChatViewedRequest });
+  const markViewed = viewMutation.mutate;
+
+  useEffect(() => {
+    if (query.data?.id !== chatId || viewedChatRef.current === chatId) return;
+    viewedChatRef.current = chatId;
+    markViewed(chatId);
+  }, [chatId, query.data?.id, markViewed]);
 
   const sendMessageMutation = useMutation({
     mutationFn: (content: string) => createMessageRequest(chatId, { content }),
@@ -521,13 +530,13 @@ export function ChatDetailPage({ chatId }: { chatId: ChatId }) {
     if (messagesCount > 0) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messagesCount]);
 
-  // Watchdog: detect pending message that timed out (>90s)
+  // Polling keeps the watchdog active after an early report is declined.
   useEffect(() => {
     if (!chat) return;
     const pendingMsg = chat.messages.find((m) => m.pending);
     if (!pendingMsg) return;
-    const ageSeconds = (Date.now() - Date.parse(pendingMsg.created_at)) / 1000;
-    if (ageSeconds > 90) {
+    const ageMs = Date.now() - Date.parse(pendingMsg.created_at);
+    if (ageMs > chat.response_timeout_ms) {
       void reportMessageTimeoutRequest(chatId, pendingMsg.id).then((ok) => {
         if (ok) void query.refetch();
       });
@@ -536,6 +545,15 @@ export function ChatDetailPage({ chatId }: { chatId: ChatId }) {
 
   return (
     <section className="flex h-full flex-col">
+      {query.isError ? <Alert variant="error">{query.error.message}</Alert> : null}
+      {sendMessageMutation.isError ? (
+        <Alert variant="error">{sendMessageMutation.error.message}</Alert>
+      ) : null}
+      {retryMutation.isError ? <Alert variant="error">{retryMutation.error.message}</Alert> : null}
+      {deleteMutation.isError ? (
+        <Alert variant="error">{deleteMutation.error.message}</Alert>
+      ) : null}
+      {viewMutation.isError ? <Alert variant="error">{viewMutation.error.message}</Alert> : null}
       {/* Top navigation */}
       <div className="flex items-center justify-between border-b border-tertiary pb-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -611,7 +629,9 @@ export function ChatDetailPage({ chatId }: { chatId: ChatId }) {
           const isUser = message.role === "user";
           return (
             <div
-              className={isUser ? "ml-auto max-w-[85%] w-fit" : "flex items-start gap-3 max-w-[85%]"}
+              className={
+                isUser ? "ml-auto max-w-[85%] w-fit" : "flex items-start gap-3 max-w-[85%]"
+              }
               key={message.id}
             >
               {!isUser ? <AiAvatar /> : null}
@@ -628,7 +648,10 @@ export function ChatDetailPage({ chatId }: { chatId: ChatId }) {
                   <details className="group rounded-lg bg-surface-inset p-2">
                     <summary className="flex cursor-pointer items-center gap-2 text-xs font-medium text-secondary">
                       <span>{CHATS_TEXT.assistantReasoning}</span>
-                      <Icon className="size-3 group-open:rotate-180 transition-transform" name="chevron-down" />
+                      <Icon
+                        className="size-3 group-open:rotate-180 transition-transform"
+                        name="chevron-down"
+                      />
                     </summary>
                     <div className="prose max-w-none wrap-break-word text-sm text-primary mt-2">
                       <Markdown remarkPlugins={[remarkGfm]}>{message.content}</Markdown>
@@ -639,14 +662,24 @@ export function ChatDetailPage({ chatId }: { chatId: ChatId }) {
                     {message.tool_calls.length > 0 ? (
                       <details className="group mb-2 rounded-lg bg-surface-inset p-2">
                         <summary className="flex cursor-pointer items-center gap-2 text-xs font-medium text-secondary">
-                          <Icon className="size-3 group-open:rotate-90 transition-transform" name="chevron-right" />
+                          <Icon
+                            className="size-3 group-open:rotate-90 transition-transform"
+                            name="chevron-right"
+                          />
                           <span>{CHATS_TEXT.toolCalls}</span>
                         </summary>
                         <div className="mt-2 space-y-2">
                           {message.tool_calls.map((tc) => (
-                            <div className="rounded-md border border-tertiary p-2 text-xs font-mono" key={tc.id}>
-                              <p className="font-semibold text-secondary">{CHATS_TEXT.functionLabel}: {tc.function_name}</p>
-                              <pre className="mt-1 whitespace-pre-wrap text-primary">{tc.function_arguments}</pre>
+                            <div
+                              className="rounded-md border border-tertiary p-2 text-xs font-mono"
+                              key={tc.id}
+                            >
+                              <p className="font-semibold text-secondary">
+                                {CHATS_TEXT.functionLabel}: {tc.function_name}
+                              </p>
+                              <pre className="mt-1 whitespace-pre-wrap text-primary">
+                                {tc.function_arguments}
+                              </pre>
                             </div>
                           ))}
                         </div>
@@ -684,7 +717,12 @@ export function ChatDetailPage({ chatId }: { chatId: ChatId }) {
       {/* Sticky bottom input */}
       <div className="sticky bottom-0 bg-surface pt-2">
         <ChatInputBar
-          disabled={sendMessageMutation.isPending || chat?.needs_response === true}
+          disabled={
+            !chat ||
+            sendMessageMutation.isPending ||
+            chat.needs_response ||
+            messages.some((message) => message.pending)
+          }
           onSubmit={(content) => {
             sendMessageMutation.mutate(content);
           }}
@@ -750,15 +788,31 @@ export function ChatNewPage() {
   const [promptSeed, setPromptSeed] = useState("");
 
   const createMutation = useMutation({
-    mutationFn: (content: string) => createChatRequest({ content }),
+    mutationFn: (content: string) => createChatRequest({ message: content }),
     onSuccess: (detail) => {
       void queryClient.invalidateQueries({ queryKey: ["spa", "chats"] });
       void navigate({ to: "/chats/$chatId", params: { chatId: detail.id } });
     },
   });
+  if (query.data && !query.data.ai_enabled) {
+    return (
+      <section className="p-4">
+        <AiConsentCard
+          available={query.data.ai_available}
+          onEnabled={() => {
+            void queryClient.invalidateQueries({ queryKey: ["spa", "chats"] });
+          }}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className="flex h-full flex-col justify-between py-4">
+      {query.isError ? <Alert variant="error">{query.error.message}</Alert> : null}
+      {createMutation.isError ? (
+        <Alert variant="error">{createMutation.error.message}</Alert>
+      ) : null}
       <div className="flex items-center justify-between border-b border-tertiary pb-3">
         <div className="flex items-center gap-3">
           <Link
@@ -783,7 +837,7 @@ export function ChatNewPage() {
 
       <div className="px-2">
         <ChatInputBar
-          disabled={createMutation.isPending}
+          disabled={createMutation.isPending || query.data?.ai_enabled !== true}
           initialContent={promptSeed}
           key={promptSeed}
           onSubmit={(content) => {

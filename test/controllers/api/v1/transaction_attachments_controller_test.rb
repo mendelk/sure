@@ -107,4 +107,51 @@ class Api::V1::TransactionAttachmentsControllerTest < ActionDispatch::Integratio
       headers: api_headers(@read_only_api_key)
     assert_response :redirect
   end
+  test "show supports inline and attachment binary navigation" do
+    @transaction.attachments.attach(pdf_upload)
+    attachment = @transaction.attachments.first
+    %w[inline attachment].each do |disposition|
+      get api_v1_transaction_attachment_url(@transaction, attachment),
+        params: { disposition: disposition }, headers: api_headers(@read_only_api_key)
+      assert_response :found
+      assert_includes response.location, "disposition=#{disposition}"
+    end
+  end
+
+  test "annotators can upload but only full control can delete" do
+    @account.update!(owner: users(:family_member))
+    share = @account.account_shares.create!(user: @user, permission: "read_only")
+    post api_v1_transaction_attachments_url(@transaction), params: { attachment: pdf_upload }, headers: api_headers(@api_key)
+    assert_response :forbidden
+    share.update!(permission: "read_write")
+    post api_v1_transaction_attachments_url(@transaction), params: { attachment: pdf_upload }, headers: api_headers(@api_key)
+    assert_response :created
+    attachment = @transaction.reload.attachments.first
+    delete api_v1_transaction_attachment_url(@transaction, attachment), headers: api_headers(@api_key)
+    assert_response :forbidden
+    assert attachment.reload.present?
+    share.update!(permission: "full_control")
+    delete api_v1_transaction_attachment_url(@transaction, attachment), headers: api_headers(@api_key)
+    assert_response :success
+  end
+
+  test "attachments are hidden for inaccessible transactions" do
+    @transaction.attachments.attach(pdf_upload)
+    attachment = @transaction.attachments.first
+    @account.update!(owner: users(:family_member))
+    @account.account_shares.where(user: @user).destroy_all
+    get api_v1_transaction_attachment_url(@transaction, attachment), headers: api_headers(@api_key)
+    assert_response :not_found
+    post api_v1_transaction_attachments_url(@transaction), params: { attachment: pdf_upload }, headers: api_headers(@api_key)
+    assert_response :not_found
+    delete api_v1_transaction_attachment_url(@transaction, attachment), headers: api_headers(@api_key)
+    assert_response :not_found
+  end
+
+  test "upload validates selected files and requires authentication" do
+    post api_v1_transaction_attachments_url(@transaction), headers: api_headers(@api_key)
+    assert_response :unprocessable_entity
+    post api_v1_transaction_attachments_url(@transaction), params: { attachment: pdf_upload }
+    assert_response :unauthorized
+  end
 end

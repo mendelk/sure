@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 class Api::V1::InsightsController < Api::V1::BaseController
-  before_action :ensure_read_scope
+  before_action :ensure_read_scope, only: :index
+  before_action :ensure_write_scope, only: :acknowledge
   before_action :require_preview_features_for_api
 
   def index
@@ -10,6 +11,12 @@ class Api::V1::InsightsController < Api::V1::BaseController
     render json: {
       insights: insights.map { |insight| serialize(insight) }
     }
+  end
+
+  def acknowledge
+    insight = current_resource_owner.family.insights.find(params[:id])
+    insight.acknowledge!
+    render json: { insight: serialize(insight) }
   end
 
   private

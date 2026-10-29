@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod/mini";
-import { readCsrfToken } from "../api/transactions";
+import { apiFetch } from "../api/client";
 
 const HomeMoneySchema = z.object({
   amount: z.string(),
@@ -214,9 +214,7 @@ export class HomeApiError extends Error {
 }
 
 async function requestHome(path: string, signal?: AbortSignal) {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
+  const response = await apiFetch(path, {
     signal,
   });
   const payload: unknown = await response.json().catch(() => null);
@@ -242,10 +240,8 @@ export function useHomeWidgetsQuery(path: string) {
 }
 
 export async function acknowledgeHomeInsight(path: string): Promise<void> {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     method: "PATCH",
-    credentials: "same-origin",
-    headers: { Accept: "application/json", "X-CSRF-Token": readCsrfToken() },
   });
   if (!response.ok)
     throw new HomeApiError(`Acknowledge failed (${response.status})`, response.status);

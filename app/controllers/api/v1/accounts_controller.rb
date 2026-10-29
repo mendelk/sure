@@ -2,6 +2,7 @@
 
 class Api::V1::AccountsController < Api::V1::BaseController
   include Pagy::Backend
+  include AccountWorkspaceData
 
   ACCOUNT_TYPES = Accountable::TYPES.index_by(&:underscore).freeze
   # Per-type accountable fields accepted under the `accountable` key. `:subtype`
@@ -20,8 +21,10 @@ class Api::V1::AccountsController < Api::V1::BaseController
     "OtherLiability" => %i[subtype]
   }.freeze
 
-  before_action :ensure_read_scope, only: %i[index show]
-  before_action :ensure_write_scope, only: %i[create update]
+  before_action :ensure_read_scope, only: %i[index show provider_options]
+  before_action :ensure_write_scope, only: %i[create update status sync destroy set_default remove_default unlink]
+  before_action :set_lifecycle_account, only: %i[status sync destroy set_default remove_default provider_options unlink]
+  before_action :ensure_manageable_account, only: %i[status destroy provider_options unlink]
 
   def index
     @per_page = safe_per_page_param
@@ -32,6 +35,10 @@ class Api::V1::AccountsController < Api::V1::BaseController
       limit: @per_page
     )
 
+    if include_workspace?
+      build_index_workspace
+      @workspace = index_spa_payload
+    end
     render :index
   rescue => e
     Rails.logger.error "AccountsController#index error: #{e.message}"
@@ -54,6 +61,11 @@ class Api::V1::AccountsController < Api::V1::BaseController
 
     @account = accounts_scope.find(params[:id])
 
+    if include_workspace?
+      set_workspace_period
+      build_detail_workspace
+      @workspace = @account_page_data.as_json
+    end
     render :show
   rescue ActiveRecord::RecordNotFound
     render json: {
@@ -118,6 +130,7 @@ class Api::V1::AccountsController < Api::V1::BaseController
     end
 
     @account = accounts_scope.find(params[:id])
+    return unless ensure_manageable_account
 
     attrs = account_params.to_h.deep_symbolize_keys
     # Updating a balance actually changes the current valuation (which also
@@ -193,7 +206,117 @@ class Api::V1::AccountsController < Api::V1::BaseController
     }, status: :internal_server_error
   end
 
+  def status
+    target = params.require(:status)
+    unless target.in?(%w[active disabled])
+      return render_validation_error("Status must be active or disabled")
+    end
+    @account.with_lock do
+      unless @account.status == target
+        unless @account.status.in?(%w[active disabled])
+          return render_validation_error("Only active or disabled accounts can change status")
+        end
+        target == "active" ? @account.enable! : @account.disable!
+      end
+    end
+    render :show
+  end
+
+  def sync
+    Account::Lifecycle.new(@account).request_sync
+    render :show, status: :accepted
+  end
+
+  def destroy
+    @account.with_lock do
+      return render_validation_error("Linked accounts must be unlinked before deletion") if @account.linked?
+
+      @account.destroy_later unless @account.pending_deletion?
+    end
+    head :no_content
+  end
+
+  def set_default
+    return render_validation_error("Account is not eligible as a transaction default") unless @account.eligible_for_transaction_default?
+
+    Current.user.update!(default_account: @account)
+    render :show
+  end
+
+  def remove_default
+    Current.user.update!(default_account: nil) if Current.user.default_account_id == @account.id
+    head :no_content
+  end
+
+  def provider_options
+    return render_validation_error("Account is already linked") if @account.linked?
+
+    providers = Provider::Factory.connection_configs_for_account_type(
+      account_type: @account.accountable_type, family: Current.family
+    ).filter_map do |config|
+      next unless config[:existing_account_path].present?
+
+      key = config[:key].to_s
+      region = key.in?(%w[plaid_us plaid_eu]) ? key.delete_prefix("plaid_") : nil
+      provider_key = region ? "plaid" : key
+      query = { account_id: @account.id, region: region }.compact.to_query
+      { name: config[:name], key: key, description: config[:description],
+        path: "/provider_connections/#{provider_key}/new?#{query}" }
+    end
+    render json: {
+      providers: providers,
+      text: {
+        title: I18n.t("accounts.select_provider.title"),
+        description: I18n.t("accounts.select_provider.description", account_name: @account.name),
+        no_providers: I18n.t("accounts.select_provider.no_providers")
+      }
+    }
+  end
+
+  def unlink
+    Account::Lifecycle.new(@account).unlink! if @account.linked?
+    render :show
+  rescue ActiveRecord::RecordInvalid => e
+    render_validation_error(e.record.errors.full_messages.join(", "))
+  end
+
+
   private
+    def family
+      Current.family
+    end
+
+    def include_workspace?
+      params[:include].to_s.split(",").include?("workspace")
+    end
+
+    def set_workspace_period
+      @period = if params[:start_date].present? && params[:end_date].present?
+        Period.custom(start_date: Date.parse(params[:start_date]), end_date: Date.parse(params[:end_date]))
+      else
+        key = params[:period].presence || Current.user.default_period
+        case key
+        when "current_month" then Period.current_month_for(Current.family)
+        when "last_month" then Period.last_month_for(Current.family)
+        else Period.from_key(key)
+        end
+      end
+    rescue ArgumentError, TypeError, ActiveModel::ValidationError, Period::InvalidKeyError
+      @period = Period.last_30_days
+    end
+
+    def set_lifecycle_account
+      raise ActiveRecord::RecordNotFound unless valid_uuid?(params[:id])
+      @account = Current.family.accounts.accessible_by(Current.user).find(params[:id])
+    end
+
+    def ensure_manageable_account
+      return true if @account.permission_for(Current.user).in?([ :owner, :full_control ])
+
+      render json: { error: "forbidden", message: "You do not have permission to manage this account" }, status: :forbidden
+      false
+    end
+
 
     def ensure_read_scope
       authorize_scope!(:read)
@@ -259,8 +382,8 @@ class Api::V1::AccountsController < Api::V1::BaseController
     def accounts_scope
       scope = current_resource_owner.family.accounts
                                     .accessible_by(current_resource_owner)
-                                    .includes(:accountable, account_providers: :provider)
-      include_disabled_accounts? ? scope : scope.visible
+                                    .includes(:accountable, :plaid_account, :simplefin_account, account_providers: :provider)
+      include_disabled_accounts? || include_workspace? || action_name == "update" ? scope : scope.visible
     end
 
     def include_disabled_accounts?

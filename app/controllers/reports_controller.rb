@@ -371,17 +371,18 @@ class ReportsController < ApplicationController
       # Apply filters (includes finance account scoping)
       transactions = apply_transaction_filters(transactions)
 
-      # Get trades in the period (matching income_statement logic)
+      # Trades have no stored category; report them under Other Investments.
       trades = Trade
         .joins(:entry)
         .joins(entry: :account)
         .where(accounts: { family_id: Current.family.id, status: [ "draft", "active" ] })
         .merge(Account.included_in_reports)
         .where(entries: { entryable_type: "Trade", excluded: false, date: @period.date_range })
-        .includes(entry: :account, category: :parent)
+        .includes(entry: :account)
       trades = exclude_tax_advantaged_accounts(trades)
 
       trades = apply_entry_filters(trades)
+      trades = trades.none if params[:filter_category_id].present?
 
       # Get sort parameters
       sort_by = %w[amount count].include?(params[:sort_by]) ? params[:sort_by] : "amount"
@@ -473,7 +474,7 @@ class ReportsController < ApplicationController
 
       # Process trades
       trades.each do |trade|
-        process_entry.call(trade.category, trade.entry, true)
+        process_entry.call(nil, trade.entry, true)
       end
 
       # Convert to array and sort subcategories
@@ -669,6 +670,14 @@ class ReportsController < ApplicationController
     def apply_transaction_filters(scope)
       scope = apply_entry_filters(scope)
 
+      # Only transactions have stored categories. Trades are grouped separately
+      # under Other Investments and cannot match a persisted category filter.
+      if params[:filter_category_id].present?
+        category_id = params[:filter_category_id]
+        subcategory_ids = Current.family.categories.where(parent_id: category_id).pluck(:id)
+        scope = scope.where(category_id: [ category_id ] + subcategory_ids)
+      end
+
       # Filter by tag (Transaction-specific — trades don't have taggings)
       if params[:filter_tag_id].present?
         scope = scope.joins(:taggings).where(taggings: { tag_id: params[:filter_tag_id] })
@@ -684,20 +693,12 @@ class ReportsController < ApplicationController
       scope.where.not(accounts: { id: tax_advantaged_account_ids })
     end
 
-    # Filters applicable to both transactions and trades (entry-level + category)
+    # Account, amount and date filters shared by transactions and trades.
     def apply_entry_filters(scope)
       # Scope to user's finance accounts
       finance_account_ids = Current.user&.finance_accounts&.pluck(:id) || []
       scope = scope.where(entries: { account_id: finance_account_ids })
 
-      # Filter by category (including subcategories)
-      if params[:filter_category_id].present?
-        category_id = params[:filter_category_id]
-        # Scope to family's categories to prevent cross-family data access
-        subcategory_ids = Current.family.categories.where(parent_id: category_id).pluck(:id)
-        all_category_ids = [ category_id ] + subcategory_ids
-        scope = scope.where(category_id: all_category_ids)
-      end
 
       # Filter by account
       if params[:filter_account_id].present?

@@ -479,6 +479,52 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
   end
 
 
+  test "home preferences require write scope and only change the authenticated user" do
+    other = users(:family_member)
+    original = other.preferences.deep_dup
+    payload = { preferences: {
+      collapsed_sections: { "net_worth_chart" => true },
+      section_order: %w[money_flow net_worth_chart],
+      dashboard_section_layout: { "net_worth_chart" => { height: "tall" } },
+      preview_features_enabled: true
+    } }
+    patch "/api/v1/home/preferences", params: payload, headers: api_headers(@read_key), as: :json
+    assert_response :forbidden
+
+    patch "/api/v1/home/preferences", params: payload, headers: api_headers(@write_key), as: :json
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("success")
+    @user.reload
+    assert @user.dashboard_section_collapsed?("net_worth_chart")
+    assert_equal %w[money_flow net_worth_chart], @user.dashboard_section_order
+    assert_equal "tall", @user.dashboard_section_height("net_worth_chart")
+    assert_equal original, other.reload.preferences
+  end
+
+  test "partial layout preferences retain sibling dimensions and unrelated preferences" do
+    @user.update!(preferences: @user.preferences.merge(
+      "preview_features_enabled" => false,
+      "dashboard_section_layout" => { "net_worth_chart" => { "height" => "tall", "col_span" => "single" } }
+    ))
+    patch "/api/v1/home/preferences", params: { preferences: {
+      dashboard_section_layout: { "net_worth_chart" => { col_span: "full" } },
+      preview_features_enabled: true
+    } }, headers: api_headers(@write_key), as: :json
+    assert_response :success
+    @user.reload
+    assert_equal "tall", @user.dashboard_section_height("net_worth_chart")
+    assert_equal "full", @user.dashboard_section_width("net_worth_chart")
+    assert_not @user.preview_features_enabled?
+  end
+
+  test "preference writes reject missing authentication and malformed bodies as JSON" do
+    patch "/api/v1/home/preferences", params: { preferences: { section_order: [] } }, as: :json
+    assert_response :unauthorized
+    patch "/api/v1/home/preferences", params: { preferences: "invalid" }, headers: api_headers(@write_key), as: :json
+    assert_response :bad_request
+    assert response.parsed_body.fetch("error").present?
+  end
+
   private
     def api_headers(auth)
       { "X-Api-Key" => auth.display_key }

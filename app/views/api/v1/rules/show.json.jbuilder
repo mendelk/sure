@@ -3,3 +3,5 @@
 json.data do
   json.partial! "api/v1/rules/rule", rule: @rule
 end
+
+json.confirm @confirm if @confirm

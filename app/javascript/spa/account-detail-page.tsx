@@ -21,10 +21,15 @@ import {
 import { useMemo, useState } from "react";
 import {
   accountDetailQueryOptions,
+  updateDefaultPeriod,
   type AccountActivity,
   type AccountSearch,
 } from "./api/accounts";
-import { readCsrfToken, referenceDataQueryOptions, type ReferenceOption } from "./api/transactions";
+import {
+  bulkDeleteEntries,
+  referenceDataQueryOptions,
+  type ReferenceOption,
+} from "./api/transactions";
 import { invalidateAccountQueries } from "./api/account-spa";
 import { AccountIdSchema, type AccountId, type CategoryId, type EntryId } from "./ids";
 import { CategoryIcon, Icon } from "./icon";
@@ -149,12 +154,22 @@ export function AccountDetailPage() {
   });
   const navigate = useNavigate();
   const query = useQuery(accountDetailQueryOptions(accountId, search));
+  const queryClient = useQueryClient();
+  const periodPreference = useMutation({
+    mutationFn: updateDefaultPeriod,
+    scope: { id: "user-default-period" },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["spa", "summary"] });
+    },
+  });
   const data = query.data;
   const text = useMemo(
     () => ({ ...bootstrap.accountDetailText, ...data?.text }),
     [bootstrap.accountDetailText, data?.text],
   );
   const onSearchChange = (patch: Partial<AccountSearch>) => {
+    if (patch.period !== undefined && patch.period !== "" && patch.period !== search.period)
+      periodPreference.mutate(patch.period);
     void navigate({
       to: "/accounts/$accountId",
       params: { accountId },
@@ -273,6 +288,11 @@ export function AccountDetailPage() {
       {query.isError ? (
         <Alert variant="error" live="alert">
           {text.unavailable}
+        </Alert>
+      ) : null}
+      {periodPreference.isError ? (
+        <Alert variant="error" live="alert">
+          {periodPreference.error.message}
         </Alert>
       ) : null}
       <AccountChartCard
@@ -398,22 +418,7 @@ function AccountActivityView({
   const queryClient = useQueryClient();
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const bulkDeleteMutation = useMutation({
-    mutationFn: async (entryIds: EntryId[]) => {
-      const body = new URLSearchParams();
-      for (const id of entryIds) body.append("bulk_delete[entry_ids][]", id);
-      const response = await fetch(activity.bulk_actions.delete, {
-        body,
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json, text/html",
-          "X-CSRF-Token": readCsrfToken(),
-        },
-        method: "POST",
-        redirect: "manual",
-      });
-      if (!response.ok && response.type !== "opaqueredirect")
-        throw new Error(`Delete failed with status ${response.status}`);
-    },
+    mutationFn: bulkDeleteEntries,
     onError: (caught) => {
       setDeleteError(caught instanceof Error ? caught.message : "Delete failed");
     },

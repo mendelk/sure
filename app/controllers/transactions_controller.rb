@@ -232,76 +232,14 @@ class TransactionsController < ApplicationController
 
     return unless require_account_permission!(@entry.account)
 
-    # Pre-transaction validations
-    unless @entry.account.investment?
-      flash[:alert] = t("transactions.convert_to_trade.errors.not_investment_account")
-      redirect_back_or_to transactions_path
-      return
-    end
-
-    if @entry.excluded?
-      flash[:alert] = t("transactions.convert_to_trade.errors.already_converted")
-      redirect_back_or_to transactions_path
-      return
-    end
-
-    # Resolve security before transaction
-    security = resolve_security_for_conversion
-    return if performed? # Early exit if redirect already happened
-
-    # Validate and calculate qty/price before transaction
-    qty, price = calculate_qty_and_price
-    return if performed? # Early exit if redirect already happened
-
-    activity_label = params[:investment_activity_label].presence
-    # Infer sell from amount sign: negative amount = money coming in = sell
-    is_sell = activity_label == "Sell" || (activity_label.blank? && @entry.amount < 0)
-
-    ActiveRecord::Base.transaction do
-      # For trades: positive qty = buy (money out), negative qty = sell (money in)
-      signed_qty = is_sell ? -qty : qty
-      trade_amount = qty * price
-      # Sells bring money in (negative amount), Buys take money out (positive amount)
-      signed_amount = is_sell ? -trade_amount : trade_amount
-
-      # Default activity label if not provided
-      activity_label ||= is_sell ? "Sell" : "Buy"
-
-      # Create trade entry with note about conversion
-      conversion_note = t("transactions.convert_to_trade.conversion_note",
-        original_name: @entry.name,
-        original_date: I18n.l(@entry.date, format: :long))
-
-      new_entry = @entry.account.entries.create!(
-        name: params[:trade_name] || Trade.build_name(is_sell ? "sell" : "buy", qty, security.ticker),
-        date: @entry.date,
-        amount: signed_amount,
-        currency: @entry.currency,
-        notes: conversion_note,
-        entryable: Trade.new(
-          security: security,
-          qty: signed_qty,
-          price: price,
-          currency: @entry.currency,
-          investment_activity_label: activity_label
-        )
-      )
-
-      # Mark the new trade as user-modified to protect from sync
-      new_entry.lock_saved_attributes!
-      new_entry.mark_user_modified!
-
-      # Mark original transaction as excluded (soft delete)
-      @entry.update!(excluded: true)
-    end
-
+    Transaction::TradeConversion.new(@transaction, params.permit(
+      :security_id, :ticker, :custom_ticker, :exchange_operating_mic, :qty, :price,
+      :investment_activity_label, :trade_name
+    ), family: Current.family).create!
     flash[:notice] = t("transactions.convert_to_trade.success")
     redirect_to account_path(@entry.account), status: :see_other
-  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => e
-    flash[:alert] = t("transactions.convert_to_trade.errors.conversion_failed", error: e.message)
-    redirect_back_or_to transactions_path, status: :see_other
-  rescue StandardError => e
-    flash[:alert] = t("transactions.convert_to_trade.errors.unexpected_error", error: e.message)
+  rescue Transaction::TradeConversion::Invalid, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => e
+    flash[:alert] = e.message
     redirect_back_or_to transactions_path, status: :see_other
   end
 
@@ -523,100 +461,5 @@ class TransactionsController < ApplicationController
       else
         {} # read_only — no edits allowed
       end
-    end
-
-
-    # Helper methods for convert_to_trade
-
-    def resolve_security_for_conversion
-      user_country = Current.family.country
-
-      if params[:security_id] == "__custom__"
-        # User selected "Enter custom ticker" - check for combobox selection or manual entry
-        if params[:ticker].present?
-          # Combobox selection: format is "SYMBOL|EXCHANGE|PROVIDER"
-          parsed = Security.parse_combobox_id(params[:ticker])
-          if parsed[:ticker].blank?
-            flash[:alert] = t("transactions.convert_to_trade.errors.enter_ticker")
-            redirect_back_or_to transactions_path
-            return nil
-          end
-          Security::Resolver.new(
-            parsed[:ticker].strip,
-            exchange_operating_mic: parsed[:exchange_operating_mic] || params[:exchange_operating_mic].presence,
-            country_code: user_country,
-            price_provider: parsed[:price_provider]
-          ).resolve
-        elsif params[:custom_ticker].present?
-          # Manual entry from combobox's name_when_new or fallback text field
-          Security::Resolver.new(
-            params[:custom_ticker].strip,
-            exchange_operating_mic: params[:exchange_operating_mic].presence,
-            country_code: user_country
-          ).resolve
-        else
-          flash[:alert] = t("transactions.convert_to_trade.errors.enter_ticker")
-          redirect_back_or_to transactions_path
-          return nil
-        end
-      elsif params[:security_id].present?
-        found = Security.find_by(id: params[:security_id])
-        unless found
-          flash[:alert] = t("transactions.convert_to_trade.errors.security_not_found")
-          redirect_back_or_to transactions_path
-          return nil
-        end
-        found
-      elsif params[:ticker].present?
-        # Direct combobox (no existing holdings) - format is "SYMBOL|EXCHANGE|PROVIDER"
-        parsed = Security.parse_combobox_id(params[:ticker])
-        if parsed[:ticker].blank?
-          flash[:alert] = t("transactions.convert_to_trade.errors.enter_ticker")
-          redirect_back_or_to transactions_path
-          return nil
-        end
-        Security::Resolver.new(
-          parsed[:ticker].strip,
-          exchange_operating_mic: parsed[:exchange_operating_mic] || params[:exchange_operating_mic].presence,
-          country_code: user_country,
-          price_provider: parsed[:price_provider]
-        ).resolve
-      elsif params[:custom_ticker].present?
-        # Manual entry from combobox's name_when_new (no existing holdings path)
-        Security::Resolver.new(
-          params[:custom_ticker].strip,
-          exchange_operating_mic: params[:exchange_operating_mic].presence,
-          country_code: user_country
-        ).resolve
-      end.tap do |security|
-        if security.nil? && !performed?
-          flash[:alert] = t("transactions.convert_to_trade.errors.select_security")
-          redirect_back_or_to transactions_path
-        end
-      end
-    end
-
-    def calculate_qty_and_price
-      amount = @entry.amount.abs
-      qty = params[:qty].present? ? params[:qty].to_d.abs : nil
-      price = params[:price].present? ? params[:price].to_d : nil
-
-      if qty.nil? && price.nil?
-        flash[:alert] = t("transactions.convert_to_trade.errors.enter_qty_or_price")
-        redirect_back_or_to transactions_path, status: :see_other
-        return [ nil, nil ]
-      elsif qty.nil? && price.present? && price > 0
-        qty = (amount / price).round(6)
-      elsif price.nil? && qty.present? && qty > 0
-        price = (amount / qty).round(4)
-      end
-
-      if qty.nil? || qty <= 0 || price.nil? || price <= 0
-        flash[:alert] = t("transactions.convert_to_trade.errors.invalid_qty_or_price")
-        redirect_back_or_to transactions_path, status: :see_other
-        return [ nil, nil ]
-      end
-
-      [ qty, price ]
     end
 end

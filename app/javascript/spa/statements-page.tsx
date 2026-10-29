@@ -13,7 +13,7 @@ import {
   type StatementsIndex,
 } from "./api/account-spa";
 import { StatementIdSchema } from "./ids";
-import { readCsrfToken } from "./api/transactions";
+import { StatementUploadForm } from "./components/statement-upload-form";
 import { CategoryIcon, Icon } from "./icon";
 import { Alert } from "./components/alert";
 import { Button } from "./components/button";
@@ -21,10 +21,7 @@ import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Modal } from "./modal";
 
-function noop(): void {
-  // Ignored promise error
-}
-export const STATEMENTS_INDEX_PATH = "/account_statements.json";
+export const STATEMENTS_INDEX_PATH = "/api/v1/account_statements?include=workspace";
 
 function statementIcon(filename: string): string {
   if (filename.toLowerCase().endsWith(".pdf")) return "file-text";
@@ -153,43 +150,6 @@ function UploadCard({
   upload: StatementsIndexUpload;
   onChanged: () => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  async function submit(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const filesField = form.elements.namedItem("account_statement[files]");
-    const files = filesField instanceof HTMLInputElement ? filesField.files : null;
-    const accountField = form.elements.namedItem("account_statement[account_id]");
-    const accountId = accountField instanceof HTMLSelectElement ? accountField.value : "";
-
-    if (files === null || files.length === 0) {
-      setError("Select at least one statement file.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const body = new FormData();
-      for (const file of files) body.append("account_statement[files][]", file);
-      if (accountId !== "") body.append("account_statement[account_id]", accountId);
-      const response = await fetch(upload.href, {
-        method: "POST",
-        headers: { "X-CSRF-Token": readCsrfToken() },
-        body,
-        credentials: "same-origin",
-      });
-      if (!response.ok) throw new Error(`Upload failed (${response.status})`);
-      onChanged();
-      form.reset();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Upload failed");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   return (
     <div className="rounded-xl bg-container p-4">
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -204,47 +164,13 @@ function UploadCard({
           <p className="text-sm font-medium text-primary">{upload.storage_used}</p>
         </div>
       </div>
-      {error !== null ? (
-        <Alert className="mb-3" live="alert" variant="error">
-          {error}
-        </Alert>
-      ) : null}
-      <form
-        className="grid gap-3 lg:grid-cols-[1fr_16rem_auto] lg:items-end"
-        onSubmit={(event) => {
-          void submit(event);
-        }}
-      >
-        <FormField
-          accept={upload.accept}
-          id="statement-files"
-          label="Statement files"
-          multiple
-          name="account_statement[files]"
-          type="file"
-        />
-        <p className="-mt-1 text-xs text-secondary lg:col-start-1 lg:row-start-2">
-          PDF, CSV, or XLSX. {upload.max_size_mb}MB max per file.
-        </p>
-        <FormField
-          as="select"
-          id="statement-account"
-          label="Account"
-          name="account_statement[account_id]"
-        >
-          <option value="">Leave unmatched</option>
-          {upload.accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}
-            </option>
-          ))}
-        </FormField>
-        <div>
-          <Button disabled={submitting} type="submit">
-            {submitting ? "Uploading…" : "Upload"}
-          </Button>
-        </div>
-      </form>
+      <StatementUploadForm
+        id="statement-vault"
+        accept={upload.accept}
+        accounts={upload.accounts}
+        hint={`PDF, CSV, or XLSX. ${upload.max_size_mb}MB max per file.`}
+        onChanged={onChanged}
+      />
     </div>
   );
 }
@@ -479,7 +405,6 @@ function MetadataForm({ statement, onSaved }: { statement: StatementDetail; onSa
             label="Currency"
             name="account_statement[currency]"
           >
-            {(statement.accounts.length > 0 ? [] : []).concat([]).length === 0 ? null : null}
             {["USD", "EUR", "GBP", "CAD", "AUD"].map((code) => (
               <option key={code} value={code}>
                 {code}
@@ -575,10 +500,16 @@ export function StatementDetailPage() {
   const queryClient = useQueryClient();
   const statementId = StatementIdSchema.parse(rawStatementId);
   const query = useQuery(
-    statementDetailQueryOptions(`/account_statements/${encodeURIComponent(statementId)}.json`),
+    statementDetailQueryOptions(
+      `/api/v1/account_statements/${encodeURIComponent(statementId)}?include=workspace`,
+    ),
   );
   const statement = query.data;
   const [confirming, setConfirming] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const handleActionError = (error: unknown) => {
+    setActionError(error instanceof Error ? error.message : "Statement action failed");
+  };
 
   const invalidate = () => {
     void invalidateAccountQueries(queryClient);
@@ -604,6 +535,11 @@ export function StatementDetailPage() {
 
   return (
     <section className="space-y-4">
+      {actionError !== null ? (
+        <Alert live="alert" variant="error">
+          {actionError}
+        </Alert>
+      ) : null}
       <div className="rounded-xl bg-container p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
@@ -675,7 +611,9 @@ export function StatementDetailPage() {
                 {statement.can_manage ? (
                   <Button
                     onClick={() => {
-                      mutateStatement(statement.id, "unlink").then(invalidate).catch(noop);
+                      mutateStatement(statement.id, "unlink")
+                        .then(invalidate)
+                        .catch(handleActionError);
                     }}
                     size="sm"
                     variant="ghost"
@@ -699,7 +637,7 @@ export function StatementDetailPage() {
                           account_id: statement.suggested_account?.id ?? "",
                         })
                           .then(invalidate)
-                          .catch(noop);
+                          .catch(handleActionError);
                       }}
                       size="sm"
                     >
@@ -708,7 +646,9 @@ export function StatementDetailPage() {
                     </Button>
                     <Button
                       onClick={() => {
-                        mutateStatement(statement.id, "reject").then(invalidate).catch(noop);
+                        mutateStatement(statement.id, "reject")
+                          .then(invalidate)
+                          .catch(handleActionError);
                       }}
                       size="sm"
                       variant="ghost"
@@ -802,7 +742,7 @@ export function StatementDetailPage() {
                     invalidate();
                     void navigate({ to: "/account_statements" });
                   })
-                  .catch(noop);
+                  .catch(handleActionError);
               }}
             >
               {statement.confirm_delete.confirmText}

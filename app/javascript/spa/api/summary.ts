@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { z } from "zod/mini";
 import { useSpaPaths } from "./paths";
 import { AccountIdSchema, type AccountId } from "../ids";
+import { apiFetch } from "./client";
 
 const MoneySchema = z.object({
   amount: z.string(),
@@ -67,9 +68,7 @@ export class SummaryApiError extends Error {
 }
 
 async function requestSummary(path: string, signal?: AbortSignal): Promise<Summary> {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
+  const response = await apiFetch(path, {
     signal,
   });
 

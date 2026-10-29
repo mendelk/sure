@@ -5,7 +5,7 @@ import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router"
 import { useState, type SyntheticEvent } from "react";
 import * as z from "zod/mini";
 import { accountDetailQueryOptions, type AccountDetail } from "./api/accounts";
-import { readCsrfToken } from "./api/transactions";
+import { apiFetch } from "./api/client";
 import { apiErrorMessage } from "./accountable-drawer";
 import type { SpaBootstrap } from "./bootstrap";
 import { Alert } from "./components/alert";
@@ -66,9 +66,7 @@ function propertyFormOptionsQueryOptions(endpoint: string) {
   return {
     queryKey: ["spa", "property-form-options"] as const,
     queryFn: async ({ signal }: { signal?: AbortSignal }): Promise<PropertyFormOptions> => {
-      const response = await fetch(endpoint, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
+      const response = await apiFetch(endpoint, {
         signal,
       });
       if (!response.ok) throw new Error(`Property options request failed (${response.status})`);
@@ -188,14 +186,8 @@ async function postPropertyJson(
   url: string,
   body: unknown,
 ): Promise<{ response: Response; payload: unknown }> {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     body: JSON.stringify(body),
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
     method: "POST",
   });
   const payload: unknown = await response.json().catch(() => null);
@@ -206,14 +198,8 @@ async function patchJson(
   url: string,
   body: unknown,
 ): Promise<{ response: Response; payload: unknown }> {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     body: JSON.stringify(body),
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
     method: "PATCH",
   });
   const payload: unknown = await response.json().catch(() => null);

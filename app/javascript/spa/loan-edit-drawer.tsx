@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useState, type SyntheticEvent } from "react";
 import { accountDetailQueryOptions, type AccountDetail } from "./api/accounts";
-import { readCsrfToken } from "./api/transactions";
+import { apiFetch } from "./api/client";
 import { Alert } from "./components/alert";
 import { Button } from "./components/button";
 import { FormField } from "./components/form-field";
@@ -118,45 +118,46 @@ function LoanEditForm({ account, onClose }: { account: AccountDetail; onClose: (
     setSubmitError(null);
 
     try {
-      const formData = new FormData();
-      formData.set("authenticity_token", readCsrfToken());
-      formData.set("_method", "patch");
-
-      if (name.trim().length > 0) formData.set("account[name]", name.trim());
-      if (balance.trim().length > 0) formData.set("account[balance]", balance.trim());
-      formData.set("account[accountable_attributes][subtype]", subtype);
-      if (initialBalance.trim().length > 0)
-        formData.set("account[accountable_attributes][initial_balance]", initialBalance.trim());
-      if (interestRate.trim().length > 0)
-        formData.set("account[accountable_attributes][interest_rate]", interestRate.trim());
-      formData.set("account[accountable_attributes][rate_type]", rateType);
-      if (downPayment.trim().length > 0)
-        formData.set("account[accountable_attributes][down_payment]", downPayment.trim());
-      if (startDate.trim().length > 0)
-        formData.set("account[accountable_attributes][start_date]", startDate.trim());
-      if (termMonths.trim().length > 0)
-        formData.set("account[accountable_attributes][term_months]", termMonths.trim());
-      if (insuranceRate.trim().length > 0)
-        formData.set("account[accountable_attributes][insurance_rate]", insuranceRate.trim());
-      formData.set("account[accountable_attributes][insurance_rate_type]", insuranceRateType);
-      formData.set("account[institution_name]", institutionName.trim());
-      formData.set("account[institution_domain]", institutionDomain.trim());
-      formData.set("account[notes]", notes.trim());
-      formData.set("account[exclude_from_reports]", excludeFromReports ? "1" : "0");
-
-      const response = await fetch(`/loans/${account.id}`, {
-        method: "POST",
-        body: formData,
-        credentials: "same-origin",
-        redirect: "manual",
+      const response = await apiFetch(`/api/v1/accounts/${account.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          account: {
+            name: name.trim(),
+            ...(balance.trim() === "" ? {} : { balance: balance.trim() }),
+            institution_name: institutionName.trim(),
+            institution_domain: institutionDomain.trim(),
+            notes: notes.trim(),
+            exclude_from_reports: excludeFromReports,
+            accountable: {
+              subtype,
+              initial_balance: initialBalance.trim() || null,
+              interest_rate: interestRate.trim() || null,
+              rate_type: rateType,
+              down_payment: downPayment.trim() || null,
+              start_date: startDate.trim() || null,
+              term_months: termMonths.trim() || null,
+              insurance_rate: insuranceRate.trim() || null,
+              insurance_rate_type: insuranceRateType || null,
+            },
+          },
+        }),
       });
-
-      if (!response.ok && response.type !== "opaqueredirect")
-        throw new Error(`Failed to update loan (${response.status})`);
+      if (!response.ok) {
+        const payload: unknown = await response.json();
+        const message =
+          typeof payload === "object" &&
+          payload !== null &&
+          "message" in payload &&
+          typeof payload.message === "string"
+            ? payload.message
+            : `Failed to update loan (${response.status})`;
+        throw new Error(message);
+      }
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["spa", "account"] }),
         queryClient.invalidateQueries({ queryKey: ["spa", "summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["spa", "accounts-index"] }),
       ]);
 
       onClose();

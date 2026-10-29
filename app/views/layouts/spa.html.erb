@@ -19,7 +19,7 @@
     <%= javascript_include_tag "spa", type: "module" %>
   </head>
   <body class="min-h-full bg-surface text-primary antialiased">
-    <%= render "layouts/shared/web_push_session" %>
+    <%= render "layouts/shared/web_push_session", create_url: api_v1_web_push_subscriptions_path %>
     <%= yield %>
   </body>
 </html>

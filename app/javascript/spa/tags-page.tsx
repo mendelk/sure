@@ -96,7 +96,7 @@ export function TagFormDialog({
     mutationFn: (input: { name: string; color: string }) =>
       tag === null
         ? saveTagRequest(TAGS_INDEX_PATH, "POST", input)
-        : saveTagRequest(`/tags/${tag.id}.json`, "PATCH", input),
+        : saveTagRequest(`/api/v1/tags/${tag.id}`, "PATCH", input),
     onSuccess: () => {
       void invalidateTagQueries(queryClient).then(onClose);
     },
@@ -215,7 +215,7 @@ export function TagFormDialog({
 export function DeleteConfirmDialog({ tag, onClose }: { tag: TagRow; onClose: () => void }) {
   const queryClient = useQueryClient();
   const destroy = useMutation({
-    mutationFn: () => deleteTagRequest(`/tags/${tag.id}.json`),
+    mutationFn: () => deleteTagRequest(`/api/v1/tags/${tag.id}`),
     onSuccess: () => {
       void invalidateTagQueries(queryClient).then(onClose);
     },
@@ -270,7 +270,7 @@ export function DeleteReplacementDialog({
   const destroy = useMutation({
     mutationFn: () =>
       deleteTagWithReplacementRequest(
-        `/tags/${tag.id}/deletions.json`,
+        `/api/v1/tags/${tag.id}/replacement`,
         replacementId === "" ? null : replacementId,
       ),
     onSuccess: () => {
@@ -341,7 +341,7 @@ export function DeleteReplacementDialog({
 function DeleteAllConfirmDialog({ count, onClose }: { count: number; onClose: () => void }) {
   const queryClient = useQueryClient();
   const destroyAll = useMutation({
-    mutationFn: () => deleteTagRequest("/tags/destroy_all.json"),
+    mutationFn: () => deleteTagRequest("/api/v1/tags/destroy_all"),
     onSuccess: () => {
       void invalidateTagQueries(queryClient).then(onClose);
     },

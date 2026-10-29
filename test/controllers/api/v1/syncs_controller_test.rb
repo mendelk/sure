@@ -203,6 +203,54 @@ class Api::V1::SyncsControllerTest < ActionDispatch::IntegrationTest
     api_key_without_read&.destroy
   end
 
+  test "cancels a pending family sync using a read_write API key" do
+    sync = @family.syncs.create!(status: :pending)
+    post "/api/v1/syncs/#{sync.id}/cancel", headers: api_headers(@api_key), as: :json
+    assert_response :accepted
+    assert_equal "cancelled_before_start", response.parsed_body.dig("data", "status")
+    assert sync.reload.stale?
+  end
+
+  test "cooperative cancellation marks a running sync without falsely completing it" do
+    sync = @family.syncs.create!(status: :syncing, syncing_at: Time.current)
+    child = sync.children.create!(syncable: @account, status: :syncing, syncing_at: Time.current)
+    post "/api/v1/syncs/#{sync.id}/cancel", headers: api_headers(@api_key), as: :json
+    assert_response :accepted
+    assert_equal "cancel_requested", response.parsed_body.dig("data", "status")
+    assert sync.reload.syncing?
+    assert sync.cancel_requested?
+    assert child.reload.syncing?
+  end
+
+  test "cancellation requires write scope and authentication" do
+    sync = @family.syncs.create!(status: :pending)
+    post "/api/v1/syncs/#{sync.id}/cancel", headers: api_headers(@read_only_api_key), as: :json
+    assert_response :forbidden
+    assert sync.reload.pending?
+    post "/api/v1/syncs/#{sync.id}/cancel", as: :json
+    assert_response :unauthorized
+  end
+
+  test "cancellation excludes another family's sync and invalid identifiers" do
+    sync = families(:empty).syncs.create!(status: :pending)
+    post "/api/v1/syncs/#{sync.id}/cancel", headers: api_headers(@api_key), as: :json
+    assert_response :not_found
+    assert sync.reload.pending?
+    post "/api/v1/syncs/invalid/cancel", headers: api_headers(@api_key), as: :json
+    assert_response :not_found
+  end
+
+  test "members cannot cancel provider syncs but retain family cancellation" do
+    @api_key.update!(user: users(:family_member))
+    provider_sync = mercury_items(:one).syncs.create!(status: :pending)
+    post "/api/v1/syncs/#{provider_sync.id}/cancel", headers: api_headers(@api_key), as: :json
+    assert_response :not_found
+    assert provider_sync.reload.pending?
+    family_sync = @family.syncs.create!(status: :pending)
+    post "/api/v1/syncs/#{family_sync.id}/cancel", headers: api_headers(@api_key), as: :json
+    assert_response :accepted
+  end
+
   private
 
     def api_headers(api_key)

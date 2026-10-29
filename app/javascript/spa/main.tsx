@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { readSpaBootstrap } from "./bootstrap";
 import { createSpaRouter } from "./router";
-import { initializeWebPushSession } from "../utils/web_push_session.js";
+import { initializeWebPushSession } from "./web-push-session";
 
 const rootElement = document.querySelector<HTMLElement>("#spa-root");
 

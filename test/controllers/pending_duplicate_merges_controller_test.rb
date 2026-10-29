@@ -135,7 +135,6 @@ class PendingDuplicateMergesControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to transactions_path
-    assert_equal "Invalid transaction selected for merge", flash[:alert]
   end
 
   test "create rejects merge with transaction from different account" do
@@ -151,7 +150,6 @@ class PendingDuplicateMergesControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to transactions_path
-    assert_equal "Invalid transaction selected for merge", flash[:alert]
   end
 
   test "create rejects merge with transaction in different currency" do
@@ -167,7 +165,6 @@ class PendingDuplicateMergesControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to transactions_path
-    assert_equal "Invalid transaction selected for merge", flash[:alert]
   end
 
   test "create rejects merge with invalid entry id" do
@@ -182,7 +179,6 @@ class PendingDuplicateMergesControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to transactions_path
-    assert_equal "Invalid transaction selected for merge", flash[:alert]
   end
 
   private

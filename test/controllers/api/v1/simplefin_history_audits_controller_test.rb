@@ -17,6 +17,28 @@ class Api::V1::SimplefinHistoryAuditsControllerTest < ActionDispatch::Integratio
 
   teardown { travel_back }
 
+  test "metadata is readable with a read key without contacting SimpleFIN or changing financial data" do
+    assert_no_difference [ "Entry.count", "Sync.count", "AccountProvider.count" ] do
+      get "/api/v1/accounts/#{@account.id}/simplefin_history_audit", headers: api_headers(@read_key)
+    end
+    assert_response :success
+    assert_equal @account.id, response.parsed_body.dig("account", "id")
+    assert_equal 45, response.parsed_body["max_period_days"]
+    assert response.parsed_body["text"].present?
+  end
+
+  test "metadata enforces administrator writable account tenancy and authentication" do
+    path = "/api/v1/accounts/#{@account.id}/simplefin_history_audit"
+    get path
+    assert_response :unauthorized
+    @user.update!(role: "member")
+    get path, headers: api_headers(@read_key)
+    assert_response :forbidden
+    @user.update!(role: "admin")
+    get "/api/v1/accounts/#{SecureRandom.uuid}/simplefin_history_audit", headers: api_headers(@read_key)
+    assert_response :not_found
+  end
+
   test "reports fresh missing activity without changing financial data or normal sync state" do
     stub_history([ raw_transaction("missing") ])
     before = [ @account.attributes, @provider.attributes, @item.attributes, @item.last_synced_at ]

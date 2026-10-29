@@ -45,4 +45,38 @@ RSpec.describe "API V1 Insights", type: :request do
       end
     end
   end
+  path "/api/v1/insights/{id}/acknowledge" do
+    patch "Acknowledge a family insight" do
+      tags "Insights"
+      description "Acknowledges an insight within the authenticated user's family. Requires preview features and read_write scope; cookie-authenticated requests also require CSRF."
+      security [ { apiKeyAuth: [] }, { cookieSession: [] } ]
+      produces "application/json"
+      parameter name: :id, in: :path, required: true, schema: { type: :string, format: :uuid }
+      let(:insight) do
+        family.insights.create!(insight_type: "idle_cash", priority: "medium", title: "Idle cash",
+          body: "Cash is available.", dedup_key: "api-docs-acknowledge", generated_at: Time.current)
+      end
+      let(:id) { insight.id }
+
+      response "200", "insight acknowledged" do
+        schema "$ref" => "#/components/schemas/InsightAcknowledgeResponse"
+        run_test!
+      end
+      response "401", "unauthorized" do
+        schema "$ref" => "#/components/schemas/ErrorResponse"
+        let(:"X-Api-Key") { "invalid-key" }
+        run_test!
+      end
+      response "403", "write scope required or preview features disabled" do
+        schema "$ref" => "#/components/schemas/ErrorResponse"
+        before { api_key.update!(scopes: %w[read]) }
+        run_test!
+      end
+      response "404", "insight not found in the authenticated family" do
+        schema "$ref" => "#/components/schemas/ErrorResponse"
+        let(:id) { SecureRandom.uuid }
+        run_test!
+      end
+    end
+  end
 end

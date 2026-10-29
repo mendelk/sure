@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   accountsIndexQueryOptions,
   invalidateAccountQueries,
+  postAccountAction,
   sharingQueryOptions,
   updateFinanceInclusion,
   updateSharing,
@@ -15,7 +16,7 @@ import {
   type SharingMember,
   type SpaAction,
 } from "./api/account-spa";
-import { readCsrfToken } from "./api/transactions";
+import { apiFetch } from "./api/client";
 import { AccountIdSchema } from "./ids";
 import { CategoryIcon, Icon } from "./icon";
 import { Alert } from "./components/alert";
@@ -24,6 +25,7 @@ import { FormField } from "./components/form-field";
 import { IconButton } from "./components/icon-button";
 import { Toggle } from "./components/toggle";
 import { BrandLogo } from "./components/brand-logo";
+import { AccountProviderPicker } from "./components/account-provider-picker";
 import { Modal } from "./modal";
 import { currentReturnTo } from "./return-to";
 
@@ -36,29 +38,6 @@ const ROW_TEXT = {
 
 type ConfirmState = { action: SpaAction };
 
-// Runs a server-driven row action (disable/enable, exclude/include, delete)
-// as a same-origin fetch instead of a hand-built DOM form: CSRF header for
-// auth, method override for patch/delete, then account query invalidation
-// so the list reflects the new state without a full-page reload.
-async function runSpaAction(action: SpaAction): Promise<void> {
-  const body = new URLSearchParams();
-  const method = action.method ?? "post";
-  if (method !== "post" && method !== "get") body.set("_method", method);
-  for (const [name, value] of Object.entries(action.params ?? {})) body.set(name, value);
-
-  const response = await fetch(action.href, {
-    body: method === "get" ? null : body,
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json, text/html",
-      "X-CSRF-Token": readCsrfToken(),
-    },
-    method: method === "get" ? "GET" : "POST",
-    redirect: "manual",
-  });
-  if (!response.ok && response.type !== "opaqueredirect")
-    throw new Error(`Action failed with status ${response.status}`);
-}
 function AccountLettermark({
   name,
   color,
@@ -142,18 +121,13 @@ function ReplacementPrompts({ item }: { item: ProviderItem }) {
     setError(null);
     try {
       const url = new URL(href, window.location.origin);
-      const body = new URLSearchParams();
-      for (const [name, value] of url.searchParams) body.set(name, value);
-      for (const [name, value] of Object.entries(params)) body.set(name, value);
-      const response = await fetch(url.pathname, {
-        body,
-        credentials: "same-origin",
-        headers: { Accept: "application/json, text/html", "X-CSRF-Token": readCsrfToken() },
+      const body = Object.fromEntries(url.searchParams);
+      Object.assign(body, params);
+      const response = await apiFetch(url.pathname, {
+        body: JSON.stringify(body),
         method: "POST",
-        redirect: "manual",
       });
-      if (!response.ok && response.type !== "opaqueredirect")
-        throw new Error(`Action failed with status ${response.status}`);
+      if (!response.ok) throw new Error(`Action failed with status ${response.status}`);
       await invalidateAccountQueries(queryClient);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Action failed");
@@ -238,7 +212,7 @@ function ConfirmationDialog({
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const mutation = useMutation({
-    mutationFn: runSpaAction,
+    mutationFn: postAccountAction,
     onError: (caught) => {
       setError(caught instanceof Error ? caught.message : "Action failed");
     },
@@ -344,6 +318,18 @@ function AccountRowMenu({
               >
                 {action.label}
               </Link>
+            </MenuItem>
+          ) : action.key === "link_provider" ? (
+            <MenuItem key={action.key}>
+              <button
+                className="block w-full px-4 py-2 text-left text-sm text-primary data-focus:bg-container-hover"
+                onClick={() => {
+                  onConfirm(action);
+                }}
+                type="button"
+              >
+                {action.label}
+              </button>
             </MenuItem>
           ) : action.method === "get" ? (
             <MenuItem key={action.key}>
@@ -500,17 +486,8 @@ async function submitPost(
 ): Promise<void> {
   setError(null);
   try {
-    const response = await fetch(href, {
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json, text/html",
-        "X-CSRF-Token": readCsrfToken(),
-      },
-      method: "POST",
-      redirect: "manual",
-    });
-    if (!response.ok && response.type !== "opaqueredirect")
-      throw new Error(`Request failed with status ${response.status}`);
+    const response = await apiFetch(href, { method: "POST" });
+    if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
     await invalidate();
   } catch (caught) {
     setError(caught instanceof Error ? caught.message : "Request failed");
@@ -902,13 +879,17 @@ function ProviderCard({
 
 export function AccountsIndexPage() {
   const queryClient = useQueryClient();
-  const query = useQuery(accountsIndexQueryOptions("/accounts.json"));
+  const query = useQuery(
+    accountsIndexQueryOptions("/api/v1/accounts?include=workspace&include_disabled=true"),
+  );
   const [sharing, setSharing] = useState<{ accountId: string } | null>(null);
+  const [providerAccountId, setProviderAccountId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<SpaAction | null>(null);
   const data = query.data;
 
   const onRowConfirm = (action: SpaAction) => {
     if (action.key === "sharing") setSharing({ accountId: extractAccountId(action.href) });
+    else if (action.key === "link_provider") setProviderAccountId(extractAccountId(action.href));
     else setConfirm(action);
   };
 
@@ -979,6 +960,14 @@ export function AccountsIndexPage() {
           state={{ action: confirm }}
         />
       ) : null}
+      {providerAccountId !== null ? (
+        <AccountProviderPicker
+          accountId={providerAccountId}
+          onClose={() => {
+            setProviderAccountId(null);
+          }}
+        />
+      ) : null}
 
       {empty ? (
         <div className="flex h-[60vh] items-center justify-center">
@@ -1012,6 +1001,6 @@ export function AccountsIndexPage() {
 }
 
 function extractAccountId(href: string): string {
-  const match = /\/accounts\/([0-9a-f-]{36})\/sharing/u.exec(href);
+  const match = /\/accounts\/([0-9a-f-]{36})(?:\/|$)/u.exec(href);
   return AccountIdSchema.parse(match?.[1] ?? "");
 }

@@ -5,8 +5,6 @@ class SophtronItemsController < ApplicationController
   LOGIN_PROGRESS_CONNECTION_STATUS_MAX_POLLS = 15
   POST_MFA_CONNECTION_STATUS_MAX_POLLS = 15
   CONNECTION_STATUS_POLL_INTERVAL_MS = 4_000
-  MAX_SECURITY_ANSWERS = 10
-  MAX_SECURITY_ANSWER_LENGTH = 256
   MANUAL_SYNC_PROCESSED_ACCOUNT_IDS_KEY = "manual_sync_processed_sophtron_account_ids"
 
   before_action :set_sophtron_item, only: [
@@ -92,34 +90,10 @@ class SophtronItemsController < ApplicationController
       return
     end
 
-    item = item_for_institution_connection(@sophtron_item)
-    item.ensure_customer!
-    response = sophtron_response_data!(
-      item.sophtron_provider.create_user_institution(
-        institution_id: params[:institution_id],
-        username: params[:bank_username],
-        password: params[:bank_password],
-        pin: ""
+    item = @sophtron_item.connect_configuration_institution!(
+      params.permit(:institution_id, :institution_name, :bank_username, :bank_password).to_h.merge(
+        new_connection: connect_new_institution_flow?
       )
-    ).with_indifferent_access
-
-    job_id = response[:JobID] || response[:job_id]
-    user_institution_id = response[:UserInstitutionID] || response[:user_institution_id]
-
-    if job_id.blank? || user_institution_id.blank?
-      raise Provider::Sophtron::Error.new("Sophtron did not return JobID and UserInstitutionID", :invalid_response)
-    end
-
-    item.update!(
-      name: item.name.presence || t("sophtron_items.defaults.name"),
-      institution_id: params[:institution_id],
-      institution_name: params[:institution_name],
-      user_institution_id: user_institution_id,
-      current_job_id: job_id,
-      raw_job_payload: response,
-      job_status: nil,
-      last_connection_error: nil,
-      status: :good
     )
 
     redirect_to connection_status_sophtron_item_path(item, connection_context_params)
@@ -196,32 +170,13 @@ class SophtronItemsController < ApplicationController
   end
 
   def submit_mfa
-    provider = @sophtron_item.sophtron_provider
-    job_id = @sophtron_item.current_job_id
-
-    case params[:mfa_type]
-    when "security_answer"
-      security_answers = normalized_security_answers
-      unless security_answers
-        redirect_to connection_status_sophtron_item_path(@sophtron_item, connection_context_params), alert: t(".invalid_security_answers")
-        return
-      end
-
-      sophtron_response_data!(provider.update_job_security_answer(job_id, security_answers))
-    when "token_choice"
-      sophtron_response_data!(provider.update_job_token_input(job_id, token_choice: params[:token_choice]))
-    when "token_input"
-      sophtron_response_data!(provider.update_job_token_input(job_id, token_input: params[:token_input]))
-    when "verify_phone"
-      sophtron_response_data!(provider.update_job_token_input(job_id, verify_phone_flag: true))
-    when "captcha"
-      sophtron_response_data!(provider.update_job_captcha(job_id, params[:captcha_input]))
-    else
-      redirect_to connection_status_sophtron_item_path(@sophtron_item, connection_context_params), alert: t(".unknown_challenge")
-      return
-    end
+    @sophtron_item.submit_configuration_mfa!(
+      params.permit(:mfa_type, :token_choice, :token_input, :captcha_input, security_answers: []).to_h
+    )
 
     redirect_to connection_status_sophtron_item_path(@sophtron_item, connection_context_params.merge(post_mfa: true))
+  rescue ProviderConnection::Invalid => e
+    redirect_to connection_status_sophtron_item_path(@sophtron_item, connection_context_params), alert: e.message
   rescue Provider::Sophtron::Error => e
     Rails.logger.error("Sophtron MFA submission error: #{e.message}")
     redirect_to connection_status_sophtron_item_path(@sophtron_item, connection_context_params), alert: t(".api_error", message: e.message)
@@ -913,34 +868,14 @@ class SophtronItemsController < ApplicationController
       Current.family.configured_sophtron_item
     end
 
-    def normalized_security_answers
-      raw_answers = Array(params[:security_answers]).flatten
-      return if raw_answers.size > MAX_SECURITY_ANSWERS
-      return if raw_answers.any? { |answer| answer.to_s.length > MAX_SECURITY_ANSWER_LENGTH }
-
-      answers = raw_answers.filter_map do |answer|
-        answer.to_s.strip.presence
-      end
-
-      return if answers.empty?
-
-      answers
-    end
 
     def sophtron_response_data!(response)
       Provider::Sophtron.response_data!(response)
     end
 
     def verify_and_provision_customer(item)
-      provider = item.sophtron_provider
-      raise Provider::Sophtron::Error.new("Sophtron provider is not configured", :configuration_error) unless provider
-
-      sophtron_response_data!(provider.health_check_auth)
-      item.ensure_customer!(provider: provider)
-      true
-    rescue Provider::Sophtron::Error => e
-      item.update(status: :requires_update, last_connection_error: e.message)
-      Rails.logger.error("Sophtron customer provisioning failed: #{e.message}")
+      item.verify_and_provision_customer!
+    rescue Provider::Sophtron::Error
       false
     end
 
@@ -982,28 +917,6 @@ class SophtronItemsController < ApplicationController
       end
     end
 
-    def item_for_institution_connection(item)
-      return item unless connect_new_institution_flow? && should_create_sophtron_item_for_new_institution?(item)
-
-      Current.family.sophtron_items.create!(
-        name: item.name.presence || t("sophtron_items.defaults.name"),
-        user_id: item.user_id,
-        access_key: item.access_key,
-        base_url: item.base_url,
-        customer_id: item.customer_id,
-        customer_name: item.customer_name,
-        raw_customer_payload: item.raw_customer_payload,
-        sync_start_date: item.sync_start_date
-      )
-    end
-
-    def should_create_sophtron_item_for_new_institution?(item)
-      item.user_institution_id.present? ||
-        item.current_job_id.present? ||
-        item.institution_id.present? ||
-        item.institution_name.present? ||
-        item.sophtron_accounts.exists?
-    end
 
     def prepare_connection_form(item, account: nil)
       @sophtron_item = item

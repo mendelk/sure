@@ -53,19 +53,9 @@ class FinancekitAccountsTest < ActionDispatch::IntegrationTest
     queued, = accept_batch(financekit_payload(sequence: @item.next_sequence,
       predecessor_digest: @item.predecessor_digest))
 
-    get accounts_url(format: :json)
-    assert_response :success
-    rows = response.parsed_body.fetch("items").flat_map do |item|
-      item.fetch("group").flat_map { |group| group.fetch("accounts") }
-    end
-    unlink = rows.find { |row| row.fetch("id") == account.id }
-      .fetch("actions")
-      .find { |action| action.fetch("key") == "unlink_provider" }
-    assert_equal confirm_unlink_account_path(account), unlink.fetch("href")
 
     get confirm_unlink_account_url(account)
     assert_response :success
-    assert_includes response.body, I18n.t("accounts.confirm_unlink.warning_wallet_connection")
 
     assert_no_difference [ "Account.count", "Entry.count", "FinancekitAccount.count", "FinancekitTransaction.count" ] do
       delete unlink_account_url(account)

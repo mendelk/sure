@@ -366,7 +366,256 @@ class Api::V1::ValuationsControllerTest < ActionDispatch::IntegrationTest
     assert valuation_data.key?("notes")
   end
 
+  test "form options preserve account currency and offer only writable accounts" do
+    member_key = member_api_key
+    accounts(:depository).update!(currency: "EUR")
+    get form_options_api_v1_valuations_url, headers: api_headers(member_key)
+    assert_response :success
+    workspace = response.parsed_body.fetch("workspace")
+    assert_nil workspace["account_id"]
+    assert_equal [ accounts(:depository).id ], workspace["accounts"].pluck("id")
+    assert_equal Entry.min_supported_date.next_day.iso8601, workspace.dig("date_bounds", "min")
+
+    get form_options_api_v1_valuations_url, params: { account_id: accounts(:depository).id }, headers: api_headers(member_key)
+    assert_response :success
+    assert_equal "EUR", response.parsed_body.dig("workspace", "entry", "currency")
+
+    get form_options_api_v1_valuations_url, params: { account_id: accounts(:credit_card).id }, headers: api_headers(member_key)
+    assert_response :forbidden
+    get form_options_api_v1_valuations_url, params: { account_id: accounts(:investment).id }, headers: api_headers(member_key)
+    assert_response :not_found
+  end
+
+  test "show workspace is additive and preserves opening anchors and precise amounts" do
+    entry = entries(:valuation)
+    entry.update!(amount: "4995.13", notes: "Original")
+    entry.valuation.update!(kind: "opening_anchor")
+    get api_v1_valuation_url(entry), params: { include: "workspace" }, headers: api_headers(@api_key)
+    assert_response :success
+    assert_equal entry.id, response.parsed_body["id"]
+    workspace = response.parsed_body.fetch("workspace")
+    assert_equal "4995.13", workspace.dig("entry", "amount")
+    assert_equal "opening_anchor", workspace.dig("entry", "kind")
+    assert_equal "Original", workspace.dig("entry", "notes")
+    assert_equal [ entry.account_id ], workspace["accounts"].pluck("id")
+    assert_equal({ "can_edit" => true, "can_annotate" => true }, workspace["permissions"])
+  end
+
+  test "investment preview calculates negative brokerage cash without persistence or sync" do
+    account = accounts(:investment)
+    account.update!(currency: "EUR")
+    account.balances.create!(date: Date.current, currency: "EUR", balance: 10000,
+      cash_balance: 2000, start_cash_balance: 2000, start_non_cash_balance: 8000, flows_factor: 1)
+    assert_no_difference [ "Entry.count", "Valuation.count", "Sync.count" ] do
+      assert_no_enqueued_jobs only: SyncJob do
+        post preview_api_v1_valuations_url, params: {
+          valuation: { account_id: account.id, amount: "7000", date: Date.current.iso8601 }
+        }, headers: api_headers(@api_key)
+      end
+    end
+    assert_response :success
+    confirmation = response.parsed_body.fetch("confirmation")
+    assert_equal true, confirmation["investment"]
+    assert_equal Money.new(7000, "EUR").format, confirmation["total_value"]
+    assert_equal Money.new(8000, "EUR").format, confirmation["holdings_value"]
+    assert_equal Money.new(-1000, "EUR").format, confirmation["brokerage_cash"]
+    assert_equal true, confirmation["brokerage_cash_negative"]
+  end
+
+  test "update preview preserves persisted attributes and cannot resolve a pledge" do
+    entry = entries(:valuation)
+    entry.valuation.update!(kind: "opening_anchor")
+    pledge = goals(:emergency_fund).goal_pledges.create!(
+      account: entry.account, amount: 150, currency: entry.currency, kind: "manual_save"
+    )
+    original = entry.attributes.slice("amount", "date", "notes", "locked_attributes")
+    attributes = { amount: entry.amount + 150, date: entry.date.iso8601 }
+    assert_no_difference [ "Entry.count", "Valuation.count", "Sync.count" ] do
+      assert_no_enqueued_jobs only: SyncJob do
+        post preview_api_v1_valuation_url(entry), params: { valuation: attributes }, headers: api_headers(@api_key)
+      end
+    end
+    assert_response :success
+    assert_equal Money.new(attributes[:amount], entry.currency).format, response.parsed_body.dig("confirmation", "total_value")
+    assert_equal original, entry.reload.attributes.slice("amount", "date", "notes", "locked_attributes")
+    assert_equal "opening_anchor", entry.valuation.kind
+    assert pledge.reload.status_open?
+
+    patch api_v1_valuation_url(entry), params: { valuation: attributes }, headers: api_headers(@api_key)
+    assert_response :success
+    assert_equal entry.id, response.parsed_body["id"]
+    assert_equal "opening_anchor", entry.valuation.reload.kind
+    assert pledge.reload.status_matched?
+    assert_enqueued_with job: SyncJob
+  end
+
+  test "invalid reconciliation inputs fail consistently before preview and mutations" do
+    entry = entries(:valuation)
+    original = entry.attributes.slice("amount", "date", "notes")
+    [
+      { amount: "", date: Date.current.iso8601 },
+      { amount: "invalid", date: Date.current.iso8601 },
+      { amount: "NaN", date: Date.current.iso8601 },
+      { amount: "Infinity", date: Date.current.iso8601 },
+      { amount: "10", date: "not-a-date" },
+      { amount: "10", date: Entry.min_supported_date.iso8601 },
+      { amount: "10" }, { date: Date.current.iso8601 }
+    ].each do |attributes|
+      assert_no_difference [ "Entry.count", "Valuation.count", "Sync.count" ] do
+        post preview_api_v1_valuations_url, params: { valuation: attributes.merge(account_id: entry.account_id) }, headers: api_headers(@api_key)
+        assert_response :unprocessable_entity
+        assert response.parsed_body["errors"].present?
+        post preview_api_v1_valuation_url(entry), params: { valuation: attributes }, headers: api_headers(@api_key)
+        assert_response :unprocessable_entity
+        post api_v1_valuations_url, params: { valuation: attributes.merge(account_id: entry.account_id) }, headers: api_headers(@api_key)
+        assert_response :unprocessable_entity
+        patch api_v1_valuation_url(entry), params: { valuation: attributes.merge(notes: "Must not save") }, headers: api_headers(@api_key)
+        assert_response :unprocessable_entity
+      end
+      assert_equal original, entry.reload.attributes.slice("amount", "date", "notes")
+    end
+  end
+
+  test "conflicting update preview and confirmation do not save financials or notes" do
+    entry = entries(:valuation)
+    other = entry.account.entries.create!(name: "Other", date: Date.current, amount: 5100,
+      currency: entry.currency, entryable: Valuation.new)
+    original = entry.attributes.slice("amount", "date", "notes")
+    attributes = { date: other.date.iso8601, amount: "5500", notes: "Must not save" }
+    post preview_api_v1_valuation_url(entry), params: { valuation: attributes }, headers: api_headers(@api_key)
+    assert_response :unprocessable_entity
+    patch api_v1_valuation_url(entry), params: { valuation: attributes }, headers: api_headers(@api_key)
+    assert_response :unprocessable_entity
+    assert_equal original, entry.reload.attributes.slice("amount", "date", "notes")
+    assert_equal 5100, other.reload.amount
+  end
+
+  test "read write shares may annotate and clear notes but cannot reconcile preview or delete" do
+    entry = entries(:valuation)
+    account_shares(:depository_shared_with_member).update!(permission: "read_write")
+    key = member_api_key
+    get api_v1_valuation_url(entry), params: { include: "workspace" }, headers: api_headers(key)
+    assert_response :success
+    assert_equal({ "can_edit" => false, "can_annotate" => true }, response.parsed_body.dig("workspace", "permissions"))
+    [ "Shared note", "", nil ].each do |notes|
+      patch api_v1_valuation_url(entry), params: { valuation: { notes: notes } }, headers: api_headers(key), as: :json
+      assert_response :success
+      assert_equal notes, entry.reload.notes
+    end
+    attributes = { date: entry.date.iso8601, amount: "9000" }
+    post preview_api_v1_valuation_url(entry), params: { valuation: attributes }, headers: api_headers(key)
+    assert_response :forbidden
+    post preview_api_v1_valuations_url, params: { valuation: attributes.merge(account_id: entry.account_id) }, headers: api_headers(key)
+    assert_response :forbidden
+    post api_v1_valuations_url, params: { valuation: attributes.merge(account_id: entry.account_id) }, headers: api_headers(key)
+    assert_response :forbidden
+    patch api_v1_valuation_url(entry), params: { valuation: attributes.merge(notes: "Forbidden") }, headers: api_headers(key)
+    assert_response :forbidden
+    delete api_v1_valuation_url(entry), headers: api_headers(key)
+    assert_response :forbidden
+    assert_nil entry.reload.notes
+  end
+
+  test "read only shares cannot annotate and full control shares can reconcile" do
+    entry = entries(:valuation)
+    key = member_api_key
+    share = account_shares(:depository_shared_with_member)
+    share.update!(permission: "read_only")
+    patch api_v1_valuation_url(entry), params: { valuation: { notes: "Forbidden" } }, headers: api_headers(key)
+    assert_response :forbidden
+    share.update!(permission: "full_control")
+    patch api_v1_valuation_url(entry), params: { valuation: { amount: "5010", date: entry.date.iso8601 } }, headers: api_headers(key)
+    assert_response :success
+    assert_equal 5010, entry.reload.amount
+  end
+
+  test "valuation member endpoints reject inaccessible accounts and other entry types" do
+    key = member_api_key
+    inaccessible = accounts(:investment).entries.create!(
+      name: "Private valuation", date: Date.current, amount: 1000,
+      currency: accounts(:investment).currency, entryable: Valuation.new
+    )
+    [ inaccessible, entries(:transaction), entries(:trade) ].each do |entry|
+      get api_v1_valuation_url(entry), headers: api_headers(key)
+      assert_response :not_found
+      post preview_api_v1_valuation_url(entry), params: { valuation: { amount: "100", date: Date.current.iso8601 } }, headers: api_headers(key)
+      assert_response :not_found
+      patch api_v1_valuation_url(entry), params: { valuation: { notes: "Forbidden" } }, headers: api_headers(key)
+      assert_response :not_found
+      delete api_v1_valuation_url(entry), headers: api_headers(key)
+      assert_response :not_found
+    end
+  end
+
+  test "delete removes valuation and queues balance recalculation" do
+    entry = entries(:valuation)
+    assert_difference [ "Entry.count", "Valuation.count" ], -1 do
+      delete api_v1_valuation_url(entry), headers: api_headers(@api_key)
+    end
+    assert_response :no_content
+    assert_empty response.body
+    assert_enqueued_with job: SyncJob
+  end
+
+  test "new endpoints require authentication and preview and deletion require write scope" do
+    entry = entries(:valuation)
+    attributes = { valuation: { account_id: entry.account_id, amount: "100", date: entry.date.iso8601 } }
+    get form_options_api_v1_valuations_url
+    assert_response :unauthorized
+    post preview_api_v1_valuations_url, params: attributes
+    assert_response :unauthorized
+    post preview_api_v1_valuation_url(entry), params: attributes
+    assert_response :unauthorized
+    delete api_v1_valuation_url(entry)
+    assert_response :unauthorized
+    post preview_api_v1_valuations_url, params: attributes, headers: api_headers(@read_only_api_key)
+    assert_response :forbidden
+    post preview_api_v1_valuation_url(entry), params: attributes, headers: api_headers(@read_only_api_key)
+    assert_response :forbidden
+    delete api_v1_valuation_url(entry), headers: api_headers(@read_only_api_key)
+    assert_response :forbidden
+    get form_options_api_v1_valuations_url, headers: api_headers(@read_only_api_key)
+    assert_response :success
+  end
+
+  test "missing valuation and required inputs return structured errors without mutations" do
+    entry = entries(:valuation)
+    assert_no_difference [ "Entry.count", "Valuation.count", "Sync.count" ] do
+      get api_v1_valuation_url(SecureRandom.uuid), headers: api_headers(@api_key)
+      assert_api_error :not_found, "not_found"
+      post preview_api_v1_valuation_url(SecureRandom.uuid),
+        params: { valuation: { amount: "100", date: Date.current.iso8601 } }, headers: api_headers(@api_key)
+      assert_api_error :not_found, "not_found"
+      delete api_v1_valuation_url(SecureRandom.uuid), headers: api_headers(@api_key)
+      assert_api_error :not_found, "not_found"
+      post preview_api_v1_valuations_url, headers: api_headers(@api_key)
+      assert_api_error :unprocessable_entity, "validation_failed"
+      post preview_api_v1_valuation_url(entry), headers: api_headers(@api_key)
+      assert_api_error :unprocessable_entity, "validation_failed"
+      patch api_v1_valuation_url(entry), headers: api_headers(@api_key)
+      assert_api_error :unprocessable_entity, "validation_failed"
+      post api_v1_valuations_url, headers: api_headers(@api_key)
+      assert_api_error :unprocessable_entity, "validation_failed"
+    end
+  end
+
   private
+    def assert_api_error(status, code)
+      assert_response status
+      payload = response.parsed_body
+      assert_equal code, payload["error"]
+      assert payload["message"].present?
+      assert_kind_of Array, payload["errors"]
+      assert payload["errors"].any?
+    end
+
+    def member_api_key
+      user = users(:family_member)
+      user.api_keys.active.destroy_all
+      ApiKey.create!(user: user, name: "Member API key", scopes: [ "read_write" ],
+        source: "web", display_key: "test_member_#{SecureRandom.hex(8)}")
+    end
+
 
     def api_headers(api_key)
       { "X-Api-Key" => api_key.plain_key }

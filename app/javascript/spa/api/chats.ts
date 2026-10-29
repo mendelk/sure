@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { ChatIdSchema, MessageIdSchema, type ChatId, type MessageId } from "../ids";
-import { readCsrfToken } from "./transactions";
+import { apiFetch } from "./client";
 
 export class ChatsApiError extends Error {
   constructor(
@@ -9,7 +9,7 @@ export class ChatsApiError extends Error {
     readonly status: number,
     readonly errors: string[] = [],
   ) {
-    super(message);
+    super(errors.length > 0 ? errors.join(", ") : message);
     this.name = "ChatsApiError";
   }
 }
@@ -45,13 +45,18 @@ export const ChatSummarySchema = z.object({
 });
 export type ChatSummary = z.infer<typeof ChatSummarySchema>;
 
-export const ChatsIndexSchema = z.object({
-  chats: z.array(ChatSummarySchema),
+const WorkspaceMetadataSchema = z.object({
   ai_enabled: z.boolean(),
   ai_available: z.boolean(),
   default_model: z.string(),
   worker_healthy: z.boolean(),
   demo_warning: z.boolean(),
+  response_timeout_ms: z.number(),
+});
+
+export const ChatsIndexSchema = z.object({
+  ...WorkspaceMetadataSchema.shape,
+  chats: z.array(ChatSummarySchema),
 });
 export type ChatsIndex = z.infer<typeof ChatsIndexSchema>;
 
@@ -62,39 +67,90 @@ export const ChatDetailSchema = z.object({
   updated_at: z.string(),
   debug_mode: z.boolean(),
   error: z.nullable(z.string()),
-  technical_error: z.optional(z.nullable(z.string())),
+  technical_error: z.nullable(z.string()),
   needs_response: z.boolean(),
   worker_healthy: z.boolean(),
   demo_warning: z.boolean(),
+  response_timeout_ms: z.number(),
   messages: z.array(MessageSchema),
 });
 export type ChatDetail = z.infer<typeof ChatDetailSchema>;
 
 export const NewChatPayloadSchema = z.object({
-  chat: z.object({
-    id: z.nullable(z.string()),
-    title: z.string(),
-  }),
-  ai_enabled: z.boolean(),
-  ai_available: z.boolean(),
-  default_model: z.string(),
-  worker_healthy: z.boolean(),
-  demo_warning: z.boolean(),
+  ...WorkspaceMetadataSchema.shape,
+  chat: z.object({ id: z.nullable(z.string()), title: z.string() }),
 });
 export type NewChatPayload = z.infer<typeof NewChatPayloadSchema>;
 
-export const CHATS_INDEX_PATH = "/chats.json";
+const CanonicalMessageSchema = z.object({
+  id: MessageIdSchema,
+  type: z.string(),
+  role: z.string(),
+  content: z.string(),
+  model: z.nullable(z.string()),
+  pending: z.boolean(),
+  reasoning: z.boolean(),
+  created_at: z.string(),
+  tool_calls: z.array(
+    z.object({
+      id: z.string(),
+      function_name: z.string(),
+      function_arguments: z.json(),
+      function_result: z.json(),
+    }),
+  ),
+});
 
-export function chatsIndexQueryOptions(path = CHATS_INDEX_PATH) {
+const CanonicalSummarySchema = z.object({
+  id: ChatIdSchema,
+  title: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  message_count: z.number(),
+  error: z.nullable(z.string()),
+});
+
+const IndexResponseSchema = z.object({
+  workspace: z.object({
+    ...WorkspaceMetadataSchema.shape,
+    chats: z.array(CanonicalSummarySchema),
+  }),
+});
+
+const DetailResponseSchema = z.object({
+  id: ChatIdSchema,
+  title: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  error: z.nullable(z.string()),
+  workspace: z.object({
+    ...WorkspaceMetadataSchema.shape,
+    debug_mode: z.boolean(),
+    technical_error: z.nullable(z.string()),
+    needs_response: z.boolean(),
+    messages: z.array(CanonicalMessageSchema),
+  }),
+});
+
+export const CHATS_INDEX_PATH = "/api/v1/chats?include=workspace";
+
+export function chatsIndexQueryOptions() {
   return queryOptions({
     queryKey: ["spa", "chats"],
     queryFn: async (): Promise<ChatsIndex> => {
-      const response = await fetch(path, { headers: { Accept: "application/json" } });
-      if (response.ok) {
-        const json: unknown = await response.json();
-        return ChatsIndexSchema.parse(json);
-      }
-      throw new ChatsApiError("Failed to load chats", response.status);
+      const response = await chatRequest(CHATS_INDEX_PATH, {}, "Failed to load chats");
+      const { workspace } = IndexResponseSchema.parse(await response.json());
+      return {
+        ...workspace,
+        chats: workspace.chats.map((chat) => ({
+          id: chat.id,
+          title: chat.title,
+          created_at: chat.created_at,
+          updated_at: chat.updated_at,
+          error: chat.error,
+          messages_count: chat.message_count,
+        })),
+      };
     },
   });
 }
@@ -103,14 +159,12 @@ export function chatDetailQueryOptions(chatId: ChatId) {
   return queryOptions({
     queryKey: ["spa", "chat", chatId],
     queryFn: async (): Promise<ChatDetail> => {
-      const response = await fetch(`/chats/${encodeURIComponent(chatId)}.json`, {
-        headers: { Accept: "application/json" },
-      });
-      if (response.ok) {
-        const json: unknown = await response.json();
-        return ChatDetailSchema.parse(json);
-      }
-      throw new ChatsApiError("Failed to load chat", response.status);
+      const response = await chatRequest(
+        `/api/v1/chats/${encodeURIComponent(chatId)}?include=workspace`,
+        {},
+        "Failed to load chat",
+      );
+      return parseChatDetail(await response.json());
     },
   });
 }
@@ -119,144 +173,138 @@ export function newChatQueryOptions() {
   return queryOptions({
     queryKey: ["spa", "chats", "new"],
     queryFn: async (): Promise<NewChatPayload> => {
-      const response = await fetch("/chats/new.json", {
-        headers: { Accept: "application/json" },
-      });
-      if (response.ok) {
-        const json: unknown = await response.json();
-        return NewChatPayloadSchema.parse(json);
-      }
-      throw new ChatsApiError("Failed to load new chat", response.status);
+      const response = await chatRequest(
+        "/api/v1/chats/form_options",
+        {},
+        "Failed to load new chat",
+      );
+      return NewChatPayloadSchema.parse(await response.json());
     },
   });
 }
-
 export async function createChatRequest(input: {
-  content: string;
-  ai_model?: string;
+  message: string;
+  model?: string;
 }): Promise<ChatDetail> {
-  const response = await fetch("/chats.json", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "X-CSRF-Token": readCsrfToken(),
+  const response = await chatRequest(
+    CHATS_INDEX_PATH,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
     },
-    body: JSON.stringify({ chat: input }),
-  });
-  if (response.ok) {
-    const json: unknown = await response.json();
-    return ChatDetailSchema.parse(json);
-  }
-  const errorJson: unknown = await response.json().catch(() => null);
-  const errors = extractErrors(errorJson);
-  throw new ChatsApiError("Failed to create chat", response.status, errors);
+    "Failed to create chat",
+  );
+  return parseChatDetail(await response.json());
 }
 
 export async function createMessageRequest(
   chatId: ChatId,
-  input: { content: string; ai_model?: string },
+  input: { content: string; model?: string },
 ): Promise<MessageItem> {
-  const response = await fetch(`/chats/${encodeURIComponent(chatId)}/messages.json`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "X-CSRF-Token": readCsrfToken(),
+  const response = await chatRequest(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/messages`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
     },
-    body: JSON.stringify({ message: input }),
-  });
-  if (response.ok) {
-    const json: unknown = await response.json();
-    return MessageSchema.parse(json);
-  }
-  const errorJson: unknown = await response.json().catch(() => null);
-  const errors = extractErrors(errorJson);
-  throw new ChatsApiError("Failed to send message", response.status, errors);
+    "Failed to send message",
+  );
+  return parseMessage(CanonicalMessageSchema.parse(await response.json()));
 }
 
 export async function updateChatTitleRequest(chatId: ChatId, title: string): Promise<ChatDetail> {
-  const response = await fetch(`/chats/${encodeURIComponent(chatId)}.json`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "X-CSRF-Token": readCsrfToken(),
+  const response = await chatRequest(
+    `/api/v1/chats/${encodeURIComponent(chatId)}?include=workspace`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
     },
-    body: JSON.stringify({ chat: { title } }),
-  });
-  if (response.ok) {
-    const json: unknown = await response.json();
-    return ChatDetailSchema.parse(json);
-  }
-  const errorJson: unknown = await response.json().catch(() => null);
-  const errors = extractErrors(errorJson);
-  throw new ChatsApiError("Failed to update chat title", response.status, errors);
+    "Failed to update chat title",
+  );
+  return parseChatDetail(await response.json());
 }
 
 export async function deleteChatRequest(chatId: ChatId): Promise<void> {
-  const response = await fetch(`/chats/${encodeURIComponent(chatId)}.json`, {
-    method: "DELETE",
-    headers: {
-      Accept: "application/json",
-      "X-CSRF-Token": readCsrfToken(),
+  await chatRequest(
+    `/api/v1/chats/${encodeURIComponent(chatId)}`,
+    {
+      method: "DELETE",
     },
-  });
-  if (response.ok) return;
-  throw new ChatsApiError("Failed to delete chat", response.status);
+    "Failed to delete chat",
+  );
 }
 
-export async function retryChatRequest(chatId: ChatId): Promise<ChatDetail> {
-  const response = await fetch(`/chats/${encodeURIComponent(chatId)}/retry.json`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "X-CSRF-Token": readCsrfToken(),
+export async function markChatViewedRequest(chatId: ChatId): Promise<void> {
+  await chatRequest(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/view`,
+    {
+      method: "PATCH",
     },
-  });
-  if (response.ok) {
-    const json: unknown = await response.json();
-    return ChatDetailSchema.parse(json);
-  }
-  throw new ChatsApiError("Failed to retry message", response.status);
+    "Failed to record viewed chat",
+  );
+}
+
+export async function retryChatRequest(chatId: ChatId): Promise<void> {
+  await chatRequest(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/messages/retry`,
+    {
+      method: "POST",
+    },
+    "Failed to retry message",
+  );
 }
 
 export async function reportMessageTimeoutRequest(
   chatId: ChatId,
   messageId: MessageId,
 ): Promise<boolean> {
-  const response = await fetch(
-    `/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/report_timeout`,
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "X-CSRF-Token": readCsrfToken(),
-      },
-    },
+  const response = await apiFetch(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/report_timeout`,
+    { method: "POST" },
   );
   return response.ok;
 }
 
-export async function enableAiRequest(userId: string): Promise<void> {
-  const response = await fetch(`/users/${encodeURIComponent(userId)}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
-    body: JSON.stringify({ user: { ai_enabled: true } }),
-  });
-  if (response.ok) return;
-  throw new ChatsApiError("Failed to enable AI", response.status);
+export async function enableAiRequest(): Promise<void> {
+  await chatRequest("/api/v1/auth/enable_ai", { method: "PATCH" }, "Failed to enable AI");
+}
+
+function parseChatDetail(payload: unknown): ChatDetail {
+  const { workspace, ...chat } = DetailResponseSchema.parse(payload);
+  return { ...chat, ...workspace, messages: workspace.messages.map(parseMessage) };
+}
+
+function parseMessage(message: z.infer<typeof CanonicalMessageSchema>): MessageItem {
+  return {
+    ...message,
+    ai_model: message.model,
+    tool_calls: message.tool_calls.map((toolCall) => {
+      const args = toolCall.function_arguments;
+      const result = toolCall.function_result;
+      return {
+        ...toolCall,
+        function_arguments: typeof args === "string" ? args : JSON.stringify(args),
+        function_result:
+          result === null ? null : typeof result === "string" ? result : JSON.stringify(result),
+      };
+    }),
+  };
+}
+
+async function chatRequest(path: string, init: RequestInit, message: string): Promise<Response> {
+  const response = await apiFetch(path, init);
+  if (response.ok) return response;
+  const payload: unknown = await response.json().catch(() => null);
+  throw new ChatsApiError(message, response.status, extractErrors(payload));
 }
 
 function extractErrors(payload: unknown): string[] {
-  if (typeof payload === "object" && payload !== null) {
-    if ("errors" in payload && Array.isArray(payload.errors))
-      return payload.errors.filter((item): item is string => typeof item === "string");
-    if ("error" in payload && typeof payload.error === "string") return [payload.error];
-  }
+  if (typeof payload !== "object" || payload === null) return [];
+  if ("errors" in payload && Array.isArray(payload.errors))
+    return payload.errors.filter((item): item is string => typeof item === "string");
+  if ("details" in payload && Array.isArray(payload.details))
+    return payload.details.filter((item): item is string => typeof item === "string");
+  if ("message" in payload && typeof payload.message === "string") return [payload.message];
+  if ("error" in payload && typeof payload.error === "string") return [payload.error];
   return [];
 }

@@ -1,10 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
-import { readCsrfToken } from "./transactions";
-
-// Session-JSON client for the Rails rules settings pages. Same-origin
-// `<path>.json` fetches plus `X-CSRF-Token` mutations, mirroring the ERB
-// forms' `rule[...]` params so one controller path serves both.
+import { apiFetch } from "./client";
 
 const OptionPairSchema = z.tuple([z.string(), z.unknown()]);
 
@@ -124,7 +120,7 @@ export const RuleConfirmSchema = z.object({
 });
 
 const RuleWithConfirmSchema = z.object({
-  rule: RuleDetailSchema,
+  data: RuleDetailSchema,
   confirm: RuleConfirmSchema,
 });
 
@@ -256,14 +252,8 @@ function extractErrors(payload: unknown, fallback: string): string[] {
 }
 
 async function requestJson(url: string, method: string, body?: unknown): Promise<unknown> {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     body: body === undefined ? undefined : JSON.stringify(body),
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
     method,
   });
   const payload: unknown = await response.json().catch(() => null);
@@ -273,11 +263,7 @@ async function requestJson(url: string, method: string, body?: unknown): Promise
 }
 
 async function requestGet(url: string, signal?: AbortSignal): Promise<unknown> {
-  const response = await fetch(url, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
-    signal,
-  });
+  const response = await apiFetch(url, { signal });
   if (!response.ok)
     throw new RulesApiError(`Request failed with status ${response.status}`, response.status);
   const payload: unknown = await response.json();
@@ -288,8 +274,9 @@ export function rulesIndexQueryOptions(path: string) {
   return queryOptions({
     queryKey: ["spa", "rules-index", path] as const,
     queryFn: async ({ signal }): Promise<RulesIndex> => {
-      const payload = await requestGet(path, signal);
-      return RulesIndexSchema.parse(payload);
+      const separator = path.includes("?") ? "&" : "?";
+      const payload = await requestGet(`${path}${separator}include=workspace`, signal);
+      return z.object({ workspace: RulesIndexSchema }).parse(payload).workspace;
     },
     staleTime: 10_000,
   });
@@ -313,10 +300,11 @@ export async function fetchRuleForm(path: string, signal?: AbortSignal): Promise
 export async function createRule(
   path: string,
   input: RuleFormInput,
-): Promise<z.infer<typeof RuleWithConfirmSchema>> {
-  return RuleWithConfirmSchema.parse(
+): Promise<{ rule: RuleDetail; confirm: RuleConfirm }> {
+  const payload = RuleWithConfirmSchema.parse(
     await requestJson(path, "POST", { rule: serializeRuleFormInput(input) }),
   );
+  return { rule: payload.data, confirm: payload.confirm };
 }
 
 export async function updateRule(
@@ -324,12 +312,12 @@ export async function updateRule(
   input: RuleFormInput,
 ): Promise<{ rule: RuleDetail }> {
   const payload = await requestJson(path, "PATCH", { rule: serializeRuleFormInput(input) });
-  return z.object({ rule: RuleDetailSchema }).parse(payload);
+  return { rule: z.object({ data: RuleDetailSchema }).parse(payload).data };
 }
 
 export async function fetchRuleConfirm(path: string): Promise<RuleConfirm> {
   const payload = await requestJson(path, "GET");
-  return z.object({ rule: RuleDetailSchema, confirm: RuleConfirmSchema }).parse(payload).confirm;
+  return RuleWithConfirmSchema.parse(payload).confirm;
 }
 
 export async function fetchConfirmAll(path: string): Promise<ConfirmAll> {

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import {
-  readCsrfToken,
+  bulkDeleteEntries,
   referenceDataQueryOptions,
   TransactionApiError,
   transactionsQueryOptions,
@@ -251,23 +251,7 @@ export function TransactionsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const bulkDeleteMutation = useMutation({
-    mutationFn: async (entryIds: string[]) => {
-      const deletePath = bootstrap.railsPaths.bulkDelete ?? "/transactions/bulk_deletion";
-      const body = new URLSearchParams();
-      for (const id of entryIds) body.append("bulk_delete[entry_ids][]", id);
-      const response = await fetch(deletePath, {
-        body,
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json, text/html",
-          "X-CSRF-Token": readCsrfToken(),
-        },
-        method: "POST",
-        redirect: "manual",
-      });
-      if (!response.ok && response.type !== "opaqueredirect")
-        throw new Error(`Delete failed with status ${response.status}`);
-    },
+    mutationFn: bulkDeleteEntries,
     onError: (caught) => {
       setDeleteError(caught instanceof Error ? caught.message : "Delete failed");
     },

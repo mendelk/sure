@@ -2,7 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { AccountIdSchema, EntryIdSchema, type AccountId } from "../ids";
 import { GetApiV1Transactions200Response, GetApiV1TransactionsId200Response } from "./generated";
-import { readCsrfToken } from "./transactions";
+import { apiFetch } from "./client";
 
 export type AccountSearch = {
   tab?: string;
@@ -39,7 +39,7 @@ export const AccountActionSchema = z.object({
   method: z.enum(["get", "post", "patch", "delete"]),
   icon: z.string(),
   confirm: NullableStringSchema,
-  params: z.record(z.string(), z.string()),
+  params: z.record(z.string(), z.unknown()),
 });
 export const AccountCardSchema = z.object({
   label: z.string(),
@@ -300,6 +300,14 @@ export class AccountApiError extends Error {
   }
 }
 
+export async function updateDefaultPeriod(period: string): Promise<void> {
+  const response = await apiFetch("/api/v1/user_preferences", {
+    method: "PATCH",
+    body: JSON.stringify({ preferences: { default_period: period } }),
+  });
+  if (!response.ok) throw new AccountApiError(response.status);
+}
+
 export async function updateAccountActivity({
   edit,
   label,
@@ -307,32 +315,21 @@ export async function updateAccountActivity({
   edit: NonNullable<AccountActivity["groups"][number]["entries"][number]["activity_edit"]>;
   label: string;
 }): Promise<void> {
-  const response = await fetch(edit.href, {
+  const resource = edit.href.includes("/trades/") ? "trade" : "transaction";
+  const response = await apiFetch(edit.href, {
     method: "PATCH",
-    credentials: "same-origin",
-    headers: {
-      Accept: "text/html",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
     body: JSON.stringify({
-      entry: {
-        entryable_attributes: {
-          id: edit.entryable_id,
-          investment_activity_label: label === "" ? null : label,
-        },
-      },
+      [resource]: { investment_activity_label: label === "" ? null : label },
     }),
-    redirect: "manual",
   });
-  if (!response.ok && response.type !== "opaqueredirect")
-    throw new AccountApiError(response.status);
+  if (!response.ok) throw new AccountApiError(response.status);
 }
 export function accountDetailQueryOptions(id: AccountId, input: AccountSearch) {
   return queryOptions({
     queryKey: ["spa", "account", id, input] as const,
     queryFn: async ({ signal }) => {
       const search = new URLSearchParams();
+      search.set("include", "workspace");
       const params: Record<string, unknown> = input;
       for (const [key, value] of Object.entries(params)) {
         if (Array.isArray(value)) {
@@ -344,14 +341,12 @@ export function accountDetailQueryOptions(id: AccountId, input: AccountSearch) {
         )
           search.set(key, String(value));
       }
-      const response = await fetch(`/accounts/${encodeURIComponent(id)}.json?${search}`, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
+      const response = await apiFetch(`/api/v1/accounts/${encodeURIComponent(id)}?${search}`, {
         signal,
       });
       if (!response.ok) throw new AccountApiError(response.status);
-      const payload: unknown = await response.json();
-      return AccountDetailSchema.parse(payload);
+      const payload = z.object({ workspace: AccountDetailSchema }).parse(await response.json());
+      return payload.workspace;
     },
     retry: (count, error) => !(error instanceof AccountApiError && error.status < 500) && count < 2,
     refetchInterval: (query) => (query.state.data?.syncing === true ? 3000 : false),

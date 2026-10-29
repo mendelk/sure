@@ -5,16 +5,14 @@ class AccountSharingsController < ApplicationController
     return render("spa/show", layout: "spa") if request.format.html?
 
     render json: Account::SpaIndexData.new(
-      item_specs: [], groups: [], family: Current.family, user: Current.user
-    ).tap { |data| data.instance_variable_set(:@account, @account) }.sharing_payload.to_json
+      item_specs: [], groups: [], family: Current.family, user: Current.user, account: @account
+    ).sharing_payload.to_json
   end
 
   def update
     # Non-owners can update their own include_in_finances preference
     if !@account.owned_by?(Current.user) && params[:update_finance_inclusion].present?
-      share = @account.account_shares.find_by!(user: Current.user)
-      include_value = params.permit(:include_in_finances)[:include_in_finances]
-      share.update!(include_in_finances: ActiveModel::Type::Boolean.new.cast(include_value))
+      Account::Sharing.new(@account, user: Current.user).update_finance_inclusion!(params.permit(:include_in_finances)[:include_in_finances])
       respond_to do |format|
         format.json { head :no_content }
         format.html do
@@ -35,27 +33,7 @@ class AccountSharingsController < ApplicationController
       return
     end
 
-    eligible_members = Current.family.users.where.not(id: @account.owner_id).where(active: true)
-
-    AccountShare.transaction do
-      sharing_members_params.each do |member_params|
-        user = eligible_members.find_by(id: member_params[:user_id])
-        next unless user
-
-        share = @account.account_shares.find_by(user: user)
-
-        if ActiveModel::Type::Boolean.new.cast(member_params[:shared])
-          permission = AccountShare::PERMISSIONS.include?(member_params[:permission]) ? member_params[:permission] : (share&.permission || "read_only")
-          if share
-            share.update!(permission: permission)
-          else
-            @account.account_shares.create!(user: user, permission: permission, include_in_finances: true)
-          end
-        elsif share
-          share.destroy!
-        end
-      end
-    end
+    Account::Sharing.new(@account, user: Current.user).update_members!(sharing_members_params)
 
     respond_to do |format|
       format.json { head :no_content }

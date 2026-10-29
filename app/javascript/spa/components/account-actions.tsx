@@ -5,21 +5,13 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import type { AccountAction, AccountSearch } from "../api/accounts";
 import { invalidateAccountQueries, postAccountAction } from "../api/account-spa";
-import { readCsrfToken } from "../api/transactions";
 import { CategoryIcon, Icon } from "../icon";
 import type { AccountId } from "../ids";
 import { Modal } from "../modal";
 import { currentReturnTo, parseReturnTo } from "../return-to";
 import { Button } from "./button";
+import { AccountProviderPicker } from "./account-provider-picker";
 
-export function CsrfFields({ method = "post" }: { method?: string }) {
-  return (
-    <>
-      <input type="hidden" name="authenticity_token" value={readCsrfToken()} />
-      {method !== "post" ? <input type="hidden" name="_method" value={method} /> : null}
-    </>
-  );
-}
 export function ConfirmSubmit({
   label,
   message,
@@ -73,6 +65,7 @@ export function AccountActionControl({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
+  const [pickingProvider, setPickingProvider] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const confirmation = action.confirm ?? (action.method === "delete" ? text.delete_confirm : null);
   const content = (
@@ -90,17 +83,34 @@ export function AccountActionControl({
     onSuccess: (_data, acted) => {
       setConfirming(false);
       if (acted.method === "get") follow();
-      else void invalidateAccountQueries(queryClient);
+      else {
+        void invalidateAccountQueries(queryClient);
+        if (
+          acted.method === "delete" &&
+          new URL(acted.href, window.location.origin).pathname === `/api/v1/accounts/${accountId}`
+        )
+          void navigate({ to: "/accounts" });
+      }
     },
   });
   const follow = () => {
+    if (action.key === "link_provider") {
+      setPickingProvider(true);
+      return;
+    }
     const url = new URL(action.href, window.location.origin);
-    for (const [key, value] of Object.entries(action.params)) url.searchParams.set(key, value);
+    const navigationParams: Record<string, string> = {};
+    for (const [key, value] of Object.entries(action.params)) {
+      if (typeof value === "string") {
+        url.searchParams.set(key, value);
+        navigationParams[key] = value;
+      }
+    }
     if (url.pathname === `/accounts/${accountId}`) {
       void navigate({
         to: "/accounts/$accountId",
         params: { accountId },
-        search: { ...search, ...action.params },
+        search: { ...search, ...navigationParams },
         resetScroll: false,
       });
     } else if (url.pathname === "/transactions/new") {
@@ -198,6 +208,14 @@ export function AccountActionControl({
   };
   return (
     <>
+      {pickingProvider ? (
+        <AccountProviderPicker
+          accountId={accountId}
+          onClose={() => {
+            setPickingProvider(false);
+          }}
+        />
+      ) : null}
       {action.method === "get" ? (
         <Button
           variant="ghost"

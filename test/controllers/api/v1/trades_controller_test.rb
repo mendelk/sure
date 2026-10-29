@@ -653,6 +653,65 @@ class Api::V1::TradesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Updated notes", response_data["notes"]
   end
 
+  test "explicit null clears activity label without dropping quantity price or notes updates" do
+    trade = @investment_account.trades.first
+    trade.update!(investment_activity_label: "Buy")
+    patch api_v1_trade_url(trade),
+      params: { trade: { investment_activity_label: nil, qty: 3, price: 12, notes: "Reviewed" } },
+      headers: api_headers(read_write_api_key), as: :json
+
+    assert_response :success
+    assert_nil trade.reload.investment_activity_label
+    assert_nil JSON.parse(response.body)["investment_activity_label"]
+    assert_equal 3, trade.qty
+    assert_equal 12, trade.price
+    assert_equal 36, trade.entry.reload.amount
+    assert_equal "Reviewed", trade.entry.notes
+  end
+
+  test "clearing an income trade label keeps an edited cash amount an inflow" do
+    trade = @investment_account.trades.first
+    trade.update!(investment_activity_label: "Dividend", qty: 0)
+    patch api_v1_trade_url(trade),
+      params: { trade: { investment_activity_label: nil, amount: 25, notes: "Dividend reviewed" } },
+      headers: api_headers(read_write_api_key), as: :json
+
+    assert_response :success
+    assert_nil trade.reload.investment_activity_label
+    assert_equal(-25, trade.entry.reload.amount)
+    assert_equal "Dividend reviewed", trade.entry.notes
+    assert_equal 0, trade.qty
+  end
+
+  test "blank string activity labels retain the inferred label when updating quantity and price" do
+    trade = @investment_account.trades.first
+    trade.update!(investment_activity_label: "Sweep In")
+    patch api_v1_trade_url(trade),
+      params: { trade: { investment_activity_label: "", qty: 2, price: 11, notes: "Legacy form" } },
+      headers: api_headers(read_write_api_key), as: :json
+
+    assert_response :success
+    assert_equal "Sweep In", trade.reload.investment_activity_label
+    assert_equal 2, trade.qty
+    assert_equal 11, trade.price
+    assert_equal "Legacy form", trade.entry.reload.notes
+  end
+
+  test "unsupported trade categories reject mixed updates atomically" do
+    trade = @investment_account.trades.first
+    original_qty = trade.qty
+    original_label = trade.investment_activity_label
+    original_notes = trade.entry.notes
+    patch api_v1_trade_url(trade),
+      params: { trade: { investment_activity_label: nil, qty: 3, notes: "Do not save", category_id: @user.family.categories.first!.id } },
+      headers: api_headers(read_write_api_key), as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal original_qty, trade.reload.qty
+    assert_equal original_label, trade.investment_activity_label
+    assert_equal original_notes, trade.entry.reload.notes
+  end
+
   test "updates a security trade to sweep out with matching sign and label" do
     security = Security.create!(ticker: "UPDSWEEP", name: "Update Sweep Security", country_code: "US")
     post "/api/v1/trades",

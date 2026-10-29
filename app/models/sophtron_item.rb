@@ -13,6 +13,7 @@
 # @attr [DateTime] last_synced_at When the last successful sync occurred
 class SophtronItem < ApplicationRecord
   include Syncable, Provided, Unlinking, DestroyableLater
+  include Configuration
 
   INITIAL_LOAD_LOOKBACK_DAYS = 120
   MAX_TRANSACTION_HISTORY_YEARS = 3

@@ -1,4 +1,4 @@
-import { readCsrfToken } from "./transactions";
+import { apiFetch } from "./client";
 import {
   ReportCatalogSchema,
   StructuredReportResultSchema,
@@ -18,14 +18,9 @@ export class ReportApiError extends Error {
 }
 
 async function postReport(endpoint: string, body: unknown, signal?: AbortSignal): Promise<unknown> {
-  const response = await fetch(endpoint, {
+  const response = await apiFetch(endpoint, {
     method: "POST",
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     signal,
   });

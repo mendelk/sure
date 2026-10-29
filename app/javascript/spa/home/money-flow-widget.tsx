@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod/mini";
 import { Chart } from "@tanstack/charts/react";
+import { apiFetch } from "../api/client";
 import { moneyFlowDefinition } from "../../charts/comparison";
 import { useSpaPaths } from "../api/paths";
 import { Icon } from "../icon";
@@ -75,9 +76,7 @@ function moneyFlowQueryOptions(
   return {
     queryKey: ["spa", "home", "money-flow", path] as const,
     queryFn: async ({ signal }: { signal?: AbortSignal }): Promise<MoneyFlowData> => {
-      const response = await fetch(path, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
+      const response = await apiFetch(path, {
         signal,
       });
       const payload: unknown = await response.json().catch(() => null);

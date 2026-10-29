@@ -6,13 +6,14 @@ class Api::V1::TradesController < Api::V1::BaseController
   before_action :ensure_read_scope, only: [ :index, :show ]
   before_action :ensure_write_scope, only: [ :create, :update, :destroy ]
   before_action :set_trade, only: [ :show, :update, :destroy ]
+  before_action :reject_unsupported_category, only: [ :create, :update ]
 
   def index
     family = current_resource_owner.family
     trades_query = family.trades.visible
 
     trades_query = apply_filters(trades_query)
-    trades_query = trades_query.includes({ entry: :account }, :security, :category).reverse_chronological
+    trades_query = trades_query.includes({ entry: :account }, :security).reverse_chronological
 
     @pagy, @trades = pagy(
       trades_query,
@@ -123,6 +124,11 @@ class Api::V1::TradesController < Api::V1::BaseController
   end
 
   private
+    def reject_unsupported_category
+      return unless params[:trade].respond_to?(:key?) && params[:trade].key?(:category_id)
+
+      render_validation_error("Trades do not support categories", [ "category_id is not supported for trades" ])
+    end
 
     def set_trade
       family = current_resource_owner.family
@@ -163,7 +169,7 @@ class Api::V1::TradesController < Api::V1::BaseController
     def trade_params
       params.require(:trade).permit(
         :account_id, :date, :qty, :price, :currency,
-        :security_id, :ticker, :manual_ticker, :investment_activity_label, :category_id,
+        :security_id, :ticker, :manual_ticker, :investment_activity_label,
         :fee, :type, :amount, :transfer_account_id
       )
     end
@@ -171,12 +177,15 @@ class Api::V1::TradesController < Api::V1::BaseController
     def trade_update_params
       params.require(:trade).permit(
         :name, :date, :amount, :currency, :notes, :nature, :type,
-        :qty, :price, :investment_activity_label, :category_id
+        :qty, :price, :investment_activity_label
       )
     end
 
     def build_entry_params_for_update
       flat = trade_update_params.to_h
+      # Legacy forms submit an empty label to retain the inferred trade type.
+      # JSON null is different: it explicitly clears the stored label.
+      flat.delete(:investment_activity_label) if flat[:investment_activity_label] == ""
       entry_params = {
         name: flat[:name],
         date: flat[:date],
@@ -184,12 +193,11 @@ class Api::V1::TradesController < Api::V1::BaseController
         currency: flat[:currency],
         notes: flat[:notes],
         entryable_type: "Trade",
-        entryable_attributes: {
-          id: @trade.id,
-          investment_activity_label: flat[:investment_activity_label],
-          category_id: flat[:category_id]
-        }.compact_blank
+        entryable_attributes: { id: @trade.id }.merge(flat.slice(:investment_activity_label))
       }.compact
+      if %w[Dividend Interest].include?(@trade.investment_activity_label) && flat[:amount].present?
+        entry_params[:amount] = -flat[:amount].to_d.abs
+      end
 
       original_qty = flat[:qty]
       original_price = flat[:price]
@@ -202,10 +210,13 @@ class Api::V1::TradesController < Api::V1::BaseController
         signed_qty = is_sell ? -qty.to_d.abs : qty.to_d.abs
         entry_params[:entryable_attributes][:qty] = signed_qty
         entry_params[:amount] = signed_qty * price.to_d
+        entry_params[:entryable_attributes][:price] = price
         ticker = @trade.security&.ticker
         entry_params[:name] = Trade.build_name(is_sell ? "sell" : "buy", signed_qty.abs, ticker) if ticker.present?
         type_label = Trade::CreateForm::SECURITY_TRADE_LABELS[flat[:type].to_s.downcase]
-        entry_params[:entryable_attributes][:investment_activity_label] = flat[:investment_activity_label].presence || type_label || @trade.investment_activity_label.presence || (is_sell ? "Sell" : "Buy")
+        unless flat.key?(:investment_activity_label)
+          entry_params[:entryable_attributes][:investment_activity_label] = type_label || @trade.investment_activity_label.presence || (is_sell ? "Sell" : "Buy")
+        end
       end
 
       entry_params
@@ -390,14 +401,6 @@ class Api::V1::TradesController < Api::V1::BaseController
           return {}
         end
         attrs[:investment_activity_label] = label
-      end
-      if trade_params[:category_id].present?
-        category = current_resource_owner.family.categories.find_by(id: trade_params[:category_id])
-        unless category
-          render_validation_error("Category not found or does not belong to your family", [ "category_id is invalid" ])
-          return {}
-        end
-        attrs[:category_id] = category.id
       end
       attrs
     end

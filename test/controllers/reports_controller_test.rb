@@ -609,6 +609,24 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/\$100\.00/, other_investments_rows.first.text)
   end
 
+  test "category filtered breakdown excludes trades while retaining transaction subcategories" do
+    @family.accounts.each { |account| account.entries.destroy_all }
+    account = accounts(:investment)
+    parent = @family.categories.create!(name: "Filtered investment income", color: "#111111")
+    child = @family.categories.create!(name: "Filtered dividends", parent: parent, color: "#222222")
+    unrelated = @family.categories.create!(name: "Unrelated investment income", color: "#333333")
+    create_transaction(account: account, name: "Included dividend", amount: -75, category: child)
+    create_transaction(account: account, name: "Unrelated dividend", amount: -30, category: unrelated)
+    create_trade(securities(:aapl), account: account, qty: 1, date: Date.current, price: 100)
+
+    get reports_path(period_type: :monthly, filter_category_id: parent.id)
+
+    assert_response :ok
+    assert_select "tr[data-category='category-#{parent.id}']", text: /Filtered investment income/
+    assert_select "tr[data-category='category-#{unrelated.id}']", count: 0
+    assert_select "tr[data-category='category-other_investments']", count: 0
+  end
+
   test "monthly period navigation shows previous month link" do
     get reports_path(period_type: :monthly)
     assert_response :ok

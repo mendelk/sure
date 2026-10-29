@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { AccountIdSchema } from "../ids";
-import { readCsrfToken } from "./transactions";
+import { apiFetch } from "./client";
 
 const AccountSchema = z.object({ id: AccountIdSchema, name: z.string(), currency: z.string() });
 const LinkedAccountSchema = z.object({ id: AccountIdSchema, name: z.string() });
@@ -82,15 +82,8 @@ export class ReplacementApiError extends Error {
 }
 
 async function request(path: string, body?: unknown, signal?: AbortSignal): Promise<unknown> {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     method: body === undefined ? "GET" : "POST",
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      ...(body === undefined
-        ? {}
-        : { "Content-Type": "application/json", "X-CSRF-Token": readCsrfToken() }),
-    },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
@@ -107,7 +100,7 @@ async function request(path: string, body?: unknown, signal?: AbortSignal): Prom
 }
 
 function replacementPath(accountId: string): string {
-  return `/accounts/${encodeURIComponent(accountId)}/provider_replacement`;
+  return `/api/v1/accounts/${encodeURIComponent(accountId)}/provider_replacement`;
 }
 
 export function replacementPickerQueryOptions(accountId: string) {

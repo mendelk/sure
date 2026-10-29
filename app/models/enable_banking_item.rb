@@ -1,5 +1,6 @@
 class EnableBankingItem < ApplicationRecord
   include Syncable, Provided, Unlinking, Encryptable, DestroyableLater
+  include Configuration
 
   enum :status, { good: "good", requires_update: "requires_update" }, default: :good
 

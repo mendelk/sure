@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as z from "zod/mini";
-import { readCsrfToken } from "../api/transactions";
+import { apiFetch } from "../api/client";
 import type { HomeSearch } from "./home-search";
 
 const HomeSectionLayoutSchema = z.object({
@@ -128,9 +128,7 @@ export function homePageQueryOptions(homePath: string, search: HomeSearch) {
   return {
     queryKey: ["spa", "home", homePath, search.period, search.start_date, search.end_date] as const,
     queryFn: async ({ signal }: { signal?: AbortSignal }): Promise<HomePayload> => {
-      const response = await fetch(`${homePath}${homeQueryString(search)}`, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
+      const response = await apiFetch(`${homePath}${homeQueryString(search)}`, {
         signal,
       });
       if (!response.ok) throw new Error(`Home request failed (${response.status})`);
@@ -149,10 +147,9 @@ export function useHomePayload(homePath: string | undefined, search: HomeSearch)
 }
 
 async function persistHomePreferences(payload: Record<string, unknown>): Promise<void> {
-  const response = await fetch("/dashboard/preferences", {
+  const response = await apiFetch("/api/v1/home/preferences", {
     method: "PATCH",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": readCsrfToken() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ preferences: payload }),
   });
   if (!response.ok) throw new Error(`Preferences save failed (${response.status})`);

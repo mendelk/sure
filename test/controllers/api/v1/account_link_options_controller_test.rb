@@ -84,8 +84,12 @@ class Api::V1::AccountLinkOptionsControllerTest < ActionDispatch::IntegrationTes
     assert_equal "depository", body["account_type"]
     assert_equal new_depository_path, body["manual_path"]
     assert body["manual_label"].present?
-    assert_equal [ { "key" => "plaid_us", "name" => "Plaid", "new_account_path" => "/plaid/new" } ],
-                 body["providers"]
+    provider = body.fetch("providers").sole
+    assert_equal "plaid_us", provider.fetch("key")
+    assert_equal "Plaid", provider.fetch("name")
+    uri = URI.parse(provider.fetch("new_account_path"))
+    assert_equal "/provider_connections/plaid/new", uri.path
+    assert_equal({ "accountable_type" => "Depository", "region" => "us" }, Rack::Utils.parse_query(uri.query))
   end
 
   test "should pass a safe return_to into paths and drop unsafe values" do
@@ -103,7 +107,7 @@ class Api::V1::AccountLinkOptionsControllerTest < ActionDispatch::IntegrationTes
     assert_response :success
     body = JSON.parse(response.body)
     assert_equal new_credit_card_path(return_to: "/accounts"), body["manual_path"]
-    assert_includes body["providers"].first["new_account_path"], "/accounts"
+    assert_equal "/accounts", Rack::Utils.parse_query(URI.parse(body["providers"].first["new_account_path"]).query)["return_to"]
 
     Provider::Factory.stub(:connection_configs_for_account_type, stub_configs) do
       get "/api/v1/account_link_options",
@@ -143,5 +147,16 @@ class Api::V1::AccountLinkOptionsControllerTest < ActionDispatch::IntegrationTes
     assert_response :success
     providers = JSON.parse(response.body)["providers"]
     assert_equal %w[plaid_us simplefin], providers.map { |p| p["key"] }
+  end
+
+  test "connection-specific provider options preserve selection in the SPA setup path" do
+    item = mercury_items(:one)
+    configs = [ { key: "mercury_#{item.id}", name: item.name, new_account_path: ->(*) { raise "Legacy navigation must not be used" } } ]
+    Provider::Factory.stub(:connection_configs_for_account_type, configs) do
+      get "/api/v1/account_link_options", params: { account_type: "depository" }, headers: api_headers(@api_key)
+    end
+    assert_response :success
+    path = response.parsed_body.fetch("providers").sole.fetch("new_account_path")
+    assert_equal "/provider_connections/mercury/#{item.id}/setup", URI.parse(path).path
   end
 end

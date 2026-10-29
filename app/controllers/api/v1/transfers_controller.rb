@@ -5,7 +5,7 @@ class Api::V1::TransfersController < Api::V1::BaseController
   include Api::V1::TransferDecisionFiltering
 
   before_action :ensure_read_scope
-  before_action :ensure_write_scope, only: %i[update destroy mark_as_recurring]
+  before_action :ensure_write_scope, only: %i[create update destroy mark_as_recurring]
   before_action :set_transfer, only: %i[show update destroy mark_as_recurring]
 
   def index
@@ -25,6 +25,74 @@ class Api::V1::TransfersController < Api::V1::BaseController
 
   def show
     render :show
+  end
+
+  def form_options
+    family = current_resource_owner.family
+    render json: {
+      accounts: family.accounts.writable_by(current_resource_owner).active.alphabetically.map { |account|
+        { id: account.id, name: account.name, currency: account.currency }
+      },
+      tags: family.tags.alphabetically.map { |tag| { id: tag.id, name: tag.name, color: tag.color } },
+      default_date: Date.current.iso8601,
+      idempotency_key: SecureRandom.uuid,
+      text: I18n.t("transfers.form").merge(
+        title: I18n.t("transfers.new.title"),
+        exchange_rate: I18n.t("shared.exchange_rate_tabs.exchange_rate"),
+        convert_tab: I18n.t("shared.exchange_rate_tabs.convert_tab"),
+        calculate_rate_tab: I18n.t("shared.exchange_rate_tabs.calculate_rate_tab"),
+        exchange_rate_help: I18n.t("shared.exchange_rate_tabs.exchange_rate_help"),
+        tags: I18n.t("tags.form.title", default: "Tags")
+      )
+    }
+  end
+
+  def exchange_rate
+    accounts = current_resource_owner.family.accounts.writable_by(current_resource_owner)
+    source = accounts.find(params[:from_account_id])
+    destination = accounts.find(params[:to_account_id])
+    date = params[:date].present? ? Date.iso8601(params[:date]) : Date.current
+    rate = Money.new(1, source.currency).exchange_to(destination.currency, date: date).amount
+    render json: { rate: rate.to_s("F") }
+  rescue Money::ConversionError
+    render_validation_error(I18n.t("transfers.create.exchange_rate_unavailable"))
+  rescue ArgumentError, TypeError => e
+    render_validation_error(e.message)
+  end
+
+  def create
+    family = current_resource_owner.family
+    attributes = transfer_create_params
+    accounts = family.accounts.accessible_by(current_resource_owner)
+    source = accounts.find(attributes[:from_account_id])
+    destination = accounts.find(attributes[:to_account_id])
+    unless [ source, destination ].all? { |account| account.permission_for(current_resource_owner).in?(%i[owner full_control]) }
+      return render json: { error: "forbidden", message: "You do not have permission to create this transfer" }, status: :forbidden
+    end
+    key = attributes[:idempotency_key]
+    idempotency_key = key if key.is_a?(String) && valid_uuid?(key)
+
+    @transfer = Transfer::Creator.new(
+      family: family,
+      source_account_id: source.id,
+      destination_account_id: destination.id,
+      date: attributes[:date].present? ? Date.iso8601(attributes[:date]) : Date.current,
+      amount: attributes[:amount].to_d,
+      exchange_rate: attributes[:exchange_rate].presence&.to_d,
+      source_fee_amount: attributes[:source_fee_amount],
+      destination_fee_amount: attributes[:destination_fee_amount],
+      tag_ids: attributes[:tag_ids],
+      idempotency_key: idempotency_key
+    ).create
+    render :show, status: :created
+  rescue Transfer::Creator::StaleIdempotencyKeyError
+    render_validation_error(I18n.t("transfers.create.stale_form"))
+  rescue Money::ConversionError
+    render_validation_error(I18n.t("transfers.create.exchange_rate_unavailable"))
+  rescue ActiveRecord::RecordInvalid => e
+    render_validation_error(e.record.errors.full_messages.to_sentence)
+  rescue ArgumentError, TypeError => e
+    render_validation_error(e.message)
   end
 
   def update
@@ -144,6 +212,13 @@ class Api::V1::TransfersController < Api::V1::BaseController
 
     def transfer_params
       params.require(:transfer).permit(:status, :notes, :category_id, tag_ids: [])
+    end
+
+    def transfer_create_params
+      params.require(:transfer).permit(
+        :from_account_id, :to_account_id, :amount, :date, :exchange_rate,
+        :source_fee_amount, :destination_fee_amount, :idempotency_key, tag_ids: []
+      )
     end
 
     def transfers_scope

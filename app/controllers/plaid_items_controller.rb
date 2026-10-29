@@ -178,14 +178,10 @@ class PlaidItemsController < ApplicationController
     end
 
     def plaid_us_webhooks_url
-      return webhooks_plaid_url if Rails.env.production?
-
-      ENV.fetch("DEV_WEBHOOKS_URL", root_url.chomp("/")) + "/webhooks/plaid"
+      Current.family.plaid_webhooks_url(region: :us, url_options: url_options)
     end
 
     def plaid_eu_webhooks_url
-      return webhooks_plaid_eu_url if Rails.env.production?
-
-      ENV.fetch("DEV_WEBHOOKS_URL", root_url.chomp("/")) + "/webhooks/plaid_eu"
+      Current.family.plaid_webhooks_url(region: :eu, url_options: url_options)
     end
 end

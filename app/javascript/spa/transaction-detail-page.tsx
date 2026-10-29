@@ -12,6 +12,8 @@ import { TagSelect } from "./components/tag-select";
 import { SearchablePicker, type PickerOption } from "./components/searchable-picker";
 import { BrandLogo } from "./components/brand-logo";
 import { currentReturnTo } from "./return-to";
+import { apiFetch } from "./api/client";
+import { ManualDuplicateMergeDialog } from "./manual-duplicate-merge-dialog";
 import {
   TransactionApiError,
   createCategory,
@@ -25,7 +27,7 @@ import {
   unlockEntry,
   mergeDuplicate,
   dismissDuplicate,
-  readCsrfToken,
+  unsplitTransaction,
   type ReferenceOption,
   type SpaTransactionDetail,
   type TransactionUpdateInput,
@@ -981,15 +983,6 @@ function TransactionDetailBody({ transaction }: { transaction: SpaTransactionDet
 type SplitChild = NonNullable<SpaTransactionDetail["split_children"]>[number];
 type SplitParentSummary = NonNullable<SpaTransactionDetail["split_parent"]>;
 
-async function unsplitTransaction(transactionId: TransactionId): Promise<void> {
-  const response = await fetch(`/transactions/${transactionId}/split.json`, {
-    method: "DELETE",
-    credentials: "same-origin",
-    headers: { Accept: "application/json", "X-CSRF-Token": readCsrfToken() },
-  });
-  if (!response.ok) throw new Error(`Unsplit failed with status ${response.status}`);
-}
-
 function SplitActions({
   transactionId,
   editTransactionId,
@@ -1219,8 +1212,7 @@ function TransactionAttachmentsSection({
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  void deletingId;
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const attachments = transaction.attachments ?? [];
   function refreshDetail() {
     void queryClient.invalidateQueries({
@@ -1235,12 +1227,10 @@ function TransactionAttachmentsSection({
     try {
       const form = new FormData();
       for (const file of files) form.append("attachments[]", file, file.name);
-      const response = await fetch(
+      const response = await apiFetch(
         `${bootstrap.apiPaths.transactions}/${transaction.id}/attachments`,
         {
           body: form,
-          credentials: "same-origin",
-          headers: { Accept: "application/json", "X-CSRF-Token": readCsrfToken() },
           method: "POST",
         },
       );
@@ -1261,15 +1251,13 @@ function TransactionAttachmentsSection({
     }
   }
 
-  async function removeAttachment(id: string) {
+  async function removeAttachment(id: number) {
     setDeletingId(id);
     setError(null);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${bootstrap.apiPaths.transactions}/${transaction.id}/attachments/${id}`,
         {
-          credentials: "same-origin",
-          headers: { Accept: "application/json", "X-CSRF-Token": readCsrfToken() },
           method: "DELETE",
         },
       );
@@ -1323,7 +1311,9 @@ function TransactionAttachmentsSection({
               <div className="flex min-w-0 items-center gap-3">
                 <Icon
                   className="shrink-0 text-secondary"
-                  name={attachment.content_type.startsWith("image/") ? "image" : "file-text"}
+                  name={
+                    attachment.content_type?.startsWith("image/") === true ? "image" : "file-text"
+                  }
                 />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-primary">{attachment.filename}</p>
@@ -1353,6 +1343,7 @@ function TransactionAttachmentsSection({
                 </a>
                 {transaction.permissions.can_edit ? (
                   <IconButton
+                    disabled={deletingId === attachment.id}
                     icon="trash-2"
                     label={`Delete ${attachment.filename}`}
                     onClick={() => {
@@ -1655,6 +1646,7 @@ function TransactionDetailSettings({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [merging, setMerging] = useState(false);
 
   async function toggleOneTime(next: boolean) {
     await updateTransaction(bootstrap.apiPaths.transactions, transaction.id, {
@@ -1753,14 +1745,25 @@ function TransactionDetailSettings({
               Manually merge this pending transaction with its posted version.
             </p>
           </div>
-          <a
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
-            href={`/transactions/${transaction.id}/pending_duplicate_merges/new`}
+          <Button
+            onClick={() => {
+              setMerging(true);
+            }}
+            variant="outline"
           >
             <Icon name="git-branch" size="sm" />
             Open merger
-          </a>
+          </Button>
         </div>
+      ) : null}
+      {merging ? (
+        <ManualDuplicateMergeDialog
+          transactionId={transaction.id}
+          onClose={() => {
+            setMerging(false);
+          }}
+          onMerged={onDeleted}
+        />
       ) : null}
       {!isSplitChild && (transaction.split_children?.length ?? 0) === 0 && !transaction.transfer ? (
         <div className="flex items-center justify-between gap-4">
@@ -1810,13 +1813,15 @@ function TransactionDetailSettings({
               Record this as a buy or sell of a security instead of a cash transaction.
             </p>
           </div>
-          <a
+          <Link
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-surface-hover"
-            href={`/transactions/${transaction.id}/convert_to_trade`}
+            to="/transactions/$transactionId/convert_to_trade"
+            params={{ transactionId: transaction.id }}
+            search={{ activity_label: undefined }}
           >
             <Icon name="arrow-left-right" size="sm" />
             Convert
-          </a>
+          </Link>
         </div>
       ) : null}
       {!isSplitChild ? (

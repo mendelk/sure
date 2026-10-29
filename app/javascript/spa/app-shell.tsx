@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { type SummaryAccount, useSummaryQuery } from "./api/summary";
-import { readCsrfToken } from "./api/transactions";
+import { signOut } from "./api/session";
 import type { SpaBootstrap } from "./bootstrap";
 import { Alert } from "./components/alert";
 import { BrandLogo } from "./components/brand-logo";
@@ -451,6 +451,8 @@ function MenuItem({
 function UserMenu({ rail = false }: { rail?: boolean }) {
   const { bootstrap } = useRouteContext({ from: "__root__" });
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useDismiss(
@@ -508,27 +510,35 @@ function UserMenu({ rail = false }: { rail?: boolean }) {
           </div>
 
           <form
-            action={bootstrap.railsPaths.signOut}
-            method="post"
+            aria-label="Log out"
             className="border-t border-tertiary"
             onSubmit={(event) => {
-              const form = event.currentTarget;
               event.preventDefault();
-              void fetch(form.action, {
-                method: "DELETE",
-                headers: {
-                  "X-CSRF-Token": readCsrfToken(),
-                },
-              }).then(() => {
-                window.location.assign("/sessions/new");
-              });
+              if (signingOut) return;
+              setSigningOut(true);
+              setSignOutError(null);
+              void signOut()
+                .then((redirectUrl) => {
+                  window.location.assign(redirectUrl);
+                })
+                .catch((error: unknown) => {
+                  setSignOutError(
+                    error instanceof Error ? error.message : "Unable to log out. Please try again.",
+                  );
+                  setSigningOut(false);
+                });
             }}
           >
-            <input type="hidden" name="_method" value="delete" />
+            {signOutError !== null && (
+              <p role="alert" className="px-4 py-2 text-sm text-destructive">
+                {signOutError}
+              </p>
+            )}
             <Button
               className="w-full justify-start px-4 py-2.5 text-left font-normal"
               type="submit"
               variant="ghost"
+              disabled={signingOut}
             >
               <Icon name="log-out" size="sm" />
               Log out

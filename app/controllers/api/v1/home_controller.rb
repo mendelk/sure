@@ -13,7 +13,8 @@ class Api::V1::HomeController < Api::V1::BaseController
   include InsightsHelper
   include Periodable
 
-  before_action :ensure_read_scope
+  before_action :ensure_read_scope, only: :show
+  before_action :ensure_write_scope, only: :update_preferences
 
   # GET /api/v1/home
   #
@@ -72,6 +73,27 @@ class Api::V1::HomeController < Api::V1::BaseController
       investment_summary: investment_summary_json(investment_statement),
       insights: insights_json(user)
     }
+  end
+
+  def update_preferences
+    preferences = params.require(:preferences)
+    unless preferences.is_a?(ActionController::Parameters)
+      raise ActionController::ParameterMissing, :preferences
+    end
+
+    permitted = {}
+    %w[collapsed_sections dashboard_section_layout].each do |key|
+      permitted[key] = preferences[key].to_unsafe_h if preferences[key].respond_to?(:to_unsafe_h)
+    end
+    permitted["section_order"] = preferences[:section_order] if preferences[:section_order].is_a?(Array)
+
+    if current_resource_owner.update_dashboard_preferences(permitted)
+      render json: { success: true }
+    else
+      render json: { error: "validation_failed", errors: current_resource_owner.errors.full_messages }, status: :unprocessable_entity
+    end
+  rescue ActiveRecord::RecordInvalid => error
+    render json: { error: "validation_failed", errors: error.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   private
@@ -594,7 +616,7 @@ class Api::V1::HomeController < Api::V1::BaseController
                   }
                 end
               }
-            end,
+            end
           }
         end,
         always_expanded: user.always_expanded_account_groups.to_a
@@ -707,7 +729,7 @@ class Api::V1::HomeController < Api::V1::BaseController
             icon_css_color: insight_icon_css_color(insight),
             sentiment: insight_sentiment(insight).to_s,
             key_figure: figure ? { value: figure.first, caption: figure.last } : nil,
-            acknowledge_path: acknowledge_insight_path(insight)
+            acknowledge_path: acknowledge_api_v1_insight_path(insight)
           }
         end
       }

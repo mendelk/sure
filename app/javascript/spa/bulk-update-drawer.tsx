@@ -18,7 +18,7 @@ import {
 } from "./ids";
 import {
   bulkUpdatePermissionsQueryOptions,
-  readCsrfToken,
+  bulkUpdateEntries,
   referenceDataQueryOptions,
 } from "./api/transactions";
 import { CategorySelect, MerchantSelect } from "./transaction-detail-page";
@@ -101,7 +101,7 @@ export function BulkUpdateDrawer({
 
   const entryIds = propEntryIds ?? search.entry_ids;
   const permissionQuery = useQuery(
-    bulkUpdatePermissionsQueryOptions(bootstrap.railsPaths.bulkUpdate, entryIds),
+    bulkUpdatePermissionsQueryOptions(bootstrap.apiPaths.transactions, entryIds),
   );
   const canEdit = permissionQuery.data?.can_edit === true;
   const canAnnotate = permissionQuery.data?.can_annotate === true;
@@ -136,44 +136,17 @@ export function BulkUpdateDrawer({
     setSubmitError(null);
 
     try {
-      const formData = new FormData();
-      formData.set("authenticity_token", readCsrfToken());
-
-      for (const id of entryIds) formData.append("bulk_update[entry_ids][]", id);
-
-      if (canEdit && date.trim().length > 0) formData.set("bulk_update[date]", date.trim());
-      if (canEdit && name.trim().length > 0) formData.set("bulk_update[name]", name.trim());
-      if (canEdit && transferAccountId !== "")
-        formData.set("bulk_update[transfer_account_id]", transferAccountId);
-      if (categoryId !== "") formData.set("bulk_update[category_id]", categoryId);
-      if (merchantId !== "") formData.set("bulk_update[merchant_id]", merchantId);
-      if (notes.trim().length > 0) formData.set("bulk_update[notes]", notes.trim());
-      for (const tagId of tagIdsToAdd) formData.append("bulk_update[tag_ids_to_add][]", tagId);
-      for (const tagId of tagIdsToRemove)
-        formData.append("bulk_update[tag_ids_to_remove][]", tagId);
-
-      const response = await fetch(bootstrap.railsPaths.bulkUpdate, {
-        method: "POST",
-        body: formData,
-        headers: { Accept: "application/json" },
-        credentials: "same-origin",
-        redirect: "manual",
+      await bulkUpdateEntries({
+        entry_ids: entryIds,
+        date: canEdit && date.trim().length > 0 ? date.trim() : undefined,
+        name: canEdit && name.trim().length > 0 ? name.trim() : undefined,
+        transfer_account_id: canEdit && transferAccountId !== "" ? transferAccountId : undefined,
+        category_id: categoryId !== "" ? categoryId : undefined,
+        merchant_id: merchantId !== "" ? merchantId : undefined,
+        notes: notes.trim() || undefined,
+        tag_ids_to_add: tagIdsToAdd,
+        tag_ids_to_remove: tagIdsToRemove,
       });
-
-      if (!response.ok) {
-        let message = text.update_error;
-        if (response.headers.get("content-type")?.includes("application/json") === true) {
-          const body: unknown = await response.json();
-          if (
-            body !== null &&
-            typeof body === "object" &&
-            "error" in body &&
-            typeof body.error === "string"
-          )
-            message = body.error;
-        }
-        throw new Error(message);
-      }
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] }),

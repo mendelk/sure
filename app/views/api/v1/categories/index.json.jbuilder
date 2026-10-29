@@ -10,3 +10,5 @@ json.pagination do
   json.total_count @pagy.count
   json.total_pages @pagy.pages
 end
+
+json.workspace @workspace if @workspace

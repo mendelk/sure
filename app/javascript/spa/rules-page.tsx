@@ -645,7 +645,7 @@ export function RulesIndexPage({
                 iconProps={{ name: "play", size: "sm" }}
                 onClick={() => {
                   setError(null);
-                  fetchConfirmAll(`${rulesPath}/confirm_all.json`)
+                  fetchConfirmAll(`${rulesPath}/confirm_all`)
                     .then((confirm) => {
                       setApplyAllConfirm(confirm);
                     })
@@ -721,7 +721,7 @@ export function RulesIndexPage({
                       else if (action === "delete") setPendingDelete(target);
                       else {
                         setError(null);
-                        fetchRuleConfirm(`${rulesPath}/${target.id}/confirm.json`)
+                        fetchRuleConfirm(`${rulesPath}/${target.id}/confirm`)
                           .then((confirm) => {
                             setApplyConfirm({ confirm, ruleId: target.id });
                           })

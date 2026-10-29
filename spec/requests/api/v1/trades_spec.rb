@@ -180,7 +180,6 @@ RSpec.describe 'API V1 Trades', type: :request do
               manual_ticker: { type: :string, description: 'Manual ticker for offline securities' },
               currency: { type: :string, description: 'Currency (defaults to account currency)' },
               investment_activity_label: { type: :string, description: 'Activity label (e.g. Buy, Sell)' },
-              category_id: { type: :string, format: :uuid, description: 'Category ID' },
               transfer_account_id: { type: :string, format: :uuid, description: 'Destination/source account ID for linked transfers. Must be an account the user can write to; otherwise the request returns 404.' }
             },
             required: %w[account_id date type]
@@ -250,6 +249,12 @@ RSpec.describe 'API V1 Trades', type: :request do
           }
         end
 
+        run_test!
+      end
+
+      response '422', 'categories are not supported for trades' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:body) { { trade: { account_id: account.id, type: 'buy', date: Date.current.iso8601, qty: 1, price: 50, security_id: security.id, category_id: SecureRandom.uuid } } }
         run_test!
       end
 
@@ -531,8 +536,8 @@ RSpec.describe 'API V1 Trades', type: :request do
               name: { type: :string },
               notes: { type: :string },
               currency: { type: :string },
-              investment_activity_label: { type: :string },
-              category_id: { type: :string, format: :uuid }
+              amount: { type: :number, description: 'Cash amount. Dividend/Interest amounts retain the negative inflow convention.' },
+              investment_activity_label: { type: :string, nullable: true, description: 'Explicit null clears the label, including when updating quantity or price. Omission or an empty string retains the inferred/current label unless the trade type changes. Trades do not support category_id; requests containing it are rejected atomically with 422.' }
             }
           }
         }
@@ -553,6 +558,13 @@ RSpec.describe 'API V1 Trades', type: :request do
 
         let(:id) { trade.id }
 
+        run_test!
+      end
+
+      response '200', 'activity label cleared alongside other updates' do
+        schema '$ref' => '#/components/schemas/Trade'
+        let(:id) { trade.id }
+        let(:body) { { trade: { investment_activity_label: nil, notes: 'Reviewed', qty: 75, price: 255 } } }
         run_test!
       end
 
@@ -588,6 +600,13 @@ RSpec.describe 'API V1 Trades', type: :request do
 
         let(:id) { SecureRandom.uuid }
 
+        run_test!
+      end
+
+      response '422', 'unsupported category rejected without applying other changes' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:id) { trade.id }
+        let(:body) { { trade: { category_id: SecureRandom.uuid, notes: 'Not persisted', investment_activity_label: nil } } }
         run_test!
       end
     end

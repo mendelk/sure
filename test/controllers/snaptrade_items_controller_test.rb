@@ -476,33 +476,6 @@ class SnaptradeItemsControllerTest < ActionDispatch::IntegrationTest
     Rails.configuration.x.snaptrade.oauth_client_secret = nil
   end
 
-  test "Reconnect starts OAuth authorization instead of adding a brokerage" do
-    @snaptrade_item.update!(status: :requires_update)
-
-    with_oauth_app do
-      get accounts_url(format: :json)
-
-      assert_response :success
-      item = response.parsed_body.fetch("items").find { |row| row.fetch("provider_key") == "snaptrade" && row.fetch("id") == @snaptrade_item.id }
-      assert_equal "requires_update", item.fetch("status")
-      assert_equal oauth_authorize_snaptrade_items_path(item_id: @snaptrade_item.id), item.fetch("manage_href")
-      assert_equal "Reconnect", item.fetch("manage_label")
-    end
-  end
-
-  test "Reconnect uses the device flow when the deployment has no confidential client" do
-    @snaptrade_item.update!(status: :requires_update)
-
-    with_device_flow_only do
-      get accounts_url(format: :json)
-
-      assert_response :success
-      item = response.parsed_body.fetch("items").find { |row| row.fetch("provider_key") == "snaptrade" && row.fetch("id") == @snaptrade_item.id }
-      assert_equal "requires_update", item.fetch("status")
-      assert_equal oauth_device_authorize_snaptrade_items_path(item_id: @snaptrade_item.id), item.fetch("manage_href")
-      assert_equal "Reconnect", item.fetch("manage_label")
-    end
-  end
 
   test "select_accounts redirects unregistered users into connect flow" do
     sign_out

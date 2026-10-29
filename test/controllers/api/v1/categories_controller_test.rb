@@ -324,13 +324,11 @@ class Api::V1::CategoriesControllerTest < ActionDispatch::IntegrationTest
     assert_equal original_color, @category.reload.color
   end
 
-  test "patch updates metadata without changing identity or hierarchy" do
-    original_name = @category.name
-
+  test "patch renames a category and ignores family reassignment" do
     patch "/api/v1/categories/#{@category.id}",
       params: { category: {
         color: "#6471eb", icon: "building",
-        name: "Renamed", parent_id: @subcategory.id, family_id: families(:empty).id
+        name: "Renamed", family_id: families(:empty).id
       } },
       headers: api_headers(read_write_api_key),
       as: :json
@@ -339,7 +337,7 @@ class Api::V1::CategoriesControllerTest < ActionDispatch::IntegrationTest
     body = JSON.parse(response.body)
     assert_equal "#6471eb", body["color"]
     assert_equal "building", body["icon"]
-    assert_equal original_name, body["name"]
+    assert_equal "Renamed", body["name"]
     assert_nil body["parent"]
     assert_equal 1, body["subcategories_count"]
 
@@ -447,6 +445,107 @@ class Api::V1::CategoriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :bad_request
     assert_equal "bad_request", JSON.parse(response.body)["error"]
+  end
+
+  test "workspace includes the full hierarchy independent of resource pagination" do
+    get "/api/v1/categories", params: { include: "workspace", per_page: 1 }, headers: api_headers(read_only_api_key)
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal 1, body["categories"].size
+    assert_equal @user.family.categories.count, body.dig("workspace", "count")
+    group = body.dig("workspace", "groups").find { |row| row.dig("root", "id") == @category.id }
+    assert_includes group["subcategories"].map { |row| row["id"] }, @subcategory.id
+  end
+
+  test "form options hide parent choices for a parent category and reject foreign ids" do
+    get "/api/v1/categories/form_options", params: { id: @category.id }, headers: api_headers(read_only_api_key)
+    assert_response :success
+    assert_empty JSON.parse(response.body)["parent_options"]
+    get "/api/v1/categories/form_options", params: { id: SecureRandom.uuid }, headers: api_headers(read_only_api_key)
+    assert_response :not_found
+  end
+
+  test "update reparents and unparents a child but rejects cycles and cross family parents" do
+    parent = @user.family.categories.create!(name: "New parent", color: "#6471eb", lucide_icon: "house")
+    patch "/api/v1/categories/#{@subcategory.id}", params: { category: { parent_id: parent.id } }, headers: api_headers(read_write_api_key)
+    assert_response :success
+    assert_equal parent.id, @subcategory.reload.parent_id
+    assert_equal parent.color, @subcategory.color
+    patch "/api/v1/categories/#{@subcategory.id}", params: { category: { parent_id: nil } }, headers: api_headers(read_write_api_key), as: :json
+    assert_response :success
+    assert_nil @subcategory.reload.parent_id
+    patch "/api/v1/categories/#{@category.id}", params: { category: { parent_id: @category.id } }, headers: api_headers(read_write_api_key)
+    assert_response :unprocessable_entity
+    foreign = families(:empty).categories.create!(name: "Foreign", color: "#6471eb", lucide_icon: "house")
+    patch "/api/v1/categories/#{@category.id}", params: { category: { parent_id: foreign.id } }, headers: api_headers(read_write_api_key)
+    assert_response :unprocessable_entity
+  end
+
+  test "replacement deletion reassigns transactions and rejects self replacement" do
+    transaction = @user.family.transactions.where(category: @category).first!
+    post "/api/v1/categories/#{@category.id}/replacement", params: { replacement_category_id: @category.id }, headers: api_headers(read_write_api_key)
+    assert_response :unprocessable_entity
+    post "/api/v1/categories/#{@category.id}/replacement", params: { replacement_category_id: @subcategory.id }, headers: api_headers(read_write_api_key)
+    assert_response :success
+    assert_equal @subcategory.id, transaction.reload.category_id
+    assert_not Category.exists?(@category.id)
+  end
+
+  test "merge rejects parent into child and foreign source without partial mutation" do
+    post "/api/v1/categories/merge", params: { target_id: @subcategory.id, source_ids: [ @category.id ] }, headers: api_headers(read_write_api_key)
+    assert_response :unprocessable_entity
+    assert Category.exists?(@category.id)
+    post "/api/v1/categories/merge", params: { target_id: @category.id, source_ids: [ @subcategory.id, SecureRandom.uuid ] }, headers: api_headers(read_write_api_key)
+    assert_response :not_found
+    assert Category.exists?(@subcategory.id)
+  end
+
+  test "merge reassigns transactions using the model merger" do
+    source = @user.family.categories.create!(name: "Merge source", color: "#6471eb", lucide_icon: "house")
+    transaction = @user.family.transactions.first!
+    transaction.update!(category: source)
+    post "/api/v1/categories/merge", params: { target_id: @category.id, source_ids: [ source.id ] }, headers: api_headers(read_write_api_key)
+    assert_response :success
+    assert_equal 1, JSON.parse(response.body)["merged_count"]
+    assert_equal @category.id, transaction.reload.category_id
+    assert_not Category.exists?(source.id)
+  end
+
+  test "bootstrap bulk delete and direct delete require write scope" do
+    post "/api/v1/categories/bootstrap", headers: api_headers(read_only_api_key)
+    assert_response :forbidden
+    delete "/api/v1/categories/destroy_all", headers: api_headers(read_only_api_key)
+    assert_response :forbidden
+    delete "/api/v1/categories/#{@category.id}", headers: api_headers(read_only_api_key)
+    assert_response :forbidden
+    post "/api/v1/categories/bootstrap", headers: api_headers(read_write_api_key)
+    assert_response :success
+    delete "/api/v1/categories/#{@category.id}", headers: api_headers(read_write_api_key)
+    assert_response :no_content
+    delete "/api/v1/categories/destroy_all", headers: api_headers(read_write_api_key)
+    assert_response :success
+    assert_empty @user.family.categories
+  end
+
+  test "inline creation assigns and locks categories only on annotatable accessible transactions" do
+    owner = @user.family.users.create!(email: "inline-category-owner@example.com", password: "Password123!", password_confirmation: "Password123!", role: "member")
+    account = @user.family.accounts.create!(name: "Inline category", balance: 100, currency: "USD", accountable: Depository.new, owner: owner)
+    entry = account.entries.create!(name: "Inline purchase", date: Date.current, amount: 10, currency: "USD", entryable: Transaction.new)
+    input = { category: { name: "Inline category", color: "#6471eb", icon: "house" }, transaction_id: entry.entryable_id }
+    post "/api/v1/categories", params: input, headers: api_headers(read_write_api_key)
+    assert_response :not_found
+    share = account.account_shares.create!(user: @user, permission: "read_only")
+    assert_no_difference "Category.count" do
+      post "/api/v1/categories", params: input, headers: api_headers(read_write_api_key)
+      assert_response :forbidden
+    end
+    share.update!(permission: "read_write")
+    post "/api/v1/categories", params: input, headers: api_headers(read_write_api_key)
+    assert_response :created
+    category = @user.family.categories.find(JSON.parse(response.body)["id"])
+    assert_equal category.id, entry.transaction.reload.category_id
+    assert category.last_used_at
+    assert entry.transaction.locked_attributes.include?("category_id")
   end
 
   private

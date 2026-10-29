@@ -1,5 +1,6 @@
 class TradeRepublicItem < ApplicationRecord
   include Syncable, Provided, Unlinking, Encryptable, DestroyableLater
+  include Configuration
 
   # The PIN is accepted only for the authentication request. It is never
   # persisted; session restoration uses the encrypted session blob instead.

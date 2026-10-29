@@ -1,16 +1,16 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { CategoryIdSchema, type CategoryId } from "../ids";
-import { readCsrfToken } from "./transactions";
+import { apiFetch } from "./client";
 
-export const CATEGORIES_INDEX_PATH = "/categories.json";
-const NEW_CATEGORY_PATH = "/categories/new.json";
-const editCategoryPath = (id: CategoryId): string => `/categories/${id}/edit.json`;
-const categoryPath = (id: CategoryId): string => `/categories/${id}.json`;
-const DESTROY_ALL_PATH = "/categories/destroy_all.json";
-const BOOTSTRAP_PATH = "/categories/bootstrap.json";
-const PERFORM_MERGE_PATH = "/categories/perform_merge.json";
-const deletionPath = (id: CategoryId): string => `/categories/${id}/deletions.json`;
+export const CATEGORIES_INDEX_PATH = "/api/v1/categories?include=workspace";
+const NEW_CATEGORY_PATH = "/api/v1/categories/form_options";
+const editCategoryPath = (id: CategoryId): string => `/api/v1/categories/form_options?id=${id}`;
+const categoryPath = (id: CategoryId): string => `/api/v1/categories/${id}`;
+const DESTROY_ALL_PATH = "/api/v1/categories/destroy_all";
+const BOOTSTRAP_PATH = "/api/v1/categories/bootstrap";
+const PERFORM_MERGE_PATH = "/api/v1/categories/merge";
+const deletionPath = (id: CategoryId): string => `/api/v1/categories/${id}/replacement`;
 
 const CategoryRowSchema = z.object({
   id: z.pipe(z.string(), CategoryIdSchema),
@@ -101,14 +101,8 @@ async function requestCategoriesJson(
   method: string,
   body?: unknown,
 ): Promise<unknown> {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     body: body === undefined ? undefined : JSON.stringify(body),
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
     method,
   });
   const payload: unknown = await response.json().catch(() => null);
@@ -121,26 +115,18 @@ export function categoriesIndexQueryOptions(path: string = CATEGORIES_INDEX_PATH
   return queryOptions({
     queryKey: ["spa", "categories", path] as const,
     queryFn: async ({ signal }): Promise<CategoriesIndex> => {
-      const response = await fetch(path, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        signal,
-      });
+      const response = await apiFetch(path, { signal });
       if (!response.ok)
         throw new CategoriesApiError("Category list is unavailable", response.status);
       const payload: unknown = await response.json();
-      return CategoriesIndexSchema.parse(payload);
+      return z.object({ workspace: CategoriesIndexSchema }).parse(payload).workspace;
     },
     staleTime: 10_000,
   });
 }
 
 export async function fetchNewCategoryForm(signal?: AbortSignal): Promise<CategoryForm> {
-  const response = await fetch(NEW_CATEGORY_PATH, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
-    signal,
-  });
+  const response = await apiFetch(NEW_CATEGORY_PATH, { signal });
   if (!response.ok)
     throw new CategoriesApiError("New category form is unavailable", response.status);
   return CategoryFormSchema.parse((await response.json()) as unknown);
@@ -149,11 +135,7 @@ export async function fetchEditCategoryForm(
   id: CategoryId,
   signal?: AbortSignal,
 ): Promise<CategoryForm> {
-  const response = await fetch(editCategoryPath(id), {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
-    signal,
-  });
+  const response = await apiFetch(editCategoryPath(id), { signal });
   if (!response.ok) throw new CategoriesApiError("Category form is unavailable", response.status);
   return CategoryFormSchema.parse((await response.json()) as unknown);
 }
@@ -168,7 +150,7 @@ function mutationBody(input: CategoryMutationInput): Record<string, unknown> {
   return {
     category: {
       color: input.color,
-      lucide_icon: input.lucide_icon,
+      icon: input.lucide_icon,
       name: input.name,
       parent_id: input.parent_id === "" ? null : input.parent_id,
     },
@@ -185,22 +167,23 @@ export const CreatedCategorySchema = z.object({
 });
 export type CreatedCategory = z.infer<typeof CreatedCategorySchema>;
 
-// POST /categories.json returns the legacy {id,name,color,html} document the
-// transaction pickers already consume; the page refetches the grouped index
-// after a successful write.
 export async function createCategoryRecord(input: CategoryMutationInput): Promise<CreatedCategory> {
-  const payload = await requestCategoriesJson("/categories.json", "POST", mutationBody(input));
+  const payload = await requestCategoriesJson("/api/v1/categories", "POST", mutationBody(input));
   return CreatedCategorySchema.parse(payload);
 }
 
-const UpdatedCategorySchema = z.object({ category: CategoryRowSchema });
+const UpdatedCategorySchema = z.object({ workspace: CategoryRowSchema });
 
 export async function updateCategoryRecord(
   id: CategoryId,
   input: CategoryMutationInput,
 ): Promise<CategoryRow> {
-  const payload = await requestCategoriesJson(categoryPath(id), "PATCH", mutationBody(input));
-  return UpdatedCategorySchema.parse(payload).category;
+  const payload = await requestCategoriesJson(
+    `${categoryPath(id)}?include=workspace`,
+    "PATCH",
+    mutationBody(input),
+  );
+  return UpdatedCategorySchema.parse(payload).workspace;
 }
 
 const OkSchema = z.object({ ok: z.boolean() });

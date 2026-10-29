@@ -803,6 +803,182 @@ class Api::V1::AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_equal account_names.sort, account_names
   end
 
+  test "workspace is additive and includes real chart activity and manual groups under an API key" do
+    account = accounts(:depository)
+    get api_v1_account_url(account), params: { include: "workspace", tab: "activity" }, headers: api_headers(@api_key)
+    assert_response :success
+    payload = response.parsed_body
+    assert_equal account.id, payload["id"]
+    assert_equal account.balance_money.format, payload["balance"]
+    assert_equal account.id, payload.dig("workspace", "id")
+    assert payload.dig("workspace", "chart", "series").is_a?(Array)
+    assert payload.dig("workspace", "activity", "groups").any?
+    assert payload.dig("permissions", "can_edit")
+
+    get api_v1_accounts_url, params: { include: "workspace" }, headers: api_headers(@api_key)
+    assert_response :success
+    assert response.parsed_body["accounts"].any?
+    rows = response.parsed_body.dig("workspace", "groups").flat_map { |group| group["accounts"] }
+    assert_includes rows.map { |row| row["id"] }, account.id
+  end
+
+  test "workspace period selection does not mutate preferences through a read scoped GET" do
+    @user.update!(default_period: "last_30_days")
+    get api_v1_account_url(accounts(:depository)), params: { include: "workspace", period: "last_7_days" }, headers: api_headers(@api_key)
+    assert_response :success
+    assert_equal "last_7_days", response.parsed_body.dig("workspace", "chart", "period", "key")
+    assert_equal "last_30_days", @user.reload.default_period
+  end
+
+  test "disabled account workspace and actual provider identity are readable with session and API key" do
+    account = accounts(:connected)
+    account.disable!
+    get api_v1_account_url(account), params: { include: "workspace" }, headers: api_headers(@api_key)
+    assert_response :success
+    assert_equal "disabled", response.parsed_body["status"]
+    assert_equal true, response.parsed_body["linked"]
+    assert_includes response.parsed_body["provider_links"].map { |link| link["provider_id"] }, account.plaid_account_id
+
+    sign_in @user
+    get api_v1_account_url(account), params: { include: "workspace" }
+    assert_response :success
+    assert_equal true, response.parsed_body["linked"]
+    assert_equal "disabled", account.reload.status
+  end
+
+  test "provider identity comes from actual links not the account name and deduplicates legacy associations" do
+    account = accounts(:connected)
+    account.update!(name: "Coinbase Binance SimpleFIN")
+    link = AccountProvider.create!(account: account, provider: account.plaid_account)
+    get api_v1_account_url(account), headers: api_headers(@api_key)
+    assert_response :success
+    identity = response.parsed_body["provider_links"].sole
+    assert_equal link.id, identity["id"]
+    assert_equal "plaid", identity["provider_key"]
+    assert_equal account.plaid_account.id, identity["provider_id"]
+    assert_equal account.plaid_account.plaid_item_id, identity["item_id"]
+  end
+
+  test "status updates are idempotent and reject unsupported states" do
+    account = accounts(:depository)
+    2.times do
+      patch "/api/v1/accounts/#{account.id}/status", params: { status: "disabled" }, headers: api_headers(@read_write_api_key), as: :json
+      assert_response :success
+      assert account.reload.disabled?
+    end
+    patch "/api/v1/accounts/#{account.id}/status", params: { status: "pending_deletion" }, headers: api_headers(@read_write_api_key), as: :json
+    assert_response :unprocessable_entity
+    assert account.reload.disabled?
+    patch "/api/v1/accounts/#{account.id}/status", params: { status: "active" }, headers: api_headers(@read_write_api_key), as: :json
+    assert_response :success
+    assert account.reload.active?
+  end
+
+  test "browser session can disable its own account using the same JSON status action" do
+    account = accounts(:depository)
+    sign_in @user
+    patch "/api/v1/accounts/#{account.id}/status", params: { status: "disabled" }, as: :json
+    assert_response :success
+    assert account.reload.disabled?
+    assert_equal "disabled", response.parsed_body["status"]
+  end
+
+  test "lifecycle actions reject missing read-only foreign and read-only-shared authorization" do
+    account = accounts(:depository)
+    patch "/api/v1/accounts/#{account.id}/status", params: { status: "disabled" }, as: :json
+    assert_response :unauthorized
+    patch "/api/v1/accounts/#{account.id}/status", params: { status: "disabled" }, headers: api_headers(@api_key), as: :json
+    assert_response :forbidden
+    @other_family_api_key.update!(scopes: [ "read_write" ])
+    patch "/api/v1/accounts/#{account.id}/status", params: { status: "disabled" }, headers: api_headers(@other_family_api_key), as: :json
+    assert_response :not_found
+    member = users(:family_member)
+    member.update!(family: @user.family)
+    key = ApiKey.create!(user: member, name: "Shared writer", scopes: [ "read_write" ], source: "web", display_key: SecureRandom.hex(24))
+    patch "/api/v1/accounts/#{accounts(:credit_card).id}/status", params: { status: "disabled" }, headers: api_headers(key), as: :json
+    assert_response :forbidden
+    patch api_v1_account_url(accounts(:credit_card)), params: { account: { name: "Not allowed" } }, headers: api_headers(key), as: :json
+    assert_response :forbidden
+    assert account.reload.active?
+  end
+
+  test "default operations are personal idempotent and require eligible accessible accounts" do
+    account = accounts(:depository)
+    patch "/api/v1/accounts/#{account.id}/default", headers: api_headers(@read_write_api_key), as: :json
+    assert_response :success
+    assert_equal account.id, @user.reload.default_account_id
+    patch "/api/v1/accounts/#{accounts(:loan).id}/default", headers: api_headers(@read_write_api_key), as: :json
+    assert_response :unprocessable_entity
+    assert_equal account.id, @user.reload.default_account_id
+    2.times do
+      delete "/api/v1/accounts/#{account.id}/default", headers: api_headers(@read_write_api_key), as: :json
+      assert_response :no_content
+    end
+    assert_nil @user.reload.default_account_id
+  end
+
+  test "linked deletion is rejected and unlink preserves account history before safe deletion" do
+    account = accounts(:connected)
+    count = account.entries.count
+    delete api_v1_account_url(account), headers: api_headers(@read_write_api_key), as: :json
+    assert_response :unprocessable_entity
+    assert_not account.reload.pending_deletion?
+    delete "/api/v1/accounts/#{account.id}/provider_link", headers: api_headers(@read_write_api_key), as: :json
+    assert_response :success
+    assert_not account.reload.linked?
+    assert_equal count, account.entries.count
+    2.times do
+      delete "/api/v1/accounts/#{account.id}/provider_link", headers: api_headers(@read_write_api_key), as: :json
+      assert_response :success
+    end
+    assert_enqueued_with(job: DestroyJob) do
+      delete api_v1_account_url(account), headers: api_headers(@read_write_api_key), as: :json
+    end
+    assert_response :no_content
+    assert account.reload.pending_deletion?
+  end
+
+  test "manual account sync queues actual account recalculation" do
+    account = accounts(:depository)
+    Account.any_instance.expects(:sync_later).once
+    post "/api/v1/accounts/#{account.id}/sync", headers: api_headers(@read_write_api_key), as: :json
+    assert_response :accepted
+  end
+
+  test "per-account sync refreshes the linked provider item including a legacy link" do
+    account = accounts(:connected)
+    Account.any_instance.stubs(:syncing?).returns(false)
+    PlaidItem.any_instance.stubs(:syncing?).returns(false)
+    PlaidItem.any_instance.expects(:sync_later_with_provider_refresh).once
+    post "/api/v1/accounts/#{account.id}/sync", headers: api_headers(@read_write_api_key), as: :json
+    assert_response :accepted
+  end
+
+  test "provider selection is available only for manageable unlinked accounts" do
+    Provider::Factory.stubs(:connection_configs_for_account_type).returns([
+      { name: "SimpleFIN", key: "simplefin", description: "Connect a bank", existing_account_path: ->(id) { "/unused/#{id}" } }
+    ])
+    account = accounts(:depository)
+    get "/api/v1/accounts/#{account.id}/provider_options", headers: api_headers(@api_key)
+    assert_response :success
+    assert_equal "/provider_connections/simplefin/new?account_id=#{account.id}", response.parsed_body["providers"].sole["path"]
+    get "/api/v1/accounts/#{accounts(:connected).id}/provider_options", headers: api_headers(@api_key)
+    assert_response :unprocessable_entity
+  end
+
+  test "provider options retain distinct Plaid regions on canonical connection paths" do
+    Provider::Factory.stubs(:connection_configs_for_account_type).returns(
+      %w[us eu].map { |region| { name: "Plaid #{region}", key: "plaid_#{region}", description: "Bank connection", existing_account_path: ->(id) { "/unused/#{id}" } } }
+    )
+    account = accounts(:depository)
+    get "/api/v1/accounts/#{account.id}/provider_options", headers: api_headers(@api_key)
+    assert_response :success
+    providers = response.parsed_body["providers"]
+    assert_equal %w[plaid_us plaid_eu], providers.map { |provider| provider["key"] }
+    assert_equal "/provider_connections/plaid/new?account_id=#{account.id}&region=us", providers.first["path"]
+    assert_equal "/provider_connections/plaid/new?account_id=#{account.id}&region=eu", providers.last["path"]
+  end
+
   private
 
     def api_headers(api_key)

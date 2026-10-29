@@ -380,7 +380,7 @@ RSpec.describe 'API V1 Recurring Transactions', type: :request do
       let(:id) { recurring_transaction.id }
 
       response '200', 'recurring transaction deleted' do
-        schema '$ref' => '#/components/schemas/SuccessMessage'
+        schema '$ref' => '#/components/schemas/DeleteResponse'
 
         run_test!
       end

@@ -27,6 +27,27 @@ impose the obsolete `ButtonComponent`/`DialogComponent` examples on this design
 system. Partials use an underscore prefix; shared partials live in
 `app/views/shared/`, context-specific partials under their controller's views.
 
+## SPA forms and server data
+
+Use shared React form controls, pickers, dialogs and drawers; submit with
+`preventDefault` and the shared `apiFetch` transport. Reads, autosaves, uploads,
+bulk operations and background WebPush reconciliation must use documented API
+contracts, not ERB `.json` URLs, `_method`, authenticity-token form fields, or
+redirect-as-success handling. Session CSRF belongs in the transport header.
+Normal page navigation, authorized file downloads and external provider
+authorization/SDK flows are separate from SPA data requests.
+Statement downloads stream original bytes from their authorized API endpoint;
+API-key clients must not need a browser cookie to follow a protected blob URL.
+Creation forms use the shared `newIdempotencyKey` helper in `ids.ts`, which also
+works on plain-HTTP self-hosted origins where `crypto.randomUUID` is unavailable.
+
+Provider connection drawers obtain configuration, account setup/type/subtype
+choices and actions from the provider API. Account lifecycle/sharing and loan
+editing use the account APIs; statements and valuation previews have their own
+API workflows. Cash-to-trade conversion, duplicate merging and transfer creation
+stay in shared SPA dialogs. Use entryable transaction/trade IDs for API mutations,
+not their ledger entry IDs.
+
 ## Adding accounts
 
 The SPA `/accounts/new` type picker uses the shared `Modal`, `IconButton`, and

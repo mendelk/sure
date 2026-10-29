@@ -4,12 +4,7 @@ class SimplefinHistoryAuditsController < ApplicationController
   def show
     return render("spa/show", layout: "spa") if request.format.html?
 
-    render json: {
-      account: @account.slice(:id, :name, :currency),
-      default_period_days: Account::SimplefinHistoryAudit::MAX_PERIOD_DAYS,
-      max_period_days: Account::SimplefinHistoryAudit::MAX_PERIOD_DAYS,
-      text: I18n.t("accounts.simplefin_history_audit")
-    }
+    render json: Account::SimplefinHistoryAudit.new(account: @account, user: Current.user).metadata
   end
 
   private

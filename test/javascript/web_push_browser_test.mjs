@@ -3,7 +3,11 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
-const moduleSource = await readFile(new URL("../../app/javascript/utils/web_push_session.js", import.meta.url), "utf8");
+const ownerSource = await readFile(new URL("../../app/javascript/utils/web_push_owner.js", import.meta.url), "utf8");
+const ownerUrl = `data:text/javascript;base64,${Buffer.from(ownerSource).toString("base64")}`;
+const owner = await import(ownerUrl);
+const moduleSource = (await readFile(new URL("../../app/javascript/utils/web_push_session.js", import.meta.url), "utf8"))
+  .replaceAll('"./web_push_owner.js"', JSON.stringify(ownerUrl));
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`;
 const shared = await import(moduleUrl);
 const stimulusUrl = "data:text/javascript,export class Controller {}";
@@ -204,4 +208,42 @@ test("a new login for the same user rebinds the browser to the new session", asy
   assert.equal(env.requests.length, 1);
   assert.equal(env.calls.permission, 0);
   assert.equal(JSON.parse(env.storage.get("sure:web-push-owner")).sessionId, "new-session");
+});
+
+test("browser owner reconciliation uses the supplied API transport without legacy requests", async (t) => {
+  const env = environment(t);
+  env.setExisting(env.browserSubscription);
+  await owner.rememberWebPushOwner("old-user", "old-session", env.browserSubscription);
+  const registrations = [];
+  const cleanup = owner.initializeWebPushOwnerSession({
+    userId: "new-user", sessionId: "new-session", enabled: true, configured: true,
+    createUrl: "/api/v1/web_push_subscriptions",
+  }, async (url, subscription) => { registrations.push({ url, subscription }); });
+  t.after(cleanup);
+  await settle();
+  assert.equal(registrations.length, 1);
+  assert.equal(registrations[0].url, "/api/v1/web_push_subscriptions");
+  assert.equal(registrations[0].subscription, env.browserSubscription);
+  assert.equal(env.requests.length, 0);
+  assert.equal(env.calls.permission, 0);
+  assert.equal(env.calls.subscribed, 0);
+  assert.equal(JSON.parse(env.storage.get("sure:web-push-owner")).userId, "new-user");
+});
+
+test("failed API ownership transfer removes the previous user's local subscription", async (t) => {
+  const env = environment(t);
+  env.setExisting(env.browserSubscription);
+  await owner.rememberWebPushOwner("old-user", "old-session", env.browserSubscription);
+  let failures = 0;
+  window.addEventListener("web-push:reconcile-failed", () => { failures++; });
+  const cleanup = owner.initializeWebPushOwnerSession({
+    userId: "new-user", sessionId: "new-session", enabled: true, configured: true,
+    createUrl: "/api/v1/web_push_subscriptions",
+  }, async () => { throw new Error("API denied registration"); });
+  t.after(cleanup);
+  await settle();
+  assert.equal(env.calls.unsubscribed, 1);
+  assert.equal(failures, 1);
+  assert.equal(env.requests.length, 0);
+  assert.equal(JSON.parse(env.storage.get("sure:web-push-owner")).userId, "old-user");
 });

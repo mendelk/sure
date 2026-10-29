@@ -1,4 +1,4 @@
-# Session-authenticated account-detail presentation. Financial calculations stay in
+# Public API account-detail presentation. Financial calculations stay in
 # the existing account, loan, holding and reconciliation objects.
 class Account::PageData
   def self.tabs_for(account)
@@ -148,7 +148,7 @@ class Account::PageData
       result << action(:statements, t("#{prefix}.statements"), view.account_path(account, tab: "statements"), "archive", params: { "tab" => "statements" })
       if managed?
         key = account.exclude_from_reports? ? "include_in_reports" : "exclude_from_reports"
-        result << action(key, t("#{prefix}.#{key}"), view.toggle_exclude_from_reports_account_path(account), account.exclude_from_reports? ? "eye" : "eye-off", method: "patch")
+        result << action(key, t("#{prefix}.#{key}"), view.api_v1_account_path(account), account.exclude_from_reports? ? "eye" : "eye-off", method: "patch", params: { account: { exclude_from_reports: !account.exclude_from_reports? } })
         if account.supports_trades? || !account.crypto?
           trade = account.supports_trades?
           result << action(:import, t("#{prefix}.#{trade ? 'import_trades' : 'import_transactions'}"), view.imports_path(import: { type: trade ? "TradeImport" : "TransactionImport", account_id: account.id }), "download")
@@ -162,7 +162,7 @@ class Account::PageData
         end
       end
       if account.owned_by?(Current.user) && !account.linked?
-        result << action(:delete, t("#{prefix}.delete_account"), view.account_path(account), "trash-2", method: "delete", confirm: t("accounts.show.spa.delete_account_confirm", name: account.name))
+        result << action(:delete, t("#{prefix}.delete_account"), view.api_v1_account_path(account), "trash-2", method: "delete", confirm: t("accounts.show.spa.delete_account_confirm", name: account.name))
       end
       result
     end
@@ -171,7 +171,7 @@ class Account::PageData
       return nil unless managed? && (Rails.env.development? || view.self_hosted?)
       return nil if account.syncing?
 
-      action(:sync, t("accounts.show.spa.refresh"), view.sync_account_path(account), "refresh-cw", method: "post")
+      action(:sync, t("accounts.show.spa.refresh"), view.sync_api_v1_account_path(account), "refresh-cw", method: "post")
     end
 
     def chart_data
@@ -233,7 +233,7 @@ class Account::PageData
         end,
         pagination: { page: @pagination.page, per_page: @pagination.limit, total_pages: @pagination.pages, total_count: @pagination.count },
         new_actions: new_actions,
-        bulk_actions: { edit: view.new_transactions_bulk_update_path, delete: view.transactions_bulk_deletion_path, duplicate: view.new_transaction_path }
+        bulk_actions: { edit: view.new_transactions_bulk_update_path, delete: view.bulk_deletion_api_v1_transactions_path, duplicate: view.new_transaction_path }
       }
     end
 
@@ -281,7 +281,7 @@ class Account::PageData
         badges: badges,
         activity_options: editable_activity ? (entry.trade? ? Trade::ACTIVITY_LABELS : Transaction::ACTIVITY_LABELS).map { |option| { label: t("transactions.activity_labels.#{option.parameterize(separator: '_')}", default: option), value: option } } : [],
         activity_edit: editable_activity ? {
-          href: entry.trade? ? view.trade_path(entry) : view.transaction_path(entry),
+          href: entry.trade? ? view.api_v1_trade_path(entryable) : view.api_v1_transaction_path(entryable),
           entryable_id: entry.entryable_id,
           convert_href: transaction && account.investment? ? view.convert_to_trade_transaction_path(transaction) : nil
         } : nil,
@@ -428,7 +428,7 @@ class Account::PageData
           status_label: t("account_statements.coverage.status.#{month.status}"), tone: { "covered" => "success", "duplicate" => "warning", "ambiguous" => "warning", "mismatched" => "destructive" }.fetch(month.status, "primary") } }
       }
       upload = if @can_manage_statements
-        { href: view.account_statements_path, account_id: account.id, accept: AccountStatement::ACCEPTED_FILE_EXTENSIONS.join(","), label: t("account_statements.form.files_label"),
+        { href: view.api_v1_account_statements_path, account_id: account.id, accept: AccountStatement::ACCEPTED_FILE_EXTENSIONS.join(","), label: t("account_statements.form.files_label"),
           hint: t("account_statements.form.files_hint", max_size: AccountStatement::MAX_FILE_SIZE / 1.megabyte), submit_label: t("account_statements.form.account_upload") }
       end
       columns = [ :file, :period, :reconciliation ].map { |key| { key: key.to_s, label: t("account_statements.table.#{key}"), numeric: false } }
@@ -439,7 +439,7 @@ class Account::PageData
         actions << action(:view, t("account_statements.table.view"), href, "eye") if attached
         actions << action(:edit, t("account_statements.table.edit"), view.account_statement_path(statement), "pencil-line") if @can_manage_statements
         actions << action(:download, t("account_statements.table.download"), view.rails_blob_path(statement.original_file, disposition: "attachment"), "download") if attached
-        actions << action(:unlink, t("account_statements.table.unlink"), view.unlink_account_statement_path(statement), "unlink", method: "patch") if @can_manage_statements
+        actions << action(:unlink, t("account_statements.table.unlink"), view.unlink_api_v1_account_statement_path(statement), "unlink", method: "patch") if @can_manage_statements
         status = @reconciliation_statuses[statement.id].presence || "unavailable"
         { id: statement.id, past: false, actions: actions, cells: {
           "file" => cell(statement.filename, secondary: view.number_to_human_size(statement.byte_size), href: href),

@@ -110,7 +110,9 @@ function TargetAccountSelect({
   selectedId: AccountId | "";
 }) {
   const [query, setQuery] = useState("");
-  const selectable = accounts.filter((account) => account.id !== excludeAccountId);
+  const selectable = accounts.filter(
+    (account) => account.id !== excludeAccountId && account.permissions?.can_edit === true,
+  );
   const selected = selectable.find((account) => account.id === selectedId);
   const options = fuzzyFilter(selectable, query, (account) => account.name).map((account) => ({
     label: account.name,

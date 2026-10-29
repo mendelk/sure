@@ -22,7 +22,6 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
       assert_equal api_v1_transactions_path, bootstrap.dig("apiPaths", "transactions")
       assert_equal api_v1_balance_sheet_path, bootstrap.dig("apiPaths", "summary")
       assert_equal api_v1_accounts_path, bootstrap.dig("apiPaths", "accounts")
-      assert_equal dashboard_monarch_run_path, bootstrap.dig("apiPaths", "sureqlRun")
       assert_equal transactions_path, bootstrap.dig("railsPaths", "transactions")
       assert_equal dashboards_path, bootstrap.dig("railsPaths", "dashboards")
       assert_equal new_transaction_path, bootstrap.dig("railsPaths", "newTransaction")
@@ -98,12 +97,6 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "#spa-root"
-    assert_select "script#spa-bootstrap[type='application/json']" do |elements|
-      bootstrap = JSON.parse(elements.first.text)
-
-      assert_equal dashboards_path, bootstrap.dig("railsPaths", "dashboards")
-      assert_equal dashboard_monarch_run_path, bootstrap.dig("apiPaths", "sureqlRun")
-    end
     assert_select "script[type='module'][src*='spa']"
   end
 

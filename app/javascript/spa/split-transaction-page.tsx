@@ -11,11 +11,11 @@ import { IconButton } from "./components/icon-button";
 import { TagSelect } from "./components/tag-select";
 import { Modal } from "./modal";
 import {
-  readCsrfToken,
   referenceDataQueryOptions,
   transactionDetailQueryOptions,
   type ReferenceOption,
 } from "./api/transactions";
+import { apiFetch } from "./api/client";
 import { CategorySelect } from "./transaction-detail-page";
 import { SearchablePicker, type PickerOption } from "./components/searchable-picker";
 import {
@@ -114,7 +114,7 @@ async function submitSplit(
     transfer_account_id: string | null;
   }[],
 ): Promise<void> {
-  const response = await fetch(`${basePath}/${transactionId}/split`, {
+  const response = await apiFetch(`${basePath}/${transactionId}/split`, {
     body: JSON.stringify({
       split: {
         splits: rows.map((row) => ({
@@ -127,12 +127,6 @@ async function submitSplit(
         })),
       },
     }),
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
     method: mode === "create" ? "POST" : "PATCH",
   });
   if (!response.ok) {

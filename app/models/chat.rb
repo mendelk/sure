@@ -73,18 +73,15 @@ class Chat < ApplicationRecord
   end
 
   def needs_assistant_response?
-    conversation_messages.ordered.last.role != "assistant"
+    conversation_messages.ordered.last&.role == "user"
   end
 
   def retry_last_message!
-    update!(error: nil)
-
     last_message = conversation_messages.ordered.last
+    return if last_message&.pending?
 
-    if last_message.present? && last_message.role == "user"
-
-      ask_assistant_later(last_message)
-    end
+    user_message = conversation_messages.where(type: "UserMessage").ordered.last
+    ask_assistant_later(user_message) if user_message
   end
 
   def update_latest_response!(provider_response_id)
@@ -111,7 +108,7 @@ class Chat < ApplicationRecord
   end
 
   def conversation_messages
-    messages.where(type: [ "UserMessage", "AssistantMessage" ])
+    messages.where(type: [ "UserMessage", "AssistantMessage" ]).where.not(status: :failed)
   end
 
   def messages_target

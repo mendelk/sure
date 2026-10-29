@@ -1,5 +1,14 @@
 class Api::V1::SimplefinHistoryAuditsController < Api::V1::BaseController
-  before_action -> { authorize_scope!(:write) }
+  before_action -> { authorize_scope!(:write) }, except: :show
+  before_action -> { authorize_scope!(:read) }, only: :show
+
+  def show
+    raise ActiveRecord::RecordNotFound unless valid_uuid?(params[:account_id])
+    account = Current.family.accounts.accessible_by(Current.user).find(params[:account_id])
+    render json: Account::SimplefinHistoryAudit.new(account: account, user: Current.user).metadata
+  rescue Account::SimplefinHistoryAudit::Error => error
+    render json: { error: error.code, message: error.message }, status: error.status
+  end
 
   def create
     account = Current.family.accounts.accessible_by(Current.user).find(params[:account_id])

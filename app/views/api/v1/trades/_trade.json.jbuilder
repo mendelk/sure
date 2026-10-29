@@ -26,14 +26,5 @@ else
   json.security nil
 end
 
-if trade.category.present?
-  json.category do
-    json.id trade.category.id
-    json.name trade.category.name
-  end
-else
-  json.category nil
-end
-
 json.created_at trade.created_at.iso8601
 json.updated_at trade.updated_at.iso8601

@@ -3,7 +3,7 @@
 class Api::V1::TransactionSplitsController < Api::V1::BaseController
   before_action :ensure_write_scope
   before_action :set_entry
-  before_action :validate_annotations
+  before_action :validate_annotations, only: [ :create, :update ]
 
   def create
     unless @entry.transaction.splittable?
@@ -112,6 +112,28 @@ class Api::V1::TransactionSplitsController < Api::V1::BaseController
       message: "Transaction split could not be updated",
       errors: e.record.errors.full_messages.presence || [ e.message ]
     }, status: :unprocessable_entity
+  end
+
+  def destroy
+    entry = @entry.split_child? ? @entry.parent_entry : @entry
+    return render_validation_error("Transaction is not split") unless entry.split_parent?
+
+    counterpart_accounts = entry.child_entries.includes(entryable: [ :transfer_as_inflow, :transfer_as_outflow ]).filter_map do |child|
+      transfer = child.entryable.transfer
+      next unless transfer
+      transfer.inflow_transaction_id == child.entryable_id ? transfer.outflow_transaction.entry.account : transfer.inflow_transaction.entry.account
+    end.uniq
+    unless counterpart_accounts.all? { |account| account_permissions(account)[:can_edit] }
+      return render json: { error: "forbidden", message: "Write access required for transfer accounts" }, status: :forbidden
+    end
+    Entry.transaction do
+      entry.lock!
+      entry.unsplit!
+    end
+    ([ entry.account ] + counterpart_accounts).uniq.each(&:sync_later)
+    render json: { message: "Transaction unsplit", transaction_id: entry.entryable_id }
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotDestroyed => error
+    render_validation_error(error.message)
   end
 
   private

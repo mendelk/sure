@@ -67,4 +67,36 @@ RSpec.describe 'API V1 Home', type: :request do
       end
     end
   end
+  path '/api/v1/home/preferences' do
+    patch 'Update authenticated user home layout preferences' do
+      tags 'Home'
+      description 'Atomically merges collapse, order and section width/height preferences for the authenticated user. Unrelated user preferences are not writable through this endpoint. Requires read_write scope or a browser session with a valid CSRF token.'
+      security [ { apiKeyAuth: [] }, { cookieSession: [] } ]
+      consumes 'application/json'
+      produces 'application/json'
+      parameter name: :preferences_payload, in: :body, required: true,
+        schema: { '$ref' => '#/components/schemas/HomePreferencesRequest' }
+      let(:preferences_payload) { { preferences: { collapsed_sections: { money_flow: true }, section_order: %w[money_flow balance_sheet] } } }
+
+      response '200', 'preferences saved' do
+        schema '$ref' => '#/components/schemas/HomePreferencesResponse'
+        run_test!
+      end
+      response '400', 'missing or malformed preferences' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:preferences_payload) { {} }
+        run_test!
+      end
+      response '401', 'unauthorized' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:'X-Api-Key') { 'invalid-key' }
+        run_test!
+      end
+      response '403', 'read-only key cannot update preferences' do
+        schema '$ref' => '#/components/schemas/ErrorResponse'
+        before { api_key.update!(scopes: %w[read]) }
+        run_test!
+      end
+    end
+  end
 end

@@ -1,7 +1,8 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { TagIdSchema, type TagId } from "../ids";
-import { readCsrfToken, TransactionApiError } from "./transactions";
+import { TransactionApiError } from "./transactions";
+import { apiFetch } from "./client";
 
 export const TagRowSchema = z.object({
   id: TagIdSchema,
@@ -35,19 +36,15 @@ export type TagInput = z.infer<typeof TagInputSchema>;
 
 export const TagsApiError = TransactionApiError;
 
-export const TAGS_INDEX_PATH = "/tags.json";
+export const TAGS_INDEX_PATH = "/api/v1/tags";
 
 export function tagsIndexQueryOptions(path = TAGS_INDEX_PATH) {
   return queryOptions({
     queryKey: ["spa", "tags-index", path] as const,
     queryFn: async ({ signal }): Promise<TagsIndex> => {
-      const response = await fetch(path, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        signal,
-      });
+      const response = await apiFetch(`${path}?include=workspace`, { signal });
       const payload: unknown = await response.json().catch(() => null);
-      if (response.ok) return TagsIndexSchema.parse(payload);
+      if (response.ok) return z.object({ workspace: TagsIndexSchema }).parse(payload).workspace;
       throw new TagsApiError(
         `Tags request failed with status ${response.status}`,
         response.status,
@@ -61,11 +58,7 @@ export function tagFormQueryOptions(path: string) {
   return queryOptions({
     queryKey: ["spa", "tag-form", path] as const,
     queryFn: async ({ signal }): Promise<TagFormPayload> => {
-      const response = await fetch(path, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        signal,
-      });
+      const response = await apiFetch(path, { signal });
       const payload: unknown = await response.json().catch(() => null);
       if (response.ok) return TagFormPayloadSchema.parse(payload);
       throw new TagsApiError(
@@ -77,21 +70,13 @@ export function tagFormQueryOptions(path: string) {
   });
 }
 
-// POST for create, PATCH for update — same `tag[name,color]` params the ERB
-// form posted, so one controller path serves both.
 export async function saveTagRequest(
   path: string,
   method: "POST" | "PATCH",
   input: TagInput,
 ): Promise<TagRow> {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     body: JSON.stringify({ tag: input }),
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
     method,
   });
   const payload: unknown = await response.json().catch(() => null);
@@ -104,15 +89,7 @@ export async function saveTagRequest(
 }
 
 export async function deleteTagRequest(tagPath: string): Promise<void> {
-  const response = await fetch(tagPath, {
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
-    method: "DELETE",
-  });
+  const response = await apiFetch(tagPath, { method: "DELETE" });
   const payload: unknown = await response.json().catch(() => null);
   if (response.ok) return;
   throw new TagsApiError(
@@ -126,14 +103,8 @@ export async function deleteTagWithReplacementRequest(
   deletionsPath: string,
   replacementTagId: TagId | null,
 ): Promise<void> {
-  const response = await fetch(deletionsPath, {
+  const response = await apiFetch(deletionsPath, {
     body: JSON.stringify(replacementTagId === null ? {} : { replacement_tag_id: replacementTagId }),
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
     method: "POST",
   });
   const payload: unknown = await response.json().catch(() => null);

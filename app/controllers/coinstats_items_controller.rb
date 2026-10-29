@@ -153,15 +153,9 @@ class CoinstatsItemsController < ApplicationController
     def validate_api_key(api_key)
       return true if api_key.blank?
 
-      response = Provider::Coinstats.new(api_key).get_blockchains
-      if response.success?
-        true
-      else
-        @coinstats_item.errors.add(:api_key, t("coinstats_items.create.errors.validation_failed", message: response.error&.message))
-        false
-      end
-    rescue => e
-      @coinstats_item.errors.add(:api_key, t("coinstats_items.create.errors.validation_failed", message: e.message))
+      @coinstats_item.api_key = api_key
+      @coinstats_item.validate_api_key!
+    rescue ActiveRecord::RecordInvalid
       false
     end
 

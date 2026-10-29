@@ -2,7 +2,7 @@
 
 class Api::V1::MessagesController < Api::V1::BaseController
   before_action :require_ai_enabled
-  before_action :ensure_write_scope, only: [ :create, :retry ]
+  before_action :ensure_write_scope
   before_action :set_chat
 
   def create
@@ -13,32 +13,35 @@ class Api::V1::MessagesController < Api::V1::BaseController
     )
 
     if @message.save
-      # NOTE: Commenting out duplicate job enqueue to fix mobile app receiving duplicate AI responses
-      # UserMessage model already triggers AssistantResponseJob via after_create_commit callback
-      # in app/models/user_message.rb:10-12, so this manual enqueue causes the job to run twice,
-      # resulting in duplicate AI responses with different content and wasted tokens.
-      # See: https://github.com/dwvwdv/sure (mobile app integration issue)
-      # AssistantResponseJob.perform_later(@message)
       render :show, status: :created
     else
       render json: { error: "Failed to create message", details: @message.errors.full_messages }, status: :unprocessable_entity
     end
+  rescue ActiveRecord::InvalidForeignKey
+    render json: { error: "Chat not found" }, status: :not_found
   end
 
   def retry
-    last_message = @chat.messages.ordered.last
+    @chat.with_lock do
+      last_message = @chat.conversation_messages.ordered.last
+      if last_message && !last_message.pending? && @chat.conversation_messages.exists?(type: "UserMessage")
+        @chat.retry_last_message!
+        pending = @chat.messages.ordered.last
+        render json: { message: "Retry initiated", message_id: pending.id }, status: :accepted
+      else
+        render json: { error: "No user message available to retry, or response is already pending" }, status: :unprocessable_entity
+      end
+    end
+  end
 
-    if last_message&.type == "AssistantMessage"
-      new_message = @chat.messages.create!(
-        type: "AssistantMessage",
-        content: "",
-        ai_model: last_message.ai_model
-      )
-
-      AssistantResponseJob.perform_later(new_message)
-      render json: { message: "Retry initiated", message_id: new_message.id }, status: :accepted
+  # The watchdog retries non-2xx responses: an early report must not acknowledge
+  # a timeout or a healthy, slow response would be left spinning forever.
+  def report_timeout
+    message = @chat.messages.find(params[:id])
+    if @chat.handle_undelivered_response!(message)
+      head :no_content
     else
-      render json: { error: "No assistant message to retry" }, status: :unprocessable_entity
+      render json: { error: "Response is not eligible for timeout" }, status: :conflict
     end
   end
 
@@ -50,8 +53,6 @@ class Api::V1::MessagesController < Api::V1::BaseController
 
     def set_chat
       @chat = current_resource_owner.chats.find(params[:chat_id])
-    rescue ActiveRecord::RecordNotFound
-      render json: { error: "Chat not found" }, status: :not_found
     end
 
     def message_params

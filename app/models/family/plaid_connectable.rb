@@ -14,7 +14,7 @@ module Family::PlaidConnectable
     plaid(:eu).present? && self.eu?
   end
 
-  def create_plaid_item!(public_token:, item_name:, region:)
+  def create_plaid_item!(public_token:, item_name:, region:, owner: Current.user)
     public_token_response = plaid(region).exchange_public_token(public_token)
 
     plaid_item = plaid_items.create!(
@@ -22,7 +22,7 @@ module Family::PlaidConnectable
       plaid_id: public_token_response.item_id,
       access_token: public_token_response.access_token,
       plaid_region: region,
-      owner: Current.user
+      owner: owner
     )
 
     plaid_item.sync_later
@@ -41,6 +41,15 @@ module Family::PlaidConnectable
       access_token: access_token,
       account_selection_enabled: account_selection_enabled
     ).link_token
+  end
+
+  def plaid_webhooks_url(region:, url_options:)
+    routes = Rails.application.routes.url_helpers
+    eu = region.to_s == "eu"
+    return eu ? routes.webhooks_plaid_eu_url(**url_options) : routes.webhooks_plaid_url(**url_options) if Rails.env.production?
+
+    root = ENV.fetch("DEV_WEBHOOKS_URL", routes.root_url(**url_options).chomp("/"))
+    root + (eu ? "/webhooks/plaid_eu" : "/webhooks/plaid")
   end
 
   private

@@ -230,7 +230,7 @@ RSpec.describe 'API V1 Transactions', type: :request do
 
     post 'Create transaction' do
       tags 'Transactions'
-      security [ { apiKeyAuth: [] } ]
+      security [ { apiKeyAuth: [] }, { cookieSession: [] } ]
       consumes 'application/json'
       produces 'application/json'
       parameter name: :body, in: :body, required: true, schema: {
@@ -249,6 +249,8 @@ RSpec.describe 'API V1 Transactions', type: :request do
               category_id: { type: :string, format: :uuid, description: 'Category ID' },
               merchant_id: { type: :string, format: :uuid, description: 'Merchant ID' },
               nature: { type: :string, enum: %w[income expense inflow outflow], description: 'Transaction nature (determines sign)' },
+              idempotency_key: { type: :string, format: :uuid, description: 'Optional account-scoped manual creation retry key; unlike external_id this does not mark an entry as provider-linked' },
+              exchange_rate: { type: :string, description: 'Positive dated transaction-to-account currency conversion rate stored with transaction metadata' },
               external_id: { type: :string, description: 'Optional external idempotency key scoped to account and source' },
               source: { type: :string, description: 'Optional source namespace for external_id. Requires external_id and defaults to api when external_id is provided' },
               user_modified: { type: :boolean, description: 'Whether provider syncs should preserve user-supplied transaction changes' },
@@ -391,6 +393,7 @@ RSpec.describe 'API V1 Transactions', type: :request do
               description: { type: :string, description: 'Alternative to name field' },
               notes: { type: :string },
               currency: { type: :string, description: 'Currency code' },
+              exchange_rate: { type: :string, nullable: true, description: 'Positive transaction-to-account currency rate; null clears the stored override' },
               category_id: { type: :string, format: :uuid, nullable: true },
               merchant_id: { type: :string, format: :uuid, nullable: true },
               nature: { type: :string, enum: %w[income expense inflow outflow] },

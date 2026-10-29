@@ -26,6 +26,35 @@ RSpec.describe "API V1 SimpleFIN History Audit", type: :request do
   path "/api/v1/accounts/{account_id}/simplefin_history_audit" do
     parameter name: :account_id, in: :path, type: :string, required: true
 
+    get "Read SimpleFIN history-audit page metadata" do
+      description "Read-only metadata for administrators with writable access to the account. Does not contact SimpleFIN, run an audit, or change account/provider data. Supports read-scoped API keys and browser sessions."
+      tags "Accounts"
+      security [ { apiKeyAuth: [] } ]
+      produces "application/json"
+      response "200", "metadata returned" do
+        schema type: :object, required: %w[account default_period_days max_period_days text], properties: {
+          account: { type: :object, required: %w[id name currency], properties: {
+            id: { type: :string, format: :uuid }, name: { type: :string }, currency: { type: :string }
+          } },
+          default_period_days: { type: :integer, example: 45 },
+          max_period_days: { type: :integer, example: 45 },
+          text: { type: :object, additionalProperties: true }
+        }
+        let(:scopes) { %w[read] }
+        run_test!
+      end
+      response "403", "administrator and account write permission required" do
+        before { user.update!(role: "member") }
+        schema "$ref" => "#/components/schemas/ErrorResponse"
+        run_test!
+      end
+      response "404", "account not accessible" do
+        let(:account_id) { SecureRandom.uuid }
+        schema "$ref" => "#/components/schemas/ErrorResponse"
+        run_test!
+      end
+    end
+
     post "Audit fresh SimpleFIN history without importing or changing financial data" do
       description "Requires an administrator, account write permission, and read_write scope. Choose a period of 1–45 days (default 45), initially ending today. Each page makes one account-filtered provider request, including associated retired feeds. Follow next_cursor through remaining connections in that period, then the immediately preceding period of the same length, back to 1970-01-01. Provider history availability is not guaranteed. Stop on provider errors or rate limits."
       tags "Accounts"

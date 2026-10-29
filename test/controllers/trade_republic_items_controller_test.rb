@@ -683,7 +683,7 @@ class TradeRepublicItemsControllerTest < ActionDispatch::IntegrationTest
     # Force the early check to miss it, as a genuinely concurrent request
     # would (the winner's row exists, but not yet at the moment this request
     # checked) -- only the unique index catches it from here.
-    TradeRepublicItemsController.any_instance.stubs(:duplicate_connection?).returns(false)
+    TradeRepublicItem.any_instance.stubs(:duplicate_configuration_connection?).returns(false)
 
     post poll_login_trade_republic_item_url(item), headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
 

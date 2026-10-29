@@ -138,4 +138,33 @@ RSpec.describe "Api::V1::Syncs", type: :request do
       end
     end
   end
+
+  path "/api/v1/syncs/{id}/cancel" do
+    parameter name: :id, in: :path, type: :string, format: :uuid, required: true
+    post "Requests cooperative sync cancellation" do
+      description "Requires read_write. Pending syncs become stale immediately; running syncs receive a cancellation request for their next checkpoint. Family/account syncs preserve member cancellation access; provider syncs require an administrator. IDs remain family/account-access scoped."
+      tags "Syncs"
+      security [ { apiKeyAuth: [] } ]
+      produces "application/json"
+      response "202", "cancellation requested or sync already terminal" do
+        schema type: :object, required: [ :data ], properties: { data: { type: :object, required: %w[id status], properties: { id: { type: :string, format: :uuid }, status: { type: :string, enum: %w[cancelled_before_start cancel_requested not_cancellable] } } } }
+        run_test!
+      end
+      response("401", "unauthorized") { run_test! }
+      response("403", "insufficient scope") { run_test! }
+      response("404", "sync not found or provider permission denied") { run_test! }
+    end
+  end
+
+  path "/api/v1/sync" do
+    post "Queues a family sync" do
+      description "Requires read_write. Schedules the existing family sync pipeline (providers, manual accounts, transfers and rules). Browser-session writes require a valid CSRF token."
+      tags "Syncs"
+      security [ { apiKeyAuth: [] } ]
+      produces "application/json"
+      response("202", "family sync scheduled") { run_test! }
+      response("401", "unauthorized") { run_test! }
+      response("403", "insufficient scope") { run_test! }
+    end
+  end
 end

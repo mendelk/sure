@@ -8,6 +8,7 @@ class Api::V1::TransactionsController < Api::V1::BaseController
   before_action :ensure_write_scope, only: [ :create, :update, :destroy, :mark_as_recurring, :unlock, :merge_duplicate, :dismiss_duplicate ]
   before_action :set_transaction, only: [ :show, :update, :destroy, :mark_as_recurring, :unlock, :merge_duplicate, :dismiss_duplicate ]
   before_action :authorize_account_change, only: [ :update, :destroy, :mark_as_recurring, :unlock, :merge_duplicate, :dismiss_duplicate ]
+  before_action :validate_transaction_references, only: [ :create, :update ]
 
   def index
     family = current_resource_owner.family
@@ -116,7 +117,7 @@ class Api::V1::TransactionsController < Api::V1::BaseController
 
     account = family.accounts.writable_by(current_resource_owner).find(account_id_param)
 
-    if idempotency_key_requested? && (existing_entry = existing_idempotent_entry(account))
+    if (manual_idempotency_key || idempotency_key_requested?) && (existing_entry = existing_idempotent_entry(account))
       return render_existing_idempotent_entry(existing_entry)
     end
 
@@ -129,6 +130,7 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       @entry.sync_account_later
 
       @transaction = @entry.transaction
+      assign_detail_context
       render :show, status: :created
     else
       render json: {
@@ -139,11 +141,13 @@ class Api::V1::TransactionsController < Api::V1::BaseController
     end
 
   rescue ActiveRecord::RecordNotUnique
-    if idempotency_key_requested? && account && (existing_entry = existing_idempotent_entry(account))
+    if (manual_idempotency_key || idempotency_key_requested?) && account && (existing_entry = existing_idempotent_entry(account))
       render_existing_idempotent_entry(existing_entry)
     else
       raise
     end
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: "not_found", message: "Account not found" }, status: :not_found
   rescue => e
     Rails.logger.error "TransactionsController#create error: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
@@ -186,6 +190,7 @@ class Api::V1::TransactionsController < Api::V1::BaseController
         @entry.sync_account_later
         @entry.lock_saved_attributes!
         @entry.mark_user_modified! if user_modified_requested?
+        assign_detail_context
 
         render :show
       else
@@ -303,6 +308,16 @@ class Api::V1::TransactionsController < Api::V1::BaseController
         .merge(Account.accessible_by(current_resource_owner))
         .find(params[:id])
       @entry = @transaction.entry
+      assign_detail_context
+    rescue ActiveRecord::RecordNotFound
+      render json: {
+        error: "not_found",
+        message: "Transaction not found"
+      }, status: :not_found
+    end
+
+    def assign_detail_context
+      @transaction.association(:entry).target = @entry
       # Split context for the drawer: children when this is a split parent,
       # parent summary when this is a split child. Mirrors the legacy
       # transactions/show sections.
@@ -325,11 +340,6 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       @bill_allocations = bill_allocations_for(@entry)
       # Potential-duplicate suggestion for the drawer's duplicate alert.
       @potential_duplicate = @transaction.has_potential_duplicate? ? @transaction.potential_duplicate_entry : nil
-    rescue ActiveRecord::RecordNotFound
-      render json: {
-        error: "not_found",
-        message: "Transaction not found"
-      }, status: :not_found
     end
 
     # Mirrors BillsHelper#entry_bill_allocations (preview-gated; bill links
@@ -459,7 +469,7 @@ class Api::V1::TransactionsController < Api::V1::BaseController
     def transaction_params
       @transaction_params ||= params.require(:transaction).permit(
         :date, :amount, :name, :description, :notes, :currency,
-        :category_id, :merchant_id, :nature, :user_modified,
+        :category_id, :merchant_id, :nature, :user_modified, :exchange_rate,
         :excluded, :kind, :investment_activity_label, tag_ids: []
       )
     end
@@ -480,16 +490,18 @@ class Api::V1::TransactionsController < Api::V1::BaseController
 
     def entry_params_for_create
       entry_params = {
+        idempotency_key: manual_idempotency_key,
         name: transaction_params[:name] || transaction_params[:description],
         date: transaction_params[:date],
-        amount: calculate_signed_amount,
+        amount: transaction_params[:amount].present? ? calculate_signed_amount : nil,
         currency: transaction_params[:currency] || current_resource_owner.family.currency,
         notes: transaction_params[:notes],
         entryable_type: "Transaction",
         entryable_attributes: {
           category_id: transaction_params[:category_id],
           merchant_id: transaction_params[:merchant_id],
-          tag_ids: transaction_params[:tag_ids] || []
+          tag_ids: transaction_params[:tag_ids] || [],
+          exchange_rate: transaction_params[:exchange_rate]
         }
       }
       if idempotency_key_requested?
@@ -517,6 +529,9 @@ class Api::V1::TransactionsController < Api::V1::BaseController
       if transaction_params.key?(:kind)
         entryable_attrs[:kind] = transaction_params[:kind].presence_in(%w[standard one_time]) || "standard"
       end
+      if transaction_params.key?(:exchange_rate)
+        entryable_attrs[:exchange_rate] = transaction_params[:exchange_rate]
+      end
       if transaction_params.key?(:investment_activity_label)
         label = transaction_params[:investment_activity_label].presence_in(Transaction::ACTIVITY_LABELS)
         entryable_attrs[:investment_activity_label] = label
@@ -528,6 +543,7 @@ class Api::V1::TransactionsController < Api::V1::BaseController
         entry_params[:amount] = calculate_signed_amount
       end
 
+      entry_params[:currency] = transaction_params[:currency] if transaction_params.key?(:currency)
       entry_params.compact
     end
 
@@ -545,7 +561,8 @@ class Api::V1::TransactionsController < Api::V1::BaseController
     def split_financial_fields_changed?
       params.dig(:transaction, :amount).present? ||
         params.dig(:transaction, :date).present? ||
-        params.dig(:transaction, :nature).present?
+        params.dig(:transaction, :nature).present? ||
+        params.dig(:transaction, :currency).present?
     end
 
     def idempotency_key_requested?
@@ -570,6 +587,11 @@ class Api::V1::TransactionsController < Api::V1::BaseController
     end
 
     def existing_idempotent_entry(account)
+      if manual_idempotency_key && (entry = account.entries.find_by(idempotency_key: manual_idempotency_key))
+        return entry
+      end
+      return unless idempotency_key_requested?
+
       account.entries.find_by(
         external_id: idempotency_external_id,
         source: idempotency_source
@@ -588,11 +610,12 @@ class Api::V1::TransactionsController < Api::V1::BaseController
 
       @entry = entry
       @transaction = entry.transaction
+      assign_detail_context
       render :show, status: :ok
     end
 
     def calculate_signed_amount
-      amount = transaction_params[:amount].to_f
+      amount = transaction_params[:amount].to_d
       nature = transaction_params[:nature]
 
       case nature&.downcase
@@ -602,6 +625,29 @@ class Api::V1::TransactionsController < Api::V1::BaseController
         amount.abs   # Expense is positive
       else
         amount       # Use as provided
+      end
+    end
+
+    def manual_idempotency_key
+      key = params.dig(:transaction, :idempotency_key)
+      key if key.is_a?(String) && valid_uuid?(key)
+    end
+
+    def validate_transaction_references
+      family = current_resource_owner.family
+      { category_id: family.categories, merchant_id: family.merchants, tag_ids: family.tags }.each do |key, scope|
+        next unless transaction_params.key?(key)
+        ids = Array.wrap(transaction_params[key]).compact_blank.uniq
+        unless ids.all? { |id| valid_uuid?(id) } && scope.where(id: ids).count == ids.size
+          return render_validation_error("#{key} must belong to your family")
+        end
+      end
+      if transaction_params.key?(:amount) && transaction_params[:amount].present?
+        amount = BigDecimal(transaction_params[:amount].to_s, exception: false)
+        return render_validation_error("Amount must be a finite number") unless amount&.finite?
+      end
+      if transaction_params[:currency].present? && !Money::Currency.all_instances.any? { |currency| currency.iso_code == transaction_params[:currency] }
+        render_validation_error("Currency is invalid")
       end
     end
 

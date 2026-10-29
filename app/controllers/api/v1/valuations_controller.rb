@@ -2,13 +2,26 @@
 
 class Api::V1::ValuationsController < Api::V1::BaseController
   include Pagy::Backend
+  include AccountAuthorizable
 
   InvalidFilterError = Class.new(StandardError)
   BOOLEAN_PARAM = ActiveModel::Type::Boolean.new
 
-  before_action :ensure_read_scope, only: [ :index, :show ]
-  before_action :ensure_write_scope, only: [ :create, :update ]
-  before_action :set_valuation, only: [ :show, :update ]
+  before_action :ensure_read_scope, only: [ :index, :show, :form_options ]
+  before_action :ensure_write_scope, only: [ :create, :update, :preview, :destroy ]
+  before_action :set_valuation, only: [ :show, :update, :destroy, :preview ], if: -> { params[:id].present? }
+
+  rescue_from ActiveRecord::RecordNotFound do
+    render_errors([ t("valuations.errors.not_found") ], status: :not_found)
+  end
+
+  rescue_from ActionController::ParameterMissing do
+    render_errors([ t("valuations.errors.invalid_entry") ])
+  end
+
+  rescue_from ActiveRecord::RecordInvalid, ActiveRecord::RecordNotDestroyed do |error|
+    render_errors(error.record.errors.full_messages)
+  end
 
   def index
     family = current_resource_owner.family
@@ -45,203 +58,137 @@ class Api::V1::ValuationsController < Api::V1::BaseController
 
   def show
     render :show
-  rescue => e
-    Rails.logger.error "ValuationsController#show error: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
+  end
 
-    render json: {
-      error: "internal_server_error",
-      message: "An unexpected error occurred"
-    }, status: :internal_server_error
+  def form_options
+    account = accessible_accounts.find(params[:account_id]) if params[:account_id].present?
+    return if account && !require_valuation_permission!(account)
+
+    accounts = accessible_accounts.writable_by(current_resource_owner).alphabetically.includes(:account_providers)
+    entry = Entry.new(
+      account: account, entryable: Valuation.new,
+      name: account ? Valuation.build_reconciliation_name(account.accountable_type) : "",
+      date: Date.current, currency: account&.currency || current_resource_owner.family.currency
+    )
+    render json: { workspace: Valuation::PageData.new(entry: entry, accounts: accounts, permissions: {
+      can_edit: accounts.any?, can_annotate: accounts.any?
+    }) }
+  end
+
+  def preview
+    return render_errors([ t("valuations.errors.invalid_entry") ]) if !@entry && valuation_account_id.blank?
+
+    account = @entry&.account || accessible_accounts.find(valuation_account_id)
+    return unless require_valuation_permission!(account)
+
+    input = reconciliation_input(account, existing_entry: @entry)
+    return unless input
+
+    result = if @entry
+      account.update_reconciliation(@entry, **input.to_h, dry_run: true)
+    else
+      account.create_reconciliation(**input.to_h, dry_run: true)
+    end
+    return render_errors([ result.error_message ]) unless result.success?
+
+    render json: { confirmation: Valuation::PageData.confirmation(
+      account: account, date: input.date, result: result, is_update: @entry.present?
+    ) }
   end
 
   def create
-    unless valuation_account_id.present?
-      render json: {
-        error: "validation_failed",
-        message: "Account ID is required",
-        errors: [ "Account ID is required" ]
-      }, status: :unprocessable_entity
-      return
-    end
+    return render_errors([ t("valuations.errors.invalid_entry") ]) if valuation_account_id.blank?
 
-    unless valuation_params[:amount].present?
-      render json: {
-        error: "validation_failed",
-        message: "Amount is required",
-        errors: [ "Amount is required" ]
-      }, status: :unprocessable_entity
-      return
-    end
+    account = accessible_accounts.find(valuation_account_id)
+    return unless require_valuation_permission!(account)
 
-    unless valuation_params[:date].present?
-      render json: {
-        error: "validation_failed",
-        message: "Date is required",
-        errors: [ "Date is required" ]
-      }, status: :unprocessable_entity
-      return
-    end
+    input = reconciliation_input(account)
+    return unless input
 
-    account = current_resource_owner.family.accounts.find(valuation_account_id)
     requested_upsert = upsert_requested?
     existing_write = false
-
-    create_success = false
-    error_payload = nil
-
+    errors = nil
     ActiveRecord::Base.transaction do
       account.lock! if requested_upsert
-      existing_write = account.entries.valuations.exists?(date: valuation_params[:date]) if requested_upsert
-
-      # upsert=true only affects response status; reconciliation owns write behavior.
-      result = account.create_reconciliation(
-        balance: valuation_params[:amount],
-        date: valuation_params[:date]
-      )
-
+      existing_write = account.entries.valuations.exists?(date: input.date) if requested_upsert
+      result = account.create_reconciliation(**input.to_h)
       unless result.success?
-        error_payload = {
-          error: "validation_failed",
-          message: "Valuation could not be created",
-          errors: [ result.error_message ]
-        }
+        errors = [ result.error_message ]
         raise ActiveRecord::Rollback
       end
-
-      @entry = account.entries.valuations.find_by!(date: valuation_params[:date])
-      @valuation = @entry.entryable
-
-      if valuation_params.key?(:notes)
-        unless @entry.update(notes: valuation_params[:notes])
-          error_payload = {
-            error: "validation_failed",
-            message: "Valuation could not be created",
-            errors: @entry.errors.full_messages
-          }
-          raise ActiveRecord::Rollback
-        end
-      end
-
-      create_success = true
+      @entry = account.entries.valuations.find_by!(date: input.date)
+      @entry.update!(notes: valuation_params[:notes]) if valuation_params.key?(:notes)
     end
+    return render_errors(errors) if errors
 
-    unless create_success
-      render json: error_payload, status: :unprocessable_entity
-      return
-    end
-
+    @valuation = @entry.entryable
     render :show, status: requested_upsert && existing_write ? :ok : :created
-
-  rescue ActiveRecord::RecordNotFound
-    render json: {
-      error: "not_found",
-      message: "Account or valuation entry not found"
-    }, status: :not_found
-  rescue => e
-    Rails.logger.error "ValuationsController#create error: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
-
-    render json: {
-      error: "internal_server_error",
-      message: "An unexpected error occurred"
-    }, status: :internal_server_error
   end
 
   def update
-    if valuation_params[:date].present? || valuation_params[:amount].present?
-      unless valuation_params[:date].present? && valuation_params[:amount].present?
-        render json: {
-          error: "validation_failed",
-          message: "Both amount and date are required when updating reconciliation",
-          errors: [ "Amount and date must both be provided" ]
-        }, status: :unprocessable_entity
-        return
-      end
+    financial_update = valuation_params.key?(:date) || valuation_params.key?(:amount)
+    return unless require_valuation_permission!(@entry.account, financial_update ? :write : :annotate)
+    return render_errors([ t("valuations.errors.invalid_entry") ]) unless financial_update || valuation_params.key?(:notes)
 
-      update_success = false
-      error_payload = nil
-      updated_entry = nil
+    input = reconciliation_input(@entry.account, existing_entry: @entry) if financial_update
+    return if financial_update && !input
 
-      ActiveRecord::Base.transaction do
-        result = @entry.account.update_reconciliation(
-          @entry,
-          balance: valuation_params[:amount],
-          date: valuation_params[:date]
-        )
-
+    errors = nil
+    ActiveRecord::Base.transaction do
+      if financial_update
+        result = @entry.account.update_reconciliation(@entry, **input.to_h)
         unless result.success?
-          error_payload = {
-            error: "validation_failed",
-            message: "Valuation could not be updated",
-            errors: [ result.error_message ]
-          }
+          errors = [ result.error_message ]
           raise ActiveRecord::Rollback
         end
-
-        updated_entry = @entry.account.entries.valuations.find_by!(date: valuation_params[:date])
-
-        if valuation_params.key?(:notes)
-          unless updated_entry.update(notes: valuation_params[:notes])
-            error_payload = {
-              error: "validation_failed",
-              message: "Valuation could not be updated",
-              errors: updated_entry.errors.full_messages
-            }
-            raise ActiveRecord::Rollback
-          end
-        end
-
-        update_success = true
       end
-
-      unless update_success
-        render json: error_payload, status: :unprocessable_entity
-        return
-      end
-
-      @entry = updated_entry
-      @valuation = @entry.entryable
-      render :show
-    else
-      if valuation_params.key?(:notes)
-        unless @entry.update(notes: valuation_params[:notes])
-          render json: {
-            error: "validation_failed",
-            message: "Valuation could not be updated",
-            errors: @entry.errors.full_messages
-          }, status: :unprocessable_entity
-          return
-        end
-      end
-      @entry.reload
-      @valuation = @entry.entryable
-      render :show
+      @entry.update!(notes: valuation_params[:notes]) if valuation_params.key?(:notes)
     end
+    return render_errors(errors) if errors
 
-  rescue => e
-    Rails.logger.error "ValuationsController#update error: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
+    @entry.reload
+    @valuation = @entry.entryable
+    render :show
+  end
 
-    render json: {
-      error: "internal_server_error",
-      message: "An unexpected error occurred"
-    }, status: :internal_server_error
+  def destroy
+    return unless require_valuation_permission!(@entry.account)
+
+    @entry.destroy!
+    @entry.sync_account_later
+    head :no_content
   end
 
   private
 
+    def accessible_accounts
+      current_resource_owner.family.accounts.accessible_by(current_resource_owner)
+    end
+
     def set_valuation
-      @entry = current_resource_owner.family
-                 .entries
-                 .where(entryable_type: "Valuation")
-                 .find(params[:id])
+      @entry = current_resource_owner.family.entries.valuations
+        .where(account_id: accessible_accounts.select(:id)).find(params[:id])
       @valuation = @entry.entryable
-    rescue ActiveRecord::RecordNotFound
-      render json: {
-        error: "not_found",
-        message: "Valuation not found"
-      }, status: :not_found
+    end
+
+    def require_valuation_permission!(account, level = :write)
+      return true if account_permissions(account).fetch(level == :annotate ? :can_annotate : :can_edit)
+
+      render_errors([ t("accounts.not_authorized") ], status: :forbidden)
+      false
+    end
+
+    def reconciliation_input(account, existing_entry: nil)
+      input = Valuation::ReconciliationInput.new(account: account, attributes: valuation_params, existing_entry: existing_entry)
+      return input if input.valid?
+
+      render_errors(input.errors)
+      nil
+    end
+
+    def render_errors(errors, status: :unprocessable_entity)
+      render json: { error: { forbidden: "forbidden", not_found: "not_found" }.fetch(status, "validation_failed"),
+        message: errors.join(", "), errors: errors }, status: status
     end
 
     def ensure_read_scope

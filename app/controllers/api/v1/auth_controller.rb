@@ -6,7 +6,11 @@ module Api
       skip_before_action :authenticate_request!
       skip_before_action :check_api_key_rate_limit
       skip_before_action :log_api_access
+      # Authentication must run before checking session-write CSRF. The base
+      # callback otherwise runs before this controller's re-added authentication.
+      skip_before_action :verify_session_write_csrf
       before_action :authenticate_request!, only: :enable_ai
+      before_action :verify_session_write_csrf, only: :enable_ai
       before_action :ensure_write_scope, only: :enable_ai
       before_action :check_api_key_rate_limit, only: :enable_ai
       before_action :log_api_access, only: :enable_ai

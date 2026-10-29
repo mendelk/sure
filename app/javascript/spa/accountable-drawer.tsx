@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams, useRouteContext, useSearch } from "@tanst
 import { useEffect, useRef, useState, type KeyboardEvent, type SyntheticEvent } from "react";
 import * as z from "zod/mini";
 import { accountDetailQueryOptions, type AccountDetail } from "./api/accounts";
-import { readCsrfToken } from "./api/transactions";
+import { apiFetch } from "./api/client";
 import type { SpaBootstrap } from "./bootstrap";
 import { Alert } from "./components/alert";
 import { Button } from "./components/button";
@@ -122,9 +122,7 @@ export function accountFormOptionsQueryOptions(endpoint: string, currency?: stri
         currency !== undefined && currency !== ""
           ? `${endpoint}?currency=${encodeURIComponent(currency)}`
           : endpoint;
-      const response = await fetch(url, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
+      const response = await apiFetch(url, {
         signal,
       });
       if (!response.ok) throw new Error(`Account options request failed (${response.status})`);
@@ -433,13 +431,11 @@ function SupportedEditForm({
       if (type === "crypto" && taxTreatment.trim().length > 0) nested.tax_treatment = taxTreatment;
       if (Object.keys(nested).length > 0) payload.accountable = nested;
 
-      const response = await fetch(
+      const response = await apiFetch(
         `${bootstrap.apiPaths.accounts}/${encodeURIComponent(account.id)}`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json", "X-CSRF-Token": readCsrfToken() },
           body: JSON.stringify({ account: payload }),
-          credentials: "same-origin",
         },
       );
       const data: unknown = await response.json().catch(() => ({}));
@@ -1016,9 +1012,7 @@ function linkOptionsQueryOptions(accountType: string, returnTo?: string) {
   return {
     queryKey: ["spa", "account-link-options", accountType, returnTo ?? ""] as const,
     queryFn: async ({ signal }: { signal?: AbortSignal }): Promise<LinkOptions> => {
-      const response = await fetch(`/api/v1/account_link_options?${params.toString()}`, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
+      const response = await apiFetch(`/api/v1/account_link_options?${params.toString()}`, {
         signal,
       });
       if (response.status === 422) throw new Error("unsupported");
@@ -1360,9 +1354,8 @@ function SupportedNewForm({
           nested.insurance_rate_type = loanInsuranceRateType;
       }
 
-      const response = await fetch(bootstrap.apiPaths.accounts, {
+      const response = await apiFetch(bootstrap.apiPaths.accounts, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": readCsrfToken() },
         body: JSON.stringify({
           account: {
             name: name.trim(),
@@ -1375,7 +1368,6 @@ function SupportedNewForm({
             ...(search.return_to === undefined ? {} : { return_to: search.return_to }),
           },
         }),
-        credentials: "same-origin",
       });
       const data: unknown = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(apiErrorMessage(data, labels.accountable_save_error));

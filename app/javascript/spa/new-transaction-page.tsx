@@ -5,6 +5,7 @@ import { skipToken, useMutation, useQuery, useQueryClient } from "@tanstack/reac
 import { useNavigate, useParams, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import * as z from "zod/mini";
+import { apiFetch } from "./api/client";
 import type { SpaBootstrap } from "./bootstrap";
 import { Alert } from "./components/alert";
 import { Button } from "./components/button";
@@ -17,6 +18,7 @@ import { fuzzyFilter } from "./fuzzy";
 import {
   AccountIdSchema,
   TransactionIdSchema,
+  newIdempotencyKey,
   type AccountId,
   type CategoryId,
   type MerchantId,
@@ -82,16 +84,6 @@ type CreationReferences = {
   tags: ReferenceOption<TagId>[];
 };
 
-function newIdempotencyKey(): string {
-  if (Reflect.has(crypto, "randomUUID")) return crypto.randomUUID();
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  // UUID v4 version and RFC 4122 variant bits.
-  bytes[6] = (bytes[6] & 15) | 64;
-  bytes[8] = (bytes[8] & 63) | 128;
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
 function duplicateAmount(source: SpaTransactionDetail, currency: CurrencyOption): string {
   const precision = Math.max(0, Math.round(-Math.log10(Number(currency.step))));
   // Some currencies have five subunits per unit, rather than a power of ten.
@@ -102,11 +94,7 @@ function duplicateAmount(source: SpaTransactionDetail, currency: CurrencyOption)
 }
 
 async function requestCurrency(code: string, signal: AbortSignal): Promise<CurrencyOption> {
-  const response = await fetch(`/currencies/${encodeURIComponent(code)}`, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
-    signal,
-  });
+  const response = await apiFetch(`/api/v1/currencies/${encodeURIComponent(code)}`, { signal });
   if (!response.ok) throw new TransactionApiError("Currency unavailable", response.status);
   const payload: unknown = await response.json();
   const currency = z
@@ -322,6 +310,7 @@ function NewTransactionForm({
       ? [...referenceAccounts, { id: source.account.id, name: source.account.name }]
       : referenceAccounts;
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const text = bootstrap.accountDetailText;
   const [idempotencyKey] = useState(newIdempotencyKey);
   const requestRef = useRef<AbortController | null>(null);
@@ -373,7 +362,7 @@ function NewTransactionForm({
   const create = useMutation({
     mutationFn: (input: TransactionCreateInput) => {
       requestRef.current = new AbortController();
-      return createTransaction(bootstrap.railsPaths.transactions, input, requestRef.current.signal);
+      return createTransaction(bootstrap.apiPaths.transactions, input, requestRef.current.signal);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["spa", "transactions"] });
@@ -465,10 +454,15 @@ function NewTransactionForm({
               <Button
                 aria-selected={false}
                 onClick={() => {
-                  const url = new URL(bootstrap.railsPaths.newTransfer, window.location.origin);
-                  if (form.state.values.account_id !== "")
-                    url.searchParams.set("from_account_id", form.state.values.account_id);
-                  window.location.assign(url.href);
+                  void navigate({
+                    to: "/transfers/new",
+                    search: {
+                      from_account_id:
+                        form.state.values.account_id !== ""
+                          ? form.state.values.account_id
+                          : undefined,
+                    },
+                  });
                 }}
                 role="tab"
                 variant="ghost"
@@ -609,7 +603,7 @@ function NewTransactionForm({
                 date={values.date}
                 fromCurrency={values.currency}
                 key={`${values.accountId}:${values.currency}:${values.date}`}
-                path={bootstrap.railsPaths.exchangeRate}
+                path="/api/v1/exchange_rate"
                 submitted={values.submitted}
                 text={text}
                 toCurrency={bootstrap.transactionCreation.accountCurrencies[values.accountId]}
@@ -725,11 +719,7 @@ async function requestExchangeRate(
   url.searchParams.set("from", from);
   url.searchParams.set("to", to);
   url.searchParams.set("date", date);
-  const response = await fetch(url, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
-    signal,
-  });
+  const response = await apiFetch(`${url.pathname}${url.search}`, { signal });
   if (!response.ok) throw new TransactionApiError("Exchange rate unavailable", response.status);
   const payload: unknown = await response.json();
   const data = z.object({ rate: z.number().check(z.positive()) }).parse(payload);

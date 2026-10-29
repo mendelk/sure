@@ -132,7 +132,7 @@ RSpec.describe 'API V1 Users', type: :request do
       produces 'application/json'
 
       response '200', 'account deleted' do
-        schema '$ref' => '#/components/schemas/SuccessMessage'
+        schema '$ref' => '#/components/schemas/DeleteResponse'
 
         run_test!
       end

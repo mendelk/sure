@@ -41,9 +41,23 @@ RSpec.describe 'API V1 Merchants', type: :request do
       security [ { apiKeyAuth: [] } ]
       description 'Returns merchant logos with Brandfetch URLs adjusted to the current logo resolution setting.'
       produces 'application/json'
+      parameter name: :include, in: :query, required: false, schema: { type: :string, enum: [ 'workspace' ] },
+                description: 'Adds separate family/provider pagination, recently unlinked providers, counts, AI availability and colors.'
+      %i[family_search provider_search].each do |name|
+        parameter name: name, in: :query, required: false, schema: { type: :string }
+      end
+      %i[family_page provider_page per_page].each do |name|
+        parameter name: name, in: :query, required: false, schema: { type: :integer, minimum: 1 }
+      end
 
       response '200', 'merchants listed' do
-        schema type: :array, items: { '$ref' => '#/components/schemas/MerchantDetail' }
+        schema oneOf: [
+          { type: :array, items: { '$ref' => '#/components/schemas/MerchantDetail' } },
+          { type: :object, required: %w[merchants workspace], properties: {
+            merchants: { type: :array, items: { '$ref' => '#/components/schemas/MerchantDetail' } },
+            workspace: { '$ref' => '#/components/schemas/MerchantWorkspace' }
+          } }
+        ]
 
         run_test!
       end
@@ -162,6 +176,7 @@ RSpec.describe 'API V1 Merchants', type: :request do
     end
 
     patch 'Update a merchant' do
+      description 'Family merchants update normally. Renaming a provider merchant converts only this family and protects reassignment from sync; unchanged-name website edits update the provider website and generated logo in place. Explicit logo_url edits retain API conversion behavior.'
       tags 'Merchants'
       security [ { apiKeyAuth: [] } ]
       consumes 'application/json'
@@ -206,6 +221,65 @@ RSpec.describe 'API V1 Merchants', type: :request do
         let(:id) { SecureRandom.uuid }
         run_test!
       end
+    end
+  end
+  path '/api/v1/merchants/form_options' do
+    get 'Get merchant editor options' do
+      tags 'Merchants'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      parameter name: :id, in: :query, required: false, schema: { type: :string, format: :uuid }
+      response '200', 'merchant options' do
+        schema '$ref' => '#/components/schemas/MerchantFormOptions'
+        run_test! skip: 'Documentation only; behavior covered by Minitest'
+      end
+      response('404', 'merchant not accessible') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+    end
+  end
+
+  path '/api/v1/merchants/merge_candidates' do
+    get 'List merchants eligible for merging' do
+      tags 'Merchants'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      response '200', 'merge candidates' do
+        schema type: :object, required: %w[merchants colors], properties: {
+          merchants: { type: :array, items: { '$ref' => '#/components/schemas/MerchantWorkspaceRow' } },
+          colors: { type: :array, items: { type: :string } }
+        }
+        run_test! skip: 'Documentation only; behavior covered by Minitest'
+      end
+    end
+  end
+
+  path '/api/v1/merchants/merge' do
+    post 'Merge accessible merchants' do
+      tags 'Merchants'
+      security [ { apiKeyAuth: [] } ]
+      consumes 'application/json'
+      produces 'application/json'
+      parameter name: :body, in: :body, required: true, schema: { '$ref' => '#/components/schemas/MetadataMergeRequest' }
+      response '200', 'merchants merged' do
+        schema '$ref' => '#/components/schemas/MetadataMutationResult'
+        run_test! skip: 'Documentation only; behavior covered by Minitest'
+      end
+      response('403', 'read-only key') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+      response('404', 'target or source merchant not accessible') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+      response('422', 'invalid source selection') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+    end
+  end
+
+  path '/api/v1/merchants/enhance' do
+    post 'Queue AI enhancement for provider merchants' do
+      tags 'Merchants'
+      security [ { apiKeyAuth: [] } ]
+      produces 'application/json'
+      response '200', 'enhancement queued' do
+        schema '$ref' => '#/components/schemas/MetadataMutationResult'
+        run_test! skip: 'Documentation only; behavior covered by Minitest'
+      end
+      response('403', 'read-only key') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
+      response('422', 'enhancement already running') { run_test! skip: 'Documentation only; behavior covered by Minitest' }
     end
   end
 end

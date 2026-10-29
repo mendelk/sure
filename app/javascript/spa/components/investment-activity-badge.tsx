@@ -1,4 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { TransactionIdSchema } from "../ids";
 import { useState } from "react";
 import { updateAccountActivity, type AccountActivity } from "../api/accounts";
 import { Icon } from "../icon";
@@ -23,6 +25,7 @@ export function InvestmentActivityBadge({
   text: Record<string, string>;
 }) {
   const [query, setQuery] = useState("");
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const edit = entry.activity_edit;
   const value = entry.activity_label ?? "";
@@ -74,9 +77,11 @@ export function InvestmentActivityBadge({
       onSelect={async (label) => {
         if (label === value) return true;
         if (edit.convert_href !== null && (label === "Buy" || label === "Sell")) {
-          const url = new URL(edit.convert_href, window.location.origin);
-          url.searchParams.set("activity_label", label);
-          window.location.assign(url.href);
+          await navigate({
+            to: "/transactions/$transactionId/convert_to_trade",
+            params: { transactionId: TransactionIdSchema.parse(edit.entryable_id) },
+            search: { activity_label: label },
+          });
           return true;
         }
         try {

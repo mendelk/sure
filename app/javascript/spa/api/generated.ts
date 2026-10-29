@@ -84,6 +84,14 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "permissions": /*#__PURE__*/ zod.strictObject({
@@ -127,6 +135,14 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
@@ -169,11 +185,12 @@ export const GetApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "amount": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.int(),
   "filename": /*#__PURE__*/ zod.string(),
   "byte_size": /*#__PURE__*/ zod.int(),
-  "content_type": /*#__PURE__*/ zod.string(),
-  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+  "content_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
+  "url": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Authorized attachment navigation endpoint; follows a redirect to the binary file.'))
 }))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
@@ -232,6 +249,8 @@ export const PostApiV1TransactionsBody = /*#__PURE__*/ zod.object({
   "category_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)).check(/*#__PURE__*/ zod.describe('Category ID')),
   "merchant_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema)).check(/*#__PURE__*/ zod.describe('Merchant ID')),
   "nature": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['income', 'expense', 'inflow', 'outflow'])).check(/*#__PURE__*/ zod.describe('Transaction nature (determines sign)')),
+  "idempotency_key": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.uuid()).check(/*#__PURE__*/ zod.describe('Optional account-scoped manual creation retry key; unlike external_id this does not mark an entry as provider-linked')),
+  "exchange_rate": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Positive dated transaction-to-account currency conversion rate stored with transaction metadata')),
   "external_id": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.pipe(zod.string(), ExternalIdSchema)).check(/*#__PURE__*/ zod.describe('Optional external idempotency key scoped to account and source')),
   "source": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Optional source namespace for external_id. Requires external_id and defaults to api when external_id is provided')),
   "user_modified": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()).check(/*#__PURE__*/ zod.describe('Whether provider syncs should preserve user-supplied transaction changes')),
@@ -271,6 +290,14 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "permissions": /*#__PURE__*/ zod.strictObject({
@@ -314,6 +341,14 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
@@ -356,11 +391,12 @@ export const PostApiV1Transactions200Response = /*#__PURE__*/ zod.strictObject({
   "amount": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.int(),
   "filename": /*#__PURE__*/ zod.string(),
   "byte_size": /*#__PURE__*/ zod.int(),
-  "content_type": /*#__PURE__*/ zod.string(),
-  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+  "content_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
+  "url": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Authorized attachment navigation endpoint; follows a redirect to the binary file.'))
 }))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
@@ -398,6 +434,14 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "permissions": /*#__PURE__*/ zod.strictObject({
@@ -441,6 +485,14 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
@@ -483,11 +535,12 @@ export const PostApiV1Transactions201Response = /*#__PURE__*/ zod.strictObject({
   "amount": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.int(),
   "filename": /*#__PURE__*/ zod.string(),
   "byte_size": /*#__PURE__*/ zod.int(),
-  "content_type": /*#__PURE__*/ zod.string(),
-  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+  "content_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
+  "url": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Authorized attachment navigation endpoint; follows a redirect to the binary file.'))
 }))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
@@ -543,6 +596,14 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "permissions": /*#__PURE__*/ zod.strictObject({
@@ -586,6 +647,14 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
@@ -628,11 +697,12 @@ export const GetApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObject(
   "amount": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.int(),
   "filename": /*#__PURE__*/ zod.string(),
   "byte_size": /*#__PURE__*/ zod.int(),
-  "content_type": /*#__PURE__*/ zod.string(),
-  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+  "content_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
+  "url": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Authorized attachment navigation endpoint; follows a redirect to the binary file.'))
 }))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
@@ -664,6 +734,7 @@ export const PatchApiV1TransactionsIdBody = /*#__PURE__*/ zod.object({
   "description": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Alternative to name field')),
   "notes": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
   "currency": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Currency code')),
+  "exchange_rate": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Positive transaction-to-account currency rate; null clears the stored override')),
   "category_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), CategoryIdSchema)),
   "merchant_id": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.pipe(zod.uuid(), MerchantIdSchema)),
   "nature": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.enum(['income', 'expense', 'inflow', 'outflow'])),
@@ -707,6 +778,14 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "permissions": /*#__PURE__*/ zod.strictObject({
@@ -750,6 +829,14 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
@@ -792,11 +879,12 @@ export const PatchApiV1TransactionsId200Response = /*#__PURE__*/ zod.strictObjec
   "amount": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.int(),
   "filename": /*#__PURE__*/ zod.string(),
   "byte_size": /*#__PURE__*/ zod.int(),
-  "content_type": /*#__PURE__*/ zod.string(),
-  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+  "content_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
+  "url": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Authorized attachment navigation endpoint; follows a redirect to the binary file.'))
 }))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
@@ -930,7 +1018,7 @@ export const PostApiV1TransactionsTransactionIdTransferMatch200Response = /*#__P
   "recurring_exists": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.boolean()),
   "source_fee_amount": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Fee charged to the source account')),
   "source_fee_currency": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
-  "destination_fee_amount": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Fee deducted from the destination account')),
+  "destination_fee_amount": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Separate fee expense in the destination account; does not reduce the transfer principal.')),
   "destination_fee_currency": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
   "inflow_transaction": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema),
@@ -944,7 +1032,9 @@ export const PostApiV1TransactionsTransactionIdTransferMatch200Response = /*#__P
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
-  "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+  "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "color": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
 })
 }),
   "outflow_transaction": /*#__PURE__*/ zod.strictObject({
@@ -959,7 +1049,9 @@ export const PostApiV1TransactionsTransactionIdTransferMatch200Response = /*#__P
   "account": /*#__PURE__*/ zod.strictObject({
   "id": /*#__PURE__*/ zod.pipe(zod.uuid(), AccountIdSchema),
   "name": /*#__PURE__*/ zod.string(),
-  "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+  "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "logo_url": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()),
+  "color": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string())
 })
 }),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
@@ -1065,7 +1157,7 @@ export const PatchApiV1TransfersId422Response = /*#__PURE__*/ zod.strictObject({
  * @summary Split a transaction
  */
 export const PostApiV1TransactionsTransactionIdSplitParams = /*#__PURE__*/ zod.object({
-  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Parent transaction ID'))
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema)
 }).brand("PostApiV1TransactionsTransactionIdSplitParams")
 
 export const postApiV1TransactionsTransactionIdSplitBodySplitSplitsItemAmountTwoRegExp = new RegExp('^-?[0-9]+(\\.[0-9]+)?$');
@@ -1124,6 +1216,14 @@ export const PostApiV1TransactionsTransactionIdSplit201Response = /*#__PURE__*/ 
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "permissions": /*#__PURE__*/ zod.strictObject({
@@ -1167,6 +1267,14 @@ export const PostApiV1TransactionsTransactionIdSplit201Response = /*#__PURE__*/ 
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
@@ -1209,11 +1317,12 @@ export const PostApiV1TransactionsTransactionIdSplit201Response = /*#__PURE__*/ 
   "amount": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.int(),
   "filename": /*#__PURE__*/ zod.string(),
   "byte_size": /*#__PURE__*/ zod.int(),
-  "content_type": /*#__PURE__*/ zod.string(),
-  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+  "content_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
+  "url": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Authorized attachment navigation endpoint; follows a redirect to the binary file.'))
 }))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
@@ -1262,7 +1371,7 @@ export const PostApiV1TransactionsTransactionIdSplit422Response = /*#__PURE__*/ 
  * @summary Update a transaction split
  */
 export const PatchApiV1TransactionsTransactionIdSplitParams = /*#__PURE__*/ zod.object({
-  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema).check(/*#__PURE__*/ zod.describe('Parent transaction ID'))
+  "transaction_id": /*#__PURE__*/ zod.pipe(zod.uuid(), TransactionIdSchema)
 }).brand("PatchApiV1TransactionsTransactionIdSplitParams")
 
 export const patchApiV1TransactionsTransactionIdSplitBodySplitSplitsItemAmountTwoRegExp = new RegExp('^-?[0-9]+(\\.[0-9]+)?$');
@@ -1321,6 +1430,14 @@ export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),
   "permissions": /*#__PURE__*/ zod.strictObject({
@@ -1364,6 +1481,14 @@ export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/
   "name": /*#__PURE__*/ zod.string(),
   "account_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
   "status": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()),
+  "linked": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.boolean()),
+  "provider_links": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
+  "id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.uuid()),
+  "provider_type": /*#__PURE__*/ zod.string(),
+  "provider_id": /*#__PURE__*/ zod.uuid(),
+  "provider_key": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "item_id": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string())
+}))),
   "path": /*#__PURE__*/ zod.nullish(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Web app URL for the account, present in transaction list responses.'))
 }),/*#__PURE__*/ zod.null()]))
 }),/*#__PURE__*/ zod.null()])),
@@ -1406,11 +1531,12 @@ export const PatchApiV1TransactionsTransactionIdSplit200Response = /*#__PURE__*/
   "amount": /*#__PURE__*/ zod.string()
 }),/*#__PURE__*/ zod.null()])),
   "attachments": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.array(/*#__PURE__*/ zod.strictObject({
-  "id": /*#__PURE__*/ zod.uuid(),
+  "id": /*#__PURE__*/ zod.int(),
   "filename": /*#__PURE__*/ zod.string(),
   "byte_size": /*#__PURE__*/ zod.int(),
-  "content_type": /*#__PURE__*/ zod.string(),
-  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})
+  "content_type": /*#__PURE__*/ zod.nullable(/*#__PURE__*/ zod.string()),
+  "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
+  "url": /*#__PURE__*/ zod.optional(/*#__PURE__*/ zod.string()).check(/*#__PURE__*/ zod.describe('Authorized attachment navigation endpoint; follows a redirect to the binary file.'))
 }))).check(/*#__PURE__*/ zod.describe('File attachments (present in detail responses).')),
   "created_at": /*#__PURE__*/ zod.iso.datetime({"offset":true}),
   "updated_at": /*#__PURE__*/ zod.iso.datetime({"offset":true})

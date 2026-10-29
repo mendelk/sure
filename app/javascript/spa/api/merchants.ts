@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { MerchantIdSchema } from "../ids";
-import { readCsrfToken } from "./transactions";
+import { apiFetch } from "./client";
 
 const MerchantRowSchema = z.object({
   id: z.pipe(z.string(), MerchantIdSchema),
@@ -98,6 +98,7 @@ export type MerchantsSearch = {
 
 function merchantsQueryString(search: MerchantsSearch): string {
   const params = new URLSearchParams();
+  params.set("include", "workspace");
   if (search.family_search !== undefined && search.family_search !== "")
     params.set("family_search", search.family_search);
   if (search.provider_search !== undefined && search.provider_search !== "")
@@ -116,15 +117,11 @@ export function merchantsIndexQueryOptions(path: string, search: MerchantsSearch
   return queryOptions({
     queryKey: ["spa", "merchants-index", url] as const,
     queryFn: async ({ signal }): Promise<MerchantsIndex> => {
-      const response = await fetch(url, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        signal,
-      });
+      const response = await apiFetch(url, { signal });
       if (!response.ok)
         throw new MerchantsApiError("Merchant list is unavailable.", response.status);
       const payload: unknown = await response.json();
-      return MerchantsIndexSchema.parse(payload);
+      return z.object({ workspace: MerchantsIndexSchema }).parse(payload).workspace;
     },
     staleTime: 10_000,
   });
@@ -135,11 +132,7 @@ export function merchantFormQueryOptions(url: string, kind: "new" | "edit") {
   return queryOptions({
     queryKey: ["spa", "merchant-form", url] as const,
     queryFn: async ({ signal }): Promise<MerchantsNew | MerchantsEdit> => {
-      const response = await fetch(url, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        signal,
-      });
+      const response = await apiFetch(url, { signal });
       if (!response.ok)
         throw new MerchantsApiError("Merchant form is unavailable.", response.status);
       const payload: unknown = await response.json();
@@ -165,15 +158,9 @@ function extractErrors(payload: unknown, fallback: string): string[] {
 }
 
 async function requestMutatingJson(url: string, method: string, body?: unknown): Promise<unknown> {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
     body: body === undefined ? undefined : JSON.stringify(body),
-    credentials: "same-origin",
   });
   const payload: unknown = await response.json().catch(() => null);
   if (response.ok) return payload;
@@ -187,47 +174,36 @@ export type MerchantWriteInput = {
   website_url?: string | null;
 };
 
-function merchantWriteBody(
-  root: "family_merchant" | "provider_merchant",
-  input: MerchantWriteInput,
-) {
+function merchantWriteBody(input: MerchantWriteInput) {
   const attrs: Record<string, string | null> = { name: input.name };
   if (input.color !== undefined) attrs.color = input.color;
   if (input.website_url !== undefined) attrs.website_url = input.website_url;
-  return { [root]: attrs };
+  return { merchant: attrs };
 }
 
-// Mirrors the ERB form's `family_merchant[...]` params so one controller path
-// serves both. Provider rows submit under `provider_merchant[...]` (name-only
-// edits convert; website-only edits patch the provider row in place).
-// Create keeps the legacy `{id, name, html}` document the ERB inline-create
-// consumes (`merchant.html`); the SPA modal refreshes from the index after.
 export async function createMerchantRecord(
   path: string,
   input: MerchantWriteInput,
 ): Promise<{ id: string; name: string }> {
-  const payload = await requestMutatingJson(
-    path,
-    "POST",
-    merchantWriteBody("family_merchant", input),
-  );
+  const payload = await requestMutatingJson(path, "POST", merchantWriteBody(input));
   return z.object({ id: z.string(), name: z.string() }).parse(payload);
 }
 
 export async function updateMerchantRecord(
   destroyHref: string,
-  root: "family_merchant" | "provider_merchant",
   input: MerchantWriteInput,
 ): Promise<MerchantRow> {
-  const payload = await requestMutatingJson(destroyHref, "PATCH", merchantWriteBody(root, input));
+  const payload = await requestMutatingJson(destroyHref, "PATCH", merchantWriteBody(input));
   return MerchantRowSchema.parse(payload);
 }
 
-export async function destroyMerchantRecord(
-  destroyHref: string,
-): Promise<{ ok: boolean; unlinked: boolean }> {
-  const payload = await requestMutatingJson(destroyHref, "DELETE");
-  return z.object({ ok: z.boolean(), unlinked: z.boolean() }).parse(payload);
+export async function destroyMerchantRecord(destroyHref: string): Promise<void> {
+  const response = await apiFetch(destroyHref, { method: "DELETE" });
+  if (!response.ok) {
+    const payload: unknown = await response.json().catch(() => null);
+    const errors = extractErrors(payload, `Request failed (${response.status})`);
+    throw new MerchantsApiError(errors[0] ?? "Request failed", response.status, errors);
+  }
 }
 
 export async function enhanceProviderMerchants(path: string): Promise<{ ok: boolean }> {
@@ -246,11 +222,7 @@ export function mergeCandidatesQueryOptions(path: string) {
   return queryOptions({
     queryKey: ["spa", "merchants-merge", path] as const,
     queryFn: async ({ signal }): Promise<MergeCandidates> => {
-      const response = await fetch(path, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        signal,
-      });
+      const response = await apiFetch(path, { signal });
       if (!response.ok)
         throw new MerchantsApiError("Merge candidates are unavailable.", response.status);
       const payload: unknown = await response.json();

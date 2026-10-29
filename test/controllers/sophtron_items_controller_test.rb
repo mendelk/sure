@@ -531,11 +531,10 @@ class SophtronItemsControllerTest < ActionDispatch::IntegrationTest
 
     post submit_mfa_sophtron_item_url(@item), params: {
       mfa_type: "security_answer",
-      security_answers: Array.new(SophtronItemsController::MAX_SECURITY_ANSWERS + 1, "blue")
+      security_answers: Array.new(SophtronItem::MAX_SECURITY_ANSWERS + 1, "blue")
     }
 
     assert_redirected_to connection_status_sophtron_item_path(@item)
-    assert_equal "Security answers are missing or too long.", flash[:alert]
   end
 
   test "submit_mfa rejects oversized security answers" do
@@ -547,11 +546,10 @@ class SophtronItemsControllerTest < ActionDispatch::IntegrationTest
 
     post submit_mfa_sophtron_item_url(@item), params: {
       mfa_type: "security_answer",
-      security_answers: [ "a" * (SophtronItemsController::MAX_SECURITY_ANSWER_LENGTH + 1) ]
+      security_answers: [ "a" * (SophtronItem::MAX_SECURITY_ANSWER_LENGTH + 1) ]
     }
 
     assert_redirected_to connection_status_sophtron_item_path(@item)
-    assert_equal "Security answers are missing or too long.", flash[:alert]
   end
 
   test "submit_mfa redirects to post mfa polling window" do

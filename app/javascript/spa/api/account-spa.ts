@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { AccountIdSchema, UserIdSchema, StatementIdSchema, type StatementId } from "../ids";
-import { readCsrfToken } from "./transactions";
+import { apiFetch } from "./client";
 
 export { StatementIdSchema };
 export type { StatementId };
@@ -31,7 +31,7 @@ export const SpaActionSchema = z.object({
   href: z.string(),
   method: z.optional(z.enum(["get", "post", "patch", "delete"])),
   icon: z.optional(z.string()),
-  params: z.optional(z.record(z.string(), z.string())),
+  params: z.optional(z.record(z.string(), z.unknown())),
   confirm: z.optional(ConfirmSchema),
 });
 export type SpaAction = z.infer<typeof SpaActionSchema>;
@@ -146,14 +146,10 @@ export function accountsIndexQueryOptions(path: string) {
   return queryOptions({
     queryKey: ["spa", "accounts-index", path] as const,
     queryFn: async ({ signal }): Promise<AccountsIndex> => {
-      const response = await fetch(path, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        signal,
-      });
+      const response = await apiFetch(path, { signal });
       if (!response.ok) throw new AccountsIndexApiError(response.status);
-      const payload: unknown = await response.json();
-      return AccountsIndexSchema.parse(payload);
+      const payload = z.object({ workspace: AccountsIndexSchema }).parse(await response.json());
+      return payload.workspace;
     },
     // Sync states change server-side while this page is open; stay live so
     // spinner rows and status labels settle without a full reload, like the
@@ -193,9 +189,7 @@ export function sharingQueryOptions(accountId: string) {
   return queryOptions({
     queryKey: ["spa", "sharing", accountId] as const,
     queryFn: async ({ signal }): Promise<SharingPayload> => {
-      const response = await fetch(`/accounts/${encodeURIComponent(accountId)}/sharing.json`, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
+      const response = await apiFetch(`/api/v1/accounts/${encodeURIComponent(accountId)}/sharing`, {
         signal,
       });
       if (!response.ok) throw new SharingApiError(response.status);
@@ -213,8 +207,7 @@ export const SharingFormMemberSchema = z.object({
 });
 export type SharingFormMember = z.infer<typeof SharingFormMemberSchema>;
 
-// Submits the same `sharing[members][]` patch the ERB dialog posted, so the
-// permission model has one writer.
+// Sharing and inclusion use the same account-domain writer as the HTML app.
 export async function updateSharing(
   accountId: string,
   members: SharingFormMember[],
@@ -224,11 +217,9 @@ export async function updateSharing(
       members: Object.fromEntries(members.map((member, index) => [String(index), member])),
     },
   };
-  const response = await fetch(`/accounts/${encodeURIComponent(accountId)}/sharing.json`, {
+  const response = await apiFetch(`/api/v1/accounts/${encodeURIComponent(accountId)}/sharing`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": readCsrfToken() },
     body: JSON.stringify(body),
-    credentials: "same-origin",
   });
   if (!response.ok) throw new SharingApiError(response.status);
 }
@@ -237,14 +228,12 @@ export async function updateFinanceInclusion(
   accountId: string,
   includeInFinances: boolean,
 ): Promise<void> {
-  const response = await fetch(`/accounts/${encodeURIComponent(accountId)}/sharing.json`, {
+  const response = await apiFetch(`/api/v1/accounts/${encodeURIComponent(accountId)}/sharing`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": readCsrfToken() },
     body: JSON.stringify({
-      update_finance_inclusion: "1",
-      include_in_finances: String(includeInFinances),
+      update_finance_inclusion: true,
+      include_in_finances: includeInFinances,
     }),
-    credentials: "same-origin",
   });
   if (!response.ok) throw new SharingApiError(response.status);
 }
@@ -296,14 +285,10 @@ export function statementsIndexQueryOptions(path: string) {
   return queryOptions({
     queryKey: ["spa", "statements-index", path] as const,
     queryFn: async ({ signal }): Promise<StatementsIndex> => {
-      const response = await fetch(path, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        signal,
-      });
+      const response = await apiFetch(path, { signal });
       if (!response.ok) throw new StatementsApiError(response.status);
       const payload: unknown = await response.json();
-      return StatementsIndexSchema.parse(payload);
+      return z.object({ workspace: StatementsIndexSchema }).parse(payload).workspace;
     },
     staleTime: 10_000,
   });
@@ -357,14 +342,10 @@ export function statementDetailQueryOptions(path: string) {
   return queryOptions({
     queryKey: ["spa", "statement", path] as const,
     queryFn: async ({ signal }): Promise<StatementDetail> => {
-      const response = await fetch(path, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        signal,
-      });
+      const response = await apiFetch(path, { signal });
       if (!response.ok) throw new StatementsApiError(response.status);
       const payload: unknown = await response.json();
-      return StatementDetailSchema.parse(payload);
+      return z.object({ workspace: StatementDetailSchema }).parse(payload).workspace;
     },
     staleTime: 10_000,
   });
@@ -385,8 +366,7 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
   return fallback;
 }
 
-// PATCH metadata, mirroring the ERB form's `account_statement[...]` params so
-// one controller path serves both. Returns parsed error message on failure.
+// Statement metadata is a canonical JSON resource mutation.
 export async function updateStatementMetadata(
   id: string,
   attrs: Partial<
@@ -404,11 +384,9 @@ export async function updateStatementMetadata(
     >
   >,
 ): Promise<void> {
-  const response = await fetch(`/account_statements/${encodeURIComponent(id)}`, {
+  const response = await apiFetch(`/api/v1/account_statements/${encodeURIComponent(id)}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": readCsrfToken() },
     body: JSON.stringify({ account_statement: attrs }),
-    credentials: "same-origin",
   });
   if (!response.ok) {
     throw new StatementMutateError(
@@ -423,13 +401,11 @@ export async function mutateStatement(
   action: "link" | "unlink" | "reject" | "destroy",
   params: Record<string, string> = {},
 ): Promise<void> {
-  const response = await fetch(
-    `/account_statements/${encodeURIComponent(id)}${action === "destroy" ? "" : `/${action}`}`,
+  const response = await apiFetch(
+    `/api/v1/account_statements/${encodeURIComponent(id)}${action === "destroy" ? "" : `/${action}`}`,
     {
       method: action === "destroy" ? "DELETE" : "PATCH",
-      headers: { "Content-Type": "application/json", "X-CSRF-Token": readCsrfToken() },
       body: action === "destroy" ? undefined : JSON.stringify(params),
-      credentials: "same-origin",
     },
   );
   if (!response.ok) {
@@ -438,6 +414,28 @@ export async function mutateStatement(
       await readErrorMessage(response, `Request failed (${response.status})`),
     );
   }
+}
+
+const StatementUploadResultSchema = z.object({
+  duplicate_count: z.number(),
+  errors: z.array(z.string()),
+});
+
+export async function uploadStatements(
+  files: readonly File[],
+  accountId: string,
+): Promise<z.infer<typeof StatementUploadResultSchema>> {
+  const body = new FormData();
+  for (const file of files) body.append("account_statement[files][]", file);
+  if (accountId !== "") body.append("account_statement[account_id]", accountId);
+  const response = await apiFetch("/api/v1/account_statements", { method: "POST", body });
+  if (!response.ok) {
+    throw new StatementMutateError(
+      response.status,
+      await readErrorMessage(response, `Upload failed (${response.status})`),
+    );
+  }
+  return StatementUploadResultSchema.parse(await response.json());
 }
 
 export async function invalidateAccountQueries(queryClient: {
@@ -450,31 +448,23 @@ export async function invalidateAccountQueries(queryClient: {
   await queryClient.invalidateQueries({ queryKey: ["spa", "summary"] });
 }
 
-// Runs a server-driven account action (disable/enable, sync, delete) as a
-// same-origin fetch: CSRF header for auth, method override for patch/delete,
-// then the caller invalidates so lists re-render without a reload.
+// Execute the canonical JSON method; transport rejects redirects and non-API URLs.
 export async function postAccountAction(action: {
   href: string;
   method?: "delete" | "get" | "patch" | "post";
-  params?: Record<string, string>;
+  params?: Record<string, unknown>;
 }): Promise<void> {
-  const body = new URLSearchParams();
   const method = action.method ?? "post";
-  if (method !== "post" && method !== "get") body.set("_method", method);
-  for (const [name, value] of Object.entries(action.params ?? {})) body.set(name, value);
-
-  const response = await fetch(action.href, {
-    body: method === "get" ? null : body,
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json, text/html",
-      "X-CSRF-Token": readCsrfToken(),
-    },
-    method: method === "get" ? "GET" : "POST",
-    redirect: "manual",
+  const response = await apiFetch(action.href, {
+    body: method === "get" ? undefined : JSON.stringify(action.params ?? {}),
+    method: method.toUpperCase(),
   });
-  if (!response.ok && response.type !== "opaqueredirect")
-    throw new Error(`Action failed with status ${response.status}`);
+  if (!response.ok) {
+    throw new AccountSpaApiError(
+      response.status,
+      await readErrorMessage(response, `Action failed (${response.status})`),
+    );
+  }
 }
 
 export type { Confirm };

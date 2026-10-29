@@ -16,6 +16,10 @@ Rails.application.routes.draw do
   get "transactions/:transaction_id/split/edit", to: "spa#show", constraints: { transaction_id: /[0-9a-f-]{36}/i }
   get "transactions/transfers/:id", to: "spa#show", constraints: { id: /[0-9a-f-]{36}/i }
   get "accounts/:account_id/transfers/:id", to: "spa#show", constraints: { account_id: /[0-9a-f-]{36}/i, id: /[0-9a-f-]{36}/i }
+  get "transfers/new", to: "spa#show"
+  get "transactions/:transaction_id/convert_to_trade", to: "spa#show", constraints: { transaction_id: /[0-9a-f-]{36}/i }
+  get "provider_connections/:provider/new", to: "spa#show"
+  get "provider_connections/:provider/:connection_id/:mode", to: "spa#show", constraints: { mode: /edit|setup|manage/ }
   get "valuations/new", to: "valuations#new", constraints: ->(request) { request.format.json? }
   get "valuations/new", to: "spa#show"
   get "valuations/:id", to: "valuations#show", constraints: ->(request) { request.format.json? }
@@ -804,6 +808,9 @@ Rails.application.routes.draw do
       post "auth/sso_link", to: "auth#sso_link"
       post "auth/sso_create_account", to: "auth#sso_create_account"
       patch "auth/enable_ai", to: "auth#enable_ai"
+      resource :session, only: :destroy
+      resources :web_push_subscriptions, only: :create
+      resource :user_preferences, only: :update, controller: "user_preferences"
 
       resource :account_form_options, only: :show
       resource :account_link_options, only: :show
@@ -814,8 +821,15 @@ Rails.application.routes.draw do
         post :avm_lookup, on: :collection
         post :avm_confirm, on: :collection
       end
-      resources :accounts, only: [ :index, :show, :create, :update ] do
-        resource :simplefin_history_audit, only: :create do
+      resources :accounts, only: [ :index, :show, :create, :update, :destroy ] do
+        patch :status, on: :member
+        post :sync, on: :member
+        patch :default, on: :member, action: :set_default
+        delete :default, on: :member, action: :remove_default
+        get :provider_options, on: :member
+        delete :provider_link, on: :member, action: :unlink
+        resource :sharing, only: [ :show, :update ], controller: "account_sharings"
+        resource :simplefin_history_audit, only: [ :show, :create ] do
           post :import
         end
         resource :provider_replacement, only: :show, controller: "provider_replacements" do
@@ -827,18 +841,54 @@ Rails.application.routes.draw do
       resources :balances, only: [ :index, :show ]
       resources :budgets, only: [ :index, :show ]
       resources :budget_categories, only: [ :index, :show ]
-      resources :categories, only: [ :index, :show, :create, :update ]
+      resources :categories, only: [ :index, :show, :create, :update, :destroy ] do
+        collection do
+          get :form_options
+          delete :destroy_all
+          post :bootstrap
+          post :merge
+        end
+        post :replacement, on: :member
+      end
       resources :merchants, only: [ :index, :show, :create, :update, :destroy ] do
         post :import, on: :collection
+        get :form_options, on: :collection
+        get :merge_candidates, on: :collection
+        post :merge, on: :collection
+        post :enhance, on: :collection
       end
-      resources :rules, only: [ :index, :show ]
+      resources :rules, only: [ :index, :show, :create, :update, :destroy ] do
+        collection do
+          get :form_options
+          get :registry
+          get :confirm_all
+          post :apply_all
+          post :clear_ai_cache
+          delete :destroy_all
+        end
+        member do
+          get :form_options
+          get :confirm
+          post :apply
+        end
+      end
       resources :rule_runs, only: [ :index, :show ]
       resources :securities, only: [ :index, :show ]
       resources :security_prices, only: [ :index, :show ]
-      resources :tags, only: [ :index, :show, :create, :update, :destroy ]
+      resources :tags, only: [ :index, :show, :create, :update, :destroy ] do
+        get :form_options, on: :collection
+        delete :destroy_all, on: :collection
+        post :replacement, on: :member
+      end
 
       resources :transactions, only: [ :index, :show, :create, :update, :destroy ] do
-        resource :split, only: [ :create, :update ], controller: "transaction_splits"
+        get :bulk_permissions, on: :collection, controller: "transaction_bulk", action: :permissions
+        patch :bulk_update, on: :collection, controller: "transaction_bulk", action: :update
+        delete :bulk_deletion, on: :collection, controller: "transaction_bulk", action: :destroy
+        resource :split, only: [ :create, :update, :destroy ], controller: "transaction_splits"
+        resource :conversion, only: [ :show, :create ], controller: "transaction_conversions"
+        resources :duplicate_candidates, only: :index, controller: "transaction_duplicates"
+        resource :duplicate_merge, only: :create, controller: "transaction_duplicates"
         resources :attachments, only: [ :index, :show, :create, :destroy ], controller: "transaction_attachments"
         get :transfer_match_candidates, on: :member, controller: :transaction_transfer_matches
         resource :transfer_match, only: :create, controller: "transaction_transfer_matches"
@@ -849,11 +899,31 @@ Rails.application.routes.draw do
       end
       resources :trades, only: [ :index, :show, :create, :update, :destroy ]
       resources :holdings, only: [ :index, :show ]
-      resources :transfers, only: [ :index, :show, :update, :destroy ] do
+      resources :transfers, only: [ :index, :show, :create, :update, :destroy ] do
+        get :form_options, on: :collection
+        get :exchange_rate, on: :collection
         post :mark_as_recurring, on: :member
       end
       resources :rejected_transfers, only: [ :index, :show ]
-      resources :valuations, only: [ :index, :create, :update, :show ]
+      resources :valuations, only: [ :index, :create, :update, :show, :destroy ] do
+        get :form_options, on: :collection
+        post :preview, on: :collection
+        post :preview, on: :member
+      end
+      resources :account_statements, only: [ :index, :show, :create, :update, :destroy ] do
+        get :coverage, on: :collection
+        member do
+          patch :link
+          patch :unlink
+          patch :reject
+          get :download
+        end
+      end
+      resources :currencies, only: :show
+      get :exchange_rate, to: "exchange_rates#show"
+      get "reports/catalog", to: "reports#catalog", as: :report_catalog
+      post "reports/run", to: "reports#run", as: :report_run
+      post "reports/compile", to: "reports#compile", as: :report_compile
       resources :recurring_transactions, only: [ :index, :show, :create, :update, :destroy ]
       resources :family_exports, only: [ :index, :show, :create ] do
         get :download, on: :member
@@ -869,19 +939,43 @@ Rails.application.routes.draw do
       resource :usage, only: [ :show ], controller: :usage
       resource :cash_flow, only: [ :show ], controller: :cash_flows
       resource :balance_sheet, only: [ :show ], controller: :balance_sheet
-      resource :home, only: [ :show ], controller: :home
-      resources :insights, only: [ :index ]
+      resource :home, only: [ :show ], controller: :home do
+        patch :preferences, action: :update_preferences
+      end
+      resources :insights, only: [ :index ] do
+        patch :acknowledge, on: :member
+      end
       resources :push_subscriptions, only: [ :create, :destroy ]
       resource :family_settings, only: [ :show ], controller: :family_settings
       post :sync, to: "sync#create", as: :sync_job
       resources :syncs, only: [ :index, :show ] do
         get :latest, on: :collection
       end
-      resources :provider_connections, only: [ :index ]
+      resources :provider_connections, only: [ :index ] do
+        get :form_options, on: :collection
+      end
+      get "provider_connections/:provider/:id", to: "provider_connections#show", as: :provider_connection
+      post "provider_connections/:provider", to: "provider_connections#create"
+      post "provider_connections/:provider/configure", to: "provider_connections#configure"
+      patch "provider_connections/:provider/:id", to: "provider_connections#update"
+      delete "provider_connections/:provider/:id", to: "provider_connections#destroy"
+      get "provider_connections/:provider/:id/setup", to: "provider_connections#setup"
+      patch "provider_connections/:provider/:id/setup", to: "provider_connections#complete_setup"
+      post "provider_connections/:provider/:id/link", to: "provider_connections#link"
+      post "provider_connections/:provider/:id/sync", to: "provider_connections#sync"
+      post "provider_connections/:provider/:id/cancel_sync", to: "provider_connections#cancel_sync"
+      post "provider_connections/:provider/:id/dismiss_replacement_suggestion", to: "provider_connections#dismiss_replacement_suggestion"
+      post "provider_connections/:provider/:id/configure", to: "provider_connections#configure"
+      get "provider_connections/:provider/:id/connections", to: "provider_connections#connections"
+      delete "provider_connections/:provider/:id/connections/:authorization_id", to: "provider_connections#remove_connection"
+      post "syncs/:id/cancel", to: "syncs#cancel", as: :cancel_sync
 
       resources :chats, only: [ :index, :show, :create, :update, :destroy ] do
+        get :form_options, on: :collection
+        patch :view, on: :member, action: :mark_viewed
         resources :messages, only: [ :create ] do
           post :retry, on: :collection
+          post :report_timeout, on: :member
         end
       end
 

@@ -10,7 +10,8 @@ import {
   type TagId,
   type TransferId,
 } from "../ids";
-import { readCsrfToken, TransactionApiError } from "./transactions";
+import { TransactionApiError } from "./transactions";
+import { apiFetch } from "./client";
 
 const SpaTransferSideSchema = z.object({
   id: TransactionIdSchema,
@@ -96,11 +97,7 @@ export async function requestTransfer(
   transferId: TransferId,
   signal?: AbortSignal,
 ): Promise<SpaTransfer> {
-  const response = await fetch(`${basePath}/${transferId}`, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
-    signal,
-  });
+  const response = await apiFetch(`${basePath}/${transferId}`, { signal });
   if (response.status === 200) {
     const payload: unknown = await response.json();
     return SpaTransferSchema.parse(payload);
@@ -114,14 +111,8 @@ export async function updateTransfer(
   transferId: TransferId,
   payload: TransferUpdatePayload,
 ): Promise<SpaTransfer> {
-  const response = await fetch(`${basePath}/${transferId}`, {
+  const response = await apiFetch(`${basePath}/${transferId}`, {
     method: "PATCH",
-    credentials: "same-origin",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
     body: JSON.stringify({ transfer: payload }),
   });
   if (response.status === 200) {
@@ -140,14 +131,7 @@ export async function updateTransfer(
 }
 
 export async function deleteTransfer(basePath: string, transferId: TransferId): Promise<void> {
-  const response = await fetch(`${basePath}/${transferId}`, {
-    method: "DELETE",
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
-  });
+  const response = await apiFetch(`${basePath}/${transferId}`, { method: "DELETE" });
   if (response.status === 204 || response.status === 200) return;
   const body: unknown = await response.json().catch(() => null);
   const message =
@@ -169,13 +153,8 @@ export async function markTransferAsRecurring(
   basePath: string,
   transferId: TransferId,
 ): Promise<{ message: string; recurring_transaction_id?: string }> {
-  const response = await fetch(`${basePath}/${transferId}/mark_as_recurring`, {
+  const response = await apiFetch(`${basePath}/${transferId}/mark_as_recurring`, {
     method: "POST",
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
   });
   const data: unknown = await response.json().catch(() => ({}));
   if (response.status === 201 || response.status === 200)
@@ -188,4 +167,78 @@ export async function markTransferAsRecurring(
       ? data.message
       : "Failed to mark transfer as recurring";
   throw new TransactionApiError(message, response.status);
+}
+
+const TransferFormOptionsSchema = z.object({
+  accounts: z.array(z.object({ id: AccountIdSchema, name: z.string(), currency: z.string() })),
+  tags: z.array(z.object({ id: TagIdSchema, name: z.string(), color: z.string() })),
+  default_date: z.string(),
+  idempotency_key: z.string(),
+  text: z.record(z.string(), z.string()),
+});
+
+export type TransferFormOptions = z.infer<typeof TransferFormOptionsSchema>;
+export type TransferCreatePayload = {
+  from_account_id: string;
+  to_account_id: string;
+  date: string;
+  amount: string;
+  exchange_rate?: string;
+  source_fee_amount?: string;
+  destination_fee_amount?: string;
+  tag_ids: TagId[];
+  idempotency_key: string;
+};
+
+export function transferFormOptionsQueryOptions(basePath: string) {
+  return queryOptions({
+    queryKey: ["spa", "transfer-form-options", basePath] as const,
+    queryFn: async ({ signal }) => {
+      const response = await apiFetch(`${basePath}/form_options`, { signal });
+      if (!response.ok)
+        throw new TransactionApiError("Failed to load transfer form", response.status);
+      return TransferFormOptionsSchema.parse(await response.json());
+    },
+  });
+}
+
+export async function createTransfer(
+  basePath: string,
+  transfer: TransferCreatePayload,
+): Promise<SpaTransfer> {
+  const response = await apiFetch(basePath, { method: "POST", body: JSON.stringify({ transfer }) });
+  const data: unknown = await response.json();
+  if (response.status === 201) return SpaTransferSchema.parse(data);
+  const message =
+    typeof data === "object" &&
+    data !== null &&
+    "message" in data &&
+    typeof data.message === "string"
+      ? data.message
+      : "Failed to create transfer";
+  throw new TransactionApiError(message, response.status);
+}
+
+export function transferExchangeRateQueryOptions(
+  basePath: string,
+  fromId: string,
+  toId: string,
+  date: string,
+) {
+  return queryOptions({
+    queryKey: ["spa", "transfer-exchange-rate", basePath, fromId, toId, date] as const,
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams({ from_account_id: fromId, to_account_id: toId, date });
+      const response = await apiFetch(`${basePath}/exchange_rate?${params}`, { signal });
+      if (!response.ok) {
+        throw new TransactionApiError(
+          "Exchange rate unavailable for selected currencies and date",
+          response.status,
+        );
+      }
+      return z.object({ rate: z.string() }).parse(await response.json()).rate;
+    },
+    enabled: fromId !== "" && toId !== "" && date !== "",
+    retry: false,
+  });
 }

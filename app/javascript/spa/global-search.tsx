@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Search combines API transport, accessible selection, queries, routing, and shared controls. */
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useDebouncedValue } from "@tanstack/react-pacer/debouncer";
@@ -8,6 +9,7 @@ import * as z from "zod/mini";
 import { Icon } from "./icon";
 import { Button } from "./components/button";
 import { Modal } from "./modal";
+import { apiFetch } from "./api/client";
 
 const SearchHitSchema = z.object({
   id: z.string(),
@@ -57,9 +59,7 @@ function focusSearchInput(element: HTMLInputElement | null) {
 
 async function requestSearch(query: string, signal: AbortSignal): Promise<SearchHit[]> {
   const params = new URLSearchParams({ q: query, per_type: "6" });
-  const response = await fetch(`/api/v1/search?${params.toString()}`, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
+  const response = await apiFetch(`/api/v1/search?${params.toString()}`, {
     signal,
   });
   if (!response.ok) throw new Error(`Search failed: ${response.status}`);

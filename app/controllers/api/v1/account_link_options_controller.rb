@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
-# Method-selection data for the SPA add-account flow. Mirrors the native
-# `accounts/new/_method_selector` partial: a manual-entry path plus the
-# provider link paths for the given accountable type. Read-only reference
-# data; the SPA renders provider links as plain anchors to the Rails paths.
+# Method-selection metadata for the SPA add-account flow. Provider configuration
+# and account selection stay in React; only external authorization leaves it.
 class Api::V1::AccountLinkOptionsController < Api::V1::BaseController
   ACCOUNTABLE_CLASS = Accountable::TYPES.index_by(&:underscore).freeze
 
@@ -54,9 +52,28 @@ class Api::V1::AccountLinkOptionsController < Api::V1::BaseController
         {
           key: config[:key],
           name: config[:name],
-          new_account_path: config[:new_account_path].call(class_name, safe_link_return_to)
+          new_account_path: spa_provider_path(config[:key], class_name)
         }
       end
+    end
+
+    def spa_provider_path(config_key, class_name)
+      key = config_key.to_s
+      provider = ProviderConnectionStatus::PROVIDERS.sort_by { |entry| -entry[:key].length }.find do |entry|
+        key == entry[:key] || key.start_with?("#{entry[:key]}_")
+      end
+      raise ActiveRecord::RecordNotFound unless provider
+
+      suffix = key.delete_prefix("#{provider[:key]}_")
+      connection_id = suffix if UuidFormat.valid?(suffix)
+      path = if connection_id
+        "/provider_connections/#{provider[:key]}/#{connection_id}/setup"
+      else
+        "/provider_connections/#{provider[:key]}/new"
+      end
+      query = { accountable_type: class_name, return_to: safe_link_return_to }
+      query[:region] = suffix if provider[:key] == "plaid" && %w[us eu].include?(suffix)
+      "#{path}?#{query.compact.to_query}"
     end
 
     # Same hardening as StoreLocation#safe_return_to: only internal absolute

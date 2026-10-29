@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Session-authenticated presentation payloads for the SPA surfaces that share
+# Public API presentation payloads for the SPA surfaces that share
 # the accounts domain: the accounts index (manual + provider-connected
 # accounts, in the ERB page's grouping), the sharing dialog, and the statement
 # vault (standalone `/account_statements` plus the account's Statements tab
@@ -17,12 +17,13 @@ class Account::SpaIndexData
   #   { kind: "provider" | "wallet" | "financekit", key: :plaid,
   #     item: <provider item>, accounts: [...] }
   # `groups` are `BalanceSheet::AccountGroup`s feeding summary totals.
-  def initialize(item_specs:, manual_accounts: [], groups: [], family:, user:, sync_stats: {}, wallet_cards: {})
+  def initialize(item_specs:, manual_accounts: [], groups: [], family:, user:, account: nil, sync_stats: {}, wallet_cards: {})
     @item_specs = item_specs
     @manual_accounts = manual_accounts
     @groups = groups
     @family = family
     @user = user
+    @account = account
     @sync_stats = sync_stats
     @wallet_cards = wallet_cards
   end
@@ -72,14 +73,14 @@ class Account::SpaIndexData
       members: members.map { |member| member_payload(member) },
       no_members: members.empty?,
       moniker: @family.moniker_label.downcase,
-      update_href: routes.account_sharing_path(@account, only_path: true)
+      update_href: routes.api_v1_account_sharing_path(@account, only_path: true)
     }
   end
 
   def statements_index_payload(unmatched:, unmatched_pagy:, linked:, linked_pagy:, accounts:, total_storage_bytes:)
     {
       upload: {
-        href: routes.account_statements_path(only_path: true),
+        href: routes.api_v1_account_statements_path(only_path: true),
         accounts: accounts.map { |account| { id: account.id, name: account.name } },
         accept: AccountStatement::ACCEPTED_FILE_EXTENSIONS.join(","),
         max_size_mb: AccountStatement::MAX_FILE_SIZE / 1.megabyte
@@ -101,10 +102,10 @@ class Account::SpaIndexData
       size: number_to_human_size(statement.byte_size),
       content_type: statement.content_type,
       download_href: statement.original_file.attached? ? download_href(statement) : nil,
-      destroy_href: routes.account_statement_path(statement, only_path: true),
+      destroy_href: routes.api_v1_account_statement_path(statement, only_path: true),
       confirm_delete: CustomConfirm.for_resource_deletion("statement").to_data_attribute,
       account: statement.account ? { id: statement.account.id, name: statement.account.name } : nil,
-      suggested_account: statement.suggested_account ? {
+      suggested_account: suggested_account_for(statement) ? {
         id: statement.suggested_account.id,
         name: statement.suggested_account.name,
         confidence: number_to_percentage(statement.match_confidence.to_d * 100, precision: 0)
@@ -126,9 +127,9 @@ class Account::SpaIndexData
       },
       reconciliation: reconciliation_checks.map { |check| check_payload(check, statement) },
       actions: {
-        link_href: routes.link_account_statement_path(statement, only_path: true),
-        unlink_href: routes.unlink_account_statement_path(statement, only_path: true),
-        reject_href: routes.reject_account_statement_path(statement, only_path: true)
+        link_href: routes.link_api_v1_account_statement_path(statement, only_path: true),
+        unlink_href: routes.unlink_api_v1_account_statement_path(statement, only_path: true),
+        reject_href: routes.reject_api_v1_account_statement_path(statement, only_path: true)
       },
       accounts: @accounts.map { |account| { id: account.id, name: account.name } }
     }
@@ -143,8 +144,8 @@ class Account::SpaIndexData
       latest = family.syncs.visible.order(created_at: :desc).first
       {
         syncing: family.syncing?,
-        sync_href: routes.sync_all_accounts_path(only_path: true),
-        cancel_path: latest ? routes.cancel_sync_path(latest, only_path: true) : nil,
+        sync_href: routes.api_v1_sync_job_path(only_path: true),
+        cancel_path: latest ? routes.api_v1_cancel_sync_path(latest, only_path: true) : nil,
         syncing_label: I18n.t("accounts.index.sync"),
         cancel_label: I18n.t("accounts.index.cancel_sync")
       }
@@ -238,58 +239,18 @@ class Account::SpaIndexData
       item = spec[:item]
       return nil unless item.respond_to?(:manageable_by?) ? item.manageable_by?(user) : user.admin?
 
-      case spec[:key]
-      when :plaid
-        if item.status == "requires_update"
-          routes.edit_plaid_item_path(item, only_path: true)
-        elsif item.respond_to?(:us?) && item.us?
-          routes.edit_plaid_item_path(item, add_accounts: true, only_path: true)
-        end
-      when :simplefin
-        routes.edit_simplefin_item_path(item, only_path: true) if item.setup_token_update_required?
-      when :snaptrade
-        if item.status == "requires_update"
-          if Provider::Snaptrade.authorization_code_configured?
-            routes.oauth_authorize_snaptrade_items_path(item_id: item.id, only_path: true)
-          else
-            routes.oauth_device_authorize_snaptrade_items_path(item_id: item.id, only_path: true)
-          end
-        end
-      end
+      return nil if spec[:kind] == "financekit"
+
+      "/provider_connections/#{spec[:key]}/#{item.id}/manage"
     end
 
     def item_manage_label(spec)
       return "Reconnect" if spec[:key] == :snaptrade && spec[:item].status == "requires_update"
       nil
     end
-    SETUP_ROUTES = {
-      akahu: :setup_accounts_akahu_item_path,
-      binance: :setup_accounts_binance_item_path,
-      brex: :setup_accounts_brex_item_path,
-      coinbase: :setup_accounts_coinbase_item_path,
-      coinspot: :setup_accounts_coinspot_item_path,
-      enable_banking: :setup_accounts_enable_banking_item_path,
-      fio: :setup_accounts_fio_item_path,
-      ibkr: :setup_accounts_ibkr_item_path,
-      indexa_capital: :setup_accounts_indexa_capital_item_path,
-      kraken: :setup_accounts_kraken_item_path,
-      lunchflow: :setup_accounts_lunchflow_item_path,
-      mercury: :setup_accounts_mercury_item_path,
-      monobank: :setup_accounts_monobank_item_path,
-      simplefin: :setup_accounts_simplefin_item_path,
-      snaptrade: :setup_accounts_snaptrade_item_path,
-      sophtron: :setup_accounts_sophtron_item_path,
-      trading212: :setup_accounts_trading212_item_path,
-      up: :setup_accounts_up_item_path,
-      wise: :setup_accounts_wise_item_path,
-      redbark: :setup_accounts_redbark_item_path,
-      questrade: :setup_accounts_questrade_item_path,
-      trade_republic: :setup_accounts_trade_republic_item_path
-    }.freeze
 
     def item_setup_href(spec)
-      route_name = SETUP_ROUTES[spec[:key]]
-      return nil unless route_name
+      return nil if spec[:kind] == "financekit" || spec[:key] == :plaid
       # ERB gates the card behind admin and only shows setup when unlinked
       # provider accounts exist; simplefin uses a direct join since it has
       # no unlinked_accounts_count helper.
@@ -300,9 +261,7 @@ class Account::SpaIndexData
         spec[:item].unlinked_accounts_count
       end
       return nil unless unlinked.to_i > 0
-      routes.public_send(route_name, spec[:item], only_path: true)
-    rescue StandardError
-      nil
+      "/provider_connections/#{spec[:key]}/#{spec[:item].id}/setup"
     end
 
     # Suggestions remain read-only until the SPA preview is reviewed and applied.
@@ -334,7 +293,7 @@ class Account::SpaIndexData
           relink_href: routes.account_provider_replacement_path(
             sure_account, simplefin_account_id: new_sfa.id, return_to: routes.accounts_path, only_path: true),
           dismiss_label: I18n.t("simplefin_items.replacement_prompt.dismiss_aria"),
-          dismiss_href: routes.dismiss_replacement_suggestion_simplefin_item_path(item, only_path: true),
+          dismiss_href: "/api/v1/provider_connections/simplefin/#{item.id}/dismiss_replacement_suggestion",
           dormant_sfa_id: old_sfa.id,
           active_sfa_id: new_sfa.id
         }
@@ -372,16 +331,9 @@ class Account::SpaIndexData
       can_manage = item.respond_to?(:manageable_by?) ? item.manageable_by?(user) : user.admin?
       return nil unless can_manage
 
-      case spec[:key]
-      when :plaid then routes.plaid_item_path(item, only_path: true)
-      when :simplefin then routes.simplefin_item_path(item, only_path: true)
-      else
-        begin
-          routes.polymorphic_path(item, only_path: true)
-        rescue NoMethodError, ArgumentError
-          nil
-        end
-      end
+      return nil if spec[:kind] == "financekit"
+
+      routes.api_v1_provider_connection_path(provider: spec[:key], id: item.id, only_path: true)
     end
 
     def empty_payload(spec)
@@ -397,9 +349,7 @@ class Account::SpaIndexData
       card = wallet_cards.fetch(spec[:item].id, {})
       {
         address_count: card[:address_count],
-        accounts: card[:accounts].map { |account| account_row(account) },
-        sync_href: routes.sync_onchain_wallet_item_path(spec[:item], only_path: true),
-        delete_href: routes.onchain_wallet_item_path(spec[:item], only_path: true)
+        accounts: Array(card[:accounts]).map { |account| account_row(account) }
       }
     end
 
@@ -468,31 +418,31 @@ class Account::SpaIndexData
       actions << { key: "sharing", label: I18n.t("accounts.account.sharing"), href: routes.account_sharing_path(account, only_path: true), method: "get" }
       if user.admin?
         if !account.linked? && %w[Depository CreditCard Investment Crypto].include?(account.accountable_type)
-          actions << { key: "link_provider", label: I18n.t("accounts.account.link_provider"), href: routes.select_provider_account_path(account, only_path: true), method: "get" }
+          actions << { key: "link_provider", label: I18n.t("accounts.account.link_provider"), href: routes.provider_options_api_v1_account_path(account, only_path: true), method: "get" }
           actions << { key: "link_simplefin_account", label: I18n.t("simplefin_items.provider_replacement.link_simplefin"), href: routes.account_provider_replacement_path(account, return_to: routes.accounts_path, only_path: true), method: "get" } if permission.in?([ :owner, :full_control ])
         elsif account.linked? && account.linked_to?("SimplefinAccount")
           actions << { key: "change_simplefin_account", label: I18n.t("accounts.account.change_simplefin_account"), href: routes.account_provider_replacement_path(account, return_to: routes.accounts_path, only_path: true), method: "get" } if permission.in?([ :owner, :full_control ])
           actions << { key: "simplefin_history_audit", label: I18n.t("accounts.simplefin_history_audit.title"), href: routes.account_simplefin_history_audit_path(account, return_to: routes.accounts_path, only_path: true), method: "get" } if permission.in?([ :owner, :full_control ])
         end
-        actions << { key: "unlink_provider", label: I18n.t("accounts.account.unlink_provider"), href: routes.confirm_unlink_account_path(account, only_path: true), method: "get" } if account.linked?
+        actions << { key: "unlink_provider", label: I18n.t("accounts.account.unlink_provider"), href: routes.provider_link_api_v1_account_path(account, only_path: true), method: "delete", confirm: CustomConfirm.for_resource_deletion("provider link").to_data_attribute } if account.linked?
       end
       if permission.in?([ :owner, :full_control ])
         if account.active?
-          actions << { key: "disable", label: I18n.t("accounts.account.disable"), href: routes.toggle_active_account_path(account, only_path: true), method: "patch" }
+          actions << { key: "disable", label: I18n.t("accounts.account.disable"), href: routes.status_api_v1_account_path(account, only_path: true), method: "patch", params: { status: "disabled" } }
         elsif account.disabled?
-          actions << { key: "enable", label: I18n.t("accounts.account.enable"), href: routes.toggle_active_account_path(account, only_path: true), method: "patch" }
+          actions << { key: "enable", label: I18n.t("accounts.account.enable"), href: routes.status_api_v1_account_path(account, only_path: true), method: "patch", params: { status: "active" } }
         end
         key = account.exclude_from_reports? ? "include_in_reports" : "exclude_from_reports"
-        actions << { key: key, label: I18n.t("accounts.account.#{key}"), href: routes.toggle_exclude_from_reports_account_path(account, only_path: true), method: "patch" }
+        actions << { key: key, label: I18n.t("accounts.account.#{key}"), href: routes.api_v1_account_path(account, only_path: true), method: "patch", params: { account: { exclude_from_reports: !account.exclude_from_reports? } } }
       end
       if user.default_account_id == account.id
-        actions << { key: "remove_default", label: I18n.t("accounts.account.remove_default"), href: routes.remove_default_account_path(account, only_path: true), method: "patch" }
+        actions << { key: "remove_default", label: I18n.t("accounts.account.remove_default"), href: routes.default_api_v1_account_path(account, only_path: true), method: "delete" }
       elsif account.eligible_for_transaction_default?
-        actions << { key: "set_default", label: I18n.t("accounts.account.set_default"), href: routes.set_default_account_path(account, only_path: true), method: "patch" }
+        actions << { key: "set_default", label: I18n.t("accounts.account.set_default"), href: routes.default_api_v1_account_path(account, only_path: true), method: "patch" }
       end
       if account.owned_by?(user) && !account.linked?
         actions << {
-          key: "delete", label: I18n.t("accounts.account.delete"), href: routes.account_path(account, only_path: true), method: "delete",
+          key: "delete", label: I18n.t("accounts.account.delete"), href: routes.api_v1_account_path(account, only_path: true), method: "delete",
           confirm: CustomConfirm.for_resource_deletion("account", high_severity: true).to_data_attribute
         }
       end
@@ -545,17 +495,24 @@ class Account::SpaIndexData
         period: period_label(statement),
         review_status: statement.review_status,
         account: statement.account&.name,
-        suggestion: with_suggestions && statement.suggested_account ? {
+        suggestion: with_suggestions && suggested_account_for(statement) ? {
           id: statement.suggested_account.id,
           name: statement.suggested_account.name,
           confidence: number_to_percentage(statement.match_confidence.to_d * 100, precision: 0)
         } : nil,
         href: routes.account_statement_path(statement, only_path: true),
         download_href: statement.original_file.attached? ? download_href(statement) : nil,
-        link_href: statement.suggested_account ? routes.link_account_statement_path(statement, account_id: statement.suggested_account_id, only_path: true) : nil,
-        reject_href: routes.reject_account_statement_path(statement, only_path: true)
+        link_href: suggested_account_for(statement) ? routes.link_api_v1_account_statement_path(statement, account_id: statement.suggested_account_id, only_path: true) : nil,
+        reject_href: routes.reject_api_v1_account_statement_path(statement, only_path: true)
       }
     end
+    def suggested_account_for(statement)
+      return nil unless statement.suggested_account_id
+
+      @accessible_statement_account_ids ||= user.accessible_accounts.pluck(:id).to_set
+      statement.suggested_account if @accessible_statement_account_ids.include?(statement.suggested_account_id)
+    end
+
 
     def file_icon(statement)
       if statement.pdf?
@@ -594,7 +551,7 @@ class Account::SpaIndexData
     end
 
     def download_href(statement)
-      routes.rails_blob_path(statement.original_file, disposition: "attachment", only_path: true)
+      routes.download_api_v1_account_statement_path(statement, only_path: true)
     end
 
     def number_to_human_size(bytes)

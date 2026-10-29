@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod/mini";
 import { Chart } from "@tanstack/charts/react";
+import { apiFetch } from "../api/client";
 import { spendingDefinition } from "../../charts/comparison";
 import { useSpaPaths } from "../api/paths";
 import { Icon } from "../icon";
@@ -66,9 +67,7 @@ function spendingTrendQueryOptions(basePath: string, month: string | undefined) 
   return {
     queryKey: ["spa", "home", "spending-trend", path] as const,
     queryFn: async ({ signal }: { signal?: AbortSignal }): Promise<SpendingTrendData> => {
-      const response = await fetch(path, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
+      const response = await apiFetch(path, {
         signal,
       });
       const payload: unknown = await response.json().catch(() => null);

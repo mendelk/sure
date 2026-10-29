@@ -379,11 +379,22 @@ RSpec.describe 'API V1 Auth', type: :request do
   end
 
   path '/api/v1/auth/enable_ai' do
+    let(:user) do
+      Family.create!(name: 'AI Consent Docs Family', currency: 'USD', locale: 'en', date_format: '%m-%d-%Y')
+        .users.create!(email: 'ai-consent@example.com', password: 'password123', password_confirmation: 'password123', ai_enabled: false)
+    end
+    let(:api_key) do
+      key = ApiKey.generate_secure_key
+      ApiKey.create!(user: user, name: 'API Docs Key', key: key, scopes: %w[read_write], source: 'web')
+    end
+    let(:'X-Api-Key') { api_key.plain_key }
+
     patch 'Enable AI features for the authenticated user' do
       tags 'Auth'
       consumes 'application/json'
       produces 'application/json'
       security [ { apiKeyAuth: [] } ]
+      description 'Enables AI for the authenticated owner without accepting a user ID or legacy user payload. Requires write scope and an available AI provider. Browser-session writes require a valid CSRF token; API-key/OAuth requests use their credential instead.'
 
       response '200', 'ai enabled' do
         schema type: :object,
@@ -405,11 +416,15 @@ RSpec.describe 'API V1 Auth', type: :request do
 
       response '401', 'unauthorized' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:'X-Api-Key') { nil }
         run_test!
       end
 
-      response '403', 'insufficient scope' do
+      response '403', 'insufficient scope or AI unavailable' do
         schema '$ref' => '#/components/schemas/ErrorResponse'
+        let(:api_key) do
+          ApiKey.create!(user: user, name: 'Read-only Docs Key', key: ApiKey.generate_secure_key, scopes: %w[read], source: 'web')
+        end
         run_test!
       end
     end

@@ -1,5 +1,6 @@
 import { queryOptions, skipToken } from "@tanstack/react-query";
 import * as z from "zod/mini";
+import { apiFetch } from "./client";
 import { AccountPermissionsSchema } from "./accounts";
 import { ReportPaginationSchema } from "../report-definition";
 import {
@@ -104,9 +105,7 @@ async function requestTransactions(
       search.set(key, String(value));
   }
 
-  const response = await fetch(search.size > 0 ? `${path}?${search.toString()}` : path, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
+  const response = await apiFetch(search.size > 0 ? `${path}?${search.toString()}` : path, {
     signal,
   });
   const payload: unknown = await response.json();
@@ -194,11 +193,10 @@ export async function executeSureqlPivot(
   pivot: PivotChartConfig,
   options?: { signal?: AbortSignal },
 ): Promise<PivotResult> {
-  const response = await fetch(endpoint, {
+  const response = await apiFetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
     },
     body: JSON.stringify({ source, pivot }),
     signal: options?.signal,
@@ -222,11 +220,10 @@ export async function executeSureqlQuery(
   source: string,
   options?: { signal?: AbortSignal; pagination?: { limit: number; offset: number } },
 ): Promise<SureqlResult> {
-  const response = await fetch(endpoint, {
+  const response = await apiFetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
     },
     body: JSON.stringify({
       source,
@@ -248,26 +245,22 @@ export async function executeSureqlQuery(
   return SureqlResultSchema.parse(data);
 }
 
-export function readCsrfToken(): string {
-  return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? "";
-}
-
 function extractApiError(payload: unknown, fallback: string): string[] {
   if (typeof payload !== "object" || payload === null) return [fallback];
   const record: Record<string, unknown> = { ...payload };
+  if (Array.isArray(record.errors)) {
+    const errors = record.errors.filter((item): item is string => typeof item === "string");
+    if (errors.length > 0) return errors;
+  }
   if (typeof record.message === "string" && record.message.length > 0) return [record.message];
-  if (Array.isArray(record.errors) && record.errors.length > 0)
-    return record.errors.filter((item): item is string => typeof item === "string");
+  if (typeof record.error === "string" && record.error.length > 0) return [record.error];
   return [fallback];
 }
 async function requestJson(url: string, method: string, body?: unknown): Promise<unknown> {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     body: body === undefined ? null : JSON.stringify(body),
-    credentials: "same-origin",
     headers: {
-      Accept: "application/json",
       "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
     },
     method,
   });
@@ -329,39 +322,22 @@ export async function createTransaction(
   input: TransactionCreateInput,
   signal?: AbortSignal,
 ): Promise<z.infer<typeof TransactionCreatedSchema>> {
-  const { category_id, merchant_id, tag_ids, exchange_rate, ...entry } = input;
-  const response = await fetch(path, {
-    body: JSON.stringify({
-      entry: {
-        ...entry,
-        entryable_type: "Transaction",
-        entryable_attributes: { category_id, merchant_id, tag_ids, exchange_rate },
-      },
-    }),
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-Token": readCsrfToken(),
-    },
+  const response = await apiFetch(path, {
+    body: JSON.stringify({ transaction: { ...input, user_modified: true } }),
     method: "POST",
     signal,
   });
   const payload: unknown = await response.json().catch(() => null);
-  if (response.status === 200 || response.status === 201)
-    return TransactionCreatedSchema.parse(payload);
-
-  const fallback = `Request failed with status ${response.status}`;
-  const errors = extractApiError(payload, fallback);
-  if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "error" in payload &&
-    typeof payload.error === "string" &&
-    errors[0] === fallback
-  )
-    errors[0] = payload.error;
-  throw new TransactionApiError(errors[0] ?? fallback, response.status, errors);
+  if (response.status === 200 || response.status === 201) {
+    const detail = GetApiV1TransactionsId200Response.parse(payload);
+    return TransactionCreatedSchema.parse({
+      id: detail.id,
+      entry_id: detail.entry_id,
+      account_id: detail.account.id,
+    });
+  }
+  const errors = extractApiError(payload, `Request failed with status ${response.status}`);
+  throw new TransactionApiError(errors[0] ?? "Request failed", response.status, errors);
 }
 
 export async function updateTransferStatus(
@@ -394,11 +370,12 @@ async function requestCandidates(
   const params = GetApiV1TransactionsTransactionIdTransferMatchCandidatesParams.parse({
     transaction_id: transactionId,
   });
-  const response = await fetch(`${basePath}/${params.transaction_id}/transfer_match_candidates`, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
-    signal,
-  });
+  const response = await apiFetch(
+    `${basePath}/${params.transaction_id}/transfer_match_candidates`,
+    {
+      signal,
+    },
+  );
   const payload: unknown = await response.json();
 
   if (response.status === 200)
@@ -434,12 +411,8 @@ export function bulkUpdatePermissionsQueryOptions(path: string, entryIds: string
     enabled: entryIds.length > 0,
     queryFn: async ({ signal }) => {
       const params = new URLSearchParams();
-      for (const id of entryIds) params.append("bulk_update[entry_ids][]", id);
-      const response = await fetch(`${path}/new.json?${params.toString()}`, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        signal,
-      });
+      for (const id of entryIds) params.append("entry_ids[]", id);
+      const response = await apiFetch(`${path}/bulk_permissions?${params.toString()}`, { signal });
       if (!response.ok)
         throw new TransactionApiError("Could not load transaction permissions", response.status);
       const payload: unknown = await response.json();
@@ -622,9 +595,7 @@ async function requestReferenceList<TId extends string>(
   idSchema: z.ZodMiniType<TId>,
   signal?: AbortSignal,
 ): Promise<ReferenceOption<TId>[]> {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
+  const response = await apiFetch(path, {
     signal,
   });
   if (!response.ok) throw new TransactionApiError("Failed to load reference data", response.status);
@@ -643,9 +614,7 @@ async function requestTransactionDetail(
   signal?: AbortSignal,
 ): Promise<SpaTransactionDetail> {
   const { id: transactionId } = GetApiV1TransactionsIdParams.parse({ id });
-  const response = await fetch(`${basePath}/${transactionId}`, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
+  const response = await apiFetch(`${basePath}/${transactionId}`, {
     signal,
   });
   const payload: unknown = await response.json();
@@ -737,9 +706,7 @@ async function requestUpcomingTransactions(
   path: string,
   signal?: AbortSignal,
 ): Promise<UpcomingRecurringCollection> {
-  const response = await fetch(`${path}?upcoming=true&per_page=100`, {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
+  const response = await apiFetch(`${path}?upcoming=true&per_page=100`, {
     signal,
   });
   const payload: unknown = await response.json();
@@ -752,4 +719,116 @@ async function requestUpcomingTransactions(
     `Upcoming transactions request failed with status ${response.status}`,
     response.status,
   );
+}
+
+export async function bulkDeleteEntries(entryIds: string[]): Promise<{ deleted_count: number }> {
+  return z.object({ deleted_count: z.number() }).parse(
+    await requestJson("/api/v1/transactions/bulk_deletion", "DELETE", {
+      bulk_delete: { entry_ids: entryIds },
+    }),
+  );
+}
+
+export async function bulkUpdateEntries(input: {
+  entry_ids: string[];
+  date?: string;
+  name?: string;
+  notes?: string;
+  category_id?: string;
+  merchant_id?: string;
+  transfer_account_id?: string;
+  tag_ids_to_add?: string[];
+  tag_ids_to_remove?: string[];
+}): Promise<void> {
+  await requestJson("/api/v1/transactions/bulk_update", "PATCH", { bulk_update: input });
+}
+
+export async function unsplitTransaction(id: TransactionId): Promise<void> {
+  await requestJson(`/api/v1/transactions/${id}/split`, "DELETE");
+}
+
+export const ConversionOptionsSchema = z.object({
+  securities: z.array(
+    z.object({ id: z.string(), ticker: z.string(), name: z.nullable(z.string()) }),
+  ),
+  activity_labels: z.array(z.string()),
+  search_results: z.array(
+    z.object({
+      ticker: z.string(),
+      symbol: z.string(),
+      name: z.nullable(z.string()),
+      exchange_operating_mic: z.nullable(z.string()),
+      price_provider: z.nullable(z.string()),
+    }),
+  ),
+});
+
+export function conversionOptionsQueryOptions(id: TransactionId, query = "") {
+  return queryOptions({
+    queryKey: ["spa", "transaction-conversion", id, query],
+    queryFn: async ({ signal }) => {
+      const response = await apiFetch(
+        `/api/v1/transactions/${id}/conversion?${new URLSearchParams({ q: query })}`,
+        { signal },
+      );
+      if (!response.ok)
+        throw new TransactionApiError("Could not load conversion options", response.status);
+      return ConversionOptionsSchema.parse(await response.json());
+    },
+  });
+}
+
+export async function convertTransaction(
+  id: TransactionId,
+  conversion: {
+    security_id?: string;
+    ticker?: string;
+    custom_ticker?: string;
+    exchange_operating_mic?: string;
+    qty?: string;
+    price?: string;
+    trade_name?: string;
+    investment_activity_label?: string;
+  },
+): Promise<void> {
+  await requestJson(`/api/v1/transactions/${id}/conversion`, "POST", { conversion });
+}
+
+const DuplicateCandidatesSchema = z.object({
+  candidates: z.array(
+    z.object({
+      entry_id: z.string(),
+      transaction_id: z.string(),
+      name: z.string(),
+      date: z.string(),
+      amount: z.string(),
+      currency: z.string(),
+    }),
+  ),
+  offset: z.number(),
+  has_more: z.boolean(),
+});
+
+export function duplicateCandidatesQueryOptions(id: TransactionId, offset: number) {
+  return queryOptions({
+    queryKey: ["spa", "duplicate-candidates", id, offset],
+    queryFn: async ({ signal }) => {
+      const response = await apiFetch(
+        `/api/v1/transactions/${id}/duplicate_candidates?offset=${offset}`,
+        { signal },
+      );
+      if (!response.ok)
+        throw new TransactionApiError("Could not load posted transactions", response.status);
+      return DuplicateCandidatesSchema.parse(await response.json());
+    },
+  });
+}
+
+export async function mergePostedTransaction(
+  id: TransactionId,
+  postedEntryId: string,
+): Promise<void> {
+  await requestJson(`/api/v1/transactions/${id}/duplicate_merge`, "POST", {
+    duplicate_merge: { posted_entry_id: postedEntryId },
+  });
 }

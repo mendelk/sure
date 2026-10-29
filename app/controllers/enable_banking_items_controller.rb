@@ -106,12 +106,7 @@ class EnableBankingItemsController < ApplicationController
     @new_connection = params[:new_connection] == "true"
 
     begin
-      provider = @enable_banking_item.enable_banking_provider
-      response = provider.get_aspsps(country: @enable_banking_item.country_code)
-      raw_aspsps = response[:aspsps] || response["aspsps"] || []
-
-      # Sort: non-beta alphabetically, then beta alphabetically
-      @aspsps = raw_aspsps.map(&:with_indifferent_access).sort_by { |a| [ a[:beta] ? 1 : 0, a[:name].to_s.downcase ] }
+      @aspsps = @enable_banking_item.configuration_banks
     rescue Provider::EnableBanking::EnableBankingError => e
       Rails.logger.error "Enable Banking API error in select_bank: #{e.message}"
       @error_message = e.message
@@ -132,32 +127,12 @@ class EnableBankingItemsController < ApplicationController
     end
 
     begin
-      target_item = if params[:new_connection] == "true"
-        Current.family.enable_banking_items.create!(
-          name: "Enable Banking Connection",
-          country_code: @enable_banking_item.country_code,
-          application_id: @enable_banking_item.application_id,
-          client_certificate: @enable_banking_item.client_certificate
-        )
-      else
-        @enable_banking_item
-      end
-
-      # Capture PSU IP for use in background sync PSU headers
-      target_item.update(last_psu_ip: request.remote_ip) if request.remote_ip.present?
-
-      language = I18n.locale.to_s.split("-").first
-
-      # begin_authorization! re-fetches ASPSP metadata and auto-selects the best
-      # auth method (REDIRECT > DECOUPLED > EMBEDDED). Decoupled/MFA banks proceed
-      # through Enable Banking's hosted SCA page rather than being blocked.
-      redirect_url = target_item.begin_authorization!(
-        aspsp_name: aspsp_name,
-        redirect_url: enable_banking_callback_url,
-        state: target_item.id,
-        psu_type: psu_type,
-        language: language
+      authorization = @enable_banking_item.begin_configuration_authorization!(
+        params.permit(:aspsp_name, :psu_type, :new_connection).to_h,
+        callback_url: enable_banking_callback_url,
+        request_ip: request.remote_ip
       )
+      redirect_url = authorization.fetch(:authorization_url)
 
       safe_redirect_to_enable_banking(
         redirect_url,
@@ -175,6 +150,8 @@ class EnableBankingItemsController < ApplicationController
         redirect_to settings_providers_path, alert: t(".authorization_failed",
           default: "Failed to start authorization: %{message}", message: e.message)
       end
+    rescue ProviderConnection::Invalid
+      redirect_to settings_providers_path, alert: t(".invalid_redirect", default: "Invalid authorization URL received. Please try again.")
     rescue => e
       Rails.logger.error "Unexpected error in authorize: #{e.class}: #{e.message}"
       redirect_to settings_providers_path, alert: t(".unexpected_error", default: "An unexpected error occurred. Please try again.")
@@ -236,21 +213,18 @@ class EnableBankingItemsController < ApplicationController
   # Re-authorize an expired session
   def reauthorize
     begin
-      language = I18n.locale.to_s.split("-").first
-
-      # Route through the shared path so reauthorization re-selects the same auth
-      # method (decoupled banks included) instead of falling back to a default.
-      redirect_url = @enable_banking_item.begin_authorization!(
-        redirect_url: enable_banking_callback_url,
-        state: @enable_banking_item.id,
-        language: language
+      authorization = @enable_banking_item.begin_configuration_authorization!(
+        {}, callback_url: enable_banking_callback_url, reauthorize: true
       )
+      redirect_url = authorization.fetch(:authorization_url)
 
       safe_redirect_to_enable_banking(
         redirect_url,
         fallback_path: settings_providers_path,
         fallback_alert: t(".invalid_redirect", default: "Invalid authorization URL received. Please try again.")
       )
+    rescue ProviderConnection::Invalid
+      redirect_to settings_providers_path, alert: t(".invalid_redirect", default: "Invalid authorization URL received. Please try again.")
     rescue Provider::EnableBanking::EnableBankingError => e
       Rails.logger.error "Enable Banking reauthorization error: #{e.message}"
       redirect_to settings_providers_path, alert: t(".reauthorization_failed",
@@ -567,34 +541,8 @@ class EnableBankingItemsController < ApplicationController
       helpers.enable_banking_callback_url
     end
 
-    # Validate redirect URLs from Enable Banking API to prevent open redirect attacks
-    # Only allows HTTPS URLs from trusted Enable Banking domains
-    TRUSTED_ENABLE_BANKING_HOSTS = %w[
-      enablebanking.com
-      api.enablebanking.com
-      auth.enablebanking.com
-    ].freeze
-
     def valid_enable_banking_redirect_url?(url)
-      return false if url.blank?
-
-      begin
-        uri = URI.parse(url)
-
-        # Must be HTTPS
-        return false unless uri.scheme == "https"
-
-        # Host must be present
-        return false if uri.host.blank?
-
-        # Check if host matches or is a subdomain of trusted domains
-        TRUSTED_ENABLE_BANKING_HOSTS.any? do |trusted_host|
-          uri.host == trusted_host || uri.host.end_with?(".#{trusted_host}")
-        end
-      rescue URI::InvalidURIError => e
-        Rails.logger.warn("Enable Banking invalid redirect URL: #{url.inspect} - #{e.message}")
-        false
-      end
+      EnableBankingItem.valid_configuration_authorization_url?(url)
     end
 
     def safe_redirect_to_enable_banking(redirect_url, fallback_path:, fallback_alert:)

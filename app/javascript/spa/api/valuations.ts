@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import * as z from "zod/mini";
 import { AccountIdSchema, EntryIdSchema } from "../ids";
-import { readCsrfToken } from "./transactions";
+import { apiFetch } from "./client";
 
 const ValuationPageSchema = z.object({
   accounts: z.array(
@@ -40,8 +40,14 @@ const ConfirmationSchema = z.object({
     brokerage_cash_negative: z.boolean(),
   }),
 });
-const MutationResultSchema = z.object({ entry_id: EntryIdSchema, account_id: AccountIdSchema });
-const ErrorsSchema = z.object({ errors: z.array(z.string()) });
+const MutationResultSchema = z.object({
+  id: EntryIdSchema,
+  account: z.object({ id: AccountIdSchema }),
+});
+const ErrorsSchema = z.object({
+  errors: z.optional(z.array(z.string())),
+  message: z.optional(z.string()),
+});
 
 export type ValuationPage = z.infer<typeof ValuationPageSchema>;
 export type ValuationConfirmation = z.infer<typeof ConfirmationSchema>["confirmation"];
@@ -60,54 +66,56 @@ async function request(
   entry?: unknown,
   signal?: AbortSignal,
 ): Promise<unknown> {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     method,
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      ...(method === "GET"
-        ? {}
-        : { "Content-Type": "application/json", "X-CSRF-Token": readCsrfToken() }),
-    },
-    ...(method !== "GET" && entry !== undefined ? { body: JSON.stringify({ entry }) } : {}),
+    ...(entry !== undefined ? { body: JSON.stringify({ valuation: entry }) } : {}),
     signal,
   });
   const payload: unknown = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok) {
     const parsed = ErrorsSchema.safeParse(payload);
-    throw new ValuationApiError(parsed.success ? parsed.data.errors : []);
+    throw new ValuationApiError(
+      parsed.success
+        ? (parsed.data.errors ??
+            (parsed.data.message !== undefined && parsed.data.message !== ""
+              ? [parsed.data.message]
+              : []))
+        : [],
+    );
   }
   return payload;
 }
 
 function valuationPath(entryId: string): string {
-  return `/valuations/${encodeURIComponent(entryId)}`;
+  return `/api/v1/valuations/${encodeURIComponent(entryId)}`;
 }
 
 export function valuationPageQueryOptions(entryId?: string, accountId?: string) {
   const search = new URLSearchParams();
   if (accountId !== undefined) search.set("account_id", accountId);
   const path =
-    entryId === undefined ? `/valuations/new.json?${search}` : `${valuationPath(entryId)}.json`;
+    entryId === undefined
+      ? `/api/v1/valuations/form_options?${search}`
+      : `${valuationPath(entryId)}?include=workspace`;
   return queryOptions({
     queryKey: ["spa", "valuation", entryId ?? "new", accountId ?? null] as const,
     queryFn: async ({ signal }) =>
-      ValuationPageSchema.parse(await request(path, "GET", undefined, signal)),
+      z
+        .object({ workspace: ValuationPageSchema })
+        .parse(await request(path, "GET", undefined, signal)).workspace,
     staleTime: 0,
   });
 }
 
 export async function previewValuation(input: ValuationInput, entryId?: string) {
   const path =
-    entryId === undefined
-      ? "/valuations/confirm_create.json"
-      : `${valuationPath(entryId)}/confirm_update.json`;
+    entryId === undefined ? "/api/v1/valuations/preview" : `${valuationPath(entryId)}/preview`;
   const entry = entryId === undefined ? input : { date: input.date, amount: input.amount };
   return ConfirmationSchema.parse(await request(path, "POST", entry)).confirmation;
 }
 
 export async function saveValuation(input: ValuationInput, entryId?: string) {
-  const path = entryId === undefined ? "/valuations.json" : `${valuationPath(entryId)}.json`;
+  const path = entryId === undefined ? "/api/v1/valuations" : valuationPath(entryId);
   const entry = entryId === undefined ? input : { date: input.date, amount: input.amount };
   return MutationResultSchema.parse(
     await request(path, entryId === undefined ? "POST" : "PATCH", entry),
@@ -115,11 +123,9 @@ export async function saveValuation(input: ValuationInput, entryId?: string) {
 }
 
 export async function saveValuationNotes(entryId: string, notes: string) {
-  return MutationResultSchema.parse(
-    await request(`${valuationPath(entryId)}.json`, "PATCH", { notes }),
-  );
+  return MutationResultSchema.parse(await request(valuationPath(entryId), "PATCH", { notes }));
 }
 
 export async function deleteValuation(entryId: string): Promise<void> {
-  await request(`${valuationPath(entryId)}.json`, "DELETE");
+  await request(valuationPath(entryId), "DELETE");
 }
