@@ -23,6 +23,7 @@ import { Icon, type IconName } from "./icon";
 import { useDismiss } from "./use-dismiss";
 import { TransactionSearchBox } from "./components/transaction-search-box";
 import { fuzzyFilter } from "./fuzzy";
+import { collapseTransferPairs } from "./transfer-pairs";
 import {
   AccountIdSchema,
   type AccountId,
@@ -231,9 +232,13 @@ export function TransactionsPage() {
       : "Transaction data did not match the API contract."
     : undefined;
 
-  const groupedTransactions = useMemo(
-    () => groupTransactionsByDate(data?.transactions ?? []),
+  const visibleTransactions = useMemo(
+    () => collapseTransferPairs(data?.transactions ?? []),
     [data?.transactions],
+  );
+  const groupedTransactions = useMemo(
+    () => groupTransactionsByDate(visibleTransactions),
+    [visibleTransactions],
   );
   const splitParentsByEntryId = useMemo(
     () => new Map((data?.split_parents ?? []).map((parent) => [parent.entry_id, parent])),
@@ -262,7 +267,7 @@ export function TransactionsPage() {
     },
   });
 
-  const transactionsList = data?.transactions ?? [];
+  const transactionsList = visibleTransactions;
   const selectableTransactions = transactionsList.filter(
     (transaction) => transaction.permissions.can_annotate,
   );
