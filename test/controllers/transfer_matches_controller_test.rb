@@ -40,6 +40,24 @@ class TransferMatchesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Transfer created", flash[:notice]
   end
 
+  test "new transfer preserves the source note on the counterpart and transfer" do
+    [ 100, -100 ].each do |amount|
+      source = create_transaction(amount: amount, account: accounts(:depository))
+      source.update!(notes: "Moving savings")
+
+      post transaction_transfer_match_path(source), params: {
+        transfer_match: { method: "new", target_account_id: accounts(:investment).id }
+      }
+
+      assert_redirected_to transactions_url
+      transfer = source.transaction.reload.transfer
+      counterpart = amount.positive? ? transfer.inflow_transaction.entry : transfer.outflow_transaction.entry
+      assert_equal "Moving savings", source.reload.notes
+      assert_equal "Moving savings", counterpart.notes
+      assert_equal "Moving savings", transfer.notes
+    end
+  end
+
   test "new transfer entry is protected from provider sync" do
     outflow_entry = create_transaction(amount: 100, account: accounts(:depository))
 

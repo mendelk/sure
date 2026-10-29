@@ -87,6 +87,11 @@ using dated exchange rates and a tolerance. Confirmed transfers permit a
 thirty-day date difference; do not assume every transfer is a same-currency,
 four-day match.
 
+When matching a transaction by creating a new counterpart, the source entry's
+note is copied to the new entry and the transfer. These are separate notes;
+later edits do not synchronize them. Matching existing entries leaves their
+notes unchanged.
+
 The destination determines the outflow's kind: loan payment, credit-card payment,
 investment contribution or ordinary funds movement. In [Transaction's budget
 classification](../../app/models/transaction.rb), funds movement and credit-card

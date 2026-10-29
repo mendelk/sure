@@ -33,6 +33,7 @@ class Transfer::Matcher
           currency: transaction.entry.currency,
           date: transaction.entry.date,
           name: "Transfer to #{transaction.entry.amount.negative? ? transaction.entry.account.name : account.name}",
+          notes: transaction.entry.notes,
           user_modified: true
         )
       )
@@ -41,6 +42,7 @@ class Transfer::Matcher
         inflow_transaction: transaction.entry.amount.positive? ? missing_transaction : transaction,
         outflow_transaction: transaction.entry.amount.positive? ? transaction : missing_transaction
       )
+      transfer.notes = transaction.entry.notes
     else
       return Result.new(nil, "method must be \"existing\" or \"new\"")
     end
