@@ -92,8 +92,8 @@ class Sureql::Pivot
     # fields as the table preview, without running the capped table query.
     def field_index(base_sql)
       executor = Sureql::Executor.new(@user)
-      probe_sql = "SELECT * FROM (#{base_sql.delete_suffix(";")}) AS pivot_probe LIMIT 0"
-      query_result = ActiveRecord::Base.connection.exec_query(probe_sql)
+      probe_sql = "SELECT * FROM (#{base_sql.delete_suffix(";")}) AS pivot_probe LIMIT $1"
+      query_result = ActiveRecord::Base.connection.exec_query(probe_sql, "SCHEMA", [ 0 ])
       fields = executor.send(:field_metadata, query_result, [])
       fields.index_by(&:name)
     end

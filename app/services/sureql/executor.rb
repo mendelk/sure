@@ -30,15 +30,16 @@ class Sureql::Executor
     sql = compiler.call(source)
     source_key = detect_source(source)
     validate_select!(sql)
-    page = normalize_pagination(pagination) unless pagination.nil?
     if page
       base_sql = sql.rstrip.delete_suffix(";").rstrip
-      limited_sql = "SELECT * FROM (#{base_sql}) AS sureql_page LIMIT #{page[:limit] + 1} OFFSET #{page[:offset]}"
+      binds = [ page[:limit] + 1, page[:offset] ]
+      limited_sql = "SELECT * FROM (#{base_sql}) AS sureql_page LIMIT $1 OFFSET $2"
     else
       limited_sql, limit_truncated = enforce_limit(sql)
+      binds = []
     end
 
-    query_result = ActiveRecord::Base.connection.exec_query(limited_sql)
+    query_result = ActiveRecord::Base.connection.exec_query(limited_sql, "SCHEMA", binds)
     rows = query_result.map(&:to_h)
     if page
       page[:hasNext] = rows.size > page[:limit]

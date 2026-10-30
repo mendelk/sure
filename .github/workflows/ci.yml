@@ -140,11 +140,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@97ecb7b512899eb71ab1bf2310a624c6f1589ac6 # v1.308.0
+      - name: Setup Node.js environment
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          ruby-version: .ruby-version
-          bundler-cache: true
+          node-version: "24"
+          cache: "npm"
+
+      - name: Build frontend assets
+        run: |
+          npm ci
+          npm run spa:build
+        shell: bash
 
       - name: DB setup and smoke test
         run: |
@@ -199,11 +205,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@97ecb7b512899eb71ab1bf2310a624c6f1589ac6 # v1.308.0
+      - name: Setup Node.js environment
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          ruby-version: .ruby-version
-          bundler-cache: true
+          node-version: "24"
+          cache: "npm"
+
+      - name: Build frontend assets
+        run: |
+          npm ci
+          npm run spa:build
+        shell: bash
 
       - name: DB setup and smoke test
         run: |

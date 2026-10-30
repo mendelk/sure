@@ -145,5 +145,4 @@ class TagsControllerTest < ActionDispatch::IntegrationTest
     assert_equal({ "ok" => true }, JSON.parse(response.body))
     assert_equal 0, @user.family.tags.count
   end
-
 end

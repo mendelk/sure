@@ -72,29 +72,6 @@
     {
       "warning_type": "Mass Assignment",
       "warning_code": 105,
-      "fingerprint": "81c63f2c375da309440b9308df3ae9d1fcbada7043a26919898b08f3a38b29f6",
-      "check_name": "PermitAttributes",
-      "message": "Potentially dangerous key allowed for mass assignment",
-      "file": "app/controllers/api/v1/trades_controller.rb",
-      "line": 159,
-      "link": "https://brakemanscanner.org/docs/warning_types/mass_assignment/",
-      "code": "params.require(:trade).permit(:account_id, :date, :qty, :price, :currency, :security_id, :ticker, :manual_ticker, :investment_activity_label, :category_id, :fee, :type, :amount, :transfer_account_id)",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "Api::V1::TradesController",
-        "method": "trade_params"
-      },
-      "user_input": ":account_id",
-      "confidence": "High",
-      "cwe_id": [
-        915
-      ],
-      "note": "account_id validated in create action (line 42: family.accounts.visible.find ensures family membership; lines 44-48: supports_trades? check); security_id validated via Security.find (line 290); transfer_account_id validated in Transfer::Creator where family.accounts.find scopes both source and destination accounts to the family (app/models/transfer/creator.rb lines 4-5); type validated in build_create_form_params against allowed values: buy, sell, dividend, deposit, withdrawal, interest (line 217)"
-    },
-    {
-      "warning_type": "Mass Assignment",
-      "warning_code": 105,
       "fingerprint": "aaccd8db0be34afdc88e5af08d91ae2e8b7765dfea2f3fc6e1c37db0adc7b991",
       "check_name": "PermitAttributes",
       "message": "Potentially dangerous key allowed for mass assignment",
@@ -163,40 +140,6 @@
       "note": "Uses similar pattern to Rails internal form builder"
     },
     {
-      "warning_type": "Dynamic Render Path",
-      "warning_code": 15,
-      "fingerprint": "fb6f7abeabc405d6882ffd41dbe8016403ef39307a5c6b4cd7b18adfaf0c24bf",
-      "check_name": "Render",
-      "message": "Render path contains parameter value",
-      "file": "app/views/import/configurations/show.html.erb",
-      "line": 34,
-      "link": "https://brakemanscanner.org/docs/warning_types/dynamic_render_path/",
-      "code": "render(partial => permitted_import_configuration_path(Current.family.imports.find(params[:import_id])), { :locals => ({ :import => Current.family.imports.find(params[:import_id]) }) })",
-      "render_path": [
-        {
-          "type": "controller",
-          "class": "Import::ConfigurationsController",
-          "method": "show",
-          "line": 7,
-          "file": "app/controllers/import/configurations_controller.rb",
-          "rendered": {
-            "name": "import/configurations/show",
-            "file": "app/views/import/configurations/show.html.erb"
-          }
-        }
-      ],
-      "location": {
-        "type": "template",
-        "template": "import/configurations/show"
-      },
-      "user_input": "params[:import_id]",
-      "confidence": "Weak",
-      "cwe_id": [
-        22
-      ],
-      "note": ""
-    },
-    {
       "warning_type": "Mass Assignment",
       "warning_code": 105,
       "fingerprint": "dc0c96660c7e4fd22afb88b441ad90dda58879fbdbabfcb422ba072b1f5168ed",
@@ -215,6 +158,351 @@
       "user_input": ":account_id",
       "confidence": "High",
       "note": "account_id is never mass-assigned: build_declared_bill resolves it through Current.user.accessible_accounts.find_by, so a foreign id degrades to no account rather than an association write."
+    },
+    {
+      "warning_type": "Mass Assignment",
+      "warning_code": 105,
+      "fingerprint": "1cf4587eb3a07c5172e3de254747a1806cb4e454941da6c2fd3ba2f0f64a749f",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/api/v1/trades_controller.rb",
+      "line": 171,
+      "link": "https://brakemanscanner.org/docs/warning_types/mass_assignment/",
+      "code": "params.require(:trade).permit(:account_id, :date, :qty, :price, :currency, :security_id, :ticker, :manual_ticker, :investment_activity_label, :fee, :type, :amount, :transfer_account_id)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::TradesController",
+        "method": "trade_params"
+      },
+      "user_input": ":account_id",
+      "confidence": "High",
+      "cwe_id": [
+        915
+      ],
+      "note": "account_id validated in create via family.accounts.visible scoping; security_id via Security.find; transfer_account_id via Transfer::Creator family scoping; type validated against buy/sell/dividend/deposit/withdrawal/interest allowlist. Replaces stale entry after line shift."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "543800fa8a2d55521c64b78927bb902600c580ef3e53dfae47d502b4ae8aa5d1",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 143,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "self.apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "54d4ebfa07899b850fdf462150f483a15b81c9c3745ebfd945a6e36123eb335e",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/sureql/report_definition.rb",
+      "line": 59,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "connection.select_value(\"SELECT 1 FROM (#{source_sql}) AS catalog_source\\nWHERE NOT EXISTS (\\n  SELECT 1 FROM taggings AS tgg\\n  WHERE tgg.taggable_type = 'Transaction' AND tgg.taggable_id = catalog_source.transaction_id\\n) LIMIT 1\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Sureql::ReportDefinition",
+        "method": "catalog"
+      },
+      "user_input": "source_sql",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates SureQL compiler output only: registry-allowlisted FROM sources with injected account authorization, guarded by validate_select! (read-only SELECT/WITH) and a no-semicolon check. Column names pass through quote_column_name. No raw user input reaches SQL."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "5780a085d649b63a503162c4ca64b15bad48b022d1c89ee499d1019b92a10eea",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 151,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where(\"entries.amount < 0 OR (#{\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "self.apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "6e2e97fd141ac98050ab0bc08681de98996500f10a7df5c9dcdbc25f66924d95",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 149,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where(\"entries.amount >= 0 OR (#{\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "self.apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "82e3ed35b201ae710d0c80bb3c941a2b3a2f083ae0178f80d6334e9144733c6a",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 147,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where(\"entries.amount < 0\").where.not(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "self.apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "961e905c3c1351ead061394178b3a619ffab187b16ced99c970aa313ddda310f",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 145,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where(\"entries.amount >= 0\").where.not(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "self.apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "9de2c9e79bdc1d53fb39af73924cdf06a025179d49732f69eaaeea05f5a379e5",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/sureql/report_definition.rb",
+      "line": 51,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "connection.exec_query(\"SELECT DISTINCT tg.id AS value, tg.name AS label\\nFROM (#{source_sql}) AS catalog_source\\nINNER JOIN taggings AS tgg ON tgg.taggable_type = 'Transaction' AND tgg.taggable_id = catalog_source.transaction_id\\nINNER JOIN tags AS tg ON tg.id = tgg.tag_id\\nORDER BY label NULLS FIRST, value NULLS FIRST\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Sureql::ReportDefinition",
+        "method": "catalog"
+      },
+      "user_input": "source_sql",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates SureQL compiler output only: registry-allowlisted FROM sources with injected account authorization, guarded by validate_select! (read-only SELECT/WITH) and a no-semicolon check. Column names pass through quote_column_name. No raw user input reaches SQL."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "a26f9808abc1bc7fc78c3066a5c46bb7b937cf9e71f5b10af395cbdd295ece53",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/sureql/report_definition.rb",
+      "line": 44,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "connection.exec_query(\"SELECT DISTINCT #{quote_column({ \"category\" => ({ :kind => \"text\", :column => \"category_id\", :label_column => \"category_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\", \"not_equals\"]) }), \"merchant\" => ({ :kind => \"text\", :column => \"merchant_id\", :label_column => \"merchant_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\", \"not_equals\"]) }), \"tag\" => ({ :kind => \"text\", :dimension => false, :detail => false, :aggregations => ([]), :operators => ([\"equals\", \"not_equals\"]) }), \"account\" => ({ :kind => \"text\", :column => \"account_id\", :label_column => \"account_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\"]) }), \"date\" => ({ :kind => \"date\", :column => \"date\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"last\"]) }), \"currency\" => ({ :kind => \"currency\", :column => \"currency\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\"]) }), \"amount\" => ({ :kind => \"number\", :column => \"amount\", :dimension => false, :detail => true, :aggregations => ([\"count\", \"count_distinct\", \"sum\", \"average\", \"minimum\", \"maximum\"]), :operators => ([]) }), \"name\" => ({ :kind => \"text\", :column => \"name\", :dimension => false, :detail => true, :aggregations => ([]), :operators => ([]) }), \"transaction_count\" => ({ :kind => \"number\", :dimension => false, :detail => false, :aggregations => ([\"count\"]), :operators => ([]) }) }.fetch(:BRAKEMAN_SAFE_LITERAL).fetch(:column))} AS value, #{quote_column(({ \"category\" => ({ :kind => \"text\", :column => \"category_id\", :label_column => \"category_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\", \"not_equals\"]) }), \"merchant\" => ({ :kind => \"text\", :column => \"merchant_id\", :label_column => \"merchant_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\", \"not_equals\"]) }), \"tag\" => ({ :kind => \"text\", :dimension => false, :detail => false, :aggregations => ([]), :operators => ([\"equals\", \"not_equals\"]) }), \"account\" => ({ :kind => \"text\", :column => \"account_id\", :label_column => \"account_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\"]) }), \"date\" => ({ :kind => \"date\", :column => \"date\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"last\"]) }), \"currency\" => ({ :kind => \"currency\", :column => \"currency\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\"]) }), \"amount\" => ({ :kind => \"number\", :column => \"amount\", :dimension => false, :detail => true, :aggregations => ([\"count\", \"count_distinct\", \"sum\", \"average\", \"minimum\", \"maximum\"]), :operators => ([]) }), \"name\" => ({ :kind => \"text\", :column => \"name\", :dimension => false, :detail => true, :aggregations => ([]), :operators => ([]) }), \"transaction_count\" => ({ :kind => \"number\", :dimension => false, :detail => false, :aggregations => ([\"count\"]), :operators => ([]) }) }.fetch(:BRAKEMAN_SAFE_LITERAL)[:label_column] or { \"category\" => ({ :kind => \"text\", :column => \"category_id\", :label_column => \"category_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\", \"not_equals\"]) }), \"merchant\" => ({ :kind => \"text\", :column => \"merchant_id\", :label_column => \"merchant_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\", \"not_equals\"]) }), \"tag\" => ({ :kind => \"text\", :dimension => false, :detail => false, :aggregations => ([]), :operators => ([\"equals\", \"not_equals\"]) }), \"account\" => ({ :kind => \"text\", :column => \"account_id\", :label_column => \"account_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\"]) }), \"date\" => ({ :kind => \"date\", :column => \"date\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"last\"]) }), \"currency\" => ({ :kind => \"currency\", :column => \"currency\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\"]) }), \"amount\" => ({ :kind => \"number\", :column => \"amount\", :dimension => false, :detail => true, :aggregations => ([\"count\", \"count_distinct\", \"sum\", \"average\", \"minimum\", \"maximum\"]), :operators => ([]) }), \"name\" => ({ :kind => \"text\", :column => \"name\", :dimension => false, :detail => true, :aggregations => ([]), :operators => ([]) }), \"transaction_count\" => ({ :kind => \"number\", :dimension => false, :detail => false, :aggregations => ([\"count\"]), :operators => ([]) }) }.fetch(:BRAKEMAN_SAFE_LITERAL).fetch(:column)))} AS label FROM (#{source_sql}) AS catalog_source ORDER BY label NULLS FIRST, value NULLS FIRST\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Sureql::ReportDefinition",
+        "method": "catalog"
+      },
+      "user_input": "quote_column({ \"category\" => ({ :kind => \"text\", :column => \"category_id\", :label_column => \"category_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\", \"not_equals\"]) }), \"merchant\" => ({ :kind => \"text\", :column => \"merchant_id\", :label_column => \"merchant_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\", \"not_equals\"]) }), \"tag\" => ({ :kind => \"text\", :dimension => false, :detail => false, :aggregations => ([]), :operators => ([\"equals\", \"not_equals\"]) }), \"account\" => ({ :kind => \"text\", :column => \"account_id\", :label_column => \"account_name\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\"]) }), \"date\" => ({ :kind => \"date\", :column => \"date\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"last\"]) }), \"currency\" => ({ :kind => \"currency\", :column => \"currency\", :dimension => true, :detail => true, :aggregations => ([\"count_distinct\"]), :operators => ([\"equals\"]) }), \"amount\" => ({ :kind => \"number\", :column => \"amount\", :dimension => false, :detail => true, :aggregations => ([\"count\", \"count_distinct\", \"sum\", \"average\", \"minimum\", \"maximum\"]), :operators => ([]) }), \"name\" => ({ :kind => \"text\", :column => \"name\", :dimension => false, :detail => true, :aggregations => ([]), :operators => ([]) }), \"transaction_count\" => ({ :kind => \"number\", :dimension => false, :detail => false, :aggregations => ([\"count\"]), :operators => ([]) }) }.fetch(:BRAKEMAN_SAFE_LITERAL).fetch(:column))",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates SureQL compiler output only: registry-allowlisted FROM sources with injected account authorization, guarded by validate_select! (read-only SELECT/WITH) and a no-semicolon check. Column names pass through quote_column_name. No raw user input reaches SQL."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "a76a41b2d5651389ecbb7099e1cdfe7bbe9644e11ff5ff19714360489d41bf69",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/services/sureql/executor.rb",
+      "line": 42,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "ActiveRecord::Base.connection.exec_query(\"SELECT * FROM (#{Sureql::Compiler.new(user).call(source).rstrip.delete_suffix(\";\").rstrip}) AS sureql_page LIMIT $1 OFFSET $2\", \"SCHEMA\", ([(page[:limit] + 1), page[:offset]] or []))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Sureql::Executor",
+        "method": "call"
+      },
+      "user_input": "Sureql::Compiler.new(user).call(source).rstrip.delete_suffix(\";\")",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Inner query is Sureql::Compiler output (registry-allowlisted sources, injected authz, validate_select! read-only guard). LIMIT/OFFSET are bound parameters ($1/$2), not interpolation."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "abc818e013ecb38500fa5ec3318909d1d8021c20ef1b9368106b0c1aed28e085",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/sureql/report_definition.rb",
+      "line": 358,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "connection.exec_query(\"SELECT id::text, currency, #{spec.fetch(\"columns\").each_with_index.map do\n key = column.fetch(\"field\")\nexpression = detail_column(column.fetch(\"field\"))\nif (column.fetch(\"field\") == \"amount\") then\n  expression = \"#{detail_column(column.fetch(\"field\"))}::text\"\nend\nif (column.fetch(\"field\") == \"date\") then\n  expression = \"TO_CHAR(#{(detail_column(column.fetch(\"field\")) or \"#{detail_column(column.fetch(\"field\"))}::text\")}, 'YYYY-MM-DD')\"\nend\n\"#{((detail_column(column.fetch(\"field\")) or \"#{detail_column(column.fetch(\"field\"))}::text\") or \"TO_CHAR(#{(detail_column(column.fetch(\"field\")) or \"#{detail_column(column.fetch(\"field\"))}::text\")}, 'YYYY-MM-DD')\")} AS value#{index}\"\n end.join(\", \")}\\nFROM (#{source}) AS detail_source\\nORDER BY #{((spec.fetch(\"sort\") or [{ \"field\" => \"date\", \"direction\" => \"desc\" }]).map do\n \"#{detail_column(sort.fetch(\"field\"))} #{sort.fetch(\"direction\").upcase} NULLS LAST\"\n end << \"id ASC\").join(\", \")}\\nLIMIT #{(page.fetch(\"limit\") + 1)} OFFSET #{page.fetch(\"offset\")}\\n\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Sureql::ReportDefinition",
+        "method": "detail_result"
+      },
+      "user_input": "spec.fetch(\"columns\").each_with_index.map do\n key = column.fetch(\"field\")\nexpression = detail_column(column.fetch(\"field\"))\nif (column.fetch(\"field\") == \"amount\") then\n  expression = \"#{detail_column(column.fetch(\"field\"))}::text\"\nend\nif (column.fetch(\"field\") == \"date\") then\n  expression = \"TO_CHAR(#{(detail_column(column.fetch(\"field\")) or \"#{detail_column(column.fetch(\"field\"))}::text\")}, 'YYYY-MM-DD')\"\nend\n\"#{((detail_column(column.fetch(\"field\")) or \"#{detail_column(column.fetch(\"field\"))}::text\") or \"TO_CHAR(#{(detail_column(column.fetch(\"field\")) or \"#{detail_column(column.fetch(\"field\"))}::text\")}, 'YYYY-MM-DD')\")} AS value#{index}\"\n end.join(\", \")",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates SureQL compiler output only: registry-allowlisted FROM sources with injected account authorization, guarded by validate_select! (read-only SELECT/WITH) and a no-semicolon check. Column names pass through quote_column_name. No raw user input reaches SQL."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "deef959958ad8f37a2fe69ca778ddf861051851cbdae21b7e152616fd6a60190",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/sureql/report_definition.rb",
+      "line": 87,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "connection.exec_query(\"SELECT DISTINCT currency FROM (#{source_sql(validate!(input).fetch(\"filters\"))}) AS report_currencies ORDER BY currency\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Sureql::ReportDefinition",
+        "method": "call"
+      },
+      "user_input": "source_sql(validate!(input).fetch(\"filters\"))",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates SureQL compiler output only: registry-allowlisted FROM sources with injected account authorization, guarded by validate_select! (read-only SELECT/WITH) and a no-semicolon check. Column names pass through quote_column_name. No raw user input reaches SQL."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "dfb1dde61670afbae1c37d685b5c5808efcabb5f3d5a0ba20c38cd3b23cb36ec",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 153,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where.not(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "self.apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "ef262fbe35e55840a95a18bdf33eaa7a884719a99bba982da658ff9f6b05b3d4",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/services/sureql/pivot.rb",
+      "line": 96,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "ActiveRecord::Base.connection.exec_query(\"SELECT * FROM (#{base_sql.delete_suffix(\";\")}) AS pivot_probe LIMIT $1\", \"SCHEMA\", [0])",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Sureql::Pivot",
+        "method": "field_index"
+      },
+      "user_input": "base_sql.delete_suffix(\";\")",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Inner query is Sureql::Compiler output (registry-allowlisted sources, injected authz, validate_select! read-only guard). LIMIT/OFFSET are bound parameters ($1/$2), not interpolation."
+    },
+    {
+      "warning_type": "Mass Assignment",
+      "warning_code": 105,
+      "fingerprint": "f83ddd35b44818779843253a5bc02979572568e0cefb48d7bdfda2e57dc306fe",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/api/v1/account_statements_controller.rb",
+      "line": 33,
+      "link": "https://brakemanscanner.org/docs/warning_types/mass_assignment/",
+      "code": "params.fetch(:account_statement, ActionController::Parameters.new).permit(:account_id, :files => ([]))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::AccountStatementsController",
+        "method": "create"
+      },
+      "user_input": ":account_id",
+      "confidence": "High",
+      "cwe_id": [
+        915
+      ],
+      "note": "account_id resolved through accessible_account (family-scoped lookup); nil or unwritable account aborts before UploadBatch. files: [] is an array of uploaded files filtered by read capability."
     }
   ],
   "brakeman_version": "7.1.0"

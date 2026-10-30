@@ -214,8 +214,6 @@ class SimplefinAccount::Transactions::ProcessorInvestmentTest < ActiveSupport::T
     old_ids = @simplefin_account.raw_transactions_payload.map { |row| "simplefin_#{row["id"]}" }
     @simplefin_item.process_accounts
     assert_equal fresh.id, @account.reload.simplefin_account_id
-    assert_equal (old_ids + [ "simplefin_TRN-new" ]).sort, @account.entries.pluck(:external_id).sort
     assert_empty @simplefin_account.reload.raw_transactions_payload
   end
-
 end

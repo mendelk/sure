@@ -1,5 +1,4 @@
 module TransactionsHelper
-
   def in_split_group?(entry, params_grouped)
     entry.split_child? && Current.user.show_split_grouped? && params_grouped == "true"
   end
