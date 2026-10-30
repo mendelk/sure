@@ -489,10 +489,14 @@ class Entry < ApplicationRecord
         if transfer_account.present?
           create_split_transfer_child!(split_attrs, transfer_account)
         else
+          child_kind = entryable.try(:kind)
+          if child_kind == "investment_contribution" && entryable.try(:transfer).nil? && account.investment? && amount.negative?
+            child_kind = "standard"
+          end
           child_transaction = Transaction.new(
             category_id: split_attrs[:category_id],
             merchant_id: entryable.try(:merchant_id),
-            kind: entryable.try(:kind)
+            kind: child_kind
           ).tap do |transaction|
             transaction.tag_ids = split_attrs[:tag_ids] if split_attrs.key?(:tag_ids)
           end
@@ -528,6 +532,10 @@ class Entry < ApplicationRecord
         if transfer.present?
           other_transaction = transfer.inflow_transaction_id == child.entryable_id ? transfer.outflow_transaction : transfer.inflow_transaction
           other_entry = other_transaction&.entry
+          if other_entry&.split_child?
+            errors.add(:base, "Unmatch transfers to other split transactions before editing this split")
+            raise ActiveRecord::RecordInvalid, self
+          end
 
           # Delete the Transfer row directly to avoid Transfer#destroy! converting
           # the surviving leg to a standard transaction — both legs are removed here.

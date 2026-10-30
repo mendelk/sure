@@ -418,4 +418,46 @@ class EntrySplitTest < ActiveSupport::TestCase
     assert_empty Transfer.where(id: transfer_id)
     assert_equal 0, @entry.child_entries.count
   end
+
+  test "payroll can match an investment contribution split without deleting either split" do
+    contribution = create_transaction(
+      account: accounts(:investment), amount: -1762.50, kind: "investment_contribution", name: "Contribution"
+    )
+    assert contribution.transaction.splittable?
+    investment_children = contribution.split!([
+      { name: "Employee contribution", amount: -1084.62 },
+      { name: "Employer match", amount: -677.88 }
+    ])
+    assert_equal [ "standard", "standard" ], investment_children.map { |child| child.transaction.kind }
+
+    paycheck = create_transaction(account: @entry.account, amount: -4746.09, name: "Paycheck")
+    payroll_children = paycheck.split!([
+      { name: "Gross pay", amount: -9038.46 },
+      { name: "Employee contribution", amount: 1084.62 },
+      { name: "Other deductions", amount: 3207.75 }
+    ])
+    result = Transfer::Matcher.match(
+      transaction: payroll_children[1].transaction,
+      method: "existing",
+      matched_entry_id: investment_children[0].id,
+      accessible_accounts: @entry.account.family.accounts,
+      accessible_entries: Entry.where(account_id: @entry.account.family.accounts.select(:id))
+    )
+    assert_nil result.error
+    assert_equal investment_children[0].transaction, result.transfer.inflow_transaction
+    assert_equal payroll_children[1].transaction, result.transfer.outflow_transaction
+
+    [ paycheck, contribution ].each do |parent|
+      assert_raises(ActiveRecord::RecordInvalid) { parent.unsplit! }
+    end
+    assert_equal 3, paycheck.child_entries.count
+    assert_equal 2, contribution.child_entries.count
+    assert Transfer.exists?(result.transfer.id)
+
+    result.transfer.destroy!
+    paycheck.reload.unsplit!
+    assert_equal 2, contribution.child_entries.count
+    contribution.reload.unsplit!
+    assert_equal(-1762.50, contribution.reload.amount)
+  end
 end

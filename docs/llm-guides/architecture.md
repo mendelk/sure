@@ -103,6 +103,12 @@ Split transaction detail responses expose each child's `transfer_account_id` as
 the linked counterpart account, whether the child is the inflow or outflow.
 The split editor must prefill and resubmit this value so editing unrelated split
 fields does not remove an existing transfer. Non-transfer children return `null`.
+An unmatched investment-account inflow classified as an investment contribution
+can be split into ordinary income children, for example employee and employer
+payroll contributions. Match the employee child to an existing payroll split
+child rather than creating a duplicate investment inflow. When two split
+children are matched, unmatch their transfer before editing or removing either
+split; unsplitting refuses to delete the other split's child.
 The detail drawer's Split Entries section uses the same value to identify transfers
 instead of labeling them uncategorized, while retaining any assigned category.
 
