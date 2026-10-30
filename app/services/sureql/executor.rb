@@ -30,6 +30,7 @@ class Sureql::Executor
     sql = compiler.call(source)
     source_key = detect_source(source)
     validate_select!(sql)
+    page = normalize_pagination(pagination) unless pagination.nil?
     if page
       base_sql = sql.rstrip.delete_suffix(";").rstrip
       binds = [ page[:limit] + 1, page[:offset] ]
