@@ -185,29 +185,6 @@
     {
       "warning_type": "SQL Injection",
       "warning_code": 0,
-      "fingerprint": "543800fa8a2d55521c64b78927bb902600c580ef3e53dfae47d502b4ae8aa5d1",
-      "check_name": "SQL",
-      "message": "Possible SQL injection",
-      "file": "app/models/entry_search.rb",
-      "line": 143,
-      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
-      "code": "scope.where(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "EntrySearch",
-        "method": "self.apply_type_filter"
-      },
-      "user_input": "Transaction::TRANSFER_KINDS.map",
-      "confidence": "Medium",
-      "cwe_id": [
-        89
-      ],
-      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
-    },
-    {
-      "warning_type": "SQL Injection",
-      "warning_code": 0,
       "fingerprint": "54d4ebfa07899b850fdf462150f483a15b81c9c3745ebfd945a6e36123eb335e",
       "check_name": "SQL",
       "message": "Possible SQL injection",
@@ -227,98 +204,6 @@
         89
       ],
       "note": "Interpolates SureQL compiler output only: registry-allowlisted FROM sources with injected account authorization, guarded by validate_select! (read-only SELECT/WITH) and a no-semicolon check. Column names pass through quote_column_name. No raw user input reaches SQL."
-    },
-    {
-      "warning_type": "SQL Injection",
-      "warning_code": 0,
-      "fingerprint": "5780a085d649b63a503162c4ca64b15bad48b022d1c89ee499d1019b92a10eea",
-      "check_name": "SQL",
-      "message": "Possible SQL injection",
-      "file": "app/models/entry_search.rb",
-      "line": 151,
-      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
-      "code": "scope.where(\"entries.amount < 0 OR (#{\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish})\")",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "EntrySearch",
-        "method": "self.apply_type_filter"
-      },
-      "user_input": "Transaction::TRANSFER_KINDS.map",
-      "confidence": "Medium",
-      "cwe_id": [
-        89
-      ],
-      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
-    },
-    {
-      "warning_type": "SQL Injection",
-      "warning_code": 0,
-      "fingerprint": "6e2e97fd141ac98050ab0bc08681de98996500f10a7df5c9dcdbc25f66924d95",
-      "check_name": "SQL",
-      "message": "Possible SQL injection",
-      "file": "app/models/entry_search.rb",
-      "line": 149,
-      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
-      "code": "scope.where(\"entries.amount >= 0 OR (#{\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish})\")",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "EntrySearch",
-        "method": "self.apply_type_filter"
-      },
-      "user_input": "Transaction::TRANSFER_KINDS.map",
-      "confidence": "Medium",
-      "cwe_id": [
-        89
-      ],
-      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
-    },
-    {
-      "warning_type": "SQL Injection",
-      "warning_code": 0,
-      "fingerprint": "82e3ed35b201ae710d0c80bb3c941a2b3a2f083ae0178f80d6334e9144733c6a",
-      "check_name": "SQL",
-      "message": "Possible SQL injection",
-      "file": "app/models/entry_search.rb",
-      "line": 147,
-      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
-      "code": "scope.where(\"entries.amount < 0\").where.not(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "EntrySearch",
-        "method": "self.apply_type_filter"
-      },
-      "user_input": "Transaction::TRANSFER_KINDS.map",
-      "confidence": "Medium",
-      "cwe_id": [
-        89
-      ],
-      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
-    },
-    {
-      "warning_type": "SQL Injection",
-      "warning_code": 0,
-      "fingerprint": "961e905c3c1351ead061394178b3a619ffab187b16ced99c970aa313ddda310f",
-      "check_name": "SQL",
-      "message": "Possible SQL injection",
-      "file": "app/models/entry_search.rb",
-      "line": 145,
-      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
-      "code": "scope.where(\"entries.amount >= 0\").where.not(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "EntrySearch",
-        "method": "self.apply_type_filter"
-      },
-      "user_input": "Transaction::TRANSFER_KINDS.map",
-      "confidence": "Medium",
-      "cwe_id": [
-        89
-      ],
-      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
     },
     {
       "warning_type": "SQL Injection",
@@ -438,29 +323,6 @@
     {
       "warning_type": "SQL Injection",
       "warning_code": 0,
-      "fingerprint": "dfb1dde61670afbae1c37d685b5c5808efcabb5f3d5a0ba20c38cd3b23cb36ec",
-      "check_name": "SQL",
-      "message": "Possible SQL injection",
-      "file": "app/models/entry_search.rb",
-      "line": 153,
-      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
-      "code": "scope.where.not(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "EntrySearch",
-        "method": "self.apply_type_filter"
-      },
-      "user_input": "Transaction::TRANSFER_KINDS.map",
-      "confidence": "Medium",
-      "cwe_id": [
-        89
-      ],
-      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
-    },
-    {
-      "warning_type": "SQL Injection",
-      "warning_code": 0,
       "fingerprint": "ef262fbe35e55840a95a18bdf33eaa7a884719a99bba982da658ff9f6b05b3d4",
       "check_name": "SQL",
       "message": "Possible SQL injection",
@@ -503,6 +365,178 @@
         915
       ],
       "note": "account_id resolved through accessible_account (family-scoped lookup); nil or unwritable account aborts before UploadBatch. files: [] is an array of uploaded files filtered by read capability."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "1608509d93596a04971d6ba5618c2e4c8cc74a8480c923b0e414222ffb493aad",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 143,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "s(:self).apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "1ee727eaf109854d57a51c50084d5bdcd6b483ee691956092e16932aceb4c9bc",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 145,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where(\"entries.amount >= 0\").where.not(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "s(:self).apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "40be12bb860ef4ef07b6b303375632b36a3c4941cba0b69e50b0b2c0396fbfee",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 147,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where(\"entries.amount < 0\").where.not(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "s(:self).apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "8453f4616b3c39a242019f3ed6696b90b48076e4ab0bc7cdd3e4d3c9d2d74da1",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 149,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where(\"entries.amount >= 0 OR (#{\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "s(:self).apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "cadbe16e08f8a693fdb0b4cdcdcbebd34bf4d3e63f45349fc88e12f490a71c81",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 151,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where(\"entries.amount < 0 OR (#{\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish})\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "s(:self).apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "d1b64e0729b73f6d64b18e3884689eb9449226d2cf79072675eed2258d37ad00",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/entry_search.rb",
+      "line": 153,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.where.not(\"entries.entryable_type = 'Transaction' AND EXISTS (\\n  SELECT 1 FROM transactions t\\n  WHERE t.id = entries.entryable_id\\n  AND t.kind IN (#{Transaction::TRANSFER_KINDS.map do\n \"'#{k}'\"\n end.join(\", \")})\\n)\\n\".squish)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "EntrySearch",
+        "method": "s(:self).apply_type_filter"
+      },
+      "user_input": "Transaction::TRANSFER_KINDS.map",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Interpolates only frozen constants: Transaction::PENDING_CHECK_SQL (built from PENDING_PROVIDERS allowlist) and Transaction::TRANSFER_KINDS (frozen %w array). No request params reach the SQL string."
+    },
+    {
+      "warning_type": "Dynamic Render Path",
+      "warning_code": 15,
+      "fingerprint": "fb6f7abeabc405d6882ffd41dbe8016403ef39307a5c6b4cd7b18adfaf0c24bf",
+      "check_name": "Render",
+      "message": "Render path contains parameter value",
+      "file": "app/views/import/configurations/show.html.erb",
+      "line": 34,
+      "link": "https://brakemanscanner.org/docs/warning_types/dynamic_render_path/",
+      "code": "render(partial => permitted_import_configuration_path(Current.family.imports.find(params[:import_id])), { :locals => ({ :import => Current.family.imports.find(params[:import_id]) }) })",
+      "render_path": [
+        {
+          "type": "controller",
+          "class": "Import::ConfigurationsController",
+          "method": "show",
+          "line": 10,
+          "file": "app/controllers/import/configurations_controller.rb",
+          "rendered": {
+            "name": "import/configurations/show",
+            "file": "app/views/import/configurations/show.html.erb"
+          }
+        }
+      ],
+      "location": {
+        "type": "template",
+        "template": "import/configurations/show"
+      },
+      "user_input": "params[:import_id]",
+      "confidence": "Weak",
+      "cwe_id": [
+        22
+      ],
+      "note": "Render path is a static allowlist branch on import configuration type; params[:import_id] only selects the record, not the template. Restored after code drift changed the fingerprint context."
     }
   ],
   "brakeman_version": "7.1.0"
