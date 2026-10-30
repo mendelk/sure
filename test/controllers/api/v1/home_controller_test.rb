@@ -92,8 +92,15 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     paycheck = @family.categories.create!(name: "Paycheck", color: "#4da568")
     gross_pay = @family.categories.create!(name: "Gross Pay", parent: paycheck, color: "#4da568")
     income_tax = @family.categories.create!(name: "Federal Income Tax", parent: paycheck, color: "#4da568")
-    create_transaction(account: account, name: "Gross pay", amount: -1000, category: gross_pay, date: Date.current.beginning_of_month)
-    create_transaction(account: account, name: "Federal tax", amount: 200, category: income_tax, date: Date.current.beginning_of_month)
+    investment = @family.categories.create!(name: "Investment Contributions", color: "#4da568")
+
+    deposit = create_transaction(account: account, name: "Paycheck deposit", amount: -700, category: paycheck, date: Date.current.beginning_of_month)
+    deposit.split!([
+      { name: "Gross pay", amount: -1000, category_id: gross_pay.id },
+      { name: "Federal tax", amount: 200, category_id: income_tax.id },
+      { name: "401(k) contribution", amount: 100, category_id: investment.id }
+    ])
+    create_transaction(account: account, name: "Direct investment", amount: 50, category: investment, date: Date.current.beginning_of_month)
 
     get "/api/v1/home", headers: api_headers(@read_key)
     assert_response :success
@@ -103,13 +110,16 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
 
     gross_idx = nodes.index { |n| n["id"] == "income_sub_#{gross_pay.id}" }
     tax_idx = nodes.index { |n| n["id"] == "expense_sub_#{income_tax.id}" }
+    invest_idx = nodes.index { |n| n["id"] == "expense_#{investment.id}" }
     paycheck_idx = nodes.index { |n| n["id"] == "income_#{paycheck.id}" }
     cash_flow_idx = nodes.index { |n| n["id"] == "cash_flow_node" }
 
     assert links.any? { |l| l["source"] == gross_idx && l["target"] == tax_idx && l["value"] == 200.0 }
     assert links.none? { |l| l["source"] == cash_flow_idx && l["target"] == tax_idx }
-    assert links.any? { |l| l["source"] == gross_idx && l["target"] == paycheck_idx && l["value"] == 800.0 }
-    assert links.any? { |l| l["source"] == paycheck_idx && l["target"] == cash_flow_idx && l["value"] == 800.0 }
+    assert links.any? { |l| l["source"] == gross_idx && l["target"] == invest_idx && l["value"] == 100.0 }
+    assert links.any? { |l| l["source"] == cash_flow_idx && l["target"] == invest_idx && l["value"] == 50.0 }
+    assert links.any? { |l| l["source"] == gross_idx && l["target"] == paycheck_idx && l["value"] == 700.0 }
+    assert links.any? { |l| l["source"] == paycheck_idx && l["target"] == cash_flow_idx && l["value"] == 700.0 }
 
     money_flow = payload["money_flow"]
     assert_equal 6, money_flow["bars"].size

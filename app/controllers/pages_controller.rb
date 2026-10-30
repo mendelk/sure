@@ -50,7 +50,7 @@ class PagesController < ApplicationController
     expense_totals = income_statement.expense_totals(period: @period)
     net_totals = income_statement.net_category_totals(period: @period)
 
-    @cashflow_sankey_data = build_cashflow_sankey_data(net_totals, income_totals, expense_totals, family_currency)
+    @cashflow_sankey_data = build_cashflow_sankey_data(net_totals, income_totals, expense_totals, family_currency, family: Current.family, period: @period)
     @outflows_data = build_outflows_donut_data(net_totals)
     # Preview-gated: skip the query outright rather than loading rows the
     # section won't be built from.
@@ -348,7 +348,7 @@ class PagesController < ApplicationController
       Provider::Registry.get_provider(:github)
     end
 
-    def build_cashflow_sankey_data(net_totals, income_totals, expense_totals, currency)
+    def build_cashflow_sankey_data(net_totals, income_totals, expense_totals, currency, family: nil, period: nil)
       nodes = []
       links = []
       node_indices = {}
@@ -360,16 +360,31 @@ class PagesController < ApplicationController
         end
       }
 
-      total_income = net_totals.total_net_income.to_f.round(2)
-      total_expense = net_totals.total_net_expense.to_f.round(2)
+      split_deductions_by_income_cat = build_split_deductions(family, period)
 
-      # Central Cash Flow node
+      # Deductions from gross pay in split transactions to categories outside the parent hierarchy
+      # (e.g. 401(k) transfers to Investment Contributions, which has parent_id: nil).
+      # Since IncomeStatement did not net these from the parent category, track them so they can be
+      # routed from Gross Pay and subtracted from Cash Flow.
+      external_deductions_by_category = Hash.new(0)
+      split_deductions_by_income_cat.each do |_income_cat_id, deductions|
+        deductions.each do |cat_id, d|
+          cat = d[:category]
+          unless cat.parent_id.present?
+            external_deductions_by_category[cat_id] += d[:amount]
+          end
+        end
+      end
+
+      total_external_deductions = external_deductions_by_category.values.sum.round(2)
+      total_income = [ (net_totals.total_net_income.to_f - total_external_deductions).round(2), 0 ].max
+      total_expense = [ (net_totals.total_net_expense.to_f - total_external_deductions).round(2), 0 ].max
+
       cash_flow_idx = add_node.call("cash_flow_node", "Cash Flow", total_income, 100.0, "var(--color-success)")
+      funded_from_income = Hash.new(0)
 
-      # Build netted subcategory data from raw totals
       net_subcategories_by_parent = build_net_subcategories(expense_totals, income_totals)
 
-      # Process net income categories (flow: subcategory -> parent -> cash_flow)
       process_net_category_nodes(
         categories: net_totals.net_income_categories,
         total: total_income,
@@ -378,10 +393,12 @@ class PagesController < ApplicationController
         add_node: add_node,
         links: links,
         cash_flow_idx: cash_flow_idx,
-        flow_direction: :inbound
+        flow_direction: :inbound,
+        split_deductions_by_income_cat: split_deductions_by_income_cat,
+        funded_from_income: funded_from_income,
+        net_totals: net_totals
       )
 
-      # Process net expense categories (flow: cash_flow -> parent -> subcategory)
       process_net_category_nodes(
         categories: net_totals.net_expense_categories,
         total: total_expense,
@@ -390,10 +407,12 @@ class PagesController < ApplicationController
         add_node: add_node,
         links: links,
         cash_flow_idx: cash_flow_idx,
-        flow_direction: :outbound
+        flow_direction: :outbound,
+        split_deductions_by_income_cat: split_deductions_by_income_cat,
+        funded_from_income: funded_from_income,
+        net_totals: net_totals
       )
 
-      # Surplus/Deficit
       net = (total_income - total_expense).round(2)
       if net.positive?
         percentage = total_income.zero? ? 0 : (net / total_income * 100).round(1)
@@ -402,6 +421,45 @@ class PagesController < ApplicationController
       end
 
       { nodes: nodes, links: links, currency_symbol: Money::Currency.new(currency).symbol }
+    end
+
+    def build_split_deductions(family, period)
+      return {} unless family && period
+
+      child_entries = family.entries.visible.excluding_pending
+        .where(date: period.date_range)
+        .where.not(parent_entry_id: nil)
+        .includes(:parent_entry, entryable: :category)
+
+      return {} if child_entries.empty?
+
+      splits_by_parent = child_entries.group_by(&:parent_entry_id)
+      deductions_by_income_cat = {}
+
+      splits_by_parent.each do |_pid, entries|
+        income_entry = entries.find { |e| e.amount.negative? }
+        next unless income_entry&.entryable&.category
+
+        income_cat = income_entry.entryable.category
+        outflow_entries = entries.select { |e| e.amount.positive? }
+        next if outflow_entries.empty?
+
+        deductions_by_income_cat[income_cat.id] ||= {}
+
+        outflow_entries.each do |outflow|
+          cat = outflow.entryable&.category
+          next unless cat
+
+          amount = outflow.amount.to_d.abs.to_f.round(2)
+          existing = deductions_by_income_cat[income_cat.id][cat.id]
+          deductions_by_income_cat[income_cat.id][cat.id] = {
+            category: cat,
+            amount: ((existing&.dig(:amount) || 0) + amount).round(2)
+          }
+        end
+      end
+
+      deductions_by_income_cat
     end
 
     # Nets subcategory expense and income totals, grouped by parent_id.
@@ -444,7 +502,7 @@ class PagesController < ApplicationController
     #
     # flow_direction: :inbound  (subcategory -> parent -> cash_flow) for income
     #                 :outbound (cash_flow -> parent -> subcategory) for expenses
-    def process_net_category_nodes(categories:, total:, prefix:, net_subcategories_by_parent:, add_node:, links:, cash_flow_idx:, flow_direction:)
+    def process_net_category_nodes(categories:, total:, prefix:, net_subcategories_by_parent:, add_node:, links:, cash_flow_idx:, flow_direction:, split_deductions_by_income_cat: {}, funded_from_income: {}, net_totals: nil)
       matching_direction = flow_direction == :inbound ? :income : :expense
 
       categories.each do |ct|
@@ -453,45 +511,62 @@ class PagesController < ApplicationController
 
         percentage = total.zero? ? 0 : (val / total * 100).round(1)
         color = ct.category.color.presence || Category::UNCATEGORIZED_COLOR
-        node_key = "#{prefix}_#{ct.category.id || ct.category.name}"
+        parent_node_key = "#{prefix}_#{ct.category.id || ct.category.name}"
 
         all_subs = ct.category.id ? (net_subcategories_by_parent[ct.category.id] || []) : []
         same_side_subs = all_subs.select { |s| s[:net_direction] == matching_direction }
-
-        # Also check if any subcategory has opposite direction — those will be
-        # rendered by the OTHER side's call to this method, linked to cash_flow
-        # directly (they appear as independent nodes on the opposite side).
         opposite_subs = all_subs.select { |s| s[:net_direction] != matching_direction }
 
-        if flow_direction == :inbound && opposite_subs.any?
-          # Income category with deductions (e.g. Paycheck with Gross Pay and Taxes/Deductions).
-          # Deductions must come from gross pay / income subcategories, not from Cash Flow.
-          total_deductions = opposite_subs.sum { |s| s[:total].to_f.round(2) }
-          gross_sub = same_side_subs.find { |s| s[:category].name.downcase.include?("gross") } || same_side_subs.max_by { |s| s[:total] }
+        gross_sub = same_side_subs.find { |s| s[:category].name.downcase.include?("gross") } || same_side_subs.max_by { |s| s[:total] }
+        split_deductions = gross_sub ? (split_deductions_by_income_cat[gross_sub[:category].id] || {}) : (split_deductions_by_income_cat[ct.category.id] || {})
 
-          opposite_nodes = opposite_subs.map do |sub|
+        opposite_cat_ids = opposite_subs.map { |s| s[:category].id }.to_set
+        extra_deductions = split_deductions.values.reject { |d| opposite_cat_ids.include?(d[:category].id) }
+
+        if flow_direction == :inbound && (opposite_subs.any? || extra_deductions.any?)
+          all_deduction_items = []
+
+          opposite_subs.each do |sub|
             sub_val = sub[:total].to_f.round(2)
             sub_pct = total.zero? ? 0 : (sub_val / total * 100).round(1)
             sub_color = sub[:category].color.presence || color
             sub_key = "expense_sub_#{sub[:category].id}"
             sub_idx = add_node.call(sub_key, sub[:category].name, sub_val, sub_pct, sub_color, sub[:category].filter_value)
-            { sub: sub, idx: sub_idx, val: sub_val, color: sub_color, pct: sub_pct }
+            all_deduction_items << { cat: sub[:category], idx: sub_idx, val: sub_val, color: sub_color, pct: sub_pct }
           end
 
-          if same_side_subs.any?
-            parent_idx = add_node.call(node_key, ct.category.name, val, percentage, color, ct.category.filter_value)
-            links << { source: parent_idx, target: cash_flow_idx, value: val, color: color, percentage: percentage }
+          extra_deductions.each do |extra|
+            cat = extra[:category]
+            ded_val = extra[:amount]
+            full_ct = net_totals&.net_expense_categories&.find { |nec| nec.category.id == cat.id }
+            node_val = full_ct ? full_ct.total.to_f.round(2) : ded_val
+            node_pct = total.zero? ? 0 : (node_val / total * 100).round(1)
+            node_color = cat.color.presence || color
+            extra_key = cat.subcategory? ? "expense_sub_#{cat.id}" : "expense_#{cat.id}"
+            node_idx = add_node.call(extra_key, cat.name, node_val, node_pct, node_color, cat.filter_value)
+            all_deduction_items << { cat: cat, idx: node_idx, val: ded_val, color: node_color, pct: node_pct }
+            funded_from_income[cat.id] = (funded_from_income[cat.id] || 0) + ded_val
+          end
 
+          total_deductions = all_deduction_items.sum { |d| d[:val] }.round(2)
+          external_for_parent = extra_deductions.sum { |e| e[:amount] }.round(2)
+          parent_net = [ (val - external_for_parent).round(2), 0 ].max
+          parent_pct = total.zero? ? 0 : (parent_net / total * 100).round(1)
+
+          parent_idx = add_node.call(parent_node_key, ct.category.name, parent_net, parent_pct, color, ct.category.filter_value)
+          links << { source: parent_idx, target: cash_flow_idx, value: parent_net, color: color, percentage: parent_pct }
+
+          if same_side_subs.any?
             same_side_subs.each do |sub|
               sub_val = sub[:total].to_f.round(2)
-              sub_pct = val.zero? ? 0 : (sub_val / val * 100).round(1)
+              sub_pct = parent_net.zero? ? 0 : (sub_val / parent_net * 100).round(1)
               sub_color = sub[:category].color.presence || color
               sub_key = "#{prefix}_sub_#{sub[:category].id}"
               sub_idx = add_node.call(sub_key, sub[:category].name, sub_val, sub_pct, sub_color, sub[:category].filter_value)
 
               if sub == gross_sub
-                opposite_nodes.each do |opp|
-                  links << { source: sub_idx, target: opp[:idx], value: opp[:val], color: opp[:color], percentage: opp[:pct] }
+                all_deduction_items.each do |d|
+                  links << { source: sub_idx, target: d[:idx], value: d[:val], color: d[:color], percentage: d[:pct] }
                 end
 
                 net_to_parent = [ (sub_val - total_deductions).round(2), 0 ].max
@@ -503,22 +578,27 @@ class PagesController < ApplicationController
               end
             end
           else
-            gross_val = (val + total_deductions).round(2)
+            gross_val = (val + total_deductions - external_for_parent).round(2)
             gross_pct = total.zero? ? 0 : (gross_val / total * 100).round(1)
-            parent_idx = add_node.call(node_key, ct.category.name, gross_val, gross_pct, color, ct.category.filter_value)
+            parent_idx = add_node.call(parent_node_key, ct.category.name, gross_val, gross_pct, color, ct.category.filter_value)
 
-            opposite_nodes.each do |opp|
-              links << { source: parent_idx, target: opp[:idx], value: opp[:val], color: opp[:color], percentage: opp[:pct] }
+            all_deduction_items.each do |d|
+              links << { source: parent_idx, target: d[:idx], value: d[:val], color: d[:color], percentage: d[:pct] }
             end
-            links << { source: parent_idx, target: cash_flow_idx, value: val, color: color, percentage: percentage }
+            links << { source: parent_idx, target: cash_flow_idx, value: parent_net, color: color, percentage: parent_pct }
           end
         elsif same_side_subs.any?
-          parent_idx = add_node.call(node_key, ct.category.name, val, percentage, color, ct.category.filter_value)
+          already_funded = (funded_from_income[ct.category.id] || 0).to_f.round(2)
+          remaining_val = [ (val - already_funded).round(2), 0 ].max
+
+          parent_idx = add_node.call(parent_node_key, ct.category.name, val, percentage, color, ct.category.filter_value)
 
           if flow_direction == :inbound
             links << { source: parent_idx, target: cash_flow_idx, value: val, color: color, percentage: percentage }
           else
-            links << { source: cash_flow_idx, target: parent_idx, value: val, color: color, percentage: percentage }
+            if remaining_val.positive?
+              links << { source: cash_flow_idx, target: parent_idx, value: remaining_val, color: color, percentage: percentage }
+            end
           end
 
           same_side_subs.each do |sub|
@@ -535,12 +615,17 @@ class PagesController < ApplicationController
             end
           end
         else
-          idx = add_node.call(node_key, ct.category.name, val, percentage, color, ct.category.filter_value)
+          already_funded = (funded_from_income[ct.category.id] || 0).to_f.round(2)
+          remaining_val = [ (val - already_funded).round(2), 0 ].max
 
-          if flow_direction == :inbound
-            links << { source: idx, target: cash_flow_idx, value: val, color: color, percentage: percentage }
+          if flow_direction == :outbound
+            if remaining_val.positive?
+              idx = add_node.call(parent_node_key, ct.category.name, val, percentage, color, ct.category.filter_value)
+              links << { source: cash_flow_idx, target: idx, value: remaining_val, color: color, percentage: percentage }
+            end
           else
-            links << { source: cash_flow_idx, target: idx, value: val, color: color, percentage: percentage }
+            idx = add_node.call(parent_node_key, ct.category.name, val, percentage, color, ct.category.filter_value)
+            links << { source: idx, target: cash_flow_idx, value: val, color: color, percentage: percentage }
           end
         end
 

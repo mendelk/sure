@@ -265,10 +265,16 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     paycheck = @family.categories.create!(name: "Paycheck", color: "#4da568")
     gross_pay = @family.categories.create!(name: "Gross Pay", parent: paycheck, color: "#4da568")
     income_tax = @family.categories.create!(name: "Federal Income Tax", parent: paycheck, color: "#4da568")
+    investment = @family.categories.create!(name: "Investment Contributions", color: "#4da568")
 
     account = @family.accounts.first
-    create_transaction(account: account, name: "Gross pay", amount: -1000, category: gross_pay)
-    create_transaction(account: account, name: "Federal tax", amount: 200, category: income_tax)
+    deposit = create_transaction(account: account, name: "Paycheck deposit", amount: -700, category: paycheck)
+    deposit.split!([
+      { name: "Gross pay", amount: -1000, category_id: gross_pay.id },
+      { name: "Federal tax", amount: 200, category_id: income_tax.id },
+      { name: "401(k) contribution", amount: 100, category_id: investment.id }
+    ])
+    create_transaction(account: account, name: "Direct investment", amount: 50, category: investment)
 
     get_home
     assert_response :ok
@@ -279,11 +285,13 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
 
     gross_node_idx = nodes.index { |n| n["id"] == "income_sub_#{gross_pay.id}" }
     tax_node_idx = nodes.index { |n| n["id"] == "expense_sub_#{income_tax.id}" }
+    invest_node_idx = nodes.index { |n| n["id"] == "expense_#{investment.id}" }
     paycheck_node_idx = nodes.index { |n| n["id"] == "income_#{paycheck.id}" }
     cash_flow_idx = nodes.index { |n| n["id"] == "cash_flow_node" }
 
     assert_not_nil gross_node_idx
     assert_not_nil tax_node_idx
+    assert_not_nil invest_node_idx
     assert_not_nil paycheck_node_idx
     assert_not_nil cash_flow_idx
 
@@ -293,10 +301,16 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert links.none? { |l| l["source"] == cash_flow_idx && l["target"] == tax_node_idx },
       "did not expect link from Cash Flow to Income Tax"
 
+    # External investment deduction from split comes from gross pay, remainder from cash flow
+    assert links.any? { |l| l["source"] == gross_node_idx && l["target"] == invest_node_idx && l["value"] == 100.0 },
+      "expected link from Gross Pay to Investment Contributions for split deduction"
+    assert links.any? { |l| l["source"] == cash_flow_idx && l["target"] == invest_node_idx && l["value"] == 50.0 },
+      "expected remaining link from Cash Flow to Investment Contributions for direct expense"
+
     # Net pay flows from gross pay to paycheck, then to cash flow
-    assert links.any? { |l| l["source"] == gross_node_idx && l["target"] == paycheck_node_idx && l["value"] == 800.0 },
+    assert links.any? { |l| l["source"] == gross_node_idx && l["target"] == paycheck_node_idx && l["value"] == 700.0 },
       "expected net link from Gross Pay to Paycheck"
-    assert links.any? { |l| l["source"] == paycheck_node_idx && l["target"] == cash_flow_idx && l["value"] == 800.0 },
+    assert links.any? { |l| l["source"] == paycheck_node_idx && l["target"] == cash_flow_idx && l["value"] == 700.0 },
       "expected link from Paycheck to Cash Flow"
   end
 
