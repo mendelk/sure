@@ -6,6 +6,9 @@ state_file="$script_dir/docker-state.json"
 state_example="$script_dir/docker-state.example.json"
 compose_file="$script_dir/docker-compose.yml"
 shared_compose_file="$script_dir/docker-compose.shared.yml"
+proxy_compose_file="$script_dir/docker-compose.proxy.yml"
+proxy_project_name="sure-orca-proxy"
+proxy_config_dir="${ORCA_PROXY_CONFIG_DIR:-$HOME/.config/sure-orca-proxy/dynamic}"
 key_file="$script_dir/id_ed25519"
 
 ensure_state() {

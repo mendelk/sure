@@ -11,6 +11,7 @@ project_name="$(node -e 'const d=JSON.parse(process.argv[1]); process.stdout.wri
 ssh_port="$(node -e 'const d=JSON.parse(process.argv[1]); process.stdout.write(String(d.recipeResult?.userData?.sshPort ?? ""))' "$payload")"
 worktree_path="$(node -e 'const d=JSON.parse(process.argv[1]); process.stdout.write(d.recipeResult?.userData?.worktreePath ?? "")' "$payload")"
 publish_host="$(node -e 'const d=JSON.parse(process.argv[1]); process.stdout.write(d.recipeResult?.userData?.publishHost ?? "127.0.0.1")' "$payload")"
+proxy_route_id="$(node -e 'const d=JSON.parse(process.argv[1]); process.stdout.write(d.recipeResult?.userData?.proxyRouteId ?? "")' "$payload")"
 
 [[ -n "$project_name" ]] || {
   echo "No Compose project name in lifecycle payload" >&2
@@ -22,7 +23,13 @@ export ORCA_SSH_PUBLIC_KEY="unused-during-destroy"
 export ORCA_WORKTREE_PATH="${worktree_path:-$repo_root}"
 export ORCA_PUBLISH_HOST="$publish_host"
 
-
+if [[ -n "$proxy_route_id" ]]; then
+  [[ "$proxy_route_id" =~ ^[a-z0-9-]+$ ]] || {
+    echo "Invalid proxy route id in lifecycle payload" >&2
+    exit 1
+  }
+  rm -f "$proxy_config_dir/$proxy_route_id.yml"
+fi
 
 compose --project-name "$project_name" --file "$compose_file" down --volumes >&2
 if [[ -n "$ssh_port" ]]; then

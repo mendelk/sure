@@ -7,10 +7,16 @@ while sharing one persistent Postgres database and its data.
 
 The app container runs `bin/setup` and starts `bin/dev` automatically, including Rails development
 reloading and the Tailwind watcher. Workspace creation waits for Rails to respond before reporting
-success. The create hook reports the browser address as `railsUrl`. Ports bind to `127.0.0.1` for
-local execution; over SSH they bind to the SSH server address. Override that interface with
-`ORCA_PUBLISH_HOST`. Destroying a workspace removes its isolated services and volumes but leaves the
-shared Postgres service and `sure-orca-shared-postgres` volume intact.
+success. A persistent Traefik project, visible in Arcane through the remote environment, watches
+per-workspace route files. Each workspace receives a deterministic hostname such as
+`sure-my-branch-a1b2c3d4e5.192-168-1-97.sslip.io` on port `8080`, so Rails' host-only cookies remain
+isolated between worktrees. Override the port with `ORCA_PROXY_PORT` and the wildcard DNS suffix with
+`ORCA_PROXY_BASE_DOMAIN`.
+
+The backend ports still bind to `127.0.0.1` for local execution and to the SSH server address for
+remote execution. `railsUrl` is always the canonical Traefik URL; use it instead of a backend
+`IP:port` address. Destroying a workspace removes its route, isolated services, and volumes but leaves
+Traefik, shared Postgres, and their persistent data intact.
 
 ## First-time setup
 

@@ -1,5 +1,7 @@
 {
   "image": "sure-orca-devcontainer-ssh:latest",
   "projectRoot": "/workspace",
-  "sshUsername": "root"
+  "sshUsername": "root",
+  "proxyPort": 8080,
+  "proxyBaseDomain": ""
 }

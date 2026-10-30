@@ -1,0 +1,15 @@
+services:
+  proxy:
+    image: docker.io/library/traefik:v3.5
+    command:
+      - --api.dashboard=false
+      - --entrypoints.web.address=:80
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --log.level=INFO
+      - --accesslog=true
+    ports:
+      - ${ORCA_PUBLISH_HOST:-127.0.0.1}:${ORCA_PROXY_PORT:-8080}:80
+    volumes:
+      - ${ORCA_PROXY_CONFIG_DIR:?ORCA_PROXY_CONFIG_DIR is required}:/etc/traefik/dynamic:ro
+    restart: unless-stopped

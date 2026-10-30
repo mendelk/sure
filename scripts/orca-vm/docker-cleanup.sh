@@ -28,6 +28,8 @@ worktree_name="$(basename "$worktree_path")"
 worktree_hash="$(node -e 'process.stdout.write(require("node:crypto").createHash("sha256").update(process.argv[1]).digest("hex").slice(0, 10))' "$worktree_path")"
 project_name="sure-${worktree_name}-${worktree_hash}"
 project_name="$(printf '%s' "$project_name" | tr '[:upper:].' '[:lower:]-' | tr -cd 'a-z0-9_-')"
+proxy_route_id="sure-$worktree_hash"
+rm -f "$proxy_config_dir/$proxy_route_id.yml"
 
 if ! select_container_engine; then
   echo "No usable Docker or Podman runtime; nothing to clean for project $project_name" >&2
