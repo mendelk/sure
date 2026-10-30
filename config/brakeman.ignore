@@ -537,6 +537,29 @@
         22
       ],
       "note": "Render path is a static allowlist branch on import configuration type; params[:import_id] only selects the record, not the template. Restored after code drift changed the fingerprint context."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "5d45e2b67c62c8888c6f51cd68b562c1593555edcea1dfb0f81c32e5ffd341bf",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/services/sureql/executor.rb",
+      "line": 43,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "ActiveRecord::Base.connection.exec_query(\"SELECT * FROM (#{Sureql::Compiler.new(user).call(source).rstrip.delete_suffix(\";\").rstrip}) AS sureql_page LIMIT $1 OFFSET $2\", \"SCHEMA\", ([(normalize_pagination(pagination)[:limit] + 1), normalize_pagination(pagination)[:offset]] or []))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Sureql::Executor",
+        "method": "call"
+      },
+      "user_input": "Sureql::Compiler.new(user).call(source).rstrip.delete_suffix(\";\")",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Inner query is Sureql::Compiler output (registry-allowlisted FROM sources with injected account authorization, guarded by validate_select! read-only check). LIMIT/OFFSET are bound parameters ($1/$2), not interpolation. Code shifted when the pagination assignment was restored; new fingerprint for Brakeman 7.1.2."
     }
   ],
   "brakeman_version": "7.1.0"
