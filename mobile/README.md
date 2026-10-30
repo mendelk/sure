@@ -145,22 +145,10 @@ This app integrates with the Sure Finances Rails API:
 
 ## CI/CD
 
-The app includes automated CI/CD via GitHub Actions (`.github/workflows/flutter-build.yml`):
-
-- **Triggers**: On push/PR to `main` branch when Flutter files change
-- **Android Build**: Generates release APK and AAB artifacts
-- **iOS Build**: Generates iOS release build (unsigned)
-- **Quality Checks**: Code analysis and tests run before building
-- **TestFlight**: `mobile-release` (mobile tags) triggers `.github/workflows/ios-testflight.yml` for signed App Store Connect uploads as part of one release flow
+No automated mobile builds run in CI. To verify changes, run `flutter analyze` and `flutter test` from `mobile/` locally, then build with `flutter build apk --release` / `flutter build ios --release --no-codesign`.
 
 See [mobile/docs/iOS_TESTFLIGHT.md](mobile/docs/iOS_TESTFLIGHT.md) for required secrets and setup.
 
-### Downloading Build Artifacts
-
-After a successful CI run, download artifacts from the GitHub Actions workflow:
-- `app-release-apk` - Android APK file
-- `app-release-aab` - Android App Bundle (for Play Store)
-- `ios-build-unsigned` - iOS app bundle (unsigned, see [iOS build guide](docs/iOS_BUILD.md) for signing)
 
 ## Building for Release
 
