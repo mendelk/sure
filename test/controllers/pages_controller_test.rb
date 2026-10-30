@@ -261,6 +261,45 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_equal parent_category.name, parent_node["filter_value"]
   end
 
+  test "dashboard sankey routes payroll deductions from gross pay rather than cash flow" do
+    paycheck = @family.categories.create!(name: "Paycheck", color: "#4da568")
+    gross_pay = @family.categories.create!(name: "Gross Pay", parent: paycheck, color: "#4da568")
+    income_tax = @family.categories.create!(name: "Federal Income Tax", parent: paycheck, color: "#4da568")
+
+    account = @family.accounts.first
+    create_transaction(account: account, name: "Gross pay", amount: -1000, category: gross_pay)
+    create_transaction(account: account, name: "Federal tax", amount: 200, category: income_tax)
+
+    get_home
+    assert_response :ok
+
+    sankey_data = response.parsed_body.fetch("cashflow_sankey")
+    nodes = sankey_data.fetch("nodes")
+    links = sankey_data.fetch("links")
+
+    gross_node_idx = nodes.index { |n| n["id"] == "income_sub_#{gross_pay.id}" }
+    tax_node_idx = nodes.index { |n| n["id"] == "expense_sub_#{income_tax.id}" }
+    paycheck_node_idx = nodes.index { |n| n["id"] == "income_#{paycheck.id}" }
+    cash_flow_idx = nodes.index { |n| n["id"] == "cash_flow_node" }
+
+    assert_not_nil gross_node_idx
+    assert_not_nil tax_node_idx
+    assert_not_nil paycheck_node_idx
+    assert_not_nil cash_flow_idx
+
+    # Deductions come from gross pay, not cash flow
+    assert links.any? { |l| l["source"] == gross_node_idx && l["target"] == tax_node_idx && l["value"] == 200.0 },
+      "expected link from Gross Pay to Income Tax"
+    assert links.none? { |l| l["source"] == cash_flow_idx && l["target"] == tax_node_idx },
+      "did not expect link from Cash Flow to Income Tax"
+
+    # Net pay flows from gross pay to paycheck, then to cash flow
+    assert links.any? { |l| l["source"] == gross_node_idx && l["target"] == paycheck_node_idx && l["value"] == 800.0 },
+      "expected net link from Gross Pay to Paycheck"
+    assert links.any? { |l| l["source"] == paycheck_node_idx && l["target"] == cash_flow_idx && l["value"] == 800.0 },
+      "expected link from Paycheck to Cash Flow"
+  end
+
   test "dashboard scopes money flow widget to selected month and accounts" do
     # Dedicated account (rather than @family.accounts.first) so fixture
     # transactions on other accounts can't skew the computed totals.

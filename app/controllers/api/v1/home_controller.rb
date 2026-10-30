@@ -275,7 +275,56 @@ class Api::V1::HomeController < Api::V1::BaseController
         same_side_subs = all_subs.select { |s| s[:net_direction] == matching_direction }
         opposite_subs = all_subs.select { |s| s[:net_direction] != matching_direction }
 
-        if same_side_subs.any?
+        if flow_direction == :inbound && opposite_subs.any?
+          # Income category with deductions (e.g. Paycheck with Gross Pay and Taxes/Deductions).
+          # Deductions must come from gross pay / income subcategories, not from Cash Flow.
+          total_deductions = opposite_subs.sum { |s| s[:total].to_f.round(2) }
+          gross_sub = same_side_subs.find { |s| s[:category].name.downcase.include?("gross") } || same_side_subs.max_by { |s| s[:total] }
+
+          opposite_nodes = opposite_subs.map do |sub|
+            sub_val = sub[:total].to_f.round(2)
+            sub_pct = total.zero? ? 0 : (sub_val / total * 100).round(1)
+            sub_color = sub[:category].color.presence || color
+            sub_key = "expense_sub_#{sub[:category].id}"
+            sub_idx = add_node.call(sub_key, sub[:category].name, sub_val, sub_pct, sub_color, sub[:category].filter_value)
+            { sub: sub, idx: sub_idx, val: sub_val, color: sub_color, pct: sub_pct }
+          end
+
+          if same_side_subs.any?
+            parent_idx = add_node.call(node_key, ct.category.name, val, percentage, color, ct.category.filter_value)
+            links << { source: parent_idx, target: cash_flow_idx, value: val, color: color, percentage: percentage }
+
+            same_side_subs.each do |sub|
+              sub_val = sub[:total].to_f.round(2)
+              sub_pct = val.zero? ? 0 : (sub_val / val * 100).round(1)
+              sub_color = sub[:category].color.presence || color
+              sub_key = "#{prefix}_sub_#{sub[:category].id}"
+              sub_idx = add_node.call(sub_key, sub[:category].name, sub_val, sub_pct, sub_color, sub[:category].filter_value)
+
+              if sub == gross_sub
+                opposite_nodes.each do |opp|
+                  links << { source: sub_idx, target: opp[:idx], value: opp[:val], color: opp[:color], percentage: opp[:pct] }
+                end
+
+                net_to_parent = [ (sub_val - total_deductions).round(2), 0 ].max
+                if net_to_parent.positive?
+                  links << { source: sub_idx, target: parent_idx, value: net_to_parent, color: sub_color, percentage: sub_pct }
+                end
+              else
+                links << { source: sub_idx, target: parent_idx, value: sub_val, color: sub_color, percentage: sub_pct }
+              end
+            end
+          else
+            gross_val = (val + total_deductions).round(2)
+            gross_pct = total.zero? ? 0 : (gross_val / total * 100).round(1)
+            parent_idx = add_node.call(node_key, ct.category.name, gross_val, gross_pct, color, ct.category.filter_value)
+
+            opposite_nodes.each do |opp|
+              links << { source: parent_idx, target: opp[:idx], value: opp[:val], color: opp[:color], percentage: opp[:pct] }
+            end
+            links << { source: parent_idx, target: cash_flow_idx, value: val, color: color, percentage: percentage }
+          end
+        elsif same_side_subs.any?
           parent_idx = add_node.call(node_key, ct.category.name, val, percentage, color, ct.category.filter_value)
 
           if flow_direction == :inbound
@@ -307,17 +356,16 @@ class Api::V1::HomeController < Api::V1::BaseController
           end
         end
 
-        opposite_prefix = flow_direction == :inbound ? "expense" : "income"
-        opposite_subs.each do |sub|
-          sub_val = sub[:total].to_f.round(2)
-          sub_pct = total.zero? ? 0 : (sub_val / total * 100).round(1)
-          sub_color = sub[:category].color.presence || color
-          sub_key = "#{opposite_prefix}_sub_#{sub[:category].id}"
-          sub_idx = add_node.call(sub_key, sub[:category].name, sub_val, sub_pct, sub_color, sub[:category].filter_value)
+        # Handle outbound opposite-direction subcategories (e.g. Escrow Interest refund under Mortgage)
+        unless flow_direction == :inbound
+          opposite_prefix = "income"
+          opposite_subs.each do |sub|
+            sub_val = sub[:total].to_f.round(2)
+            sub_pct = total.zero? ? 0 : (sub_val / total * 100).round(1)
+            sub_color = sub[:category].color.presence || color
+            sub_key = "#{opposite_prefix}_sub_#{sub[:category].id}"
+            sub_idx = add_node.call(sub_key, sub[:category].name, sub_val, sub_pct, sub_color, sub[:category].filter_value)
 
-          if flow_direction == :inbound
-            links << { source: cash_flow_idx, target: sub_idx, value: sub_val, color: sub_color, percentage: sub_pct }
-          else
             links << { source: sub_idx, target: cash_flow_idx, value: sub_val, color: sub_color, percentage: sub_pct }
           end
         end

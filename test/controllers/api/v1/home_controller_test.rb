@@ -88,6 +88,29 @@ class Api::V1::HomeControllerTest < ActionDispatch::IntegrationTest
     assert sankey["links"].any?
     assert sankey["currency_symbol"].present?
 
+    # Test payroll deduction routing in sankey
+    paycheck = @family.categories.create!(name: "Paycheck", color: "#4da568")
+    gross_pay = @family.categories.create!(name: "Gross Pay", parent: paycheck, color: "#4da568")
+    income_tax = @family.categories.create!(name: "Federal Income Tax", parent: paycheck, color: "#4da568")
+    create_transaction(account: account, name: "Gross pay", amount: -1000, category: gross_pay, date: Date.current.beginning_of_month)
+    create_transaction(account: account, name: "Federal tax", amount: 200, category: income_tax, date: Date.current.beginning_of_month)
+
+    get "/api/v1/home", headers: api_headers(@read_key)
+    assert_response :success
+    sankey = response.parsed_body["cashflow_sankey"]
+    nodes = sankey["nodes"]
+    links = sankey["links"]
+
+    gross_idx = nodes.index { |n| n["id"] == "income_sub_#{gross_pay.id}" }
+    tax_idx = nodes.index { |n| n["id"] == "expense_sub_#{income_tax.id}" }
+    paycheck_idx = nodes.index { |n| n["id"] == "income_#{paycheck.id}" }
+    cash_flow_idx = nodes.index { |n| n["id"] == "cash_flow_node" }
+
+    assert links.any? { |l| l["source"] == gross_idx && l["target"] == tax_idx && l["value"] == 200.0 }
+    assert links.none? { |l| l["source"] == cash_flow_idx && l["target"] == tax_idx }
+    assert links.any? { |l| l["source"] == gross_idx && l["target"] == paycheck_idx && l["value"] == 800.0 }
+    assert links.any? { |l| l["source"] == paycheck_idx && l["target"] == cash_flow_idx && l["value"] == 800.0 }
+
     money_flow = payload["money_flow"]
     assert_equal 6, money_flow["bars"].size
     assert money_flow["month_label"].present?
